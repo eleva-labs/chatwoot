@@ -2,7 +2,7 @@ name: Run Chatwoot CE spec
 on:
   push:
     branches:
-      - develop
+      # - develop
       - master
       - main
   # pull_request:
@@ -61,8 +61,11 @@ jobs:
 
       - name: Setup parallel databases
         run: |
-          # Create multiple test databases for parallel execution
+          # Drop any existing databases first to avoid conflicts
+          bundle exec rake parallel:drop || true
+          # Create all parallel test databases (including main test db)
           bundle exec rake parallel:create
+          # Load schema into all parallel databases
           bundle exec rake parallel:load_schema
         env:
           RAILS_ENV: test
