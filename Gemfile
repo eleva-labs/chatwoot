@@ -229,6 +229,7 @@ group :development, :test do
   gem 'factory_bot_rails', '>= 6.4.3'
   gem 'listen'
   gem 'mock_redis'
+  gem 'parallel_tests'
   gem 'pry-rails'
   gem 'rspec_junit_formatter'
   gem 'rspec-rails', '>= 6.1.5'

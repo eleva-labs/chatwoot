@@ -58,7 +58,7 @@ docker compose run --rm rails bundle exec rails db:reset
 
 ### 4. Run the App
 ```
-docker compose up
+docker compose up -d
 ```
 
 * Access the Web UI by visiting http://0.0.0.0:3000/
