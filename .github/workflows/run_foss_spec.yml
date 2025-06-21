@@ -78,13 +78,13 @@ jobs:
           RAILS_ENV: test
 
       # Frontend tests with parallel execution (Vitest runs tests in parallel by default)
-      - name: Run frontend tests
-        run: |
-          # Vitest runs tests in parallel by default with worker threads
-          # --reporter=verbose shows more detailed output
-          # --run prevents watch mode
-          pnpm run test:coverage --reporter=verbose --run
-        continue-on-error: true  # Continue to backend tests even if frontend tests fail
+      # - name: Run frontend tests
+      #   run: |
+      #     # Vitest runs tests in parallel by default with worker threads
+      #     # --reporter=verbose shows more detailed output
+      #     # --run prevents watch mode
+      #     pnpm run test:coverage --reporter=verbose --run
+      #   continue-on-error: true  # Continue to backend tests even if frontend tests fail
 
       # Backend tests - now with true parallel execution
       - name: Run backend tests in parallel

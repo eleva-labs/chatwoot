@@ -11,17 +11,22 @@ tasks:
     desc: "Build base Docker image"
     cmds:
       - docker compose build base
+    
+  docker-build-all:
+    desc: "Build all Docker images"
+    deps:
+      - docker-build-base
+    cmds:
+      - docker compose build
 
   docker-setup-dev:
     desc: "Setup Docker development images"
     cmds:
-      - docker compose build
       - docker compose run --rm rails bundle exec rails db:chatwoot_prepare
 
   docker-setup-test:
     desc: "Setup Docker unit-test images"
     cmds:
-      - docker compose build
       - docker compose run --rm rails bundle exec rails db:chatwoot_prepare RAILS_ENV=test
     
   docker-test:
