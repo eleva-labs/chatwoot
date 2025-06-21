@@ -59,26 +59,23 @@ jobs:
           rm -rf enterprise
           rm -rf spec/enterprise
 
-      - name: Setup test database (single-threaded)
+      - name: Setup test database
         run: |
-          # First, set up the main test database properly
-          bundle exec rails db:drop RAILS_ENV=test || true
-          bundle exec rails db:create RAILS_ENV=test
-          bundle exec rails db:schema:load RAILS_ENV=test
+          # Setup the test database using the standard approach
+          bundle exec rails db:chatwoot_prepare RAILS_ENV=test
         env:
           RAILS_ENV: test
 
       - name: Setup parallel test databases
         run: |
-          # Now create the parallel databases using the main one as template
-          # This avoids race conditions by doing it sequentially
-          RAILS_ENV=test bundle exec rake parallel:drop || true
-          RAILS_ENV=test bundle exec rake parallel:create
-          RAILS_ENV=test bundle exec rake parallel:load_schema
+          # Create additional parallel databases (chatwoot_test_1, chatwoot_test_2, etc.)
+          # This avoids conflicts with the main chatwoot_test database
+          for i in {1..4}; do
+            RAILS_ENV=test bundle exec rails db:create DATABASE_URL="postgresql://postgres@localhost:5432/chatwoot_test_$i" || true
+            RAILS_ENV=test bundle exec rails db:schema:load DATABASE_URL="postgresql://postgres@localhost:5432/chatwoot_test_$i" || true
+          done
         env:
           RAILS_ENV: test
-          # Set to a reasonable number for GitHub Actions
-          PARALLEL_TEST_PROCESSORS: 4
 
       # Frontend tests with parallel execution (Vitest runs tests in parallel by default)
       - name: Run frontend tests
