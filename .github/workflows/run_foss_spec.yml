@@ -59,13 +59,22 @@ jobs:
           rm -rf enterprise
           rm -rf spec/enterprise
 
-      - name: Setup parallel databases
+      - name: Setup test database (single-threaded)
         run: |
-          # Use parallel:setup which handles database creation and schema loading properly
-          # First ensure clean state by dropping databases (ignore errors if they don't exist)
-          bundle exec rake parallel:drop RAILS_ENV=test || true
-          # Setup all parallel databases in one command to avoid race conditions
-          bundle exec rake parallel:setup RAILS_ENV=test
+          # First, set up the main test database properly
+          bundle exec rails db:drop RAILS_ENV=test || true
+          bundle exec rails db:create RAILS_ENV=test
+          bundle exec rails db:schema:load RAILS_ENV=test
+        env:
+          RAILS_ENV: test
+
+      - name: Setup parallel test databases
+        run: |
+          # Now create the parallel databases using the main one as template
+          # This avoids race conditions by doing it sequentially
+          RAILS_ENV=test bundle exec rake parallel:drop || true
+          RAILS_ENV=test bundle exec rake parallel:create
+          RAILS_ENV=test bundle exec rake parallel:load_schema
         env:
           RAILS_ENV: test
           # Set to a reasonable number for GitHub Actions
