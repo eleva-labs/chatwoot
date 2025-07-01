@@ -509,6 +509,11 @@ Rails.application.routes.draw do
 
   namespace :shopify do
     resource :callback, only: [:show]
+    resource :webhooks, only: [] do
+      post :customers_data_request
+      post :customers_redact
+      post :shop_redact
+    end
   end
 
   namespace :twilio do

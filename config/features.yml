@@ -190,9 +190,14 @@
   tier: starter
 - name: shopify_integration
   display_name: Shopify Integration
+  enabled: true
+  tier: enterprise
+  chatwoot_internal: false
+- name: shopify_compliance_webhooks
+  display_name: Shopify Compliance Webhooks
   enabled: false
   tier: enterprise
-  chatwoot_internal: true
+  chatwoot_internal: false
 - name: search_with_gin
   display_name: Search messages with GIN
   enabled: false
