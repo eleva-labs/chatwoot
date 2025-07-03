@@ -3,7 +3,7 @@ module Shopify
     queue_as :default
     
     # Configure retry behavior for webhook processing
-    retry_on StandardError, wait: :exponentially_longer, attempts: 5
+    retry_on StandardError, wait: :polynomially_longer, attempts: 5
     discard_on ActiveRecord::RecordNotFound
     
     def perform(integration_hook_id, previous_failure_result, retry_count: 1, max_retries: 3)

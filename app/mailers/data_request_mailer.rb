@@ -9,11 +9,12 @@ class DataRequestMailer < ApplicationMailer
     @shop_domain = shop_domain
     @generated_at = Time.current
 
-    Rails.logger.info "Sending data request email", {
+    context = {
       recipient: email&.gsub(/@.+/, '@***'),
       data_request_id: data_request_id,
       shop_domain: shop_domain
     }
+    Rails.logger.info "Sending data request email: #{context.to_json}"
 
     mail(
       to: email,

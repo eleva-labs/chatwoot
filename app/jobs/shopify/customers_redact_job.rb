@@ -6,14 +6,14 @@ module Shopify
 
     queue_as :default
 
-    retry_on StandardError, wait: :exponentially_longer, attempts: 3
+    retry_on StandardError, wait: :polynomially_longer, attempts: 3
     discard_on ActiveJob::DeserializationError
 
     # Add timeout to prevent long-running jobs
     around_perform do |job, block|
       Timeout.timeout(300) { block.call } # 5 minute timeout
     rescue Timeout::Error => e
-      Rails.logger.error "Job timeout exceeded", job_context.merge(error: e.message)
+      Rails.logger.error "Job timeout exceeded: #{job_context.merge(error: e.message).to_json}"
       raise
     end
 
@@ -22,7 +22,7 @@ module Shopify
       @shop_domain = @payload['shop_domain']
       @job_started_at = Time.current
 
-      Rails.logger.info 'Processing customers_redact job', job_context
+      Rails.logger.info "Processing customers_redact job: #{job_context.to_json}"
 
       account = resolve_account(@shop_domain)
       return log_account_not_found unless account
@@ -31,10 +31,10 @@ module Shopify
         process_customer_redaction(account)
       end
 
-      Rails.logger.info 'Successfully processed customers_redact', job_context
+      Rails.logger.info "Successfully processed customers_redact: #{job_context.to_json}"
     rescue StandardError => e
-      Rails.logger.error 'Failed to process customers_redact',
-                         job_context.merge(error: e.message, backtrace: e.backtrace.first(5))
+      context = job_context.merge(error: e.message, backtrace: e.backtrace.first(5))
+      Rails.logger.error "Failed to process customers_redact: #{context.to_json}"
       raise
     end
 
@@ -62,20 +62,22 @@ module Shopify
       yield
       
       duration = ((Time.current - start_time) * 1000).round(2)
-      Rails.logger.info "Job performance metrics", {
+      metrics = {
         job_class: self.class.name,
         shop_domain: @shop_domain,
         processing_duration_ms: duration,
         total_job_duration_ms: job_duration_ms
       }
+      Rails.logger.info "Job performance metrics: #{metrics.to_json}"
     rescue StandardError => e
       duration = ((Time.current - start_time) * 1000).round(2)
-      Rails.logger.error "Job performance tracking failed", {
+      error_context = {
         job_class: self.class.name,
         shop_domain: @shop_domain,
         processing_duration_ms: duration,
         error: e.message
       }
+      Rails.logger.error "Job performance tracking failed: #{error_context.to_json}"
       raise
     end
 
@@ -83,12 +85,13 @@ module Shopify
       customer_data = @payload['customer']
       orders_to_redact = @payload['orders_to_redact'] || []
       
-      Rails.logger.info "Starting customer redaction processing", {
+      context = {
         account_id: account.id,
         customer_id: customer_data['id'],
         orders_to_redact_count: orders_to_redact.count,
         shop_domain: @shop_domain
       }
+      Rails.logger.info "Starting customer redaction processing: #{context.to_json}"
       
       # Find the contact using the same logic as data requests
       contact = find_contact_by_shopify_id(account, customer_data['id'])
@@ -96,15 +99,18 @@ module Shopify
       
       if contact
         if contact.redacted_at.present?
-          Rails.logger.info "Contact already redacted, skipping", {
+          context = {
             contact_id: contact.id,
             redacted_at: contact.redacted_at,
             shop_domain: @shop_domain
           }
+          Rails.logger.info "Contact already redacted, skipping: #{context.to_json}"
           return
         end
         
-        Rails.logger.info "Contact found for redaction", contact_context(contact)
+
+        
+        Rails.logger.info "Contact found for redaction: #{contact_context(contact).to_json}"
         
         # Apply safeguards before redaction
         if apply_deletion_safeguards(contact, account)
@@ -112,12 +118,13 @@ module Shopify
           verify_redaction_integrity(contact, account)
         end
       else
-        Rails.logger.warn "Contact not found for redaction", {
+        context = {
           account_id: account.id,
           shopify_customer_id: customer_data['id'],
           customer_email: customer_data['email']&.gsub(/@.+/, '@***'),
           shop_domain: @shop_domain
         }
+        Rails.logger.warn "Contact not found for redaction: #{context.to_json}"
         # Log the redaction attempt even if contact not found for compliance
         log_redaction_attempt_not_found(account, customer_data)
       end
@@ -154,11 +161,12 @@ module Shopify
 
     # Redaction logic
     def redact_contact_data(contact, customer_data)
-      Rails.logger.info "Beginning contact redaction", {
+      context = {
         contact_id: contact.id,
         original_email: contact.email&.gsub(/@.+/, '@***'),
         shop_domain: @shop_domain
       }
+      Rails.logger.info "Beginning contact redaction: #{context.to_json}"
       
       # Perform redaction within a database transaction
       Contact.transaction do
@@ -176,23 +184,24 @@ module Shopify
           email: anonymized_data[:email],
           phone_number: anonymized_data[:phone],
           custom_attributes: anonymized_data[:custom_attributes],
-          additional_emails: [],
           redacted_at: Time.current
         )
         
-        Rails.logger.info "Contact redaction completed", {
+        context = {
           contact_id: contact.id,
           new_email: contact.email,
           redacted_at: contact.redacted_at,
           audit_log_created: audit_log.present?
         }
+        Rails.logger.info "Contact redaction completed: #{context.to_json}"
       end
     rescue => e
-      Rails.logger.error "Failed to redact contact", {
+      context = {
         contact_id: contact.id,
         error: e.message,
         backtrace: e.backtrace.first(5)
       }
+      Rails.logger.error "Failed to redact contact: #{context.to_json}"
       raise
     end
 
@@ -275,11 +284,12 @@ module Shopify
       # Conversations remain intact but are now associated with anonymized contact
       conversations = contact.conversations.includes(:messages)
       
-      Rails.logger.info "Preserving conversation history for redacted contact", {
+      context = {
         contact_id: contact.id,
         conversations_count: conversations.count,
         total_messages: conversations.sum { |c| c.messages.count }
       }
+      Rails.logger.info "Preserving conversation history for redacted contact: #{context.to_json}"
       
       # Update conversation metadata to indicate contact redaction
       conversations.each do |conversation|
@@ -330,10 +340,11 @@ module Shopify
         has_compliance_flags: check_compliance_flags(contact)
       }
       
-      Rails.logger.info "Applying deletion safeguards", {
+      context = {
         contact_id: contact.id,
         safeguard_checks: safeguard_checks
       }
+      Rails.logger.info "Applying deletion safeguards: #{context.to_json}"
       
       # If any critical business data exists, apply special handling
       if safeguard_checks.values.any?
@@ -349,7 +360,7 @@ module Shopify
       cutoff_date = 7.years.ago # Adjust based on business requirements
       
       recent_activity = contact.conversations
-                              .where('created_at > ?', cutoff_date)
+                              .where('conversations.created_at > ?', cutoff_date)
                               .joins(:messages)
                               .where('messages.content ILIKE ?', '%order%')
                               .or(contact.conversations.joins(:messages).where('messages.content ILIKE ?', '%payment%'))
@@ -358,10 +369,11 @@ module Shopify
                               .exists?
       
       if recent_activity
-        Rails.logger.info "Recent transaction activity detected", {
+        context = {
           contact_id: contact.id,
           cutoff_date: cutoff_date
         }
+        Rails.logger.info "Recent transaction activity detected: #{context.to_json}"
       end
       
       recent_activity
@@ -372,10 +384,11 @@ module Shopify
       legal_hold = contact.custom_attributes&.dig('legal_hold_active') == 'true'
       
       if legal_hold
-        Rails.logger.warn "Contact under legal hold, special handling required", {
+        context = {
           contact_id: contact.id,
           legal_hold_reason: contact.custom_attributes&.dig('legal_hold_reason')
         }
+        Rails.logger.warn "Contact under legal hold, special handling required: #{context.to_json}"
       end
       
       legal_hold
@@ -397,9 +410,10 @@ module Shopify
                            .exists?
       
       if has_disputes
-        Rails.logger.warn "Active disputes detected for contact", {
+        context = {
           contact_id: contact.id
         }
+        Rails.logger.warn "Active disputes detected for contact: #{context.to_json}"
       end
       
       has_disputes
@@ -419,22 +433,24 @@ module Shopify
       end
       
       if has_flags
-        Rails.logger.warn "Compliance flags detected for contact", {
+        context = {
           contact_id: contact.id,
           active_flags: compliance_flags.select { |flag|
             contact.custom_attributes&.dig(flag) == 'true'
           }
         }
+        Rails.logger.warn "Compliance flags detected for contact: #{context.to_json}"
       end
       
       has_flags
     end
 
     def handle_protected_contact_redaction(contact, safeguard_checks)
-      Rails.logger.warn "Protected contact requires special redaction handling", {
+      context = {
         contact_id: contact.id,
         protection_reasons: safeguard_checks.select { |k, v| v }.keys
       }
+      Rails.logger.warn "Protected contact requires special redaction handling: #{context.to_json}"
       
       # Apply partial redaction or defer redaction
       if safeguard_checks[:has_legal_hold]
@@ -462,10 +478,11 @@ module Shopify
         })
       )
       
-      Rails.logger.info "Contact marked for deferred redaction", {
+      context = {
         contact_id: contact.id,
         reason: reason
       }
+      Rails.logger.info "Contact marked for deferred redaction: #{context.to_json}"
     end
 
     def apply_limited_redaction(contact)
@@ -500,25 +517,28 @@ module Shopify
         redacted_at: Time.current
       )
       
-      Rails.logger.info "Limited redaction applied to protected contact", {
+      context = {
         contact_id: contact.id,
         preserved_attributes: preserved_keys
       }
+      Rails.logger.info "Limited redaction applied to protected contact: #{context.to_json}"
     end
 
     def add_protected_redaction_audit_log(contact, safeguard_checks)
-      Rails.logger.info "Creating audit log for protected contact redaction", {
+      context = {
         contact_id: contact.id,
         protection_reasons: safeguard_checks.select { |k, v| v }.keys
       }
+      Rails.logger.info "Creating audit log for protected contact redaction: #{context.to_json}"
     end
 
     # Verification and auditing
     def verify_redaction_integrity(contact, account)
-      Rails.logger.info "Verifying redaction integrity", {
+      context = {
         contact_id: contact.id,
         account_id: account.id
       }
+      Rails.logger.info "Verifying redaction integrity: #{context.to_json}"
       
       integrity_checks = {
         contact_anonymized: verify_contact_anonymization(contact),
@@ -529,17 +549,19 @@ module Shopify
       
       all_checks_passed = integrity_checks.values.all?
       
-      Rails.logger.info "Redaction integrity verification completed", {
+      context = {
         contact_id: contact.id,
         checks_passed: all_checks_passed,
         individual_checks: integrity_checks
       }
+      Rails.logger.info "Redaction integrity verification completed: #{context.to_json}"
       
       unless all_checks_passed
-        Rails.logger.error "Redaction integrity check failed", {
+        context = {
           contact_id: contact.id,
           failed_checks: integrity_checks.reject { |k, v| v }.keys
         }
+        Rails.logger.error "Redaction integrity check failed: #{context.to_json}"
         raise "Redaction integrity verification failed for contact #{contact.id}"
       end
       
@@ -551,7 +573,7 @@ module Shopify
       checks = {
         name_redacted: contact.name == "Redacted Customer",
         email_anonymized: contact.email.match?(/^redacted-customer-\d+@redacted\.local$/),
-        phone_redacted: contact.phone_number.match?(/^\+1555\d{7}$/), # Check for unique phone format
+        phone_redacted: contact.phone_number.match?(/^\+\d{1,3}555\d{7}$/) || contact.phone_number.match?(/^REDACTED-\d{8}$/), # Check for anonymized phone format
         redacted_timestamp_set: contact.redacted_at.present?,
         custom_attributes_sanitized: verify_custom_attributes_redacted(contact)
       }
@@ -577,10 +599,11 @@ module Shopify
         contact.account.present? # Should still be associated
         true
       rescue => e
-        Rails.logger.error "Foreign key integrity check failed", {
+        context = {
           contact_id: contact.id,
           error: e.message
         }
+        Rails.logger.error "Foreign key integrity check failed: #{context.to_json}"
         false
       end
     end
@@ -598,7 +621,7 @@ module Shopify
       # Verify audit log exists for this redaction
       audit_exists = contact.custom_attributes&.dig('redaction_performed_at').present?
       
-      Rails.logger.debug "Audit trail verification", {
+      context = {
         contact_id: contact.id,
         audit_exists: audit_exists,
         redaction_metadata: contact.custom_attributes&.slice(
@@ -606,6 +629,7 @@ module Shopify
           'redaction_reason'
         )
       }
+      Rails.logger.debug "Audit trail verification: #{context.to_json}"
       
       audit_exists
     end
@@ -645,10 +669,11 @@ module Shopify
         }
       }
       
-      Rails.logger.info "Redaction audit log created", {
+      context = {
         contact_id: contact.id,
         audit_summary: audit_data.except(:redacted_fields) # Don't log PII
       }
+      Rails.logger.info "Redaction audit log created: #{context.to_json}"
       
       # Store audit log in custom attributes for compliance
       store_audit_log(audit_data)
@@ -704,22 +729,24 @@ module Shopify
 
     def store_audit_log(audit_data)
       # Store essential audit info in Rails logs for compliance
-      Rails.logger.info "Storing redaction audit log", {
+      context = {
         contact_id: audit_data[:contact_id],
         account_id: audit_data[:account_id],
         redaction_type: audit_data[:redaction_type],
         timestamp: audit_data[:redaction_timestamp]
       }
+      Rails.logger.info "Storing redaction audit log: #{context.to_json}"
     end
 
     def log_redaction_attempt_not_found(account, customer_data)
-      Rails.logger.info "Redaction attempted for non-existent contact", {
+      context = {
         account_id: account.id,
         shopify_customer_id: customer_data['id'],
         customer_email: customer_data['email']&.gsub(/@.+/, '@***'),
         compliance_status: 'attempted_redaction_no_data_found',
         timestamp: Time.current.iso8601
       }
+      Rails.logger.info "Redaction attempted for non-existent contact: #{context.to_json}"
     end
   end
 end

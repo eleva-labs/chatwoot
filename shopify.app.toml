@@ -1,0 +1,44 @@
+# Shopify App Configuration
+# This file configures your Shopify app for development and deployment
+
+# Application metadata
+name = "Chatwoot Shopify Integration"
+client_id = "4b2cff26c906d94e2efc9f22a917d0be"
+
+# Application URLs
+application_url = "https://814d-177-93-0-15.ngrok-free.app"
+embedded = true
+
+# Authentication configuration
+[auth]
+redirect_urls = [
+  "https://814d-177-93-0-15.ngrok-free.app/shopify/callback"
+]
+
+# Required scopes for your app
+scopes = "read_customers,read_orders,read_fulfillments"
+
+# Webhook configuration for compliance
+[webhooks]
+api_version = "2024-07"
+
+# Mandatory compliance webhooks for Shopify App Store
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://814d-177-93-0-15.ngrok-free.app/shopify/webhooks"
+
+# Individual webhook endpoints (alternative configuration)
+[[webhooks.subscriptions]]
+topics = ["customers/data_request"]
+uri = "https://814d-177-93-0-15.ngrok-free.app/shopify/webhooks/customers_data_request"
+
+[[webhooks.subscriptions]]
+topics = ["customers/redact"]
+uri = "https://814d-177-93-0-15.ngrok-free.app/shopify/webhooks/customers_redact"
+
+[[webhooks.subscriptions]]
+topics = ["shop/redact"]
+uri = "https://814d-177-93-0-15.ngrok-free.app/shopify/webhooks/shop_redact" 
+
+[build]
+include_config_on_deploy = true

@@ -6,14 +6,14 @@ module Shopify
 
     queue_as :default
 
-    retry_on StandardError, wait: :exponentially_longer, attempts: 3
+    retry_on StandardError, wait: :polynomially_longer, attempts: 3
     discard_on ActiveJob::DeserializationError
 
     # Add timeout to prevent long-running jobs
     around_perform do |job, block|
       Timeout.timeout(600) { block.call } # 10 minute timeout for bulk operations
     rescue Timeout::Error => e
-      Rails.logger.error "Job timeout exceeded", job_context.merge(error: e.message)
+      Rails.logger.error "Job timeout exceeded: #{job_context.merge(error: e.message).to_json}"
       raise
     end
 
@@ -22,18 +22,19 @@ module Shopify
       @shop_domain = @payload['shop_domain']
       @job_started_at = Time.current
 
-      Rails.logger.info 'Starting shop redaction job', job_context
+      Rails.logger.info "Starting shop redaction job: #{job_context.to_json}"
 
       begin
-        account = resolve_account
-        return log_account_resolution_failure unless account
+        account = resolve_account(@shop_domain)
+        return log_account_not_found unless account
 
         process_shop_redaction(account)
         track_job_performance
 
-        Rails.logger.info 'Shop redaction job completed successfully', job_context
+        Rails.logger.info "Shop redaction job completed successfully: #{job_context.to_json}"
       rescue => e
-        Rails.logger.error 'Shop redaction job failed', job_context.merge(error: e.message)
+        context = job_context.merge(error: e.message)
+        Rails.logger.error "Shop redaction job failed: #{context.to_json}"
         raise
       end
     end
@@ -61,55 +62,61 @@ module Shopify
       duration = ((Time.current - start_time) * 1000).round(2)
 
       # Log performance metrics for monitoring
-      Rails.logger.info 'Shop redaction performance metrics', {
+      metrics = {
         shop_domain: @shop_domain,
         job_duration_ms: job_duration_ms,
         operation_duration_ms: duration
       }
+      Rails.logger.info "Shop redaction performance metrics: #{metrics.to_json}"
 
       # Alert if job takes too long
       if duration > 300_000 # 5 minutes
-        Rails.logger.warn 'Shop redaction job taking longer than expected', {
+        context = {
           shop_domain: @shop_domain,
           duration_ms: duration,
           threshold_ms: 300_000
         }
+        Rails.logger.warn "Shop redaction job taking longer than expected: #{context.to_json}"
       end
     rescue => e
-      Rails.logger.error 'Failed to track job performance', {
+      context = {
         shop_domain: @shop_domain,
         error: e.message
       }
+      Rails.logger.error "Failed to track job performance: #{context.to_json}"
     end
 
     def process_shop_redaction(account)
       shop_id = @payload['shop_id']
       shop_domain = @payload['shop_domain']
       
-      Rails.logger.info "Starting shop redaction processing", {
+      context = {
         account_id: account.id,
         shop_id: shop_id,
         shop_domain: shop_domain
       }
+      Rails.logger.info "Starting shop redaction processing: #{context.to_json}"
       
       # Verify the shop redaction is legitimate
       unless validate_shop_redaction_request(account, shop_id, shop_domain)
-        Rails.logger.error "Invalid shop redaction request", {
+        context = {
           account_id: account.id,
           shop_id: shop_id,
           shop_domain: shop_domain
         }
+        Rails.logger.error "Invalid shop redaction request: #{context.to_json}"
         return
       end
       
       # Get all contacts for this account
       contacts_to_redact = find_contacts_for_redaction(account)
       
-      Rails.logger.info "Found contacts for shop redaction", {
+      context = {
         account_id: account.id,
         contacts_count: contacts_to_redact.count,
         shop_domain: shop_domain
       }
+      Rails.logger.info "Found contacts for shop redaction: #{context.to_json}"
       
       # Process redaction in batches
       redaction_summary = redact_contacts_in_batches(contacts_to_redact, account)
@@ -120,12 +127,13 @@ module Shopify
       # Generate compliance report
       compliance_report = generate_compliance_report(account, redaction_summary)
       
-      Rails.logger.info "Shop redaction completed", {
+      context = {
         account_id: account.id,
         shop_domain: shop_domain,
         total_contacts_redacted: redaction_summary[:successful_redactions],
         compliance_report_generated: compliance_report.present?
       }
+      Rails.logger.info "Shop redaction completed: #{context.to_json}"
     end
 
     def validate_shop_redaction_request(account, shop_id, shop_domain)
@@ -136,20 +144,22 @@ module Shopify
       )
       
       unless integration_hook
-        Rails.logger.error "No integration hook found for shop redaction", {
+        context = {
           account_id: account.id,
           shop_domain: shop_domain
         }
+        Rails.logger.error "No integration hook found for shop redaction: #{context.to_json}"
         return false
       end
       
       # Additional validation: check if shop is already redacted
       if integration_hook.settings&.dig('redacted_at').present?
-        Rails.logger.info "Shop already redacted", {
+        context = {
           account_id: account.id,
           shop_domain: shop_domain,
           redacted_at: integration_hook.settings['redacted_at']
         }
+        Rails.logger.info "Shop already redacted: #{context.to_json}"
         return false
       end
       
@@ -168,12 +178,13 @@ module Shopify
       )
       
       # Log the discovery for audit purposes
-      Rails.logger.info "Contact discovery for shop redaction", {
+      context = {
         account_id: account.id,
         total_contacts: account.contacts.count,
         contacts_to_redact: contacts.count,
         already_redacted: account.contacts.where.not(redacted_at: nil).count
       }
+      Rails.logger.info "Contact discovery for shop redaction: #{context.to_json}"
       
       contacts
     end
@@ -194,20 +205,22 @@ module Shopify
       processed_count = 0
       failed_count = 0
       
-      Rails.logger.info "Starting batch redaction process", {
+      context = {
         account_id: account.id,
         total_contacts: contacts.count,
         batch_size: batch_size,
         total_batches: total_batches
       }
+      Rails.logger.info "Starting batch redaction process: #{context.to_json}"
       
       contacts.in_batches(of: batch_size).with_index do |batch, batch_index|
-        Rails.logger.info "Processing redaction batch", {
+        context = {
           account_id: account.id,
           batch_number: batch_index + 1,
           total_batches: total_batches,
           batch_size: batch.count
         }
+        Rails.logger.info "Processing redaction batch: #{context.to_json}"
         
         batch_results = process_redaction_batch(batch, account)
         processed_count += batch_results[:success_count]
@@ -217,20 +230,22 @@ module Shopify
         sleep(0.5) if batch_index < total_batches - 1
       end
       
-      Rails.logger.info "Batch redaction process completed", {
+      context = {
         account_id: account.id,
         total_processed: processed_count,
         total_failed: failed_count,
         success_rate: contacts.count > 0 ? (processed_count.to_f / contacts.count * 100).round(2) : 100
       }
+      Rails.logger.info "Batch redaction process completed: #{context.to_json}"
       
       # Alert if failure rate is high
       if failed_count > (contacts.count * 0.1) # More than 10% failure rate
-        Rails.logger.error "High failure rate in shop redaction", {
+        context = {
           account_id: account.id,
           failure_rate: contacts.count > 0 ? (failed_count.to_f / contacts.count * 100).round(2) : 0,
           requires_investigation: true
         }
+        Rails.logger.error "High failure rate in shop redaction: #{context.to_json}"
       end
       
       {
@@ -251,12 +266,13 @@ module Shopify
           success_count += 1
         rescue => e
           failure_count += 1
-          Rails.logger.error "Failed to redact contact in batch", {
+          context = {
             contact_id: contact.id,
             account_id: account.id,
             error: e.message,
             backtrace: e.backtrace.first(3)
           }
+          Rails.logger.error "Failed to redact contact in batch: #{context.to_json}"
         end
       end
       
@@ -417,10 +433,11 @@ module Shopify
       )
       
       unless integration_hook
-        Rails.logger.error "Integration hook not found for disabling", {
+        context = {
           account_id: account.id,
           shop_domain: shop_domain
         }
+        Rails.logger.error "Integration hook not found for disabling: #{context.to_json}"
         return
       end
       
@@ -436,12 +453,13 @@ module Shopify
         settings: updated_settings
       )
       
-      Rails.logger.info "Integration hook disabled due to shop redaction", {
+      context = {
         account_id: account.id,
         hook_id: integration_hook.id,
         shop_domain: shop_domain,
         redacted_at: Time.current.iso8601
       }
+      Rails.logger.info "Integration hook disabled due to shop redaction: #{context.to_json}"
     end
 
     # Audit and compliance
@@ -479,10 +497,11 @@ module Shopify
         }
       }
       
-      Rails.logger.debug "Redaction audit log created", {
+      context = {
         contact_id: contact.id,
         redaction_type: audit_data[:redaction_type]
       }
+      Rails.logger.debug "Redaction audit log created: #{context.to_json}"
       
       # Store essential audit info in Rails logs for compliance
       store_audit_log(audit_data)
@@ -538,12 +557,13 @@ module Shopify
 
     def store_audit_log(audit_data)
       # Store essential audit info in Rails logs for compliance
-      Rails.logger.info "Storing shop redaction audit log", {
+      context = {
         contact_id: audit_data[:contact_id],
         account_id: audit_data[:account_id],
         redaction_type: audit_data[:redaction_type],
         timestamp: audit_data[:redaction_timestamp]
       }
+      Rails.logger.info "Storing shop redaction audit log: #{context.to_json}"
     end
 
     def generate_compliance_report(account, redaction_summary)
@@ -573,11 +593,12 @@ module Shopify
         }
       }
       
-      Rails.logger.info "Compliance report generated", {
+      context = {
         account_id: account.id,
         shop_domain: @shop_domain,
         report_summary: report.except(:compliance_attestation)
       }
+      Rails.logger.info "Compliance report generated: #{context.to_json}"
       
       report
     end
@@ -609,7 +630,7 @@ module Shopify
         failed_subscriptions: failed_subscriptions,
         redacted_shops: redacted_shops,
         success_rate: total_hooks > 0 ? (successful_subscriptions.to_f / total_hooks * 100).round(2) : 0
-      }
+      }.to_json
     end
   end
 end

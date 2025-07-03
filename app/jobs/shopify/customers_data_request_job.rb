@@ -7,14 +7,14 @@ module Shopify
     queue_as :default
 
     # Configure retry behavior for webhook processing
-    retry_on StandardError, wait: :exponentially_longer, attempts: 3
+    retry_on StandardError, wait: :polynomially_longer, attempts: 3
     discard_on ActiveJob::DeserializationError
 
     # Add timeout to prevent long-running jobs
     around_perform do |job, block|
       Timeout.timeout(300) { block.call } # 5 minute timeout
     rescue Timeout::Error => e
-      Rails.logger.error "Job timeout exceeded", job_context.merge(error: e.message)
+      Rails.logger.error "Job timeout exceeded: #{job_context.merge(error: e.message).to_json}"
       raise
     end
 
@@ -23,7 +23,7 @@ module Shopify
       @shop_domain = @payload['shop_domain']
       @job_started_at = Time.current
 
-      Rails.logger.info 'Processing customers_data_request job', job_context
+      Rails.logger.info "Processing customers_data_request job: #{job_context.to_json}"
 
       # Resolve account and process the data request
       account = resolve_account(@shop_domain)
@@ -33,10 +33,10 @@ module Shopify
         process_customer_data_request(account)
       end
 
-      Rails.logger.info 'Successfully processed customers_data_request', job_context
+      Rails.logger.info "Successfully processed customers_data_request: #{job_context.to_json}"
     rescue StandardError => e
-      Rails.logger.error 'Failed to process customers_data_request',
-                         job_context.merge(error: e.message, backtrace: e.backtrace.first(5))
+      context = job_context.merge(error: e.message, backtrace: e.backtrace.first(5))
+      Rails.logger.error "Failed to process customers_data_request: #{context.to_json}"
       raise # Re-raise to trigger retry mechanism
     end
 
@@ -64,20 +64,22 @@ module Shopify
       yield
       
       duration = ((Time.current - start_time) * 1000).round(2)
-      Rails.logger.info "Job performance metrics", {
+      metrics = {
         job_class: self.class.name,
         shop_domain: @shop_domain,
         processing_duration_ms: duration,
         total_job_duration_ms: job_duration_ms
       }
+      Rails.logger.info "Job performance metrics: #{metrics.to_json}"
     rescue StandardError => e
       duration = ((Time.current - start_time) * 1000).round(2)
-      Rails.logger.error "Job performance tracking failed", {
+      error_context = {
         job_class: self.class.name,
         shop_domain: @shop_domain,
         processing_duration_ms: duration,
         error: e.message
       }
+      Rails.logger.error "Job performance tracking failed: #{error_context.to_json}"
       raise
     end
 
@@ -85,12 +87,13 @@ module Shopify
       customer_data = @payload['customer']
       data_request_id = @payload.dig('data_request', 'id')
       
-      Rails.logger.info "Starting customer data request processing", {
+      context = {
         account_id: account.id,
         customer_id: customer_data['id'],
         data_request_id: data_request_id,
         shop_domain: @shop_domain
       }
+      Rails.logger.info "Starting customer data request processing: #{context.to_json}"
       
       # Primary lookup by Shopify customer ID
       contact = find_contact_by_shopify_id(account, customer_data['id'])
@@ -99,15 +102,16 @@ module Shopify
       contact ||= find_contact_by_email(account, customer_data['email']) if customer_data['email'].present?
       
       if contact
-        Rails.logger.info "Contact found for data request", contact_context(contact)
+        Rails.logger.info "Contact found for data request: #{contact_context(contact).to_json}"
         generate_and_deliver_data_summary(account, contact, data_request_id)
       else
-        Rails.logger.warn "Contact not found for data request", {
+        context = {
           account_id: account.id,
           shopify_customer_id: customer_data['id'],
           customer_email: customer_data['email']&.gsub(/@.+/, '@***'), # Partially redact email in logs
           shop_domain: @shop_domain
         }
+        Rails.logger.warn "Contact not found for data request: #{context.to_json}"
         handle_contact_not_found(account, customer_data, data_request_id)
       end
     end
@@ -180,11 +184,12 @@ module Shopify
         engagement_metrics: calculate_engagement_metrics(contact)
       }
       
-      Rails.logger.debug "Collected profile data", {
+      context = {
         contact_id: contact.id,
         custom_attributes_count: contact.custom_attributes&.keys&.count || 0,
         has_additional_emails: contact.additional_emails.present?
       }
+      Rails.logger.debug "Collected profile data: #{context.to_json}"
       
       profile_data
     end
@@ -208,11 +213,12 @@ module Shopify
         }
       end
       
-      Rails.logger.info "Collected conversation data", {
+      context = {
         contact_id: contact.id,
         conversations_count: conversations.count,
         total_messages: conversation_data.sum { |c| c[:message_count] }
       }
+      Rails.logger.info "Collected conversation data: #{context.to_json}"
       
       conversation_data
     end
@@ -396,11 +402,12 @@ module Shopify
       # Send "no data found" email to store owner
       deliver_data_summary_via_email(account, nil, [], {}, metadata)
       
-      Rails.logger.info "Completed data request with no data found", {
+      context = {
         account_id: account.id,
         shopify_customer_id: customer_data['id'],
         data_request_id: data_request_id
       }
+      Rails.logger.info "Completed data request with no data found: #{context.to_json}"
     end
 
     def deliver_data_summary_via_email(account, contact_data, conversation_data, interaction_history, metadata)
@@ -408,13 +415,14 @@ module Shopify
       customer_email = @payload.dig('customer', 'email')
       data_request_id = metadata[:data_request_id]
       
-      Rails.logger.info "Preparing email delivery for data request", {
+      context = {
         store_owner_email: store_owner_email&.gsub(/@.+/, '@***'),
         customer_email: customer_email&.gsub(/@.+/, '@***'),
         data_request_id: data_request_id,
         account_id: account.id,
         found_data: metadata[:found_data]
       }
+      Rails.logger.info "Preparing email delivery for data request: #{context.to_json}"
       
       # Generate email content for store owner (includes customer details)
       email_content = generate_email_data_summary(contact_data, conversation_data, interaction_history, data_request_id, customer_email)
@@ -425,23 +433,25 @@ module Shopify
       # Create audit record in Chatwoot for compliance
       create_audit_conversation(account, metadata, customer_email)
       
-      Rails.logger.info "Data request email delivered successfully", {
+      context = {
         store_owner_email: store_owner_email&.gsub(/@.+/, '@***'),
         customer_email: customer_email&.gsub(/@.+/, '@***'),
         data_request_id: data_request_id,
         email_sent_at: Time.current.iso8601
       }
+      Rails.logger.info "Data request email delivered successfully: #{context.to_json}"
     rescue StandardError => e
-      Rails.logger.error "Failed to deliver data request email", {
+      context = {
         store_owner_email: store_owner_email&.gsub(/@.+/, '@***'),
         customer_email: customer_email&.gsub(/@.+/, '@***'),
         data_request_id: data_request_id,
         error: e.message,
         backtrace: e.backtrace.first(5)
       }
+      Rails.logger.error "Failed to deliver data request email: #{context.to_json}"
       
       # Log critical failure for manual attention - no automated fallback
-      Rails.logger.error "DATA REQUEST EMAIL DELIVERY FAILED - REQUIRES MANUAL FOLLOW-UP", {
+      context = {
         priority: 'CRITICAL', 
         data_request_id: metadata[:data_request_id],
         customer_email: @payload.dig('customer', 'email')&.gsub(/@.+/, '@***'),
@@ -449,6 +459,7 @@ module Shopify
         action_required: 'manual_email_delivery',
         compliance_note: 'Email delivery failed - manual intervention required'
       }
+      Rails.logger.error "DATA REQUEST EMAIL DELIVERY FAILED - REQUIRES MANUAL FOLLOW-UP: #{context.to_json}"
       raise
     end
 
@@ -459,11 +470,12 @@ module Shopify
       if admin_user&.email.present?
         admin_user.email
       else
-        Rails.logger.error "No administrator found for account #{account.id}", {
+        context = {
           account_id: account.id,
           account_name: account.name,
           administrators_count: account.administrators.count
         }
+        Rails.logger.error "No administrator found for account #{account.id}: #{context.to_json}"
         # Fallback: Could potentially use account creation user or other logic
         raise "No administrator email found for account #{account.id}"
       end
@@ -479,17 +491,19 @@ module Shopify
         shop_domain: @shop_domain
       ).deliver_now
       
-      Rails.logger.info "Data request email sent", {
+      context = {
         recipient: recipient_email&.gsub(/@.+/, '@***'),
         data_request_id: metadata[:data_request_id],
         delivery_method: 'email_to_store_owner'
       }
+      Rails.logger.info "Data request email sent: #{context.to_json}"
     rescue StandardError => e
-      Rails.logger.error "Email delivery failed", {
+      context = {
         recipient: recipient_email&.gsub(/@.+/, '@***'),
         error: e.message,
         smtp_error: e.respond_to?(:smtp_error) ? e.smtp_error : nil
       }
+      Rails.logger.error "Email delivery failed: #{context.to_json}"
       raise
     end
 
@@ -688,10 +702,11 @@ module Shopify
         }
       )
 
-      Rails.logger.info "Created audit conversation for data request", {
+      context = {
         conversation_id: conversation.id,
         data_request_id: metadata[:data_request_id]
       }
+      Rails.logger.info "Created audit conversation for data request: #{context.to_json}"
 
       conversation
     end
@@ -710,10 +725,11 @@ module Shopify
         inbox.channel = channel
       end
     rescue StandardError => e
-      Rails.logger.warn "Could not create compliance inbox, using fallback", {
+      context = {
         error: e.message,
         account_id: account.id
       }
+      Rails.logger.warn "Could not create compliance inbox, using fallback: #{context.to_json}"
       account.inboxes.first # Fallback to any available inbox
     end
 

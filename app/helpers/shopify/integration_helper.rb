@@ -46,9 +46,8 @@ module Shopify::IntegrationHelper
     end
 
     # Get raw request body for HMAC calculation
-    request.body.rewind if request.body.respond_to?(:rewind)
-    body = request.body.read
-    request.body.rewind if request.body.respond_to?(:rewind)
+    # Use raw_post to avoid consuming the request body stream
+    body = request.raw_post
 
     # Validate webhook secret is available
     webhook_secret = shopify_client_secret
