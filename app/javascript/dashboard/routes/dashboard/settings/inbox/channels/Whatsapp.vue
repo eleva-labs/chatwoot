@@ -8,17 +8,24 @@ import Whapi from './Whapi.vue';
 export default {
   components: {
     PageHeader,
-    Twilio,
-    ThreeSixtyDialogWhatsapp,
-    CloudWhatsapp,
+    // Twilio,
+    // ThreeSixtyDialogWhatsapp,
+    // CloudWhatsapp,
     Whapi,
+  },
+  props: {
+    disabled_auto_route: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
-      provider: 'whatsapp_cloud',
+      provider: 'whapi',
     };
   },
 };
+
 </script>
 
 <template>
@@ -33,12 +40,12 @@ export default {
       <label>
         {{ $t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.LABEL') }}
         <select v-model="provider">
-          <option value="whatsapp_cloud">
+          <!-- <option value="whatsapp_cloud">
             {{ $t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.WHATSAPP_CLOUD') }}
           </option>
           <option value="twilio">
             {{ $t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.TWILIO') }}
-          </option>
+          </option> -->
           <option value="whapi">
             {{ $t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.WHAPI') }}
           </option>
@@ -48,7 +55,7 @@ export default {
 
     <Twilio v-if="provider === 'twilio'" type="whatsapp" />
     <ThreeSixtyDialogWhatsapp v-else-if="provider === '360dialog'" />
-    <Whapi v-else-if="provider === 'whapi'" />
+    <Whapi v-else-if="provider === 'whapi'" :disabled_auto_route="disabled_auto_route" />
     <CloudWhatsapp v-else />
   </div>
 </template>

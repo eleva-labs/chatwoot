@@ -13,14 +13,20 @@ export default {
   components: {
     NextButton,
   },
+  props: {
+    disabled_auto_route: {
+      type: Boolean,
+      default: false,
+    },
+  },
   setup() {
     return { v$: useVuelidate() };
   },
   data() {
     return {
-      inboxName: '',
-      phoneNumber: '',
-      apiKey: '',
+      inboxName: '1',
+      phoneNumber: '+50672925075',
+      apiKey: '1gWKRWQZDh12wz3m0nfn72hH5G8K1vY1',
     };
   },
   computed: {
@@ -53,6 +59,11 @@ export default {
             },
           }
         );
+
+        if (this.disabled_auto_route) {
+          console.log('whapiChannel', whapiChannel, this.disabled_auto_route);
+          return;
+        }
 
         router.replace({
           name: 'settings_inboxes_add_agents',
@@ -111,6 +122,7 @@ export default {
           type="text"
           :placeholder="$t('INBOX_MGMT.ADD.WHAPI.API_KEY.PLACEHOLDER')"
           @blur="v$.apiKey.$touch"
+          
         />
         <span v-if="v$.apiKey.$error" class="message">
           {{ $t('INBOX_MGMT.ADD.WHAPI.API_KEY.ERROR') }}
