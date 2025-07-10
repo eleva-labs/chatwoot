@@ -307,7 +307,7 @@ defineExpose({ dialogRef });
           :placeholder="$t('AGENT_BOTS.FORM.DESCRIPTION.PLACEHOLDER')"
         />
 
-        <Input
+        <!-- <Input
           id="bot-url"
           v-model="formState.botUrl"
           :label="$t('AGENT_BOTS.FORM.WEBHOOK_URL.LABEL')"
@@ -315,7 +315,7 @@ defineExpose({ dialogRef });
           :message="botUrlError"
           :message-type="botUrlError ? 'error' : 'info'"
           @blur="v$.botUrl.$touch()"
-        />
+        /> -->
       </div>
 
       <div v-if="showAccessTokenInput" class="flex flex-col gap-1">

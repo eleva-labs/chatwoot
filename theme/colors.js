@@ -236,4 +236,8 @@ export const colors = {
     'blue-border': 'rgba(var(--border-blue))',
     'blue-text': 'rgba(var(--text-blue))',
   },
+  //Chatscommerce colors
+  cc:{
+    primary:'rgb(93,23,234)'
+  }
 };
