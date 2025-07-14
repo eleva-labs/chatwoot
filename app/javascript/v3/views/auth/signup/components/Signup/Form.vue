@@ -4,13 +4,15 @@ import { required, minLength, email } from '@vuelidate/validators';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import globalConfigMixin from 'shared/mixins/globalConfigMixin';
-import { DEFAULT_REDIRECT_URL } from 'dashboard/constants/globals';
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha';
 import FormInput from '../../../../../components/Form/Input.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import { isValidPassword } from 'shared/helpers/Validators';
 import GoogleOAuthButton from '../../../../../components/GoogleOauth/Button.vue';
 import { register } from '../../../../../api/auth';
+import ChatscommerceStoreApi from 'dashboard/api/chatscommerce/store_api';
+import ChatscommerceConfigurationApi from 'dashboard/api/chatscommerce/configuration_api';
+import { DEFAULT_REDIRECT_URL } from 'dashboard/constants';
 
 export default {
   components: {
@@ -105,7 +107,14 @@ export default {
       }
       this.isSignupInProgress = true;
       try {
-        await register(this.credentials);
+        const response = await register(this.credentials);
+        const storeResponse = await ChatscommerceStoreApi.createStore(
+          response.accounts[0]
+        );
+
+        const { store } = storeResponse;
+
+        await ChatscommerceConfigurationApi.createDefaultStoreConfigs(store.id);
         window.location = DEFAULT_REDIRECT_URL;
       } catch (error) {
         let errorMessage =
