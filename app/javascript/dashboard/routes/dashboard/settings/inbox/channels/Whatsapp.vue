@@ -1,8 +1,8 @@
 <script>
 import PageHeader from '../../SettingsSubPageHeader.vue';
-import Twilio from './Twilio.vue';
-import ThreeSixtyDialogWhatsapp from './360DialogWhatsapp.vue';
-import CloudWhatsapp from './CloudWhatsapp.vue';
+// import Twilio from './Twilio.vue';
+// import ThreeSixtyDialogWhatsapp from './360DialogWhatsapp.vue';
+// import CloudWhatsapp from './CloudWhatsapp.vue';
 import Whapi from './Whapi.vue';
 
 export default {
@@ -14,7 +14,7 @@ export default {
     Whapi,
   },
   props: {
-    disabled_auto_route: {
+    disabledAutoRoute: {
       type: Boolean,
       default: false,
     },
@@ -25,7 +25,6 @@ export default {
     };
   },
 };
-
 </script>
 
 <template>
@@ -52,10 +51,12 @@ export default {
         </select>
       </label>
     </div>
-
-    <Twilio v-if="provider === 'twilio'" type="whatsapp" />
-    <ThreeSixtyDialogWhatsapp v-else-if="provider === '360dialog'" />
-    <Whapi v-else-if="provider === 'whapi'" :disabled_auto_route="disabled_auto_route" />
-    <CloudWhatsapp v-else />
+    <Whapi
+      v-if="provider === 'whapi'"
+      :disabled-auto-route="disabledAutoRoute"
+    />
+    <!-- <Twilio v-else-if="provider === 'twilio'" type="whatsapp" />
+    <ThreeSixtyDialogWhatsapp v-else-if="provider === '360dialog'" /> -->
+    <!-- <CloudWhatsapp v-else /> -->
   </div>
 </template>

@@ -11,6 +11,13 @@ export default {
     PageHeader,
   },
   mixins: [globalConfigMixin],
+  props: {
+    disabledAutoRoute: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['channelItemClick'],
   data() {
     return {
       enabledFeatures: {},
@@ -39,17 +46,13 @@ export default {
         // { key: 'voice', name: 'Voice' },
       ];
     },
+    emits: ['channelItemClick'],
     ...mapGetters({
       accountId: 'getCurrentAccountId',
       globalConfig: 'globalConfig/get',
     }),
   },
-  props: {
-    disabled_auto_route: {
-      type: Boolean,
-      default: false,
-    },
-  },
+
   mounted() {
     this.initializeEnabledFeatures();
   },
@@ -62,7 +65,7 @@ export default {
         sub_page: channel,
         accountId: this.accountId,
       };
-      if (this.disabled_auto_route) {
+      if (this.disabledAutoRoute) {
         this.$emit('channelItemClick', channel);
         return;
       }

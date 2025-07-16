@@ -1,14 +1,15 @@
 <script>
+import { computed } from 'vue';
 import { mapGetters } from 'vuex';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useAccount } from 'dashboard/composables/useAccount';
-import OnboardingView from '../OnboardingView.vue';
+import OnboardingViewChatscommerce from '../OnboardingView.Chatscommerce.vue';
 import EmptyStateMessage from './EmptyStateMessage.vue';
 
 export default {
   components: {
-    OnboardingView,
     EmptyStateMessage,
+    OnboardingViewChatscommerce,
   },
   props: {
     isOnExpandedLayout: {
@@ -18,12 +19,16 @@ export default {
   },
   setup() {
     const { isAdmin } = useAdmin();
-
-    const { accountScopedUrl } = useAccount();
+    const { accountScopedUrl, currentAccount } = useAccount();
+    const isOnboardingCompleted = computed(
+      () =>
+        currentAccount.value?.custom_attributes?.onboarding_completed || false
+    );
 
     return {
       isAdmin,
       accountScopedUrl,
+      isOnboardingCompleted,
     };
   },
   computed: {
@@ -70,12 +75,12 @@ export default {
       v-if="uiFlags.isFetching || loadingChatList"
       :message="loadingIndicatorMessage"
     />
-    <!-- No inboxes attached -->
+    <!-- Onboarding not completed -->
     <div
-      v-if="!uiFlags.isFetching && !loadingChatList"
+      v-if="!isOnboardingCompleted && !loadingChatList"
       class="clearfix mx-auto w-full flex justify-center items-center"
     >
-      <OnboardingView v-if="isAdmin" />
+      <OnboardingViewChatscommerce v-if="isAdmin" />
       <EmptyStateMessage v-else :message="$t('CONVERSATION.NO_INBOX_AGENT')" />
     </div>
     <!-- Show empty state images if not loading -->

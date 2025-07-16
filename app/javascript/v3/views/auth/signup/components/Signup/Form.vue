@@ -9,10 +9,8 @@ import FormInput from '../../../../../components/Form/Input.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import { isValidPassword } from 'shared/helpers/Validators';
 import GoogleOAuthButton from '../../../../../components/GoogleOauth/Button.vue';
-import { register } from '../../../../../api/auth';
-import ChatscommerceStoreApi from 'dashboard/api/chatscommerce/store_api';
-import ChatscommerceConfigurationApi from 'dashboard/api/chatscommerce/configuration_api';
-import { DEFAULT_REDIRECT_URL } from 'dashboard/constants';
+import { registerWithStore } from '../../../../../api/auth';
+import { DEFAULT_REDIRECT_URL } from 'dashboard/constants/globals';
 
 export default {
   components: {
@@ -106,19 +104,16 @@ export default {
         return;
       }
       this.isSignupInProgress = true;
+
       try {
-        const response = await register(this.credentials);
-        const storeResponse = await ChatscommerceStoreApi.createStore(
-          response.accounts[0]
-        );
+        await registerWithStore(this.credentials);
 
-        const { store } = storeResponse;
-
-        await ChatscommerceConfigurationApi.createDefaultStoreConfigs(store.id);
+        // Success! Redirect
         window.location = DEFAULT_REDIRECT_URL;
       } catch (error) {
-        let errorMessage =
+        const errorMessage =
           error?.message || this.$t('REGISTER.API.ERROR_MESSAGE');
+
         this.resetCaptcha();
         useAlert(errorMessage);
       } finally {

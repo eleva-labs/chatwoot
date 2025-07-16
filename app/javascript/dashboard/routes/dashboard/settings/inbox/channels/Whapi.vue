@@ -14,7 +14,7 @@ export default {
     NextButton,
   },
   props: {
-    disabled_auto_route: {
+    disabledAutoRoute: {
       type: Boolean,
       default: false,
     },
@@ -60,8 +60,7 @@ export default {
           }
         );
 
-        if (this.disabled_auto_route) {
-          console.log('whapiChannel', whapiChannel, this.disabled_auto_route);
+        if (this.disabledAutoRoute) {
           return;
         }
 
@@ -122,7 +121,6 @@ export default {
           type="text"
           :placeholder="$t('INBOX_MGMT.ADD.WHAPI.API_KEY.PLACEHOLDER')"
           @blur="v$.apiKey.$touch"
-          
         />
         <span v-if="v$.apiKey.$error" class="message">
           {{ $t('INBOX_MGMT.ADD.WHAPI.API_KEY.ERROR') }}

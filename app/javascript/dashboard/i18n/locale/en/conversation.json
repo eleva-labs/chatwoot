@@ -284,7 +284,7 @@
       "NEW_LINK": "Click here to create an inbox"
     },
     "TEAM_MEMBERS": {
-      "TITLE": "Invite your team members",
+      "TITLE": "Invite your agents",
       "DESCRIPTION": "Let´s add the people who will be helping you with your conversations",
       "NEW_LINK": "Click here to invite a team member"
     },
@@ -292,7 +292,8 @@
       "TITLE": "Add your channels",
       "DESCRIPTION": "Let´s add the channels where you will be receiving your conversations",
       "NEW_LINK": "Click here to add a channel",
-      "CHANNEL_AGENTS_UPDATED": "Channel Agents Update Successfully!"
+      "CHANNEL_AGENTS_UPDATED": "Channel Agents Update Successfully!",
+      "ADDING_AGENTS": "Adding agents to {channel}"
     },
     "ADD_AI_AGENT": {
       "TITLE": "Add your Bot Agent",
@@ -308,6 +309,11 @@
       "TITLE": "Create canned responses",
       "DESCRIPTION": "Pre-written quick reply templates help you quickly respond to a conversation. Agents can type the '/' character followed by the shortcode to insert a response.",
       "NEW_LINK": "Click here to create a canned response"
+    },
+    "BUTTON": {
+      "PREVIOUS": "Previous",
+      "NEXT": "Next",
+      "FINISH": "Finish"
     }
   },
   "CONVERSATION_SIDEBAR": {

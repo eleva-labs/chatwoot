@@ -21,18 +21,19 @@ export default {
       },
     },
   },
-  setup() {
-    return { v$: useVuelidate() };
-  },
-  props:{
-    inboxId:{
+  props: {
+    inboxId: {
       type: Number,
       default: null,
     },
-    disabled_auto_route:{
+    disabledAutoRoute: {
       type: Boolean,
       default: false,
-    }
+    },
+  },
+  emits: ['agentsAdded'],
+  setup() {
+    return { v$: useVuelidate() };
   },
   data() {
     return {
@@ -56,13 +57,12 @@ export default {
 
       try {
         await InboxMembersAPI.update({ inboxId, agentList: selectedAgents });
-        
-        if (this.disabled_auto_route) {
-          console.log("disable_auto_route")
-          this.$emit('agents_added');
+
+        if (this.disabledAutoRoute) {
+          this.$emit('agentsAdded');
           this.isCreating = false;
           return;
-        };
+        }
         router.replace({
           name: 'settings_inbox_finish',
           params: {
