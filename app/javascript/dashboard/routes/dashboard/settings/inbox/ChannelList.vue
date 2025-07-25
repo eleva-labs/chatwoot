@@ -7,6 +7,7 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAccount } from 'dashboard/composables/useAccount';
 
 import ChannelItem from 'dashboard/components/widgets/ChannelItem.vue';
+import { CUSTOM_EVENTS } from 'shared/constants/customEvents';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -110,7 +111,7 @@ onMounted(() => {
         :key="channel.key"
         :channel="channel"
         :enabled-features="enabledFeatures"
-        @channel-item-click="initChannelAuth"
+        @on-channel-item-click="initChannelAuth"
       />
     </div>
   </div>

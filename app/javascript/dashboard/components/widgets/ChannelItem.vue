@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import ChannelSelector from '../ChannelSelector.vue';
+import { CUSTOM_EVENTS } from 'shared/constants/customEvents';
 
 const props = defineProps({
   channel: {
@@ -13,7 +14,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['channelItemClick']);
+const emit = defineEmits([CUSTOM_EVENTS.ON_CHANNEL_ITEM_CLICK]);
 
 const hasFbConfigured = computed(() => {
   return window.chatwootConfig?.fbAppId;
@@ -70,7 +71,7 @@ const isComingSoon = computed(() => {
 
 const onItemClick = () => {
   if (isActive.value) {
-    emit('channelItemClick', props.channel.key);
+    emit(CUSTOM_EVENTS.ON_CHANNEL_ITEM_CLICK, props.channel.key);
   }
 };
 </script>
