@@ -281,7 +281,7 @@
   },
   "ONBOARDING": {
     "TITLE": "Hola 👋, ¡Bienvenido a {installationName}!",
-    "DESCRIPTION": "Gracias por registrarse. Queremos que saque el máximo provecho de {installationName}. Aquí hay algunas cosas que puede hacer en {installationName} para hacer que la experiencia sea agradable.",
+    "DESCRIPTION": "Gracias por registrarte. Por favor, sigue los pasos a continuación para comenzar.",
     "GREETING_MORNING": "👋 Buenos días, {name}. Bienvenido a  {installationName}.",
     "GREETING_AFTERNOON": "👋 Buenas tardes, {name}. Bienvenido a  {installationName}.",
     "GREETING_EVENING": "👋 Buenas noches, {name}. Bienvenido a  {installationName}.",
@@ -293,7 +293,7 @@
     },
     "TEAM_MEMBERS": {
       "TITLE": "Invite a los miembros de su equipo",
-      "DESCRIPTION": "Ya que usted se está preparando para hablar con su cliente, traiga a sus compañeros para asistirle. Puedes invitar a sus compañeros de equipo añadiendo su dirección de correo electrónico a la lista de miembros.",
+      "DESCRIPTION": "Primero, puedes traer a tu equipo para asistirte. Invita a tus compañeros de equipo por correo electrónico.",
       "NEW_LINK": "Haga clic aquí para invitar a un miembro del equipo"
     },
     "LABELS": {
@@ -308,9 +308,9 @@
       "CHANNEL_AGENTS_UPDATED": "Agentes de canal actualizados correctamente!"
     },
     "ADD_AI_AGENT": {
-      "TITLE": "Añadir su Bot Agent",
-      "DESCRIPTION": "Vamos a añadir el Bot Agent que ayudará a responder a las conversaciones",
-      "NEW_LINK": "Haga clic aquí para añadir un Bot Agent"
+      "TITLE": "Añadir su AI Bot",
+      "DESCRIPTION": "Vamos a añadir el AI Bot que ayudará a responder a las conversaciones",
+      "NEW_LINK": "Haga clic aquí para añadir un AI Bot"
     },
     "CANNED_RESPONSES": {
       "TITLE": "Crea respuestas predefinidas",
