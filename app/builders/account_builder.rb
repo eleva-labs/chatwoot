@@ -87,14 +87,29 @@ class AccountBuilder
 
     expires_in_days = plan_details.dig('trial_expires_in_days') || 7
     ends_on = Time.current + expires_in_days.days
+    default_agents = plan_details.dig('default', 'agents') || 2 # So that in the on boarding we could invite 1 user
+    #(2 in total, the person creating the account and the invited user)
+
+    # Extract plan limits for validation
+    plan_limits = {
+      'agents' => default_agents,
+      'inboxes' => plan_details.dig('limits', 'inboxes'),
+      'conversations_monthly' => plan_details.dig('limits', 'conversations_monthly')
+    }
+
+    # Validate required plan limits before proceeding
+    self.class.validate_plan_limits_for_free_trial(plan_limits, trial_plan_name)
 
     @account.custom_attributes ||= {}
     @account.custom_attributes.merge!({
                                         'plan_name' => trial_plan_name,
-                                        'subscribed_quantity' => 1,
+                                        'subscribed_quantity' => 1, # 1 means that the user will buy 1 subscription (this doesn't mean 1 agent).
                                         'subscription_status' => 'active',
                                         'subscription_ends_on' => ends_on.iso8601
                                       })
+
+    # Set trial limits in the limits column directly
+    @account.limits = plan_limits
   end
 
   def add_store_id_to_account

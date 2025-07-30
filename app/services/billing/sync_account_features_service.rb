@@ -35,13 +35,26 @@ module Billing
     private
 
     def update_plan_limits
-      limits = self.class.plan_limits(@plan_name)
-      # Using -1 for unlimited
-      @account.limits = {
-        agents: limits['agents'],
-        inboxes: limits['inboxes'],
-        conversations: limits['conversations']
-      }
+      # Try to get limits from billing provider metadata first (if account has active subscription)
+      billing_provider_limits = extract_limits_from_billing_provider_subscription
+
+      if billing_provider_limits.present?
+        Rails.logger.info "Using plan limits from billing provider metadata: #{billing_provider_limits}"
+        limits = billing_provider_limits
+      else
+        Rails.logger.info 'Falling back to billing_plans.yml limits'
+        yaml_plan_data = self.class.plan_details(@plan_name)
+        limits = self.class.extract_plan_limits(yaml_plan_data, :yaml)
+      end
+
+      # Dynamically assign all limits (works with any number of limit types)
+      if limits.present?
+        @account.limits = limits
+        Rails.logger.info "Updated account limits: #{limits}"
+      else
+        Rails.logger.warn "No limits found for plan: #{@plan_name}"
+      end
+
       @account.save!
     end
 
@@ -82,6 +95,43 @@ module Billing
       end
 
       Rails.logger.info 'Feature sync completed successfully.'
+    end
+
+    def extract_limits_from_billing_provider_subscription
+      return {} unless @account.custom_attributes&.dig('stripe_customer_id').present?
+
+      begin
+        # Fetch current subscription from billing provider and extract metadata
+        customer_id = @account.custom_attributes['stripe_customer_id']
+        subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'active')
+
+        return {} if subscriptions.data.empty?
+
+        subscription = subscriptions.data.first
+        product_metadata = extract_product_metadata(subscription)
+        self.class.limits_from_billing_provider_metadata(product_metadata)
+      rescue ::Stripe::StripeError => e
+        Rails.logger.error "Failed to fetch billing provider subscription metadata: #{e.message}"
+        {}
+      end
+    end
+
+    # Extract product metadata from subscription (copied from Stripe provider for consistency)
+    def extract_product_metadata(subscription)
+      price_id = if subscription.is_a?(Hash)
+                   subscription.dig('items', 'data', 0, 'price', 'id')
+                 else
+                   subscription.items&.data&.first&.price&.id
+                 end
+
+      return {} unless price_id
+
+      # Fetch full price object with product metadata
+      price = ::Stripe::Price.retrieve(price_id, expand: ['product'])
+      price.product.metadata || {}
+    rescue ::Stripe::StripeError => e
+      Rails.logger.error "Failed to fetch product metadata: #{e.message}"
+      {}
     end
 
     def success_response

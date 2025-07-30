@@ -21,15 +21,16 @@ module Billing
       end
 
       # Creates a subscription in Stripe
-      def create_subscription(customer_id, plan_id, quantity = 1)
+      def create_subscription(customer_id, plan_id, quantity)
         return nil if plan_id.nil? # Free trial plans don't need a Stripe subscription
 
+        # Always use quantity 1 - cost is per plan, not per agent
         ::Stripe::Subscription.create(
           customer: customer_id,
-          items: [{ price: plan_id, quantity: quantity }],
+          items: [{ price: plan_id, quantity: 1 }], # Fixed quantity
           metadata: {
             plan_id: plan_id,
-            quantity: quantity
+            quantity: quantity # This metadata quantity is for reference, not billing
           }
         )
       rescue ::Stripe::StripeError => e
@@ -331,17 +332,27 @@ module Billing
 
         Rails.logger.info "Raw Stripe status: #{raw_status}, Determined status: #{subscription_status}"
 
+        # Extract limits from billing provider metadata first
+        plan_limits = extract_plan_limits_from_subscription(subscription)
+
         custom_attrs.merge!(
           'plan_name' => plan_name,
           'stripe_customer_id' => stripe_customer_id,
           'subscription_status' => subscription_status,
           'current_period_end' => current_period_end,
-          'subscribed_quantity' => quantity,
+          'subscribed_quantity' => plan_limits['agents'] || quantity, # Agent limit from billing provider metadata for enterprise compatibility
           'subscription_ends_on' => current_period_end ? Time.at(current_period_end).strftime('%Y-%m-%d') : nil,
           'cancel_at_period_end' => extract_cancel_at_period_end(subscription),
           'canceled_at' => extract_canceled_at(subscription),
           'ended_at' => extract_ended_at(subscription)
         )
+
+        # Update account limits directly from billing provider metadata (dynamic)
+        if plan_limits.present?
+          # Dynamically assign all limits from billing provider metadata
+          account.limits = plan_limits
+          Rails.logger.info "Updated account limits from billing provider metadata: #{plan_limits}"
+        end
 
         # If subscription is being cancelled (cancel_at_period_end = true),
         # update subscription_ends_on to the actual cancellation date
@@ -398,6 +409,30 @@ module Billing
         custom_attrs['last_payment_date'] = Time.current.strftime('%Y-%m-%d')
 
         account.update!(custom_attributes: custom_attrs)
+      end
+
+      # Extract product metadata from subscription
+      def extract_product_metadata(subscription)
+        price_id = if subscription.is_a?(Hash)
+                     subscription.dig('items', 'data', 0, 'price', 'id')
+                   else
+                     subscription.items&.data&.first&.price&.id
+                   end
+
+        return {} unless price_id
+
+        # Fetch full price object with product metadata
+        price = ::Stripe::Price.retrieve(price_id, expand: ['product'])
+        price.product.metadata || {}
+      rescue ::Stripe::StripeError => e
+        Rails.logger.error "Failed to fetch product metadata: #{e.message}"
+        {}
+      end
+
+      # Extract plan limits from subscription metadata
+      def extract_plan_limits_from_subscription(subscription)
+        product_metadata = extract_product_metadata(subscription)
+        Class.new { include BillingPlans }.new.limits_from_billing_provider_metadata(product_metadata)
       end
 
       # Extracts plan name from subscription metadata or price lookup

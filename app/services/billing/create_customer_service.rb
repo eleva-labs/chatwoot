@@ -30,7 +30,7 @@ module Billing
         Rails.logger.info "Plan price ID: #{price_id}"
 
         Rails.logger.info "Creating subscription with price_id: #{price_id}"
-        subscription = @provider.create_subscription(customer.id, price_id, 1) # Default quantity is 1
+        subscription = @provider.create_subscription(customer.id, price_id, 1) # Fixed cost per plan, agent limits from metadata
         Rails.logger.info "Subscription created successfully: #{subscription&.id || 'nil (free trial plan)'}"
 
         update_account_attributes(customer, subscription)
@@ -78,19 +78,25 @@ module Billing
 
       custom_attrs = @account.custom_attributes || {}
 
-      custom_attrs.merge!(
+      # Prepare subscription attributes to merge
+      subscription_attrs = {
         'stripe_customer_id' => customer.id,
         'plan_name' => @plan_name,
-        'subscription_status' => subscription&.status || '-',
+        'subscription_status' => subscription&.status,
         'current_period_end' => subscription&.current_period_end&.to_i,
-        'subscribed_quantity' => subscription&.items&.data&.first&.quantity || 1,
+        'subscribed_quantity' => subscription&.items&.data&.first&.quantity,
         'subscription_ends_on' => if subscription&.current_period_end
                                     Time.at(subscription.current_period_end).strftime('%Y-%m-%d')
                                   else
                                     nil
                                   end
-      )
+      }
 
+      # Validate subscription attributes before merging
+      validate_required_attributes(subscription_attrs)
+
+      # Merge validated attributes
+      custom_attrs.merge!(subscription_attrs)
       Rails.logger.info "Final custom_attrs being saved: #{custom_attrs.inspect}"
 
       # Clear the creating customer flag and timestamp
@@ -119,6 +125,25 @@ module Billing
         error: message,
         data: {}
       }
+    end
+
+    def validate_required_attributes(custom_attrs)
+      required_attributes = %w[
+        stripe_customer_id
+        plan_name
+        subscription_status
+        subscribed_quantity
+      ]
+
+      missing_attributes = required_attributes.select do |attr|
+        custom_attrs[attr].nil? || custom_attrs[attr] == ''
+      end
+
+      return if missing_attributes.empty?
+
+      error_message = "Missing required subscription attributes: #{missing_attributes.join(', ')}"
+      Rails.logger.error error_message
+      raise StandardError, error_message
     end
 
     def clear_creating_customer_flag
