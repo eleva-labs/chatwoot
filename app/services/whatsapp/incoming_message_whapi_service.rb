@@ -87,6 +87,7 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
     )
     process_in_reply_to(message)
     attach_files(message)
+    save_attachment_urls_to_content_attributes(message)
     @message.save!
   end
 
@@ -328,5 +329,43 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
     yield
   ensure
     Redis::Alfred.delete(key)
+  end
+
+  def save_attachment_urls_to_content_attributes(message)
+    message_type = message[:type].to_s
+    return if %w[text button interactive location contacts].include?(message_type)
+
+    attachment_payload = message[message_type.to_sym]
+    return unless attachment_payload&.[](:link)
+
+    # Save the attachment URL in content_attributes
+    @message.content_attributes ||= {}
+    @message.content_attributes[:external_attachment_url] = attachment_payload[:link]
+
+    # Derive and normalize attachment type (prefer MIME over outer type)
+    derived_type = derive_attachment_type(attachment_payload, message_type)
+    @message.content_attributes[:attachment_type] = derived_type
+  end
+
+  def derive_attachment_type(attachment_payload, fallback_type)
+    # Common MIME keys across providers
+    mime = attachment_payload[:mime] || attachment_payload[:mimetype] || attachment_payload[:content_type] || attachment_payload[:contentType]
+
+    if mime.present?
+      return 'image' if mime.start_with?('image/')
+      return 'video' if mime.start_with?('video/')
+      return 'audio' if mime.start_with?('audio/')
+      return 'file'
+    end
+
+    # Some payloads include an explicit type inside the attachment object
+    inner_type = attachment_payload[:type].to_s
+    return inner_type if inner_type.present?
+
+    # Normalize known outer types
+    return 'audio' if %w[voice audio].include?(fallback_type)
+
+    # Fallback to the outer type as-is (image, video, file, etc.)
+    fallback_type
   end
 end

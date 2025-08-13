@@ -459,6 +459,19 @@ class Message < ApplicationRecord
     content.match?(/^\[[^\]]+\]\s+.+/)
   end
 
+  # External attachment helper methods
+  def has_external_attachment?
+    content_attributes&.dig('external_attachment_url').present?
+  end
+
+  def external_attachment_url
+    content_attributes&.dig('external_attachment_url')
+  end
+
+  def attachment_type
+    content_attributes&.dig('attachment_type')
+  end
+
 end
 
 

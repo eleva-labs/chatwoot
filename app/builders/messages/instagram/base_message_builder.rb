@@ -110,6 +110,7 @@ class Messages::Instagram::BaseMessageBuilder < Messages::Messenger::MessageBuil
     save_story_id
     save_post_id
     save_shared_content_info
+    save_attachment_urls_to_content_attributes
 
     return if story_message? || shared_content_message?
 
@@ -152,6 +153,24 @@ class Messages::Instagram::BaseMessageBuilder < Messages::Messenger::MessageBuil
     # Save the shared content URL in content_attributes for reference
     current_attrs = @message.content_attributes || {}
     @message.update!(content_attributes: current_attrs.merge(shared_content_url: shared_url))
+  end
+
+  def save_attachment_urls_to_content_attributes
+    return if attachments.empty?
+
+    attachments.each do |attachment|
+      next if attachment['type'] == 'share'  # Skip shared content as it's handled separately
+
+      url = attachment.dig('payload', 'url')
+      next unless url
+
+      # Save the attachment URL in content_attributes
+      current_attrs = @message.content_attributes || {}
+      @message.update!(content_attributes: current_attrs.merge(
+        external_attachment_url: url,
+        attachment_type: attachment['type']
+      ))
+    end
   end
 
   def build_conversation
