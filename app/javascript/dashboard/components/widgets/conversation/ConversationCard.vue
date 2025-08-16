@@ -15,6 +15,7 @@ import PriorityMark from './PriorityMark.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import AIEnableBanner from 'dashboard/components/ui/AIEnableBanner.vue';
+import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
   activeLabel: { type: String, default: '' },
@@ -127,18 +128,10 @@ const contextMenu = ref({
   y: null,
 });
 
-<<<<<<< HEAD
 const currentChat = useMapGetter('getSelectedChat');
 const inboxesList = useMapGetter('inboxes/getInboxes');
 const activeInbox = useMapGetter('getSelectedInbox');
 const accountId = useMapGetter('getCurrentAccountId');
-=======
-    isAiEnabled() {
-      // Only contact-level flag drives AI state now
-      return !!this.currentContact?.custom_attributes?.ai_enabled;
-    },
-
-    unreadCount() {
       return this.chat.unread_count;
     },
 >>>>>>> 757ed077da (CU-86aadc3c7 Implement AI enable toggling)
@@ -155,9 +148,47 @@ const currentContact = computed(() => {
     : {};
 });
 
+<<<<<<< HEAD
 const isActiveChat = computed(() => {
   return currentChat.value.id === props.chat.id;
 });
+=======
+    showInboxName() {
+      return (
+        !this.hideInboxName &&
+        this.isInboxNameVisible &&
+        this.inboxesList.length > 1
+      );
+    },
+    inboxName() {
+      const stateInbox = this.inbox;
+      return stateInbox.name || '';
+    },
+    hasSlaPolicyId() {
+      return this.chat?.sla_policy_id;
+    },
+  },
+  mounted() {
+    // Load all agent bots first, then fetch the specific inbox relationship
+    this.$store.dispatch('agentBots/get').then(() => {
+      this.$store.dispatch('agentBots/fetchAgentBotInbox', this.chat.inbox_id);
+    });
+  },
+  methods: {
+    onCardClick(e) {
+      const { activeInbox, chat } = this;
+      const path = frontendURL(
+        conversationUrl({
+          accountId: this.accountId,
+          activeInbox,
+          id: chat.id,
+          label: this.activeLabel,
+          teamId: this.teamId,
+          foldersId: this.foldersId,
+          conversationType: this.conversationType,
+        })
+      );
+>>>>>>> ba7c372e75 (CU-86aadc3c7 Implement AI enable toggling)
 
 const unreadCount = computed(() => props.chat.unread_count);
 
@@ -375,6 +406,9 @@ const deleteConversation = () => {
       this.$emit('markAsRead', this.chat.id);
       this.closeContextMenu();
     },
+    notAiImplementedNotification() {
+      useAlert(this.$t('AI_NOT_IMPLEMENTED_NOTIFICATION'));
+    },
     async assignPriority(priority) {
       this.$emit('assignPriority', priority, this.chat.id);
       this.closeContextMenu();
@@ -527,8 +561,15 @@ const deleteConversation = () => {
             :last-activity-timestamp="chat.timestamp"
             :created-at-timestamp="chat.created_at"
           />
-          <div class="flex w-full justify-end items-end gap-2">
-            <AIEnableBanner :ai-enable="isAiEnabled" @toggle-ai="onToggleAi" />
+          <div
+            :class="hasAiImplemented ? 'opacity-100' : 'opacity-40'"
+            class="w-full flex justify-end items-end gap-2"
+            @click="!hasAiImplemented && notAiImplementedNotification()"
+          >
+            <AIEnableBanner
+              :ai-enable="isAiEnabled && hasAiImplemented"
+              @toggle-ai="onToggleAi"
+            />
           </div>
         </span>
         <span
