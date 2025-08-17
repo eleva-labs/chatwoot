@@ -62,6 +62,9 @@ module Chatwoot
     # FIX ME : fixes breakage of installation config. we need to migrate.
     config.active_record.yaml_column_permitted_classes = [ActiveSupport::HashWithIndifferentAccess]
 
+    # Disable PDF/video preview generation as we don't use them
+    config.active_storage.previewers = []
+
     config.ai_backend_api_url = ENV.fetch('AI_BACKEND_URL', nil)
   end
 

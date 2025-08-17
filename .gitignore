@@ -93,11 +93,5 @@ yarn-debug.log*
 # TextEditors & AI Agents config files
 .vscode
 .claude/settings.local.json
-# .cursor
-
-
-# PNPM
-.pnpm-store
-
-# Docs
-/docs
+.cursor
+CLAUDE.local.md
