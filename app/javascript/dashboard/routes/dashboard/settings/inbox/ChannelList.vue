@@ -3,14 +3,14 @@ import ChannelItem from 'dashboard/components/widgets/ChannelItem.vue';
 import router from '../../../index';
 import PageHeader from '../SettingsSubPageHeader.vue';
 import { mapGetters } from 'vuex';
-import globalConfigMixin from 'shared/mixins/globalConfigMixin';
+import { useBranding } from 'shared/composables/useBranding';
 import { CUSTOM_EVENTS } from 'shared/constants/customEvents';
+
 export default {
   components: {
     ChannelItem,
     PageHeader,
   },
-  mixins: [globalConfigMixin],
   props: {
     disabledAutoRoute: {
       type: Boolean,
@@ -18,6 +18,12 @@ export default {
     },
   },
   emits: [CUSTOM_EVENTS.ON_CHANNEL_ITEM_CLICK],
+  setup() {
+    const { replaceInstallationName } = useBranding();
+    return {
+      replaceInstallationName,
+    };
+  },
   data() {
     return {
       enabledFeatures: {},
@@ -28,7 +34,6 @@ export default {
       return this.$store.getters['accounts/getAccount'](this.accountId);
     },
     channelList() {
-      // const { apiChannelName, apiChannelThumbnail } = this.globalConfig;
       return [
         // { key: 'website', name: 'Website' },
         // { key: 'facebook', name: 'Messenger' },
@@ -46,10 +51,8 @@ export default {
         // { key: 'voice', name: 'Voice' },
       ];
     },
-    emits: [CUSTOM_EVENTS.ON_CHANNEL_ITEM_CLICK],
     ...mapGetters({
       accountId: 'getCurrentAccountId',
-      globalConfig: 'globalConfig/get',
     }),
   },
 
@@ -82,12 +85,7 @@ export default {
     <PageHeader
       class="max-w-4xl"
       :header-title="$t('INBOX_MGMT.ADD.AUTH.TITLE')"
-      :header-content="
-        useInstallationName(
-          $t('INBOX_MGMT.ADD.AUTH.DESC'),
-          globalConfig.installationName
-        )
-      "
+      :header-content="replaceInstallationName($t('INBOX_MGMT.ADD.AUTH.DESC'))"
     />
     <div
       class="grid max-w-3xl grid-cols-2 mx-0 mt-6 sm:grid-cols-3 lg:grid-cols-4"
@@ -97,7 +95,7 @@ export default {
         :key="channel.key"
         :channel="channel"
         :enabled-features="enabledFeatures"
-        @on-channel-item-click="initChannelAuth"
+        @channel-item-click="initChannelAuth"
       />
     </div>
   </div>

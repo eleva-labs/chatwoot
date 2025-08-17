@@ -549,6 +549,69 @@ RSpec.describe Message do
     end
   end
 
+  describe '#auto_reply_email?' do
+    context 'when message is not an incoming email and inbox is not email' do
+      let(:conversation) { create(:conversation) }
+      let(:message) { create(:message, :incoming, conversation: conversation) }
+
+      it 'returns false' do
+        expect(message.auto_reply_email?).to be false
+      end
+    end
+
+    context 'when message is an incoming email' do
+      let(:email_channel) { create(:channel_email) }
+      let(:conversation) { create(:conversation, inbox: create(:inbox, channel: email_channel)) }
+
+      context 'when auto_reply is not set in content_attributes' do
+        let(:message) do
+          create(
+            :message,
+            :incoming,
+            conversation: conversation,
+            content_type: 'incoming_email'
+          )
+        end
+
+        it 'returns false' do
+          expect(message.auto_reply_email?).to be false
+        end
+      end
+
+      context 'when auto_reply is false in content_attributes' do
+        let(:message) do
+          create(
+            :message,
+            :incoming,
+            conversation: conversation,
+            content_type: 'incoming_email',
+            content_attributes: { email: { auto_reply: false } }
+          )
+        end
+
+        it 'returns false' do
+          expect(message.auto_reply_email?).to be false
+        end
+      end
+
+      context 'when auto_reply is true in content_attributes' do
+        let(:message) do
+          create(
+            :message,
+            :incoming,
+            conversation: conversation,
+            content_type: 'incoming_email',
+            content_attributes: { email: { auto_reply: true } }
+          )
+        end
+
+        it 'returns true' do
+          expect(message.auto_reply_email?).to be true
+        end
+      end
+    end
+  end
+
   describe 'AI feedback functionality' do
     let(:conversation) { create(:conversation) }
     let(:message) { create(:message, conversation: conversation, content_type: 'text', content: 'Test message') }
@@ -858,7 +921,7 @@ RSpec.describe Message do
 
     before do
       # Mock the global namespace version that the callback uses
-      allow(::ForwardNotificationService).to receive(:new).and_return(forward_service_double)
+      allow(ForwardNotificationService).to receive(:new).and_return(forward_service_double)
       allow(forward_service_double).to receive(:send_notification)
     end
 
@@ -913,7 +976,7 @@ RSpec.describe Message do
         it 'creates and calls ForwardNotificationService' do
           notification_message # trigger the callback
 
-          expect(::ForwardNotificationService).to have_received(:new).with(notification_message)
+          expect(ForwardNotificationService).to have_received(:new).with(notification_message)
           expect(forward_service_double).to have_received(:send_notification)
         end
       end
@@ -932,7 +995,7 @@ RSpec.describe Message do
         it 'does not trigger forwarding service' do
           public_message # trigger the callback
 
-          expect(::ForwardNotificationService).not_to have_received(:new)
+          expect(ForwardNotificationService).not_to have_received(:new)
           expect(forward_service_double).not_to have_received(:send_notification)
         end
       end
@@ -950,7 +1013,7 @@ RSpec.describe Message do
         it 'does not trigger forwarding service' do
           incoming_message # trigger the callback
 
-          expect(::ForwardNotificationService).not_to have_received(:new)
+          expect(ForwardNotificationService).not_to have_received(:new)
           expect(forward_service_double).not_to have_received(:send_notification)
         end
       end
@@ -969,7 +1032,7 @@ RSpec.describe Message do
         it 'does not trigger forwarding service' do
           regular_message # trigger the callback
 
-          expect(::ForwardNotificationService).not_to have_received(:new)
+          expect(ForwardNotificationService).not_to have_received(:new)
           expect(forward_service_double).not_to have_received(:send_notification)
         end
       end

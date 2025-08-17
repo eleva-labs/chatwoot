@@ -82,6 +82,7 @@ jobs:
           aws-access-key-id: ${{ secrets.CW_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.CW_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: false
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -173,6 +174,7 @@ jobs:
           aws-access-key-id: ${{ secrets.CW_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.CW_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: false
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2

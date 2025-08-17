@@ -7,6 +7,10 @@
 # Ignore bundler config.
 /.bundle
 
+# Ignore PNPM store and cache
+.pnpm-store/
+.pnpm-cache/
+
 # Ignore the default SQLite database.
 /db/*.sqlite3
 /db/*.sqlite3-journal
@@ -93,11 +97,5 @@ yarn-debug.log*
 # TextEditors & AI Agents config files
 .vscode
 .claude/settings.local.json
-# .cursor
-
-
-# PNPM
-.pnpm-store
-
-# Docs
-/docs
+.cursor
+CLAUDE.local.md
