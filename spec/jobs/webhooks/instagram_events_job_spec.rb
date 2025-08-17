@@ -21,7 +21,6 @@ describe Webhooks::InstagramEventsJob do
       username: 'some_user_name' }
   end
 
-
   describe '#perform' do
     context 'when handling messaging events for Instagram via Facebook page' do
       let!(:instagram_messenger_channel) { create(:channel_instagram_fb_page, account: account, instagram_id: 'chatwoot-app-user-id-1') }
