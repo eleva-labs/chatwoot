@@ -343,6 +343,17 @@
           "ERROR_MESSAGE": "We were not able to create the voice channel"
         }
       },
+      "WHAPI": {
+        "API_KEY": {
+          "LABEL": "Token API de WHAPI",
+          "PLACEHOLDER": "Ingrese su token API de WHAPI",
+          "HELP_TEXT": "Puede encontrar su token API en su panel de WHAPI",
+          "ERROR": "Por favor ingrese un valor válido."
+        },
+        "QR_HELP_TEXT": "Escanee este código QR con su aplicación móvil de WhatsApp para conectar su canal",
+        "SUCCESS_TEXT": "¡Su canal de WhatsApp se ha conectado exitosamente!",
+        "CONTINUE_BUTTON": "Continuar para Agregar Agentes"
+      },
       "API_CHANNEL": {
         "TITLE": "Canal API",
         "DESC": "Integre con API channel y comienze a dar soporte a sus clientes.",
@@ -522,7 +533,6 @@
       "MESSAGE": "Ahora puedes colaborar con tus clientes a través de tu nuevo canal. Feliz soporte",
       "BUTTON_TEXT": "Llévame allí",
       "MORE_SETTINGS": "Más ajustes",
-<<<<<<< HEAD
       "WEBSITE_SUCCESS": "Has terminado de crear un canal del sitio web. Copia el código que se muestra a continuación y pégalo en tu sitio web. La próxima vez que un cliente use el chat en vivo, la conversación aparecerá automáticamente en su canal."
     },
     "REAUTH": "Reautorizar",
