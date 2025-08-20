@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
@@ -98,6 +98,14 @@ const shouldShowCloudWhatsapp = provider => {
   // 2. Either no app ID is configured OR embedded signup feature is disabled
   return provider === PROVIDER_TYPES.WHATSAPP;
 };
+
+// Step tracking for onboarding
+const whapiStep = ref(null);
+
+const handleStepChanged = step => {
+  whapiStep.value = step;
+  // Emit step change event if needed
+};
 </script>
 
 <template>
@@ -138,6 +146,7 @@ const shouldShowCloudWhatsapp = provider => {
       />
       <Whapi
         v-else-if="selectedProvider === PROVIDER_TYPES.WHAPI"
+        @step-changed="handleStepChanged"
       />
       <CloudWhatsapp v-else />
     </div>
