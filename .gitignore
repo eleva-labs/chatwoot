@@ -100,4 +100,4 @@ CLAUDE.local.md
 .pnpm-store
 
 # Docs
-/docs
+/docs/ignored/*
