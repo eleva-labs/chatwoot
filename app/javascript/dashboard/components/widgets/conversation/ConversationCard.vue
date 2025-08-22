@@ -31,78 +31,6 @@ const props = defineProps({
   enableContextMenu: { type: Boolean, default: false },
   allowedContextMenuOptions: { type: Array, default: () => [] },
 });
-      type: String,
-      default: '',
-    },
-    chat: {
-      type: Object,
-      default: () => {},
-    },
-    hideInboxName: {
-      type: Boolean,
-      default: false,
-    },
-    hideThumbnail: {
-      type: Boolean,
-      default: false,
-    },
-    teamId: {
-      type: [String, Number],
-      default: 0,
-    },
-    foldersId: {
-      type: [String, Number],
-      default: 0,
-    },
-    showAssignee: {
-      type: Boolean,
-      default: false,
-    },
-    conversationType: {
-      type: String,
-      default: '',
-    },
-    selected: {
-      type: Boolean,
-      default: false,
-    },
-    enableContextMenu: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  emits: [
-    'contextMenuToggle',
-    'assignAgent',
-    'assignLabel',
-    'assignTeam',
-    'markAsUnread',
-    'markAsRead',
-    'assignPriority',
-    'updateConversationStatus',
-    'deleteConversation',
-  ],
-  data() {
-    return {
-      hovered: false,
-      showContextMenu: false,
-      contextMenu: {
-        x: null,
-        y: null,
-      },
-    };
-  },
-  computed: {
-    ...mapGetters({
-      currentChat: 'getSelectedChat',
-      inboxesList: 'inboxes/getInboxes',
-      activeInbox: 'getSelectedInbox',
-      accountId: 'getCurrentAccountId',
-    }),
-    chatMetadata() {
-      return this.chat.meta || {};
-    },
->>>>>>> 757ed077da (CU-86aadc3c7 Implement AI enable toggling)
 
 const emit = defineEmits([
   'contextMenuToggle',
@@ -132,9 +60,6 @@ const currentChat = useMapGetter('getSelectedChat');
 const inboxesList = useMapGetter('inboxes/getInboxes');
 const activeInbox = useMapGetter('getSelectedInbox');
 const accountId = useMapGetter('getCurrentAccountId');
-      return this.chat.unread_count;
-    },
->>>>>>> 757ed077da (CU-86aadc3c7 Implement AI enable toggling)
 
 const chatMetadata = computed(() => props.chat.meta || {});
 
@@ -148,51 +73,12 @@ const currentContact = computed(() => {
     : {};
 });
 
-<<<<<<< HEAD
 const isActiveChat = computed(() => {
   return currentChat.value.id === props.chat.id;
 });
-=======
-    showInboxName() {
-      return (
-        !this.hideInboxName &&
-        this.isInboxNameVisible &&
-        this.inboxesList.length > 1
-      );
-    },
-    inboxName() {
-      const stateInbox = this.inbox;
-      return stateInbox.name || '';
-    },
-    hasSlaPolicyId() {
-      return this.chat?.sla_policy_id;
-    },
-  },
-  mounted() {
-    // Load all agent bots first, then fetch the specific inbox relationship
-    this.$store.dispatch('agentBots/get').then(() => {
-      this.$store.dispatch('agentBots/fetchAgentBotInbox', this.chat.inbox_id);
-    });
-  },
-  methods: {
-    onCardClick(e) {
-      const { activeInbox, chat } = this;
-      const path = frontendURL(
-        conversationUrl({
-          accountId: this.accountId,
-          activeInbox,
-          id: chat.id,
-          label: this.activeLabel,
-          teamId: this.teamId,
-          foldersId: this.foldersId,
-          conversationType: this.conversationType,
-        })
-      );
->>>>>>> ba7c372e75 (CU-86aadc3c7 Implement AI enable toggling)
 
 const unreadCount = computed(() => props.chat.unread_count);
 
-<<<<<<< HEAD
 const hasUnread = computed(() => unreadCount.value > 0);
 
 const isInboxNameVisible = computed(() => !activeInbox.value);
@@ -350,85 +236,31 @@ const assignPriority = priority => {
 const deleteConversation = () => {
   emit('deleteConversation', props.chat.id);
   closeContextMenu();
-=======
-      router.push({ path });
-    },
-    onThumbnailHover() {
-      this.hovered = !this.hideThumbnail;
-    },
-    onThumbnailLeave() {
-      this.hovered = false;
-    },
-    onSelectConversation(checked) {
-      const action = checked ? 'selectConversation' : 'deSelectConversation';
-      this.$emit(action, this.chat.id, this.inbox.id);
-    },
-    openContextMenu(e) {
-      if (!this.enableContextMenu) return;
-      e.preventDefault();
-      this.$emit('contextMenuToggle', true);
-      this.contextMenu.x = e.pageX || e.clientX;
-      this.contextMenu.y = e.pageY || e.clientY;
-      this.showContextMenu = true;
-    },
-    closeContextMenu() {
-      this.$emit('contextMenuToggle', false);
-      this.showContextMenu = false;
-      this.contextMenu.x = null;
-      this.contextMenu.y = null;
-    },
-    onUpdateConversation(status, snoozedUntil) {
-      this.closeContextMenu();
-      this.$emit(
-        'updateConversationStatus',
-        this.chat.id,
-        status,
-        snoozedUntil
-      );
-    },
-    async onAssignAgent(agent) {
-      this.$emit('assignAgent', agent, [this.chat.id]);
-      this.closeContextMenu();
-    },
-    async onAssignLabel(label) {
-      this.$emit('assignLabel', [label.title], [this.chat.id]);
-      this.closeContextMenu();
-    },
-    async onAssignTeam(team) {
-      this.$emit('assignTeam', team, this.chat.id);
-      this.closeContextMenu();
-    },
-    async markAsUnread() {
-      this.$emit('markAsUnread', this.chat.id);
-      this.closeContextMenu();
-    },
-    async markAsRead() {
-      this.$emit('markAsRead', this.chat.id);
-      this.closeContextMenu();
-    },
-    notAiImplementedNotification() {
-      useAlert(this.$t('AI_NOT_IMPLEMENTED_NOTIFICATION'));
-    },
-    async assignPriority(priority) {
-      this.$emit('assignPriority', priority, this.chat.id);
-      this.closeContextMenu();
-    },
-    async deleteConversation() {
-      this.$emit('deleteConversation', this.chat.id);
-      this.closeContextMenu();
-    },
-    async onToggleAi() {
-      const contactId = this.chatMetadata?.sender?.id;
-      if (!contactId) return;
-      const next = !this.isAiEnabled;
+};
 
-      await this.$store.dispatch('contacts/toggleAi', {
-        id: contactId,
-        aiEnabled: next,
-      });
-    },
-  },
->>>>>>> 757ed077da (CU-86aadc3c7 Implement AI enable toggling)
+// AI-related computed properties and methods
+const hasAiImplemented = computed(() => {
+  return store.getters['contacts/hasAiImplemented'](senderId.value);
+});
+
+const isAiEnabled = computed(() => {
+  return store.getters['contacts/isAiEnabled'](senderId.value);
+});
+
+const notAiImplementedNotification = () => {
+  useAlert('AI_NOT_IMPLEMENTED_NOTIFICATION');
+};
+
+const onToggleAi = async () => {
+  const contactId = senderId.value;
+  if (!contactId) return;
+  const next = !isAiEnabled.value;
+
+  await store.dispatch('contacts/toggleAi', {
+    id: contactId,
+    aiEnabled: next,
+  });
+};
 };
 </script>
 
@@ -549,36 +381,26 @@ const deleteConversation = () => {
         </span>
       </p>
       <div
-<<<<<<< HEAD
-        class="absolute flex flex-col ltr:right-3 rtl:left-3"
-        :class="showMetaSection ? 'top-8' : 'top-4'"
-=======
-        class="absolute flex flex-col justify-end ltr:right-4 rtl:left-4 top-4"
->>>>>>> 757ed077da (CU-86aadc3c7 Implement AI enable toggling)
+        class="absolute flex flex-col justify-end ltr:right-4 rtl:left-4 top-0"
       >
         <span class="ml-auto font-normal leading-4 text-xxs">
           <TimeAgo
             :last-activity-timestamp="chat.timestamp"
             :created-at-timestamp="chat.created_at"
           />
-          <div
-            :class="hasAiImplemented ? 'opacity-100' : 'opacity-40'"
-            class="w-full flex justify-end items-end gap-2"
-            @click="!hasAiImplemented && notAiImplementedNotification()"
-          >
-            <AIEnableBanner
-              :ai-enable="isAiEnabled && hasAiImplemented"
-              @toggle-ai="onToggleAi"
-            />
-          </div>
         </span>
         <span
-<<<<<<< HEAD
-          class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 ltr:ml-auto rtl:mr-auto mt-1 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
-          :class="hasUnread ? 'block' : 'hidden'"
-=======
+          :class="hasAiImplemented ? 'opacity-100' : 'opacity-40'"
+          class="w-full flex justify-center items-end gap-2"
+          @click="!hasAiImplemented && notAiImplementedNotification()"
+        >
+          <AIEnableBanner
+            :ai-enable="isAiEnabled && hasAiImplemented"
+            @toggle-ai="onToggleAi"
+          />
+        </span>
+        <span
           class="unread hidden absolute -right-3 -bottom-4 shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 ltr:ml-auto rtl:mr-auto mt-1 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
->>>>>>> 757ed077da (CU-86aadc3c7 Implement AI enable toggling)
         >
           {{ unreadCount > 9 ? '9+' : unreadCount }}
         </span>
