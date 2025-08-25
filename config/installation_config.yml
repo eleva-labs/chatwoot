@@ -407,7 +407,6 @@
   type: secret
 # ------- End of OG Image Related Config ------- #
 
-<<<<<<< HEAD
 ## ------ Configs added for Google OAuth ------ ##
 - name: GOOGLE_OAUTH_CLIENT_ID
   display_title: 'Google OAuth Client ID'
@@ -440,21 +439,6 @@
   locked: false
   description: 'Zone ID for the Cloudflare domain'
 ## ------ End of Configs added for Cloudflare ------ ##
-
-## ------ Configs added for Google OAuth ------ ##
-- name: GOOGLE_OAUTH_CLIENT_ID
-  display_title: 'Google OAuth Client ID'
-  value:
-  locked: false
-  description: 'Client ID for Google OAuth authentication'
-  type: secret
-- name: GOOGLE_OAUTH_CLIENT_SECRET
-  display_title: 'Google OAuth Client Secret'
-  value:
-  locked: false
-  description: 'Client Secret for Google OAuth authentication'
-  type: secret
-## ------ End of Configs added for Google OAuth ------ ##
 
 # ------- Whapi Partner API Config ------- #
 - name: WHAPI_PARTNER_TOKEN

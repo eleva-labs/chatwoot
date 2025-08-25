@@ -199,8 +199,6 @@ Rails.application.routes.draw do
             get :agent_bot, on: :member
             post :set_agent_bot, on: :member
             delete :avatar, on: :member
-            post :sync_templates, on: :member
-
           end
           resources :whapi_channels, only: [:create] do
             member do
