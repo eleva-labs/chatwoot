@@ -106,6 +106,15 @@ const handleStepChanged = step => {
   whapiStep.value = step;
   // Emit step change event if needed
 };
+
+const watchVideoUrl = computed(() => {
+  // Return Spanish video URL if current locale is Spanish, otherwise return English URL
+  const currentLocale = store.getters['ui/getUILocale'];
+  if (currentLocale === 'es') {
+    return 'https://doc.clickup.com/9013924102/d/h/8cmb486-4673/4ff687bee4893ae';
+  }
+  return 'https://doc.clickup.com/9013924102/d/h/8cmb486-4633/999a328108d91cd';
+});
 </script>
 
 <template>
@@ -118,6 +127,18 @@ const handleStepChanged = step => {
         <p class="text-sm leading-relaxed text-slate-11">
           {{ $t('INBOX_MGMT.ADD.WHATSAPP.SELECT_PROVIDER.DESCRIPTION') }}
         </p>
+      </div>
+
+      <div class="mb-4">
+        <a
+          :href="watchVideoUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 text-sm text-n-brand dark:text-n-lightBrand hover:underline"
+        >
+          <fluent-icon icon="video" size="16" />
+          {{ $t('INBOX_MGMT.ADD.WHATSAPP.WATCH_VIDEO') }}
+        </a>
       </div>
 
       <div class="flex gap-6 justify-start">
