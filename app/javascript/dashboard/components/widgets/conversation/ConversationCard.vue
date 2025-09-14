@@ -14,8 +14,6 @@ import CardLabels from './conversationCardComponents/CardLabels.vue';
 import PriorityMark from './PriorityMark.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
-import AIEnableBanner from 'dashboard/components/ui/AIEnableBanner.vue';
-import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
   activeLabel: { type: String, default: '' },
@@ -236,7 +234,6 @@ const assignPriority = priority => {
 const deleteConversation = () => {
   emit('deleteConversation', props.chat.id);
   closeContextMenu();
-};
 };
 </script>
 

@@ -14,7 +14,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['update:mode']);
+const emit = defineEmits(['update:mode', 'toggleMode']);
 
 const wootEditorReplyMode = useTemplateRef('wootEditorReplyMode');
 const wootEditorPrivateMode = useTemplateRef('wootEditorPrivateMode');
@@ -129,5 +129,5 @@ const translateValue = computed(() => {
         '--rtl-translate-x': `calc(-1 * var(--translate-x))`,
       }"
     />
-  </div>
+  </button>
 </template>

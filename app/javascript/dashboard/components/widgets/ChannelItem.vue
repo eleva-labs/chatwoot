@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue';
 import ChannelSelector from '../ChannelSelector.vue';
-import { CUSTOM_EVENTS } from 'shared/constants/customEvents';
 
 const props = defineProps({
   channel: {
