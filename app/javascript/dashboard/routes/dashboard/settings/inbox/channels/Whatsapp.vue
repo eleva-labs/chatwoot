@@ -11,6 +11,8 @@ import Whapi from './Whapi.vue';
 import ChannelSelector from 'dashboard/components/ChannelSelector.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
+const emit = defineEmits(['stepChanged']);
+
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
@@ -99,21 +101,10 @@ const shouldShowCloudWhatsapp = provider => {
   return provider === PROVIDER_TYPES.WHATSAPP;
 };
 
-const watchVideoUrl = computed(() => {
-  // Return Spanish video URL if current locale is Spanish, otherwise return English URL
-  const currentLocale = t('locale');
-  if (currentLocale === 'es') {
-    return 'https://doc.clickup.com/9013924102/d/h/8cmb486-4673/4ff687bee4893ae';
-  }
-  return 'https://doc.clickup.com/9013924102/d/h/8cmb486-4633/999a328108d91cd';
-});
-
-const handleStepChanged = (step) => {
+const handleStepChanged = step => {
   // Emit step changed event
   emit('stepChanged', step);
 };
-
-const emit = defineEmits(['stepChanged']);
 </script>
 
 <template>
