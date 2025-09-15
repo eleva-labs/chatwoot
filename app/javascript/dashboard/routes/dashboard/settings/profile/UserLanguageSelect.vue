@@ -27,7 +27,9 @@ const languageOptions = computed(() => [
     ),
     iso_639_1_code: '',
   },
-  ...(enabledLanguages ?? []),
+  ...(enabledLanguages ?? []).filter(lang =>
+    ['en', 'es'].includes(lang.iso_639_1_code)
+  ),
 ]);
 
 const updateLanguage = async languageCode => {

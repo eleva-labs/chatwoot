@@ -228,6 +228,8 @@
           "WHATSAPP_CLOUD": "WhatsApp Cloud",
           "WHATSAPP_CLOUD_DESC": "Quick setup through Meta",
           "TWILIO_DESC": "Connect via Twilio credentials",
+          "WHAPI": "WhatsApp Direct",
+          "WHAPI_DESC": "Full flexibility & control",
           "360_DIALOG": "360Dialog"
         },
         "SELECT_PROVIDER": {
@@ -316,6 +318,7 @@
         "LOADING_QR": "Loading QR code...",
         "QR_HELP_TEXT": "Scan this QR code with your WhatsApp mobile app to connect your channel",
         "SUCCESS_TEXT": "Your WhatsApp channel has been successfully connected!",
+        "SUCCESS_MESSAGE": "WhatsApp channel connected successfully!",
         "CONTINUE_BUTTON": "Continue to Add Agents"
       },
       "VOICE": {

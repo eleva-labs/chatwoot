@@ -284,10 +284,10 @@
   },
   "ONBOARDING": {
     "TITLE": "Hola 👋, ¡Bienvenido a {installationName}!",
-    "DESCRIPTION": "Gracias por registrarte. Por favor, sigue los pasos a continuación para comenzar.",
-    "GREETING_MORNING": "👋 Buenos días, {name}. Bienvenido a  {installationName}.",
-    "GREETING_AFTERNOON": "👋 Buenas tardes, {name}. Bienvenido a  {installationName}.",
-    "GREETING_EVENING": "👋 Buenas noches, {name}. Bienvenido a  {installationName}.",
+    "DESCRIPTION": "",
+    "GREETING_MORNING": "👋 Buenos días, {name}.",
+    "GREETING_AFTERNOON": "👋 Buenas tardes, {name}.",
+    "GREETING_EVENING": "👋 Buenas noches, {name}.",
     "READ_LATEST_UPDATES": "Leer nuestras últimas actualizaciones",
     "ALL_CONVERSATION": {
       "TITLE": "Todas sus conversaciones en un solo lugar",
@@ -295,8 +295,8 @@
       "NEW_LINK": "Haga clic aquí para crear un canal"
     },
     "TEAM_MEMBERS": {
-      "TITLE": "Invite a los miembros de su equipo",
-      "DESCRIPTION": "Primero, puedes traer a tu equipo para asistirte. Invita a tus compañeros de equipo por correo electrónico.",
+      "TITLE": "Invite a su equipo por correo electrónico",
+      "DESCRIPTION": "Trae a tu equipo para asistirte",
       "NEW_LINK": "Haga clic aquí para invitar a un miembro del equipo"
     },
     "LABELS": {
@@ -305,14 +305,14 @@
       "NEW_LINK": "Haga clic aquí para crear etiquetas"
     },
     "ADD_CHANNEL": {
-      "TITLE": "Añadir sus canales",
-      "DESCRIPTION": "Vamos a añadir los canales donde recibirás las conversaciones",
+      "TITLE": "Conecte sus canales",
+      "DESCRIPTION": "Especifica los canales donde recibirás las conversaciones",
       "NEW_LINK": "Haga clic aquí para añadir un canal",
       "CHANNEL_AGENTS_UPDATED": "Agentes de canal actualizados correctamente!"
     },
     "ADD_AI_AGENT": {
-      "TITLE": "Añadir su AI Bot",
-      "DESCRIPTION": "Vamos a añadir el AI Bot que ayudará a responder a las conversaciones",
+      "TITLE": "Añadir su asistente de IA",
+      "DESCRIPTION": "AI Bot que ayudará a responder a las conversaciones",
       "NEW_LINK": "Haga clic aquí para añadir un AI Bot"
     },
     "CANNED_RESPONSES": {
