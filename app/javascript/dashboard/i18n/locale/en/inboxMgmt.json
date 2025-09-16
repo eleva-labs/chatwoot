@@ -17,6 +17,10 @@
         "TITLE": "Create Channel",
         "BODY": "Authenticate your account and create a channel."
       },
+      "INVITE_TEAM": {
+        "TITLE": "Invite Team Members",
+        "BODY": "Add people who will be able to handle support for your channels."
+      },
       "AGENT": {
         "TITLE": "Add Members",
         "BODY": "Add members to the created channel."
@@ -319,7 +323,7 @@
         "QR_HELP_TEXT": "Scan this QR code with your WhatsApp mobile app to connect your channel",
         "SUCCESS_TEXT": "Your WhatsApp channel has been successfully connected!",
         "SUCCESS_MESSAGE": "WhatsApp channel connected successfully!",
-        "CONTINUE_BUTTON": "Continue to Add Agents"
+        "CONTINUE_BUTTON": "Continue to Invite Team Members"
       },
       "VOICE": {
         "TITLE": "Voice Channel",

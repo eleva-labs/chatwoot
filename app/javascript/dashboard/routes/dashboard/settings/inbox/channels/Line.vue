@@ -56,7 +56,7 @@ export default {
         );
 
         router.replace({
-          name: 'settings_inboxes_add_agents',
+          name: 'settings_inboxes_invite_team',
           params: {
             page: 'new',
             inbox_id: lineChannel.id,

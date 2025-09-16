@@ -31,18 +31,21 @@ const ALL_CHANNEL_ICONS = [
 ];
 
 const createFlowSteps = computed(() => {
-  const steps = ['CHANNEL', 'INBOX', 'AGENT', 'FINISH'];
+  const steps = ['CHANNEL', 'INBOX', 'INVITE_TEAM', 'AGENT', 'FINISH'];
 
   const routes = {
     CHANNEL: 'settings_inbox_new',
     INBOX: 'settings_inboxes_page_channel',
+    INVITE_TEAM: 'settings_inboxes_invite_team',
     AGENT: 'settings_inboxes_add_agents',
     FINISH: 'settings_inbox_finish',
   };
 
   return steps.map(step => {
     return {
+      // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
       title: t(`INBOX_MGMT.CREATE_FLOW.${step}.TITLE`),
+      // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
       body: t(`INBOX_MGMT.CREATE_FLOW.${step}.BODY`),
       route: routes[step],
     };

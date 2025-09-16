@@ -17,6 +17,10 @@
         "TITLE": "Crear canal",
         "BODY": "Autenticar tu cuenta y crear un canal."
       },
+      "INVITE_TEAM": {
+        "TITLE": "Invitar Miembros del Equipo",
+        "BODY": "Añade personas que podrán manejar el soporte para tus canales."
+      },
       "AGENT": {
         "TITLE": "Añadir miembros",
         "BODY": "Añadir miembros al canal creado."
@@ -319,7 +323,7 @@
         "QR_HELP_TEXT": "Escanea este código QR con tu aplicación móvil de WhatsApp para conectar tu canal",
         "SUCCESS_TEXT": "¡Tu canal de WhatsApp se ha conectado exitosamente!",
         "SUCCESS_MESSAGE": "¡Canal de WhatsApp conectado exitosamente!",
-        "CONTINUE_BUTTON": "Continuar para Agregar Agentes"
+        "CONTINUE_BUTTON": "Continuar para Invitar Miembros del Equipo"
       },
       "VOICE": {
         "TITLE": "Voice Channel",
