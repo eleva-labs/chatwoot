@@ -42,6 +42,7 @@ export const FEATURE_FLAGS = {
   CHANNEL_WHATSAPP_WHAPI_PARTNER: 'channel_whatsapp_whapi_partner',
   WHATSAPP_EMBEDDED_SIGNUP: 'whatsapp_embedded_signup',
   CAPTAIN_V2: 'captain_integration_v2',
+  SAML: 'saml',
 };
 
 export const PREMIUM_FEATURES = [

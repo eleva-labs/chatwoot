@@ -45,6 +45,8 @@ es:
       account_name_already_exists: 'El nombre de la empresa %{name} ya existe'
     assignment_policy:
       not_found: Política de asignación no encontrada
+    saml:
+      feature_not_enabled: La funcionalidad SAML no está habilitada para esta cuenta
     data_import:
       data_type:
         invalid: Tipo de datos no válido
@@ -213,6 +215,7 @@ es:
     reply:
       email:
         header:
+          notifications: 'Notificaciones'
           from_with_name: '%{assignee_name} de %{inbox_name} <%{from_email}>'
           reply_with_name: '%{assignee_name} de %{inbox_name} <reply+%{reply_email}>'
           friendly_name: '%{sender_name} de %{business_name} <%{from_email}>'

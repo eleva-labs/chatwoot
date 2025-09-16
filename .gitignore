@@ -101,3 +101,7 @@ CLAUDE.local.md
 
 # Docs
 /docs/ignored/*
+
+# Histoire deployment
+.netlify
+.histoire
