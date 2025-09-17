@@ -5,26 +5,63 @@ describe Webhooks::InstagramEventsJob do
 
   before do
     stub_request(:post, /graph\.facebook\.com/)
-    stub_request(:delete, /graph\.facebook\.com.*subscribed_apps/)
-      .to_return(status: 200, body: '', headers: {})
     stub_request(:get, 'https://www.example.com/test.jpeg')
+      .to_return(status: 200, body: '', headers: {})
+    
+    # Add WebMock stubs for Instagram Graph API calls (excluding Sender-id-1 for fallback test)
+    stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/Sender-id-(?!1(\?|$)).*\?.*})
+      .to_return(
+        status: 200,
+        body: proc { |request|
+          sender_id = request.uri.path.split('/').last.split('?').first
+          {
+            name: 'Jane',
+            username: 'some_user_name',
+            profile_pic: 'https://chatwoot-assets.local/sample.png',
+            id: sender_id,
+            follower_count: 100,
+            is_user_follow_business: true,
+            is_business_follow_user: true,
+            is_verified_user: false
+          }.to_json
+        },
+        headers: { 'Content-Type' => 'application/json' }
+      )
+    
+    # Add WebMock stubs for story mention API calls
+    stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/mention-message-id-.*\?.*})
+      .to_return(
+        status: 200,
+        body: {
+          story: {
+            mention: {
+              link: 'https://www.example.com/test.jpeg',
+              id: '17920786367196703'
+            }
+          },
+          from: {
+            username: 'Sender-id-1',
+            id: 'Sender-id-1'
+          },
+          id: 'instagram-message-id-1234'
+        }.to_json,
+        headers: { 'Content-Type' => 'application/json' }
+      )
+    
+    # Add WebMock stubs for Facebook API calls
+    stub_request(:delete, %r{https://graph\.facebook\.com/v3\.2/me/subscribed_apps\?access_token=.*})
       .to_return(status: 200, body: '', headers: {})
   end
 
   let!(:account) { create(:account) }
 
-  def return_object_for(sender_id)
+  def return_object_for(sender_id, inbox = nil)
     { name: 'Jane',
       id: sender_id,
-      account_id: instagram_messenger_inbox.account_id,
+      account_id: inbox&.account_id || account.id,
       profile_pic: 'https://chatwoot-assets.local/sample.png',
       username: 'some_user_name' }
   end
-  let!(:instagram_messenger_channel) { create(:channel_instagram_fb_page, account: account, instagram_id: 'chatwoot-app-user-id-1') }
-  let!(:instagram_messenger_inbox) { create(:inbox, channel: instagram_messenger_channel, account: account, greeting_enabled: false) }
-
-  let!(:instagram_channel) { create(:channel_instagram, account: account, instagram_id: 'chatwoot-app-user-id-1') }
-  let!(:instagram_inbox) { create(:inbox, channel: instagram_channel, account: account, greeting_enabled: false) }
 
   # Combined message events into one helper
   let(:message_events) do
@@ -127,11 +164,14 @@ describe Webhooks::InstagramEventsJob do
       end
 
       it 'creates incoming message with share attachments in the instagram inbox' do
+        share_attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
+        sender_id = share_attachment_event[:entry][0][:messaging][0][:sender][:id]
+
         allow(Koala::Facebook::API).to receive(:new).and_return(fb_object)
         allow(fb_object).to receive(:get_object).and_return(
-          return_object.with_indifferent_access
+          return_object_for(sender_id).with_indifferent_access
         )
-        instagram_webhook.perform_now(message_events[:share_attachment][:entry])
+        instagram_webhook.perform_now(share_attachment_event[:entry])
 
         instagram_messenger_inbox.reload
 
@@ -214,9 +254,6 @@ describe Webhooks::InstagramEventsJob do
       let!(:instagram_inbox) { instagram_channel.inbox }
 
       before do
-        # Destroy the Facebook page channel so only the Instagram direct channel exists
-        instagram_messenger_inbox.destroy
-
         instagram_channel.update(access_token: 'valid_instagram_token')
 
         stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/Sender-id-.*\?.*})
