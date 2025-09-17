@@ -8,25 +8,6 @@ describe Webhooks::InstagramEventsJob do
     stub_request(:get, 'https://www.example.com/test.jpeg')
       .to_return(status: 200, body: '', headers: {})
     
-    # Add WebMock stubs for Instagram Graph API calls (excluding Sender-id-1 for fallback test)
-    stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/Sender-id-(?!1(\?|$)).*\?.*})
-      .to_return(
-        status: 200,
-        body: proc { |request|
-          sender_id = request.uri.path.split('/').last.split('?').first
-          {
-            name: 'Jane',
-            username: 'some_user_name',
-            profile_pic: 'https://chatwoot-assets.local/sample.png',
-            id: sender_id,
-            follower_count: 100,
-            is_user_follow_business: true,
-            is_business_follow_user: true,
-            is_verified_user: false
-          }.to_json
-        },
-        headers: { 'Content-Type' => 'application/json' }
-      )
     
     # Add WebMock stubs for story mention API calls
     stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/mention-message-id-.*\?.*})
@@ -149,7 +130,7 @@ describe Webhooks::InstagramEventsJob do
       end
 
       it 'creates incoming message with attachments in the instagram inbox' do
-        attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
+        attachment_event = build(:instagram_message_image_attachment_event).with_indifferent_access
         sender_id = attachment_event[:entry][0][:messaging][0][:sender][:id]
 
         allow(Koala::Facebook::API).to receive(:new).and_return(fb_object)
@@ -346,7 +327,7 @@ describe Webhooks::InstagramEventsJob do
       end
 
       it 'creates incoming message with attachments in the instagram direct inbox' do
-        attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
+        attachment_event = build(:instagram_message_image_attachment_event).with_indifferent_access
         instagram_webhook.perform_now(attachment_event[:entry])
 
         expect(instagram_inbox.contacts.count).to be 1
