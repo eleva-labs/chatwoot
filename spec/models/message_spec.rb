@@ -909,7 +909,6 @@ RSpec.describe Message do
           content_attributes: { email: { auto_reply: true } }
         )
         expect(message.auto_reply_email?).to be true
->>>>>>> develop
       end
     end
   end
