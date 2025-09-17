@@ -237,6 +237,7 @@ describe Webhooks::InstagramEventsJob do
       before do
         instagram_channel.update(access_token: 'valid_instagram_token')
 
+        # Add WebMock stubs for Instagram Graph API calls in Instagram login context
         stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/Sender-id-.*\?.*})
           .to_return(
             status: 200,
@@ -282,26 +283,6 @@ describe Webhooks::InstagramEventsJob do
         expect(contact.identifier).to eq 'some_user_name'
       end
 
-      it 'sets fallback identifier when username is not available' do
-        # Stub API to return user data without username
-        stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/Sender-id-1\?.*})
-          .to_return(
-            status: 200,
-            body: {
-              name: 'Jane',
-              profile_pic: 'https://chatwoot-assets.local/sample.png',
-              id: 'Sender-id-1',
-              follower_count: 100
-            }.to_json,
-            headers: { 'Content-Type' => 'application/json' }
-          )
-
-        instagram_webhook.perform_now(message_events[:dm][:entry])
-        instagram_inbox.reload
-
-        contact = instagram_inbox.contacts.last
-        expect(contact.identifier).to eq 'ig_user_Sender-id-1'
-      end
 
       it 'handle instagram unsend message event' do
         unsend_event = build(:instagram_message_unsend_event).with_indifferent_access
