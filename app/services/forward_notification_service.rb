@@ -57,13 +57,18 @@ class ForwardNotificationService
     whatsapp_channel = @account.whatsapp_channels.find_by(provider: 'whapi')
 
     if whatsapp_channel.nil?
+      Rails.logger.info "No existing whapi channel found for account #{@account.id}, checking for default API key"
       default_api_key = ENV['DEFAULT_WHAPI_CHANNEL_TOKEN']
       if default_api_key.present?
+        Rails.logger.info "Creating new whapi channel for account #{@account.id} using default API Token: #{default_api_key[0..8]}..."
         whatsapp_channel = create_whapi_channel(default_api_key)
       else
         Rails.logger.error "Account #{@account.id} with no whapi channel and no default whapi channel token defined"
       return
       end
+    else
+      api_key = whatsapp_channel.provider_config&.dig('api_key')
+      Rails.logger.info "Using existing whapi channel for account #{@account.id} with API key: #{api_key&.[](0..8)}..."
     end
 
     # Validate that the channel has proper configuration
@@ -92,8 +97,8 @@ class ForwardNotificationService
     Rails.logger.error "Failed to send WhatsApp notification to #{target_chat}: #{e.message}"
   end
 
+
   def create_whapi_channel(api_key)
-    Rails.logger.error "Creating whapi channel with api key: #{api_key}"
     # Create a minimal Channel::Whatsapp instance with only the API key
     Channel::Whatsapp.new(
       provider: 'whapi',
@@ -107,6 +112,7 @@ class ForwardNotificationService
   # Message object for notification forwarding
   class NotificationMessage
     attr_reader :content, :content_type, :message_type, :private, :attachments, :content_attributes
+    attr_accessor :external_error, :status
 
     def initialize(content)
       @content = content
@@ -115,10 +121,16 @@ class ForwardNotificationService
       @private = false
       @attachments = []
       @content_attributes = {}
+      @external_error = nil
+      @status = 'sent'
     end
 
     def outgoing_content
       content
+    end
+
+    def save!
+      # No-op for notification messages - they don't get persisted
     end
   end
 
