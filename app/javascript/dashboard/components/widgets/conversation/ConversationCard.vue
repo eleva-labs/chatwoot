@@ -93,6 +93,11 @@ const callDirection = computed(
 const { labelKey: voiceLabelKey, listIconColor: voiceIconColor } =
   useVoiceCallStatus(callStatus, callDirection);
 
+const voiceCallLabel = computed(() => {
+  if (!callStatus.value) return '';
+  return voiceLabelKey.value;
+});
+
 const inboxId = computed(() => props.chat.inbox_id);
 
 const inbox = computed(() => {
@@ -251,7 +256,7 @@ const deleteConversation = () => {
     @contextmenu="openContextMenu($event)"
   >
     <div
-      class="relative flex-shrink-0 flex items-start py-3"
+      class="relative"
       @mouseenter="onThumbnailHover"
       @mouseleave="onThumbnailLeave"
     >
@@ -288,11 +293,7 @@ const deleteConversation = () => {
     >
       <div
         v-if="showMetaSection"
-        class="flex items-center min-w-0 gap-1"
-        :class="{
-          'ltr:ml-2 rtl:mr-2': !compact,
-          'mx-2': compact,
-        }"
+        class="flex items-center min-w-0 gap-1 ltr:ml-2 rtl:mr-2"
       >
         <InboxName v-if="showInboxName" :inbox="inbox" class="flex-1 min-w-0" />
         <div
@@ -309,17 +310,6 @@ const deleteConversation = () => {
             {{ assignee.name }}
           </span>
           <PriorityMark :priority="chat.priority" class="flex-shrink-0" />
-        </div>
-        <!-- Move timestamp to align with AI button position and assignee baseline -->
-        <div class="absolute right-8 top-2">
-          <span
-            class="font-normal leading-3 text-xxs text-n-slate-10 py-0.5 inline-flex"
-          >
-            <TimeAgo
-              :last-activity-timestamp="chat.timestamp"
-              :created-at-timestamp="chat.created_at"
-            />
-          </span>
         </div>
       </div>
       <h4
@@ -339,7 +329,7 @@ const deleteConversation = () => {
           :class="[voiceIconColor]"
         />
         <span class="mx-1">
-          {{ $t(voiceLabelKey) }}
+          {{ $t(voiceCallLabel) }}
         </span>
       </div>
       <MessagePreview
@@ -378,7 +368,11 @@ const deleteConversation = () => {
           class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 ltr:ml-auto rtl:mr-auto mt-1 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
           :class="hasUnread ? 'block' : 'hidden'"
         >
-          {{ unreadCount > 9 ? '9+' : unreadCount }}
+          {{
+            unreadCount > 9
+              ? $t('CONVERSATION.UNREAD_COUNT.NINE_PLUS')
+              : unreadCount
+          }}
         </span>
       </div>
       <CardLabels

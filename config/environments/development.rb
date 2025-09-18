@@ -62,8 +62,10 @@ Rails.application.configure do
   # routes, locales, etc. This feature depends on the listen gem.
   config.file_watcher = ActiveSupport::EventedFileUpdateChecker
 
-  # Disable host check during development - REMOVED FOR EXPLICIT HOSTS
-  # config.hosts = nil
+  # Allow ngrok domains for webhook testing
+  config.hosts << /.*\.ngrok-free\.app/
+  config.hosts << /.*\.ngrok\.io/
+  config.hosts << /.*\.ngrok\.app/
   
   # GitHub Codespaces configuration
   if ENV['CODESPACES']

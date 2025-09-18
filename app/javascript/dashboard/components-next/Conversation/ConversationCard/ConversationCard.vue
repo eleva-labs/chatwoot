@@ -11,7 +11,7 @@ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import CardMessagePreview from './CardMessagePreview.vue';
 import CardMessagePreviewWithMeta from './CardMessagePreviewWithMeta.vue';
 import CardPriorityIcon from './CardPriorityIcon.vue';
-import AIEnableBanner from 'dashboard/components/ui/AIEnableBanner.vue';
+import AIToggleButton from 'dashboard/components/ui/AIToggleButton.vue';
 
 const props = defineProps({
   conversation: {
@@ -157,9 +157,9 @@ const onToggleAi = async () => {
 
       <!-- Message preview with AI button centered vertically -->
       <div class="relative">
-        <!-- AI Enable Button positioned absolutely in center -->
+        <!-- AI Toggle Button positioned absolutely in center -->
         <div class="absolute right-4 top-1/2 -translate-y-1/2 z-10">
-          <AIEnableBanner :ai-enable="isAiEnabled" @toggle-ai="onToggleAi" />
+          <AIToggleButton :ai-enabled="isAiEnabled" @toggle-ai="onToggleAi" />
         </div>
 
         <!-- Message content with right padding to avoid AI button -->
