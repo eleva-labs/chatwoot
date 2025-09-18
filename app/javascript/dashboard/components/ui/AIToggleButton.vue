@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
   aiEnabled: {
@@ -10,8 +9,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['toggleAi']);
-
-const { t } = useI18n();
 
 const buttonClasses = computed(() => {
   const baseClasses =
@@ -26,7 +23,7 @@ const buttonClasses = computed(() => {
 });
 
 const buttonText = computed(() => {
-  return props.aiEnabled ? t('AI.ON') : t('AI.OFF');
+  return 'AI';
 });
 
 const handleClick = () => {
