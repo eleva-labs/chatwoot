@@ -477,7 +477,7 @@
     "ERROR_DOWNLOADING": "Unable to download attachment. Please try again"
   },
   "AI_NOT_IMPLEMENTED_NOTIFICATION": "No AI is assigned for this channel",
-    "UNREAD_COUNT": {
-      "NINE_PLUS": "9+"
-    }
+  "UNREAD_COUNT": {
+    "NINE_PLUS": "9+"
+  }
 }

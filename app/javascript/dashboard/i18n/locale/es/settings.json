@@ -314,7 +314,9 @@
     "CUSTOM_ATTRIBUTES": "Atributos personalizados",
     "AUTOMATION": "Automatización",
     "MACROS": "Macros",
+    "PROMPTS": "Sugerencias",
     "TEAMS": "Equipos",
+    "SECURITY": "Seguridad",
     "BILLING": "Facturación",
     "CUSTOM_VIEWS_FOLDER": "Filtros",
     "CUSTOM_VIEWS_SEGMENTS": "Segmentos",
@@ -363,6 +365,9 @@
   "BILLING_SETTINGS": {
     "TITLE": "Facturación",
     "DESCRIPTION": "Gestiona tu suscripción aquí, mejora tu plan y consigue más para tu equipo.",
+    "SETUP_IN_PROGRESS": {
+      "MESSAGE": "Configuración de suscripción en progreso..."
+    },
     "CURRENT_PLAN": {
       "TITLE": "Plan actual",
       "PLAN_NOTE": "Actualmente está suscrito al plan **{plan}** con **{quantity}** licencias",
@@ -696,6 +701,123 @@
       "DESCRIPTION": "Are you sure you want to delete this policy? This action cannot be undone.",
       "CONFIRM_BUTTON_LABEL": "Eliminar",
       "CANCEL_BUTTON_LABEL": "Cancelar"
+    }
+  },
+  "SECURITY_SETTINGS": {
+    "TITLE": "Configuración de Seguridad",
+    "DESCRIPTION": "Configure los ajustes de seguridad para su cuenta.",
+    "LINK_TEXT": "Ver configuración de seguridad",
+    "SAML": {
+      "TITLE": "Configuración SAML",
+      "NOTE": "Configure SAML SSO para su cuenta.",
+      "ACS_URL": {
+        "LABEL": "URL de ACS",
+        "TOOLTIP": "URL de servicio de consumidor de aserciones"
+      },
+      "SSO_URL": {
+        "LABEL": "URL de SSO",
+        "HELP": "URL del proveedor de identidad para el inicio de sesión único",
+        "PLACEHOLDER": "Introduzca la URL de SSO"
+      },
+      "CERTIFICATE": {
+        "LABEL": "Certificado",
+        "HELP": "Certificado público del proveedor de identidad",
+        "PLACEHOLDER": "Pegue el certificado aquí"
+      },
+      "FINGERPRINT": {
+        "LABEL": "Huella digital",
+        "TOOLTIP": "Huella digital del certificado"
+      },
+      "COPY_SUCCESS": "Copiado al portapapeles",
+      "SP_ENTITY_ID": {
+        "LABEL": "ID de entidad SP",
+        "HELP": "Identificador de entidad del proveedor de servicios",
+        "TOOLTIP": "Identificador único para el proveedor de servicios"
+      },
+      "IDP_ENTITY_ID": {
+        "LABEL": "ID de entidad IDP",
+        "HELP": "Identificador de entidad del proveedor de identidad",
+        "PLACEHOLDER": "Introduzca el ID de entidad IDP"
+      },
+      "UPDATE_BUTTON": "Actualizar configuración SAML",
+      "API": {
+        "SUCCESS": "Configuración SAML actualizada exitosamente",
+        "ERROR": "Error al actualizar la configuración SAML",
+        "ERROR_LOADING": "Error al cargar la configuración SAML",
+        "DISABLED": "SAML está deshabilitado"
+      },
+      "VALIDATION": {
+        "REQUIRED_FIELDS": "Todos los campos son obligatorios",
+        "SSO_URL_ERROR": "URL de SSO inválida",
+        "CERTIFICATE_ERROR": "Certificado inválido",
+        "IDP_ENTITY_ID_ERROR": "ID de entidad IDP inválido"
+      },
+      "ENTERPRISE_PAYWALL": {
+        "AVAILABLE_ON": "Disponible en planes Enterprise",
+        "UPGRADE_PROMPT": "Actualice para acceder a la configuración SAML",
+        "ASK_ADMIN": "Consulte con su administrador para actualizar"
+      },
+      "PAYWALL": {
+        "TITLE": "Configuración SAML",
+        "AVAILABLE_ON": "Disponible en planes Enterprise",
+        "UPGRADE_PROMPT": "Desbloquee la configuración SAML actualizando su plan",
+        "UPGRADE_NOW": "Actualizar ahora",
+        "CANCEL_ANYTIME": "Puede cancelar en cualquier momento"
+      },
+      "ATTRIBUTE_MAPPING": {
+        "TITLE": "Mapeo de atributos",
+        "DESCRIPTION": "Configure el mapeo de atributos para los usuarios SAML"
+      },
+      "INFO_SECTION": {
+        "TITLE": "Información SAML",
+        "TOOLTIP": "Información de configuración para su proveedor de identidad"
+      }
+    }
+  },
+  "PROMPTS_PAGE": {
+    "TITLE": "Sugerencias",
+    "DESCRIPTION": "Configure sugerencias para su cuenta. Estas sugerencias se pueden usar en el compositor para escribir un mensaje rápidamente.",
+    "EMPTY_STATE": "No se encontraron sugerencias. Cree su primera sugerencia para empezar.",
+    "LOADING": "Cargando sugerencias...",
+    "DELETE": "Eliminar",
+    "ADD": {
+      "TITLE": "Agregar sugerencia",
+      "DESC": "Agregue una nueva sugerencia",
+      "SUCCESS_MESSAGE": "Sugerencia agregada exitosamente",
+      "ERROR_MESSAGE": "No se pudo agregar la sugerencia",
+      "VALIDATION_ERROR": "Error de validación"
+    },
+    "EDIT": {
+      "TITLE": "Editar sugerencia",
+      "DESC": "Editar sugerencia existente",
+      "SUCCESS_MESSAGE": "Sugerencia actualizada exitosamente",
+      "ERROR_MESSAGE": "No se pudo actualizar la sugerencia",
+      "VALIDATION_ERROR": "Error de validación"
+    },
+    "EDITOR": {
+      "SAVING": "Guardando...",
+      "SAVED": "Guardado"
+    },
+    "DELETE_CONFIRM": {
+      "TITLE": "Eliminar sugerencia",
+      "MESSAGE": "¿Está seguro de que desea eliminar esta sugerencia?",
+      "YES": "Sí, eliminar",
+      "NO": "No, cancelar"
+    },
+    "FORM": {
+      "PROMPT_KEY": {
+        "LABEL": "Clave de sugerencia",
+        "PLACEHOLDER": "Introduzca la clave de sugerencia",
+        "ERROR": "La clave de sugerencia es obligatoria"
+      },
+      "TEXT": {
+        "LABEL": "Texto",
+        "PLACEHOLDER": "Introduzca el texto de la sugerencia",
+        "ERROR": "El texto es obligatorio"
+      },
+      "CANCEL": "Cancelar",
+      "SUBMIT": "Enviar",
+      "UPDATE": "Actualizar"
     }
   }
 }
