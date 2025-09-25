@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
 import { useVoiceCallStatus } from 'dashboard/composables/useVoiceCallStatus';
@@ -46,6 +47,7 @@ const emit = defineEmits([
 
 const router = useRouter();
 const store = useStore();
+const { t } = useI18n();
 
 const hovered = ref(false);
 const showContextMenu = ref(false);
@@ -335,7 +337,7 @@ const deleteConversation = () => {
           :class="[voiceIconColor]"
         />
         <span class="mx-1">
-          {{ $t(voiceCallLabel) }}
+          {{ t(voiceCallLabel) }}
         </span>
       </div>
       <MessagePreview
@@ -357,7 +359,7 @@ const deleteConversation = () => {
           icon="info"
         />
         <span class="mx-0.5">
-          {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
+          {{ t(`CHAT_LIST.NO_MESSAGES`) }}
         </span>
       </p>
       <div
@@ -383,11 +385,7 @@ const deleteConversation = () => {
             class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
             :class="hasUnread ? 'block' : 'hidden'"
           >
-            {{
-              unreadCount > 9
-                ? $t('CONVERSATION.UNREAD_COUNT.NINE_PLUS')
-                : unreadCount
-            }}
+            {{ unreadCount > 9 ? '9+' : unreadCount }}
           </span>
         </div>
       </div>
