@@ -314,7 +314,7 @@
     "CUSTOM_ATTRIBUTES": "Atributos personalizados",
     "AUTOMATION": "Automatización",
     "MACROS": "Macros",
-    "PROMPTS": "Sugerencias",
+    "PROMPTS": "Prompts",
     "TEAMS": "Equipos",
     "SECURITY": "Seguridad",
     "BILLING": "Facturación",
@@ -775,23 +775,23 @@
     }
   },
   "PROMPTS_PAGE": {
-    "TITLE": "Sugerencias",
-    "DESCRIPTION": "Configure sugerencias para su cuenta. Estas sugerencias se pueden usar en el compositor para escribir un mensaje rápidamente.",
-    "EMPTY_STATE": "No se encontraron sugerencias. Cree su primera sugerencia para empezar.",
-    "LOADING": "Cargando sugerencias...",
+    "TITLE": "Prompts",
+    "DESCRIPTION": "Configure Prompts para su cuenta. Estos Prompts se pueden usar en el compositor para escribir un mensaje rápidamente.",
+    "EMPTY_STATE": "No se encontraron Prompts. Cree su primer Prompt para empezar.",
+    "LOADING": "Cargando Prompts...",
     "DELETE": "Eliminar",
     "ADD": {
-      "TITLE": "Agregar sugerencia",
-      "DESC": "Agregue una nueva sugerencia",
-      "SUCCESS_MESSAGE": "Sugerencia agregada exitosamente",
-      "ERROR_MESSAGE": "No se pudo agregar la sugerencia",
+      "TITLE": "Agregar Prompt",
+      "DESC": "Agregue un nuevo Prompt",
+      "SUCCESS_MESSAGE": "Prompt agregado exitosamente",
+      "ERROR_MESSAGE": "No se pudo agregar el Prompt",
       "VALIDATION_ERROR": "Error de validación"
     },
     "EDIT": {
-      "TITLE": "Editar sugerencia",
-      "DESC": "Editar sugerencia existente",
-      "SUCCESS_MESSAGE": "Sugerencia actualizada exitosamente",
-      "ERROR_MESSAGE": "No se pudo actualizar la sugerencia",
+      "TITLE": "Editar Prompt",
+      "DESC": "Editar Prompt existente",
+      "SUCCESS_MESSAGE": "Prompt actualizado exitosamente",
+      "ERROR_MESSAGE": "No se pudo actualizar el Prompt",
       "VALIDATION_ERROR": "Error de validación"
     },
     "EDITOR": {
@@ -799,20 +799,20 @@
       "SAVED": "Guardado"
     },
     "DELETE_CONFIRM": {
-      "TITLE": "Eliminar sugerencia",
-      "MESSAGE": "¿Está seguro de que desea eliminar esta sugerencia?",
+      "TITLE": "Eliminar Prompt",
+      "MESSAGE": "¿Está seguro de que desea eliminar este Prompt?",
       "YES": "Sí, eliminar",
       "NO": "No, cancelar"
     },
     "FORM": {
       "PROMPT_KEY": {
-        "LABEL": "Clave de sugerencia",
-        "PLACEHOLDER": "Introduzca la clave de sugerencia",
-        "ERROR": "La clave de sugerencia es obligatoria"
+        "LABEL": "Clave de Prompt",
+        "PLACEHOLDER": "Introduzca la clave de Prompt",
+        "ERROR": "La clave de Prompt es obligatoria"
       },
       "TEXT": {
         "LABEL": "Texto",
-        "PLACEHOLDER": "Introduzca el texto de la sugerencia",
+        "PLACEHOLDER": "Introduzca el texto del Prompt",
         "ERROR": "El texto es obligatorio"
       },
       "CANCEL": "Cancelar",
