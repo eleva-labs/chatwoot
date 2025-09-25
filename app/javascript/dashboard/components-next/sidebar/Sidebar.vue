@@ -125,16 +125,16 @@ const reportRoutes = computed(() => newReportRoutes());
 
 const menuItems = computed(() => {
   return [
-    {
-      name: 'Inbox',
-      label: t('SIDEBAR.INBOX'),
-      icon: 'i-lucide-inbox',
-      to: accountScopedRoute('inbox_view'),
-      activeOn: ['inbox_view', 'inbox_view_conversation'],
-      getterKeys: {
-        count: 'notifications/getUnreadCount',
-      },
-    },
+    // {
+    //   name: 'Inbox',
+    //   label: t('SIDEBAR.INBOX'),
+    //   icon: 'i-lucide-inbox',
+    //   to: accountScopedRoute('inbox_view'),
+    //   activeOn: ['inbox_view', 'inbox_view_conversation'],
+    //   getterKeys: {
+    //     count: 'notifications/getUnreadCount',
+    //   },
+    // },
     {
       name: 'Conversation',
       label: t('SIDEBAR.CONVERSATIONS'),
