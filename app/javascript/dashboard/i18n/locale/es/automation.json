@@ -136,6 +136,7 @@
     },
     "ACTIONS": {
       "ASSIGN_AGENT": "Asignar al agente",
+      "ASSIGN_MEMBER": "Asignar a Miembro",
       "ASSIGN_TEAM": "Asignar equipo",
       "ADD_LABEL": "Añadir etiqueta",
       "REMOVE_LABEL": "Eliminar etiqueta",

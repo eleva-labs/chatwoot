@@ -52,5 +52,8 @@
   },
   "CHANNEL_SELECTOR": {
     "COMING_SOON": "¡Muy pronto!"
+  },
+  "STEP_CIRCLE_FLOW": {
+    "STEP": "Paso:"
   }
 }
