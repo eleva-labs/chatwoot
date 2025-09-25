@@ -305,7 +305,9 @@
           "INVALID_BUSINESS_DATA": "Invalid business data received from Facebook. Please try again.",
           "SIGNUP_ERROR": "Signup error occurred",
           "AUTH_NOT_COMPLETED": "Authentication not completed. Please restart the process.",
-          "SUCCESS_FALLBACK": "WhatsApp Business Account has been successfully configured"
+          "SUCCESS_FALLBACK": "WhatsApp Business Account has been successfully configured",
+          "MANUAL_FALLBACK": "Si tu número ya está conectado a WhatsApp Business Platform (API), o si eres un proveedor técnico configurando tu propio número, por favor usa el flujo de {link}",
+          "MANUAL_LINK_TEXT": "configuración manual"
         },
         "API": {
           "ERROR_MESSAGE": "No pudimos guardar el canal de WhatsApp"
@@ -318,7 +320,7 @@
           "HELP_TEXT": "Puede encontrar su token de API en su panel de control de WHAPI",
           "ERROR": "Por favor, ingrese un valor válido."
         },
-        "GENERANDO_QR": "Generando código QR...",
+        "GENERATING_QR": "Generando código QR...",
         "LOADING_QR": "Cargando código QR...",
         "QR_HELP_TEXT": "Escanea este código QR con tu aplicación móvil de WhatsApp para conectar tu canal",
         "SUCCESS_TEXT": "¡Tu canal de WhatsApp se ha conectado exitosamente!",
