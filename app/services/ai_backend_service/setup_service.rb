@@ -5,25 +5,21 @@ class AiBackendService::SetupService
     new.setup_store(account, user_email)
   end
 
-  def self.save_configuration(store_id, config_key, config_data)
-    new.save_configuration(store_id, config_key, config_data)
-  end
-
   def setup_store(account, user_email)
-    store_response = store_service.create_store(account, user_email)
-    configuration_service.create_default_store_configs(store_response['store']['id'])
-    store_response
-  rescue AiBackendService::StoreService::StoreError,
-         AiBackendService::ConfigurationService::ConfigurationError => e
+    store_service.create_store(account, user_email)
+
+    # NOTE: Configuration creation removed - AI backend manages all configs with defaults
+    # The AI backend will automatically create:
+    # - general_store_config
+    # - messaging_config
+    # - conversation_config
+    # - notifications_config
+    # - ecommerce_config
+    # - calendly_config
+
+  rescue AiBackendService::StoreService::StoreError => e
     Rails.logger.error "AI Backend setup failed: #{e.message}"
     raise SetupError, "AI Backend setup failed: #{e.message}"
-  end
-
-  def save_configuration(store_id, config_key, config_data)
-    configuration_service.save_configuration(store_id, config_key, config_data)
-  rescue AiBackendService::ConfigurationService::ConfigurationError => e
-    Rails.logger.error "Configuration creation failed: #{e.message}"
-    raise SetupError, "Configuration creation failed: #{e.message}"
   end
 
   private
@@ -31,10 +27,4 @@ class AiBackendService::SetupService
   def store_service
     @store_service ||= AiBackendService::StoreService.new
   end
-
-  def configuration_service
-    @configuration_service ||= AiBackendService::ConfigurationService.new
-  end
 end
-
-

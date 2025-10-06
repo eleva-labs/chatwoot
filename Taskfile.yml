@@ -5,6 +5,110 @@ env:
 
 tasks:
   # ---------------------------------------------------------------------
+  # unit testing
+  # ---------------------------------------------------------------------
+  test-check-db:
+    desc: 'Check for running databases on port 5432'
+    cmds:
+      - |
+        if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+          echo "⚠️  Database is running on port 5432"
+          lsof -Pi :5432 -sTCP:LISTEN
+          exit 1
+        else
+          echo "✅ No database running on port 5432"
+        fi
+    silent: false
+
+  test-stop-db:
+    desc: 'Stop any running databases on port 5432'
+    cmds:
+      - |
+        if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+          echo "🛑 Stopping database on port 5432..."
+          docker ps -q --filter "publish=5432" | xargs -r docker stop
+          brew services list | grep postgresql | grep started && brew services stop postgresql || true
+          sleep 2
+          echo "✅ Database stopped"
+        else
+          echo "✅ No database running"
+        fi
+    silent: false
+
+  test-setup-db:
+    desc: 'Setup test database (starts Docker postgres and prepares schema)'
+    cmds:
+      - task: test-stop-db
+      - echo "🚀 Starting test database..."
+      - docker compose up -d postgres redis
+      - sleep 5
+      - echo "📦 Preparing test database schema..."
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rails db:chatwoot_prepare
+      - echo "✅ Test database ready"
+
+  test-backend-all:
+    desc: 'Run all backend RSpec tests'
+    cmds:
+      - task: test-setup-db
+      - echo "Running all RSpec tests"
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec --format documentation
+      - task: test-cleanup
+
+  test-backend-module:
+    desc: 'Run RSpec tests for a specific module (usage: task test-backend-module -- spec/models)'
+    cmds:
+      - task: test-setup-db
+      - echo "Running RSpec tests for {{.CLI_ARGS}}"
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - task: test-cleanup
+
+  test-backend-file:
+    desc: 'Run RSpec tests for a specific file (usage: task test-backend-file -- spec/models/user_spec.rb)'
+    cmds:
+      - task: test-setup-db
+      - echo "Running RSpec test file {{.CLI_ARGS}}"
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - task: test-cleanup
+
+  test-backend-local:
+    desc: 'Run RSpec tests locally (requires local postgres/redis)'
+    cmds:
+      - echo "Running RSpec tests locally"
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+
+  test-frontend-all:
+    desc: 'Run all frontend Vitest tests'
+    cmds:
+      - echo "Running all Vitest tests"
+      - pnpm test
+
+  test-frontend-watch:
+    desc: 'Run frontend tests in watch mode'
+    cmds:
+      - echo "Running Vitest in watch mode"
+      - pnpm test:watch
+
+  test-frontend-coverage:
+    desc: 'Run frontend tests with coverage'
+    cmds:
+      - echo "Running Vitest with coverage"
+      - pnpm test:coverage
+
+  test-cleanup:
+    desc: 'Cleanup test database containers'
+    cmds:
+      - echo "🧹 Cleaning up test containers..."
+      - docker compose stop postgres redis
+      - echo "✅ Cleanup complete"
+
+  test-full-cleanup:
+    desc: 'Full cleanup including volumes'
+    cmds:
+      - echo "🧹 Full cleanup (including volumes)..."
+      - docker compose down -v
+      - echo "✅ Full cleanup complete"
+
+  # ---------------------------------------------------------------------
   # docker
   # ---------------------------------------------------------------------
   docker-build-base:

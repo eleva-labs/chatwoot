@@ -1,0 +1,67 @@
+# frozen_string_literal: true
+
+require 'httparty'
+
+class AiBackendService::UserService
+  include HTTParty
+
+  class UserError < StandardError; end
+
+  def initialize(id_type: AiBackendService::Constants::IdType::EXTERNAL)
+    @id_type = id_type
+    self.class.base_uri ai_backend_api_url
+    self.class.headers({
+                         'Content-Type' => 'application/json',
+                         'Authorization' => 'application/json'
+                       })
+  end
+
+  # Create user with external_id (Chatwoot user.id)
+  def create_user(user, store_id)
+    user_data = AiBackendService::Schemas::UserRequest.from_user(user, store_id)
+
+    response = self.class.post(
+      "#{ai_backend_api_url}/api/users",
+      body: { user: user_data.to_h }.to_json,
+      headers: self.class.headers
+    )
+
+    handle_response(response)
+
+    response.parsed_response
+  end
+
+  # Get user by ID (internal UUID or external ID based on id_type)
+  def get_user(user_id)
+    response = self.class.get(
+      "#{ai_backend_api_url}/api/users/#{user_id}",
+      query: { id_type: @id_type },
+      headers: self.class.headers
+    )
+
+    handle_response(response)
+
+    response.parsed_response
+  end
+
+  private
+
+  def handle_response(response)
+    case response.code
+    when 404
+      raise UserError, "User not found: #{response.request.last_uri}"
+    when 400
+      raise UserError, "Bad request: #{response.code} - #{response.body}"
+    when 200..299
+      # Success
+    else
+      raise UserError, "Unexpected error: #{response.code} - #{response.body}"
+    end
+  end
+
+  def ai_backend_api_url
+    Rails.application.config.ai_backend_api_url ||
+      ENV['AI_BACKEND_URL'] ||
+      Rails.application.credentials.ai_backend_api_url
+  end
+end

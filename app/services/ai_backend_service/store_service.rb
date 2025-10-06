@@ -5,7 +5,8 @@ class AiBackendService::StoreService
 
   class StoreError < StandardError; end
 
-  def initialize
+  def initialize(id_type: AiBackendService::Constants::IdType::EXTERNAL)
+    @id_type = id_type
     self.class.base_uri ai_backend_api_url
     self.class.headers({
                          'Content-Type' => 'application/json',
@@ -13,37 +14,63 @@ class AiBackendService::StoreService
                        })
   end
 
+  # Create store with external_id (Chatwoot account.id)
   def create_store(account, user_email)
-    store_data = build_store_data(account, user_email)
+    store_data = Schemas::StoreRequest.from_account(account, user_email)
 
-    response = self.class.put(
-      "#{ai_backend_api_url}/api/stores/",
-      body: { store: store_data }.to_json,
+    response = self.class.post(
+      "#{ai_backend_api_url}/api/stores",
+      body: { store: store_data.to_h }.to_json,
       headers: self.class.headers
     )
+
     handle_response(response)
 
-    response.parsed_response
+    Schemas::StoreResponse.from_api(response.parsed_response)
+  end
+
+  # Get store by ID (internal UUID or external ID based on id_type)
+  def get_store(store_id)
+    response = self.class.get(
+      "#{ai_backend_api_url}/api/stores/#{store_id}",
+      query: { id_type: @id_type },
+      headers: self.class.headers
+    )
+
+    handle_response(response)
+
+    Schemas::StoreResponse.from_api(response.parsed_response)
+  end
+
+  # Update store by ID
+  def update_store(store_id, attributes)
+    store_data = Schemas::StoreRequest.new(**attributes)
+
+    response = self.class.put(
+      "#{ai_backend_api_url}/api/stores/#{store_id}",
+      query: { id_type: @id_type },
+      body: { store: store_data.to_h }.to_json,
+      headers: self.class.headers
+    )
+
+    handle_response(response)
+
+    Schemas::StoreResponse.from_api(response.parsed_response)
   end
 
   private
 
   def handle_response(response)
-    raise StoreError, "Bad Request, url: #{response.request.last_uri}" if response.code == 404
-    raise StoreError, "Error creating store: #{response.code}-#{response.body}" if response.code == 400
-    raise StoreError, "Unexpected error: #{response.code}-#{response.body}" unless response.success?
-  end
-
-  def build_store_data(account, user_email)
-    {
-      id: account.custom_attributes['store_id'],
-      name: account.name,
-      email: user_email,
-      phone: '',
-      useCases: "#{account.name}UseCases",
-      ecommercePlatform: 'shopify',
-      isActive: true
-    }
+    case response.code
+    when 404
+      raise StoreError, "Store not found: #{response.request.last_uri}"
+    when 400
+      raise StoreError, "Bad request: #{response.code} - #{response.body}"
+    when 200..299
+      # Success
+    else
+      raise StoreError, "Unexpected error: #{response.code} - #{response.body}"
+    end
   end
 
   def ai_backend_api_url
@@ -52,5 +79,3 @@ class AiBackendService::StoreService
       Rails.application.credentials.ai_backend_api_url
   end
 end
-
-

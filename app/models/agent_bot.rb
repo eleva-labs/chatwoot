@@ -29,6 +29,8 @@ class AgentBot < ApplicationRecord
 
   validates :outgoing_url, length: { maximum: Limits::URL_LENGTH_LIMIT }
 
+  after_create_commit :notify_creation
+
   def available_name
     name
   end
@@ -52,5 +54,17 @@ class AgentBot < ApplicationRecord
 
   def system_bot?
     account.nil?
+  end
+
+  private
+
+  def notify_creation
+    return if system_bot? # Skip system bots
+
+    Rails.configuration.dispatcher.dispatch(
+      AGENT_BOT_CREATED,
+      Time.zone.now,
+      agent_bot: self
+    )
   end
 end

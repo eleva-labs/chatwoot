@@ -55,6 +55,9 @@ module Events::Types
   AGENT_ADDED = 'agent.added'
   AGENT_REMOVED = 'agent.removed'
 
+  # agent bot events
+  AGENT_BOT_CREATED = 'agent_bot.created'
+
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'
 end

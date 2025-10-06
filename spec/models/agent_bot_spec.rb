@@ -58,4 +58,28 @@ RSpec.describe AgentBot do
       end
     end
   end
+
+  describe 'event dispatch' do
+    let(:account) { create(:account) }
+
+    context 'when creating agent bot with account' do
+      it 'dispatches AGENT_BOT_CREATED event' do
+        expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
+          AGENT_BOT_CREATED,
+          anything,
+          hash_including(agent_bot: instance_of(AgentBot))
+        )
+
+        create(:agent_bot, account: account)
+      end
+    end
+
+    context 'when creating system bot (no account)' do
+      it 'does not dispatch AGENT_BOT_CREATED event' do
+        expect(Rails.configuration.dispatcher).not_to receive(:dispatch)
+
+        create(:agent_bot, account: nil)
+      end
+    end
+  end
 end

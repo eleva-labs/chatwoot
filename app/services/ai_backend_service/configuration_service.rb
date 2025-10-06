@@ -1,22 +1,16 @@
+# frozen_string_literal: true
+
 require 'httparty'
-require_relative 'default_configs'
 
 class AiBackendService::ConfigurationService
   include HTTParty
-  include AiBackendService::DefaultConfigs
 
   class ConfigurationError < StandardError; end
 
-  CONFIGURATION_KEYS = {
-    NOTIFICATIONS: 'notifications_config',
-    MESSAGES: 'messaging_config',
-    GENERAL_STORE: 'general_store_config',
-    ECOMMERCE: 'ecommerce_config',
-    CALENDLY: 'calendly_config',
-    CONVERSATION: 'conversation_config'
-  }.freeze
+  def initialize(id_type: AiBackendService::Constants::IdType::EXTERNAL)
+    @id_type = id_type
+    validate_id_type!
 
-  def initialize
     self.class.base_uri ai_backend_api_url
     self.class.headers({
                          'Content-Type' => 'application/json',
@@ -24,27 +18,30 @@ class AiBackendService::ConfigurationService
                        })
   end
 
-  def create_default_store_configs(store_id)
-    CONFIGURATION_KEYS.each_value do |config_key|
-      save_configuration(store_id, config_key, default_configs[config_key])
-    end
-  rescue StandardError => e
-    Rails.logger.error "Configuration creation failed: #{e.message}"
-    raise ConfigurationError, "Configuration creation failed: #{e.message}"
-  end
+  # Save or update a configuration
+  # @param scope [String] Resource scope (store, agent_system, user)
+  # @param resource_id [Integer/String] Resource ID (external or internal based on id_type)
+  # @param config_key [String] Configuration key
+  # @param config_data [Hash] Configuration data to save
+  # @return [Hash] API response
+  def save_configuration(scope:, resource_id:, config_key:, config_data:)
+    validate_scope!(scope)
+    validate_config_key!(config_key)
 
-  def save_configuration(store_id, config_key, config_data)
-    existing_config_data = get_configuration(store_id, config_key)
-    data_to_save = existing_config_data.merge(config_data)
+    # Get existing config and merge with new data
+    existing_data = get_configuration(scope: scope, resource_id: resource_id, config_key: config_key)
+    merged_data = existing_data.merge(config_data)
 
     configuration_payload = {
       key: config_key,
-      store_id: store_id,
-      data: data_to_save
+      scope: scope,
+      resource_id: resource_id.to_s,
+      data: merged_data
     }
 
     response = self.class.put(
-      "#{ai_backend_api_url}/api/configurations/",
+      "#{ai_backend_api_url}/api/configurations",
+      query: { id_type: @id_type },
       body: { configuration: configuration_payload }.to_json,
       headers: self.class.headers
     )
@@ -54,14 +51,27 @@ class AiBackendService::ConfigurationService
     response.parsed_response
   end
 
-  def get_configuration(store_id, config_key)
+  # Get a specific configuration
+  # @param scope [String] Resource scope (store, agent_system, user)
+  # @param resource_id [Integer/String] Resource ID
+  # @param config_key [String] Configuration key
+  # @return [Hash] Configuration data (empty hash if not found)
+  def get_configuration(scope:, resource_id:, config_key:)
+    validate_scope!(scope)
+    validate_config_key!(config_key)
+
     response = self.class.get(
-      "#{ai_backend_api_url}/api/configurations/",
-      query: { key: config_key, store_id: store_id },
+      "#{ai_backend_api_url}/api/configurations",
+      query: {
+        key: config_key,
+        scope: scope,
+        resource_id: resource_id.to_s,
+        id_type: @id_type
+      },
       headers: self.class.headers
     )
 
-    # If configuration doesn't exist yet, treat it as empty rather than an error
+    # If configuration doesn't exist yet, return empty hash instead of raising error
     return {} if response.code == 404
 
     handle_response(response)
@@ -70,12 +80,108 @@ class AiBackendService::ConfigurationService
     body.is_a?(Hash) ? (body.dig('configuration', 'data') || {}) : {}
   end
 
+  # Get all configurations for a resource
+  # @param scope [String] Resource scope
+  # @param resource_id [Integer/String] Resource ID
+  # @return [Hash] All configurations grouped by key
+  def get_all_configurations(scope:, resource_id:)
+    validate_scope!(scope)
+
+    response = self.class.get(
+      "#{ai_backend_api_url}/api/configurations/all",
+      query: {
+        scope: scope,
+        resource_id: resource_id.to_s,
+        id_type: @id_type
+      },
+      headers: self.class.headers
+    )
+
+    return {} if response.code == 404
+
+    handle_response(response)
+
+    response.parsed_response['configurations'] || {}
+  end
+
+  # Delete a configuration
+  # @param scope [String] Resource scope
+  # @param resource_id [Integer/String] Resource ID
+  # @param config_key [String] Configuration key
+  # @return [Boolean] Success status
+  def delete_configuration(scope:, resource_id:, config_key:)
+    validate_scope!(scope)
+    validate_config_key!(config_key)
+
+    response = self.class.delete(
+      "#{ai_backend_api_url}/api/configurations",
+      query: {
+        key: config_key,
+        scope: scope,
+        resource_id: resource_id.to_s,
+        id_type: @id_type
+      },
+      headers: self.class.headers
+    )
+
+    handle_response(response)
+
+    response.success?
+  end
+
+  # Batch save multiple configurations for a resource
+  # @param scope [String] Resource scope
+  # @param resource_id [Integer/String] Resource ID
+  # @param configurations [Hash] Hash of config_key => config_data
+  # @return [Array<Hash>] Array of responses
+  def batch_save_configurations(scope:, resource_id:, configurations:)
+    validate_scope!(scope)
+
+    configurations.map do |config_key, config_data|
+      save_configuration(
+        scope: scope,
+        resource_id: resource_id,
+        config_key: config_key,
+        config_data: config_data
+      )
+    rescue ConfigurationError => e
+      Rails.logger.error "Failed to save #{config_key}: #{e.message}"
+      { config_key: config_key, error: e.message }
+    end
+  end
+
   private
 
+  def validate_id_type!
+    return if AiBackendService::Constants::IdType.valid?(@id_type)
+
+    raise ConfigurationError, "Invalid id_type: #{@id_type}. Must be one of: #{AiBackendService::Constants::IdType::ALL.join(', ')}"
+  end
+
+  def validate_scope!(scope)
+    return if AiBackendService::Constants::Scope.valid?(scope)
+
+    raise ConfigurationError, "Invalid scope: #{scope}. Must be one of: #{AiBackendService::Constants::Scope::ALL.join(', ')}"
+  end
+
+  def validate_config_key!(config_key)
+    return if AiBackendService::Constants::ConfigKey.valid?(config_key)
+
+    Rails.logger.warn "Unknown config_key: #{config_key}. Valid keys: #{AiBackendService::Constants::ConfigKey::ALL.join(', ')}"
+  end
+
   def handle_response(response)
-    raise ConfigurationError, "Bad Request, url: #{response.request.last_uri}" if response.code == 404
-    raise ConfigurationError, "Error creating configuration: #{response.code} - #{response.body}" if response.code == 400
-    raise ConfigurationError, "Unexpected error: #{response.code} - #{response.body}" unless response.success?
+    case response.code
+    when 404
+      # 404 for GET is acceptable (config doesn't exist yet), but not for PUT/DELETE
+      raise ConfigurationError, "Configuration not found: #{response.request.last_uri}" unless response.request.http_method == Net::HTTP::Get
+    when 400
+      raise ConfigurationError, "Bad request: #{response.code} - #{response.body}"
+    when 200..299
+      # Success
+    else
+      raise ConfigurationError, "Unexpected error: #{response.code} - #{response.body}"
+    end
   end
 
   def ai_backend_api_url
@@ -84,5 +190,3 @@ class AiBackendService::ConfigurationService
       Rails.application.credentials.ai_backend_api_url
   end
 end
-
-
