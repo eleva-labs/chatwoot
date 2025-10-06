@@ -20,6 +20,10 @@ describe Whatsapp::WebhookSetupService do
     # Stub webhook teardown to prevent HTTP calls during cleanup
     stub_request(:delete, /graph.facebook.com/).to_return(status: 200, body: '{}', headers: {})
 
+    # Stub WhatsApp Cloud provider config validation (called during channel creation)
+    stub_request(:get, %r{https://graph\.facebook\.com/v\d+\.\d+/\d+/message_templates})
+      .to_return(status: 200, body: '{"data": []}', headers: { 'Content-Type' => 'application/json' })
+
     # Clean up any existing channels to avoid phone number conflicts
     Channel::Whatsapp.destroy_all
     allow(Whatsapp::FacebookApiClient).to receive(:new).and_return(api_client)
@@ -185,7 +189,7 @@ describe Whatsapp::WebhookSetupService do
                },
                provider: 'whatsapp_cloud',
                sync_templates: false).tap do |chan|
-          chan.update_column(:reauthorization_required, true)
+          chan.prompt_reauthorization!
         end
       end
       let(:new_access_token) { 'new_test_access_token' }

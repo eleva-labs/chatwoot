@@ -28,15 +28,20 @@
 
 **Backend tests (Ruby/RSpec):**
 ```bash
+# First time or after schema changes
+SETUP_DB=true task test-backend-all
+
+# Normal runs (faster - DB stays running)
 task test-backend-all
+
+# When done testing
+CLEANUP=true task test-backend-all
 ```
-This command does everything: stops conflicting databases, sets up test database, runs all tests, and cleans up.
 
 **Frontend tests (Vue/Vitest):**
 ```bash
 task test-frontend-all
 ```
-This just runs the tests. No setup needed.
 
 **That's it!** The commands handle all complexity for you.
 
@@ -74,7 +79,7 @@ This guide helps AI agents run unit tests in Chatwoot autonomously.
 
 → **All backend tests?**
 ```bash
-task test-backend-all
+task test-backend-all  # Add SETUP_DB=true for first run
 ```
 
 → **Specific folder (e.g., models)?**
@@ -102,37 +107,45 @@ task test-backend-file -- spec/models/user_spec.rb:45
 
 ## Task Commands Reference
 
-### Backend Commands (Auto Setup + Cleanup)
+### Backend Commands
 
 | Command | What It Does | When to Use |
 |---------|-------------|-------------|
 | `task test-backend-all` | Run ALL backend tests | Full validation, CI/CD |
 | `task test-backend-module -- spec/models` | Run specific folder | Testing one area |
 | `task test-backend-file -- spec/models/user_spec.rb` | Run one file | Debugging, TDD |
-| `task test-backend-local -- spec/models` | Run using local DB | Faster iteration |
 
-### Frontend Commands (No Setup Needed)
+**Optional Flags:**
+- `SETUP_DB=true` - Setup database before running (first time, schema changes)
+- `CLEANUP=true` - Stop containers after running (when done testing)
 
-| Command | What It Does | When to Use |
-|---------|-------------|-------------|
-| `task test-frontend-all` | Run ALL frontend tests | Full validation |
-| `task test-frontend-watch` | Interactive watch mode | Active development |
-| `task test-frontend-coverage` | Run with coverage report | Check test coverage |
+**Examples:**
+```bash
+# First run or after schema changes
+SETUP_DB=true task test-backend-file -- spec/models/user_spec.rb
 
-### Cleanup Commands (Usually Not Needed)
+# Fast iteration (DB stays running)
+task test-backend-file -- spec/models/user_spec.rb
+
+# Done for the day
+CLEANUP=true task test-backend-all
+```
+
+### Frontend Commands
 
 | Command | What It Does |
 |---------|-------------|
-| `task test-cleanup` | Stop database containers |
-| `task test-full-cleanup` | Stop containers + delete volumes |
+| `task test-frontend-all` | Run ALL frontend tests |
+| `task test-frontend-watch` | Interactive watch mode |
+| `task test-frontend-coverage` | Run with coverage |
 
-### Pre-flight Commands (Usually Not Needed)
+### Manual Setup/Cleanup (Rarely Needed)
 
 | Command | What It Does |
 |---------|-------------|
-| `task test-check-db` | Check if database is running |
-| `task test-stop-db` | Stop any databases on port 5432 |
-| `task test-setup-db` | Setup test database manually |
+| `task test-setup-db` | Setup test database |
+| `task test-cleanup` | Stop containers |
+| `task test-full-cleanup` | Stop + delete volumes |
 
 
 ## Backend Testing (RSpec)
@@ -146,13 +159,13 @@ task test-backend-file -- spec/models/user_spec.rb:45
 
 **Run all backend tests:**
 ```bash
-task test-backend-all
+SETUP_DB=true task test-backend-all  # First time
+task test-backend-all                 # Subsequent runs
 ```
 
 **Run tests in a specific folder:**
 ```bash
 task test-backend-module -- spec/models
-task test-backend-module -- spec/services
 ```
 
 **Run a single test file:**
@@ -160,7 +173,7 @@ task test-backend-module -- spec/services
 task test-backend-file -- spec/models/user_spec.rb
 ```
 
-**Run a specific test (by line number):**
+**Run a specific test:**
 ```bash
 task test-backend-file -- spec/models/user_spec.rb:45
 ```
@@ -198,14 +211,18 @@ Failures:
 
 ### What Happens Behind the Scenes
 
-When you run `task test-backend-all`:
+**With `SETUP_DB=true`:**
 1. ✓ Stops any conflicting databases
 2. ✓ Starts Docker postgres + redis
 3. ✓ Sets up test database schema
 4. ✓ Runs tests
-5. ✓ Cleans up containers
 
-You don't need to do any of this manually!
+**Normal run (no flags):**
+1. ✓ Runs tests (assumes DB already running)
+
+**With `CLEANUP=true`:**
+1. ✓ Runs tests
+2. ✓ Stops Docker containers
 
 ---
 

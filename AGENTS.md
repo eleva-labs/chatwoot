@@ -1,70 +1,96 @@
 # Chatwoot Development Guidelines
 
-## Taskfile
-- Check Taskfile.yml to build, setup, run stuff
-- If a command not found here, use the below
+## Architecture Overview
 
-## Build / Test / Lint
+**Stack**: Ruby on Rails 7.1+ (backend) + Vue 3 (frontend) + PostgreSQL + Redis + Sidekiq
+**Style**: Monolithic Rails app with service-oriented architecture
+**Real-time**: ActionCable (WebSockets)
+**Multi-tenancy**: Account-based isolation (no schema separation)
 
+### Key Patterns
+
+- **Services** (`app/services/`) - Business logic layer (e.g., `Whatsapp::IncomingMessageService`)
+- **Finders** (`app/finders/`) - Complex database queries (e.g., `ConversationsFinder`)
+- **Builders** (`app/builders/`) - Object construction (e.g., `Messages::MessageBuilder`)
+- **Listeners** (`app/listeners/`) - Event-driven reactions (subscribe to domain events)
+- **Event Dispatcher** - Pub/sub pattern (`Rails.configuration.dispatcher.dispatch(...)`)
+- **Jobs** (`app/jobs/`) - Background processing via Sidekiq
+
+### Directory Structure
+
+```
+app/
+├── controllers/api/    # REST API endpoints (JSON)
+├── services/           # Business logic
+├── finders/            # Query objects
+├── builders/           # Object builders
+├── listeners/          # Event handlers
+├── jobs/               # Background jobs
+└── models/             # ActiveRecord models
+
+app/javascript/dashboard/
+├── components/         # Vue components
+├── components-next/    # New architecture (preferred for message bubbles)
+├── store/              # Vuex state management
+├── api/                # API client wrappers
+└── i18n/               # Translations (en.json, es.json)
+```
+
+See `docs/ignored/ARCHITECTURE.md` for full details.
+
+## Commands
+
+**See Taskfile.yml first** - Most commands are there
+
+Essential quick reference:
 - **Setup**: `bundle install && pnpm install`
 - **Run Dev**: `pnpm dev` or `overmind start -f ./Procfile.dev`
-- **Lint JS/Vue**: `pnpm eslint` / `pnpm eslint:fix`
-- **Lint Ruby**: `bundle exec rubocop -a`
-- **Test JS**: `pnpm test` or `pnpm test:watch`
-- **Test Ruby**: `bundle exec rspec spec/path/to/file_spec.rb`
-- **Single Test**: `bundle exec rspec spec/path/to/file_spec.rb:LINE_NUMBER`
-- **Run Project**: `overmind start -f Procfile.dev`
-- **Run Unit Tests**: Override `POSTGRES_HOST` and `REDIS_URL`(redis://:password@localhost:6379/0) environment variables.  e.g: POSTGRES_HOST=localhost REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec ...
+- **Test Backend**: `task test-backend-file -- spec/path/to/file_spec.rb` (use `SETUP_DB=true` first time)
+- **Test Frontend**: `pnpm test` or `pnpm test:watch`
+- **Lint**: `pnpm eslint:fix` (JS/Vue) | `bundle exec rubocop -a` (Ruby)
 
-## Code Style
+## Critical Code Style Rules
 
-- **Ruby**: Follow RuboCop rules (150 character max line length)
-- **Vue/JS**: Use ESLint (Airbnb base + Vue 3 recommended)
-- **Vue Components**: Use PascalCase
-- **Events**: Use camelCase
-- **I18n**: No bare strings in templates; use i18n
-- **Error Handling**: Use custom exceptions (`lib/custom_exceptions/`)
-- **Models**: Validate presence/uniqueness, add proper indexes
-- **Type Safety**: Use PropTypes in Vue, strong params in Rails
-- **Naming**: Use clear, descriptive names with consistent casing
-- **Vue API**: Always use Composition API with `<script setup>` at the top
-
-## Styling
-
-- **Tailwind Only**:  
-  - Do not write custom CSS  
-  - Do not use scoped CSS  
-  - Do not use inline styles  
-  - Always use Tailwind utility classes  
+### Styling
+- **Tailwind Only**: Do not write custom CSS, scoped CSS, or inline styles - use Tailwind utility classes only
 - **Colors**: Refer to `tailwind.config.js` for color definitions
+
+### Vue/Frontend
+- **Composition API**: Always use `<script setup>` at the top (never Options API)
+- **Components**: PascalCase for names, camelCase for events
+- **I18n**: No bare strings in templates - use i18n
+- **State**: Use Vuex store modules via `useStore()`
+
+### Ruby/Backend
+- **Service Objects**: Extract complex business logic to `app/services/`
+- **Finders**: Use for complex queries instead of scopes/model methods
+- **Error Handling**: Use custom exceptions from `lib/custom_exceptions/`
+- **Module/Class**: Use compact definitions (avoid nested styles)
+- **Line Length**: 150 character max (RuboCop enforced)
 
 ## General Guidelines
 
 - MVP focus: Least code change, happy-path only
 - No unnecessary defensive programming
 - Break down complex tasks into small, testable units
-- Iterate after confirmation
 - Avoid writing specs unless explicitly asked
 - Remove dead/unreachable/unused code
-- Don’t write multiple versions or backups for the same logic — pick the best approach and implement it
+- Don't write multiple versions or backups - pick the best approach and implement it
 - Don't reference Claude in commit messages
 
-## Project-Specific
+## Project-Specific Conventions
 
-- **Translations**:
-  - Update both `en/es.yml` and `en/es.json`
-  - Backend i18n → `en/es.yml`, Frontend i18n → `en/es.json`
-  - Other languages are handled by the community
-- **Frontend**:
-  - Use `components-next/` for message bubbles (the rest is being deprecated)
+### Translations
+- Update both `en/es.yml` and `en/es.json`
+- Backend i18n → `en/es.yml`, Frontend i18n → `en/es.json`
+- Other languages handled by community
 
-## Ruby Best Practices
+### Frontend
+- Use `components-next/` for message bubbles (rest is being deprecated)
 
-- Use compact `module/class` definitions; avoid nested styles
-
-## Concepts
-- **INBOXES**: Referred to as "Channels" in locales/UI labels.
-- **AGENTS**: Referred to as "Members" in locales/UI labels.
+### Domain Concepts
+- **INBOXES**: Referred to as "Channels" in locales/UI labels
+- **AGENTS**: Referred to as "Members" in locales/UI labels
 
 ## Enterprise Edition Notes
 
