@@ -33,5 +33,13 @@ module AiBackendStubs
     # Agent system deletion (triggered by agent bot deletion)
     stub_request(:delete, %r{#{Regexp.escape(ai_backend_url)}/api/agent_systems/.*})
       .to_return(status: 200, body: '{}', headers: { 'Content-Type' => 'application/json' })
+
+    # Channel creation (triggered by inbox creation)
+    stub_request(:post, "#{ai_backend_url}/api/channels")
+      .to_return(status: 200, body: { id: 'channel-uuid', external_id: '789' }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+    # Channel deletion (triggered by inbox deletion)
+    stub_request(:delete, %r{#{Regexp.escape(ai_backend_url)}/api/channels/.*})
+      .to_return(status: 200, body: '{}', headers: { 'Content-Type' => 'application/json' })
   end
 end
