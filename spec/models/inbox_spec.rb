@@ -207,26 +207,11 @@ RSpec.describe Inbox do
       expect(inbox.portal).to eq(portal)
     end
 
-    it 'sends the inbox_created event if ENABLE_INBOX_EVENTS is true' do
-      with_modified_env ENABLE_INBOX_EVENTS: 'true' do
-        channel = inbox.channel
-        channel.update(widget_color: '#fff')
-
-        expect(Rails.configuration.dispatcher).to have_received(:dispatch)
-          .with(
-            'inbox.updated',
-            kind_of(Time),
-            inbox: inbox,
-            changed_attributes: kind_of(Object)
-          )
-      end
-    end
-
-    it 'sends the inbox_created event if ENABLE_INBOX_EVENTS is false' do
+    it 'sends the inbox_updated event' do
       channel = inbox.channel
       channel.update(widget_color: '#fff')
 
-      expect(Rails.configuration.dispatcher).not_to have_received(:dispatch)
+      expect(Rails.configuration.dispatcher).to have_received(:dispatch)
         .with(
           'inbox.updated',
           kind_of(Time),
@@ -385,6 +370,90 @@ RSpec.describe Inbox do
       it 'handles unicode characters and preserves emojis' do
         inbox = FactoryBot.build(:inbox, name: 'Test Name with émojis 🎉')
         expect(inbox.sanitized_name).to eq('Test Name with émojis 🎉')
+      end
+    end
+  end
+
+  describe 'event callbacks' do
+    let(:account) { FactoryBot.create(:account) }
+
+    before do
+      allow(Rails.configuration.dispatcher).to receive(:dispatch)
+    end
+
+    describe 'after_create_commit' do
+      it 'dispatches INBOX_CREATED event' do
+        inbox = FactoryBot.build(:inbox, account: account)
+
+        expect(Rails.configuration.dispatcher).to receive(:dispatch)
+          .with('inbox.created', kind_of(Time), hash_including(inbox: inbox))
+
+        inbox.save!
+      end
+
+      it 'dispatches event without environment variable check' do
+        with_modified_env ENABLE_INBOX_EVENTS: nil do
+          inbox = FactoryBot.build(:inbox, account: account)
+
+          expect(Rails.configuration.dispatcher).to receive(:dispatch)
+            .with('inbox.created', kind_of(Time), anything)
+
+          inbox.save!
+        end
+      end
+    end
+
+    describe 'after_destroy_commit' do
+      it 'dispatches INBOX_DELETED event with inbox_id, account_id, and channel_type' do
+        inbox = FactoryBot.create(:inbox, account: account)
+        inbox_id = inbox.id
+        account_id = inbox.account_id
+        channel_type = inbox.channel_type
+
+        expect(Rails.configuration.dispatcher).to receive(:dispatch)
+          .with(
+            'inbox.deleted',
+            kind_of(Time),
+            hash_including(
+              inbox_id: inbox_id,
+              account_id: account_id,
+              channel_type: channel_type
+            )
+          )
+
+        inbox.destroy!
+      end
+
+      it 'dispatches event even when inbox is already destroyed' do
+        inbox = FactoryBot.create(:inbox, account: account)
+        inbox_id = inbox.id
+
+        expect(Rails.configuration.dispatcher).to receive(:dispatch)
+          .with('inbox.deleted', kind_of(Time), hash_including(inbox_id: inbox_id))
+
+        inbox.destroy!
+      end
+    end
+
+    describe 'after_update_commit' do
+      it 'dispatches INBOX_UPDATED event without environment check' do
+        inbox = FactoryBot.create(:inbox, account: account)
+
+        with_modified_env ENABLE_INBOX_EVENTS: nil do
+          expect(Rails.configuration.dispatcher).to receive(:dispatch)
+            .with('inbox.updated', kind_of(Time), anything)
+
+          inbox.update!(name: 'Updated Name')
+        end
+      end
+
+      it 'includes changed attributes in event payload' do
+        inbox = FactoryBot.create(:inbox, account: account)
+
+        expect(Rails.configuration.dispatcher).to receive(:dispatch)
+          .with('inbox.updated', kind_of(Time), hash_including(inbox: inbox, changed_attributes: kind_of(Object)))
+
+        inbox.update!(name: 'Updated Name')
       end
     end
   end

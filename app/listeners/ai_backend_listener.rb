@@ -79,4 +79,28 @@ class AiBackendListener < BaseListener
   rescue StandardError => e
     Rails.logger.error "AI Backend: Failed to enqueue user deletion for user #{user_id}: #{e.message}"
   end
+
+  # Handle inbox creation -> create channel in AI backend
+  def inbox_created(event)
+    inbox = event.data[:inbox]
+    account = inbox.account
+
+    AiBackend::CreateChannelJob.perform_later(inbox.id, account.id)
+
+    Rails.logger.info "AI Backend: Enqueued channel creation for inbox #{inbox.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue channel creation for inbox #{inbox.id}: #{e.message}"
+  end
+
+  # Handle inbox deletion -> delete channel from AI backend
+  def inbox_deleted(event)
+    inbox_id = event.data[:inbox_id]
+    account_id = event.data[:account_id]
+
+    AiBackend::DeleteChannelJob.perform_later(inbox_id, account_id)
+
+    Rails.logger.info "AI Backend: Enqueued channel deletion for inbox #{inbox_id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue channel deletion for inbox #{inbox_id}: #{e.message}"
+  end
 end

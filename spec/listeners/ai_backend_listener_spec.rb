@@ -228,4 +228,74 @@ RSpec.describe AiBackendListener do
       expect(Rails.logger).to have_received(:error).with(/Failed to enqueue user deletion/)
     end
   end
+
+  describe '#inbox_created' do
+    let(:account) { create(:account, id: 456) }
+    let(:inbox) { create(:inbox, id: 789, account: account, name: 'Test Channel') }
+    let(:event) { double(data: { inbox: inbox }) }
+
+    it 'enqueues CreateChannelJob with inbox ID and account ID' do
+      expect(AiBackend::CreateChannelJob).to receive(:perform_later).with(789, 456)
+
+      listener.inbox_created(event)
+    end
+
+    it 'logs job enqueue' do
+      allow(AiBackend::CreateChannelJob).to receive(:perform_later)
+      allow(Rails.logger).to receive(:info)
+
+      listener.inbox_created(event)
+
+      expect(Rails.logger).to have_received(:info).with(/Enqueued channel creation for inbox 789/)
+    end
+
+    it 'logs error on failure' do
+      allow(AiBackend::CreateChannelJob).to receive(:perform_later).and_raise(StandardError, 'Job enqueue failed')
+      allow(Rails.logger).to receive(:error)
+
+      listener.inbox_created(event)
+
+      expect(Rails.logger).to have_received(:error).with(/Failed to enqueue channel creation for inbox 789/)
+    end
+
+    it 'does not raise error on failure' do
+      allow(AiBackend::CreateChannelJob).to receive(:perform_later).and_raise(StandardError, 'Job enqueue failed')
+
+      expect { listener.inbox_created(event) }.not_to raise_error
+    end
+  end
+
+  describe '#inbox_deleted' do
+    let(:event) { double(data: { inbox_id: 789, account_id: 456 }) }
+
+    it 'enqueues DeleteChannelJob with inbox ID and account ID' do
+      expect(AiBackend::DeleteChannelJob).to receive(:perform_later).with(789, 456)
+
+      listener.inbox_deleted(event)
+    end
+
+    it 'logs job enqueue' do
+      allow(AiBackend::DeleteChannelJob).to receive(:perform_later)
+      allow(Rails.logger).to receive(:info)
+
+      listener.inbox_deleted(event)
+
+      expect(Rails.logger).to have_received(:info).with(/Enqueued channel deletion for inbox 789/)
+    end
+
+    it 'logs error on failure' do
+      allow(AiBackend::DeleteChannelJob).to receive(:perform_later).and_raise(StandardError, 'Job enqueue failed')
+      allow(Rails.logger).to receive(:error)
+
+      listener.inbox_deleted(event)
+
+      expect(Rails.logger).to have_received(:error).with(/Failed to enqueue channel deletion for inbox 789/)
+    end
+
+    it 'does not raise error on failure' do
+      allow(AiBackend::DeleteChannelJob).to receive(:perform_later).and_raise(StandardError, 'Job enqueue failed')
+
+      expect { listener.inbox_deleted(event) }.not_to raise_error
+    end
+  end
 end

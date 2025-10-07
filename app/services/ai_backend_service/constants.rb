@@ -18,8 +18,9 @@ module AiBackendService::Constants
     STORE = 'store'
     AGENT_SYSTEM = 'agent_system'
     USER = 'user'
+    CHANNEL = 'channel'
 
-    ALL = [STORE, AGENT_SYSTEM, USER].freeze
+    ALL = [STORE, AGENT_SYSTEM, USER, CHANNEL].freeze
 
     def self.valid?(scope)
       ALL.include?(scope)

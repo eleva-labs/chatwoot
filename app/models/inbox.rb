@@ -80,6 +80,7 @@ class Inbox < ApplicationRecord
 
   after_create_commit :dispatch_create_event
   after_update_commit :dispatch_update_event
+  after_destroy_commit :dispatch_destroy_event
 
   scope :order_by_name, -> { order('lower(name) ASC') }
 
@@ -209,15 +210,21 @@ class Inbox < ApplicationRecord
   end
 
   def dispatch_create_event
-    return if ENV['ENABLE_INBOX_EVENTS'].blank?
-
     Rails.configuration.dispatcher.dispatch(INBOX_CREATED, Time.zone.now, inbox: self)
   end
 
   def dispatch_update_event
-    return if ENV['ENABLE_INBOX_EVENTS'].blank?
-
     Rails.configuration.dispatcher.dispatch(INBOX_UPDATED, Time.zone.now, inbox: self, changed_attributes: previous_changes)
+  end
+
+  def dispatch_destroy_event
+    Rails.configuration.dispatcher.dispatch(
+      INBOX_DELETED,
+      Time.zone.now,
+      inbox_id: id,
+      account_id: account_id,
+      channel_type: channel_type
+    )
   end
 
   def ensure_valid_max_assignment_limit
