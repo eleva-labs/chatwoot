@@ -47,36 +47,36 @@ class AiBackendListener < BaseListener
 
   # Handle account deletion -> delete store from AI backend
   def account_deleted(event)
-    account = event.data[:account]
+    account_id = event.data[:account_id]
 
-    AiBackend::DeleteStoreJob.perform_later(account.id)
+    AiBackend::DeleteStoreJob.perform_later(account_id)
 
-    Rails.logger.info "AI Backend: Enqueued store deletion for account #{account.id}"
+    Rails.logger.info "AI Backend: Enqueued store deletion for account #{account_id}"
   rescue StandardError => e
-    Rails.logger.error "AI Backend: Failed to enqueue store deletion for account #{account.id}: #{e.message}"
+    Rails.logger.error "AI Backend: Failed to enqueue store deletion for account #{account_id}: #{e.message}"
   end
 
   # Handle agent bot deletion -> delete agent system from AI backend
   def agent_bot_deleted(event)
-    agent_bot = event.data[:agent_bot]
+    agent_bot_id = event.data[:agent_bot_id]
 
-    AiBackend::DeleteAgentSystemJob.perform_later(agent_bot.id)
+    AiBackend::DeleteAgentSystemJob.perform_later(agent_bot_id)
 
-    Rails.logger.info "AI Backend: Enqueued agent system deletion for bot #{agent_bot.id}"
+    Rails.logger.info "AI Backend: Enqueued agent system deletion for bot #{agent_bot_id}"
   rescue StandardError => e
-    Rails.logger.error "AI Backend: Failed to enqueue agent system deletion for bot #{agent_bot.id}: #{e.message}"
+    Rails.logger.error "AI Backend: Failed to enqueue agent system deletion for bot #{agent_bot_id}: #{e.message}"
   end
 
   # Handle user removal from account -> delete user from AI backend
   def agent_removed(event)
-    user = event.data[:user]
+    user_id = event.data[:user_id]
 
-    return unless user
+    return unless user_id
 
-    AiBackend::DeleteUserJob.perform_later(user.id)
+    AiBackend::DeleteUserJob.perform_later(user_id)
 
-    Rails.logger.info "AI Backend: Enqueued user deletion for user #{user.id}"
+    Rails.logger.info "AI Backend: Enqueued user deletion for user #{user_id}"
   rescue StandardError => e
-    Rails.logger.error "AI Backend: Failed to enqueue user deletion for user #{user&.id}: #{e.message}"
+    Rails.logger.error "AI Backend: Failed to enqueue user deletion for user #{user_id}: #{e.message}"
   end
 end

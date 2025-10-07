@@ -220,13 +220,13 @@ RSpec.describe Account do
       expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
         'account.deleted',
         anything,
-        hash_including(account: account)
+        hash_including(account_id: account.id)
       )
 
       account.destroy
     end
 
-    it 'includes account in event data' do
+    it 'includes account_id in event data' do
       account = create(:account)
       received_data = nil
 
@@ -236,7 +236,7 @@ RSpec.describe Account do
 
       account.destroy
 
-      expect(received_data[:account]).to eq(account)
+      expect(received_data[:account_id]).to eq(account.id)
     end
 
     it 'fires after DB transaction commits' do

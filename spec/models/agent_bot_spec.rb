@@ -92,13 +92,13 @@ RSpec.describe AgentBot do
         expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
           'agent_bot.deleted',
           anything,
-          hash_including(agent_bot: agent_bot)
+          hash_including(agent_bot_id: agent_bot.id)
         )
 
         agent_bot.destroy
       end
 
-      it 'includes agent_bot in event data' do
+      it 'includes agent_bot_id in event data' do
         agent_bot = create(:agent_bot, account: account)
         received_data = nil
 
@@ -108,7 +108,7 @@ RSpec.describe AgentBot do
 
         agent_bot.destroy
 
-        expect(received_data[:agent_bot]).to eq(agent_bot)
+        expect(received_data[:agent_bot_id]).to eq(agent_bot.id)
       end
     end
 

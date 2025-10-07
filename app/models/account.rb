@@ -212,7 +212,7 @@ class Account < ApplicationRecord
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(ACCOUNT_DELETED, Time.zone.now, account: self)
+    Rails.configuration.dispatcher.dispatch(ACCOUNT_DELETED, Time.zone.now, account_id: id)
   end
 
   def enqueue_stripe_provisioning_job

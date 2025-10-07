@@ -132,8 +132,7 @@ RSpec.describe AiBackendListener do
   end
 
   describe '#account_deleted' do
-    let(:account) { create(:account, id: 123) }
-    let(:event) { double(data: { account: account }) }
+    let(:event) { double(data: { account_id: 123 }) }
 
     it 'enqueues DeleteStoreJob with account ID' do
       expect(AiBackend::DeleteStoreJob).to receive(:perform_later).with(123)
@@ -167,8 +166,7 @@ RSpec.describe AiBackendListener do
   end
 
   describe '#agent_bot_deleted' do
-    let(:agent_bot) { create(:agent_bot, id: 456) }
-    let(:event) { double(data: { agent_bot: agent_bot }) }
+    let(:event) { double(data: { agent_bot_id: 456 }) }
 
     it 'enqueues DeleteAgentSystemJob with bot ID' do
       expect(AiBackend::DeleteAgentSystemJob).to receive(:perform_later).with(456)
@@ -196,9 +194,7 @@ RSpec.describe AiBackendListener do
   end
 
   describe '#agent_removed' do
-    let(:user) { create(:user, id: 789) }
-    let(:account) { create(:account, id: 123) }
-    let(:event) { double(data: { user: user, account: account }) }
+    let(:event) { double(data: { user_id: 789, account_id: 123 }) }
 
     it 'enqueues DeleteUserJob with user ID' do
       expect(AiBackend::DeleteUserJob).to receive(:perform_later).with(789)
@@ -206,8 +202,8 @@ RSpec.describe AiBackendListener do
       listener.agent_removed(event)
     end
 
-    it 'returns early when user is nil' do
-      event = double(data: { user: nil, account: account })
+    it 'returns early when user_id is nil' do
+      event = double(data: { user_id: nil, account_id: 123 })
 
       expect(AiBackend::DeleteUserJob).not_to receive(:perform_later)
 
