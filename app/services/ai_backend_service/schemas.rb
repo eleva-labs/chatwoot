@@ -42,7 +42,16 @@ module AiBackendService::Schemas
     keyword_init: true
   ) do
     def self.from_api(hash)
-      new(**hash.symbolize_keys)
+      # Convert camelCase API response to snake_case for internal use
+      symbolized = hash.is_a?(Hash) ? hash.symbolize_keys : {}
+      new(
+        id: symbolized[:id],
+        name: symbolized[:name],
+        email: symbolized[:email],
+        is_active: symbolized[:isActive] || symbolized[:is_active],
+        external_id: symbolized[:externalId] || symbolized[:external_id],
+        custom_attributes: symbolized[:customAttributes] || symbolized[:custom_attributes] || {}
+      )
     end
   end
 
@@ -50,58 +59,64 @@ module AiBackendService::Schemas
   AgentSystemRequest = Struct.new(
     :name,
     :external_id,
-    :store_id,
     :description,
     :is_active,
+    :custom_attributes,
     keyword_init: true
   ) do
     def to_h
       {
         name: name,
-        external_id: external_id.to_s,
-        store_id: store_id,
+        externalId: external_id.to_s,
         description: description,
-        is_active: is_active
+        isActive: is_active,
+        customAttributes: custom_attributes || {}
       }
     end
 
-    def self.from_agent_bot(agent_bot, store_id)
+    def self.from_agent_bot(agent_bot, _store_id)
       new(
         name: agent_bot.name,
         external_id: agent_bot.id,
-        store_id: store_id,
         description: agent_bot.description || '',
-        is_active: true
+        is_active: true,
+        custom_attributes: {}
       )
     end
   end
 
   # User creation/update request schema
   UserRequest = Struct.new(
-    :name,
+    :first_name,
+    :last_name,
     :email,
     :external_id,
-    :store_id,
-    :is_active,
+    :role,
+    :custom_attributes,
     keyword_init: true
   ) do
     def to_h
       {
-        name: name,
+        firstName: first_name,
+        lastName: last_name || '',
         email: email,
-        external_id: external_id.to_s,
-        store_id: store_id,
-        is_active: is_active
+        externalId: external_id.to_s,
+        role: role,
+        customAttributes: custom_attributes || {}
       }
     end
 
-    def self.from_user(user, store_id)
+    def self.from_user(user, _store_id)
+      # Split name into first and last name
+      name_parts = user.name.to_s.split(' ', 2)
+
       new(
-        name: user.name,
+        first_name: name_parts[0] || user.name,
+        last_name: name_parts[1] || '',
         email: user.email,
         external_id: user.id,
-        store_id: store_id,
-        is_active: true
+        role: 'admin',
+        custom_attributes: {}
       )
     end
   end

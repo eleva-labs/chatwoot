@@ -4,15 +4,17 @@ class AiBackendListener < BaseListener
   # Handle account creation -> create store in AI backend
   def account_created(event)
     account = event.data[:account]
-    user = account.users.first # Get the admin user created with account
+    user = account.users.first
+    user_email = user&.email || account.support_email
 
+    # Create store with account.id as external_id
     store_service = AiBackendService::StoreService.new
-    store_service.create_store(account, user&.email || account.support_email)
+    store_service.create_store(account, user_email)
 
     Rails.logger.info "AI Backend: Store created for account #{account.id} (external_id)"
   rescue AiBackendService::StoreService::StoreError => e
     Rails.logger.error "AI Backend: Store creation failed for account #{account.id}: #{e.message}"
-    # TODO: Enqueue retry job or send alert to monitoring system
+    # TODO: Retry strategy
   end
 
   # Handle agent bot creation -> create agent system in AI backend
@@ -24,11 +26,11 @@ class AiBackendListener < BaseListener
 
     # Get store by account.id using external_id lookup
     store_service = AiBackendService::StoreService.new
-    store_response = store_service.get_store(account.id)
+    store_service.get_store(account.id) # Verify store exists
 
-    # Create agent system with bot.id as external_id
+    # Create agent system with bot.id as external_id, using account.id as store external_id
     agent_system_service = AiBackendService::AgentSystemService.new
-    agent_system_service.create_agent_system(agent_bot, store_response.id)
+    agent_system_service.create_agent_system(agent_bot, account.id)
 
     Rails.logger.info "AI Backend: Agent system created for bot #{agent_bot.id} (external_id)"
   rescue AiBackendService::StoreService::StoreError, AiBackendService::AgentSystemService::AgentSystemError => e
@@ -48,11 +50,11 @@ class AiBackendListener < BaseListener
 
     # Get store by account.id using external_id lookup
     store_service = AiBackendService::StoreService.new
-    store_response = store_service.get_store(account.id)
+    store_service.get_store(account.id) # Verify store exists
 
-    # Create user with user.id as external_id
+    # Create user with user.id as external_id, using account.id as store external_id
     user_service = AiBackendService::UserService.new
-    user_service.create_user(user, store_response.id)
+    user_service.create_user(user, account.id)
 
     Rails.logger.info "AI Backend: User created for user #{user.id} in account #{account.id} (external_id)"
   rescue AiBackendService::StoreService::StoreError, AiBackendService::UserService::UserError => e

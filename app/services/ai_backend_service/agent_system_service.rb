@@ -2,6 +2,12 @@
 
 require 'httparty'
 
+# AgentSystemService - Manage agent systems in AI Backend (mapped to Chatwoot agent bots)
+#
+# IMPORTANT: Defaults to id_type=external, using Chatwoot agent_bot.id
+# - create_agent_system(agent_bot, store_id) - Creates agent system with external_id = agent_bot.id
+#   * store_id MUST be account.id (Chatwoot account ID), NOT the AI Backend UUID
+# - get_agent_system(bot_id) - Gets agent system by Chatwoot bot.id
 class AiBackendService::AgentSystemService
   include HTTParty
 
@@ -21,8 +27,9 @@ class AiBackendService::AgentSystemService
     agent_system_data = AiBackendService::Schemas::AgentSystemRequest.from_agent_bot(agent_bot, store_id)
 
     response = self.class.post(
-      "#{ai_backend_api_url}/api/agent_systems",
-      body: { agent_system: agent_system_data.to_h }.to_json,
+      "#{ai_backend_api_url}/api/agent-systems",
+      query: { store_id: store_id, id_type: @id_type },
+      body: agent_system_data.to_h.to_json,
       headers: self.class.headers
     )
 
@@ -34,7 +41,7 @@ class AiBackendService::AgentSystemService
   # Get agent system by ID (internal UUID or external ID based on id_type)
   def get_agent_system(agent_system_id)
     response = self.class.get(
-      "#{ai_backend_api_url}/api/agent_systems/#{agent_system_id}",
+      "#{ai_backend_api_url}/api/agent-systems/#{agent_system_id}",
       query: { id_type: @id_type },
       headers: self.class.headers
     )

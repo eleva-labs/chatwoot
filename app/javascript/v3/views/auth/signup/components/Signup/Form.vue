@@ -9,7 +9,7 @@ import FormInput from '../../../../../components/Form/Input.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import { isValidPassword } from 'shared/helpers/Validators';
 import GoogleOAuthButton from '../../../../../components/GoogleOauth/Button.vue';
-import { registerWithStore } from '../../../../../api/auth';
+import { register } from '../../../../../api/auth';
 
 export default {
   components: {
@@ -104,7 +104,7 @@ export default {
       this.isSignupInProgress = true;
 
       try {
-        await registerWithStore(this.credentials);
+        await register(this.credentials);
 
         // Success! Redirect
         window.location = DEFAULT_REDIRECT_URL;

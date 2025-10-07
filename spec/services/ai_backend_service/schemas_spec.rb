@@ -114,7 +114,6 @@ RSpec.describe AiBackendService::Schemas do
 
         expect(request.name).to eq('Test Bot')
         expect(request.external_id).to eq(456)
-        expect(request.store_id).to eq('store-uuid-123')
         expect(request.description).to eq('A test bot')
         expect(request.is_active).to be true
       end
@@ -132,18 +131,17 @@ RSpec.describe AiBackendService::Schemas do
         request = described_class::AgentSystemRequest.new(
           name: 'Test Bot',
           external_id: 789,
-          store_id: 'store-uuid-456',
           description: 'Test description',
           is_active: true
         )
 
         hash = request.to_h
 
-        expect(hash[:external_id]).to eq('789') # Converted to string
+        expect(hash[:externalId]).to eq('789') # Converted to string and camelCase
         expect(hash[:name]).to eq('Test Bot')
-        expect(hash[:store_id]).to eq('store-uuid-456')
         expect(hash[:description]).to eq('Test description')
-        expect(hash[:is_active]).to be true
+        expect(hash[:isActive]).to be true
+        expect(hash[:customAttributes]).to eq({})
       end
     end
   end
@@ -155,31 +153,32 @@ RSpec.describe AiBackendService::Schemas do
       it 'creates user request from user' do
         request = described_class::UserRequest.from_user(user, 'store-uuid-123')
 
-        expect(request.name).to eq('Test User')
+        expect(request.first_name).to eq('Test')
+        expect(request.last_name).to eq('User')
         expect(request.email).to eq('user@example.com')
         expect(request.external_id).to eq(789)
-        expect(request.store_id).to eq('store-uuid-123')
-        expect(request.is_active).to be true
+        expect(request.role).to eq('admin')
       end
     end
 
     describe '#to_h' do
       it 'serializes to hash with string external_id' do
         request = described_class::UserRequest.new(
-          name: 'Test User',
+          first_name: 'Test',
+          last_name: 'User',
           email: 'user@example.com',
           external_id: 999,
-          store_id: 'store-uuid-789',
-          is_active: true
+          role: 'admin'
         )
 
         hash = request.to_h
 
-        expect(hash[:external_id]).to eq('999') # Converted to string
-        expect(hash[:name]).to eq('Test User')
+        expect(hash[:externalId]).to eq('999') # Converted to string and camelCase
+        expect(hash[:firstName]).to eq('Test')
+        expect(hash[:lastName]).to eq('User')
         expect(hash[:email]).to eq('user@example.com')
-        expect(hash[:store_id]).to eq('store-uuid-789')
-        expect(hash[:is_active]).to be true
+        expect(hash[:role]).to eq('admin')
+        expect(hash[:customAttributes]).to eq({})
       end
     end
   end

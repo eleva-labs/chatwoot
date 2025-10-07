@@ -10,6 +10,38 @@ This service provides:
 - **Configuration Management**: Save/retrieve configurations with scope and id_type support
 - **Type Safety**: Ruby Structs for API contract validation
 
+## ⚠️ IMPORTANT: External ID Usage
+
+**ALL services default to using `id_type=external` with Chatwoot IDs.**
+
+- **Stores** are referenced by `account.id` (Chatwoot account ID)
+- **Agent Systems** are referenced by `agent_bot.id` (Chatwoot bot ID)
+- **Users** are referenced by `user.id` (Chatwoot user ID)
+
+When calling AI Backend APIs that require `store_id` as a parameter (like creating users or agent systems), **ALWAYS pass the Chatwoot account.id**, not the AI Backend's internal store UUID.
+
+### ✅ Correct Pattern
+```ruby
+# Creating a user - use account.id for store_id
+user_service = AiBackendService::UserService.new  # Defaults to id_type=external
+user_service.create_user(user, account.id)  # ✅ account.id is used as store_id
+# API call: POST /api/users?store_id=123&id_type=external
+
+# Creating an agent system - use account.id for store_id
+agent_system_service = AiBackendService::AgentSystemService.new
+agent_system_service.create_agent_system(agent_bot, account.id)  # ✅ account.id
+# API call: POST /api/agent-systems?store_id=123&id_type=external
+```
+
+### ❌ Incorrect Pattern
+```ruby
+# DON'T use the internal UUID returned from get_store
+store_service = AiBackendService::StoreService.new
+store_response = store_service.get_store(account.id)
+user_service.create_user(user, store_response.id)  # ❌ Wrong! This is a UUID
+# This will fail with 404 because id_type=external expects account.id, not UUID
+```
+
 ---
 
 ## Constants & Enums
@@ -98,7 +130,7 @@ agent_system_service.create_agent_system(agent_bot, store_id)
 
 # Get agent system by Chatwoot bot.id
 agent_system = agent_system_service.get_agent_system(456)
-# GET /api/agent_systems/456?id_type=external
+# GET /api/agent-systems/456?id_type=external
 ```
 
 ---

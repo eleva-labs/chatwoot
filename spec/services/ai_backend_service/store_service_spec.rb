@@ -27,13 +27,11 @@ RSpec.describe AiBackendService::StoreService do
   describe '#create_store' do
     let(:expected_request_body) do
       {
-        store: {
-          name: 'Test Store',
-          email: 'test@example.com',
-          external_id: '123', # String conversion
-          is_active: true,
-          custom_attributes: {}
-        }
+        name: 'Test Store',
+        email: 'test@example.com',
+        external_id: '123', # String conversion
+        is_active: true,
+        custom_attributes: {}
       }
     end
 
@@ -42,9 +40,9 @@ RSpec.describe AiBackendService::StoreService do
         id: 'uuid-abc-123',
         name: 'Test Store',
         email: 'test@example.com',
-        external_id: '123',
-        is_active: true,
-        custom_attributes: {}
+        externalId: '123',
+        isActive: true,
+        customAttributes: {}
       }
     end
 
@@ -68,9 +66,7 @@ RSpec.describe AiBackendService::StoreService do
         service.create_store(account, user_email)
 
         expect(a_request(:post, "#{ai_backend_url}/api/stores").with(
-                 body: hash_including(
-                   store: hash_including(external_id: '123')
-                 )
+                 body: hash_including(external_id: '123')
                )).to have_been_made
       end
 
@@ -118,8 +114,8 @@ RSpec.describe AiBackendService::StoreService do
         id: 'uuid-abc-123',
         name: 'Test Store',
         email: 'test@example.com',
-        external_id: '123',
-        is_active: true
+        externalId: '123',
+        isActive: true
       }
     end
 
@@ -127,7 +123,7 @@ RSpec.describe AiBackendService::StoreService do
       it 'queries by external_id' do
         stub_request(:get, "#{ai_backend_url}/api/stores/#{store_id}")
           .with(query: { id_type: 'external' })
-          .to_return(status: 200, body: api_response.to_json)
+          .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
 
         response = service.get_store(store_id)
 
@@ -146,7 +142,7 @@ RSpec.describe AiBackendService::StoreService do
       it 'queries by internal UUID' do
         stub_request(:get, "#{ai_backend_url}/api/stores/#{store_id}")
           .with(query: { id_type: 'internal' })
-          .to_return(status: 200, body: api_response.to_json)
+          .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
 
         service.get_store(store_id)
 
@@ -182,13 +178,11 @@ RSpec.describe AiBackendService::StoreService do
 
     let(:expected_request_body) do
       {
-        store: {
-          name: 'Updated Store',
-          email: 'updated@example.com',
-          external_id: '123',
-          is_active: true,
-          custom_attributes: {}
-        }
+        name: 'Updated Store',
+        email: 'updated@example.com',
+        external_id: '123',
+        is_active: true,
+        custom_attributes: {}
       }
     end
 
@@ -197,8 +191,8 @@ RSpec.describe AiBackendService::StoreService do
         id: 'uuid-abc-123',
         name: 'Updated Store',
         email: 'updated@example.com',
-        external_id: '123',
-        is_active: true
+        externalId: '123',
+        isActive: true
       }
     end
 
@@ -209,7 +203,7 @@ RSpec.describe AiBackendService::StoreService do
             query: { id_type: 'external' },
             body: expected_request_body.to_json
           )
-          .to_return(status: 200, body: api_response.to_json)
+          .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
       end
 
       it 'updates store and returns response' do
@@ -232,6 +226,7 @@ RSpec.describe AiBackendService::StoreService do
     context 'when update fails' do
       it 'raises StoreError' do
         stub_request(:put, "#{ai_backend_url}/api/stores/#{store_id}")
+          .with(query: { id_type: 'external' })
           .to_return(status: 400, body: { error: 'Invalid data' }.to_json)
 
         expect do

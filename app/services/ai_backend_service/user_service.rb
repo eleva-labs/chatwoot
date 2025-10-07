@@ -2,6 +2,12 @@
 
 require 'httparty'
 
+# UserService - Manage users in AI Backend (mapped to Chatwoot users)
+#
+# IMPORTANT: Defaults to id_type=external, using Chatwoot user.id
+# - create_user(user, store_id) - Creates user with external_id = user.id
+#   * store_id MUST be account.id (Chatwoot account ID), NOT the AI Backend UUID
+# - get_user(user_id) - Gets user by Chatwoot user.id
 class AiBackendService::UserService
   include HTTParty
 
@@ -22,7 +28,8 @@ class AiBackendService::UserService
 
     response = self.class.post(
       "#{ai_backend_api_url}/api/users",
-      body: { user: user_data.to_h }.to_json,
+      query: { store_id: store_id, id_type: @id_type },
+      body: user_data.to_h.to_json,
       headers: self.class.headers
     )
 

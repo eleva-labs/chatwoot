@@ -15,29 +15,30 @@ RSpec.describe AiBackendService::UserService do
   describe '#create_user' do
     let(:expected_request_body) do
       {
-        user: {
-          name: 'Test User',
-          email: 'user@example.com',
-          external_id: '789',
-          store_id: store_id,
-          is_active: true
-        }
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'user@example.com',
+        externalId: '789',
+        role: 'admin',
+        customAttributes: {}
       }
     end
 
     let(:api_response) do
       {
         id: 'uuid-user-123',
-        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'user@example.com',
-        external_id: '789',
-        is_active: true
+        externalId: '789',
+        role: 'admin'
       }
     end
 
     context 'when API call is successful' do
       before do
         stub_request(:post, "#{ai_backend_url}/api/users")
+          .with(query: { store_id: store_id, id_type: 'external' })
           .to_return(
             status: 200,
             body: api_response.to_json,
@@ -48,14 +49,15 @@ RSpec.describe AiBackendService::UserService do
       it 'creates user with external_id' do
         response = service.create_user(user, store_id)
 
-        expect(response['external_id']).to eq('789')
-        expect(response['name']).to eq('Test User')
+        expect(response['externalId']).to eq('789')
+        expect(response['firstName']).to eq('Test')
       end
     end
 
     context 'when API call fails' do
       it 'raises UserError on 400' do
         stub_request(:post, "#{ai_backend_url}/api/users")
+          .with(query: { store_id: store_id, id_type: 'external' })
           .to_return(status: 400, body: { error: 'Bad request' }.to_json)
 
         expect do

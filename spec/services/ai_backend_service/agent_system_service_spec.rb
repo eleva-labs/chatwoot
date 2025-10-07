@@ -28,13 +28,11 @@ RSpec.describe AiBackendService::AgentSystemService do
   describe '#create_agent_system' do
     let(:expected_request_body) do
       {
-        agent_system: {
-          name: 'Test Bot',
-          external_id: '456',
-          store_id: store_id,
-          description: 'Test description',
-          is_active: true
-        }
+        name: 'Test Bot',
+        externalId: '456',
+        description: 'Test description',
+        isActive: true,
+        customAttributes: {}
       }
     end
 
@@ -42,16 +40,17 @@ RSpec.describe AiBackendService::AgentSystemService do
       {
         id: 'uuid-agent-system-123',
         name: 'Test Bot',
-        external_id: '456',
-        store_id: store_id,
+        externalId: '456',
+        storeId: store_id,
         description: 'Test description',
-        is_active: true
+        isActive: true
       }
     end
 
     context 'when API call is successful' do
       before do
-        stub_request(:post, "#{ai_backend_url}/api/agent_systems")
+        stub_request(:post, "#{ai_backend_url}/api/agent-systems")
+          .with(query: { store_id: store_id, id_type: 'external' })
           .to_return(
             status: 200,
             body: api_response.to_json,
@@ -63,49 +62,52 @@ RSpec.describe AiBackendService::AgentSystemService do
         response = service.create_agent_system(agent_bot, store_id)
 
         expect(response['id']).to eq('uuid-agent-system-123')
-        expect(response['external_id']).to eq('456')
+        expect(response['externalId']).to eq('456')
         expect(response['name']).to eq('Test Bot')
       end
 
       it 'sends external_id as string' do
         service.create_agent_system(agent_bot, store_id)
 
-        expect(a_request(:post, "#{ai_backend_url}/api/agent_systems").with do |req|
+        expect(a_request(:post, "#{ai_backend_url}/api/agent-systems")
+          .with(query: { store_id: store_id, id_type: 'external' }) do |req|
           body = JSON.parse(req.body)
-          body['agent_system']['external_id'] == '456'
+          body['externalId'] == '456'
         end).to have_been_made
       end
 
       it 'includes store_id in request' do
         service.create_agent_system(agent_bot, store_id)
 
-        expect(a_request(:post, "#{ai_backend_url}/api/agent_systems").with do |req|
-          body = JSON.parse(req.body)
-          body['agent_system']['store_id'] == store_id
-        end).to have_been_made
+        expect(a_request(:post, "#{ai_backend_url}/api/agent-systems").with(
+                 query: { store_id: store_id, id_type: 'external' }
+               )).to have_been_made
       end
     end
 
     context 'when agent_bot has nil description' do
       before do
         agent_bot.update(description: nil)
-        stub_request(:post, "#{ai_backend_url}/api/agent_systems")
+        stub_request(:post, "#{ai_backend_url}/api/agent-systems")
+          .with(query: { store_id: store_id, id_type: 'external' })
           .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
       end
 
       it 'sends empty string for description' do
         service.create_agent_system(agent_bot, store_id)
 
-        expect(a_request(:post, "#{ai_backend_url}/api/agent_systems").with do |req|
+        expect(a_request(:post, "#{ai_backend_url}/api/agent-systems")
+          .with(query: { store_id: store_id, id_type: 'external' }) do |req|
           body = JSON.parse(req.body)
-          body['agent_system']['description'] == ''
+          body['description'] == ''
         end).to have_been_made
       end
     end
 
     context 'when API call fails' do
       it 'raises AgentSystemError on 404' do
-        stub_request(:post, "#{ai_backend_url}/api/agent_systems")
+        stub_request(:post, "#{ai_backend_url}/api/agent-systems")
+          .with(query: { store_id: store_id, id_type: 'external' })
           .to_return(status: 404, body: { error: 'Not found' }.to_json)
 
         expect do
@@ -114,7 +116,8 @@ RSpec.describe AiBackendService::AgentSystemService do
       end
 
       it 'raises AgentSystemError on 400' do
-        stub_request(:post, "#{ai_backend_url}/api/agent_systems")
+        stub_request(:post, "#{ai_backend_url}/api/agent-systems")
+          .with(query: { store_id: store_id, id_type: 'external' })
           .to_return(status: 400, body: { error: 'Bad request' }.to_json)
 
         expect do
@@ -123,7 +126,8 @@ RSpec.describe AiBackendService::AgentSystemService do
       end
 
       it 'raises AgentSystemError on 500' do
-        stub_request(:post, "#{ai_backend_url}/api/agent_systems")
+        stub_request(:post, "#{ai_backend_url}/api/agent-systems")
+          .with(query: { store_id: store_id, id_type: 'external' })
           .to_return(status: 500, body: { error: 'Internal error' }.to_json)
 
         expect do
@@ -139,14 +143,14 @@ RSpec.describe AiBackendService::AgentSystemService do
       {
         id: 'uuid-agent-system-123',
         name: 'Test Bot',
-        external_id: '456',
-        is_active: true
+        externalId: '456',
+        isActive: true
       }
     end
 
     context 'with default id_type (external)' do
       before do
-        stub_request(:get, "#{ai_backend_url}/api/agent_systems/#{agent_system_id}")
+        stub_request(:get, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}")
           .with(query: { id_type: 'external' })
           .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
       end
@@ -154,8 +158,8 @@ RSpec.describe AiBackendService::AgentSystemService do
       it 'queries by external_id' do
         response = service.get_agent_system(agent_system_id)
 
-        expect(response['external_id']).to eq('456')
-        expect(a_request(:get, "#{ai_backend_url}/api/agent_systems/#{agent_system_id}").with(
+        expect(response['externalId']).to eq('456')
+        expect(a_request(:get, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}").with(
                  query: { id_type: 'external' }
                )).to have_been_made
       end
@@ -163,7 +167,7 @@ RSpec.describe AiBackendService::AgentSystemService do
 
     context 'when agent system not found' do
       before do
-        stub_request(:get, "#{ai_backend_url}/api/agent_systems/#{agent_system_id}")
+        stub_request(:get, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}")
           .with(query: { id_type: 'external' })
           .to_return(status: 404, body: { error: 'Not found' }.to_json, headers: { 'Content-Type' => 'application/json' })
       end

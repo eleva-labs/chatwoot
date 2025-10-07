@@ -3,13 +3,13 @@ class Api::V1::AccountsController < Api::BaseController
   include CacheKeysHelper
 
   skip_before_action :authenticate_user!, :set_current_user, :handle_with_exception,
-                     only: [:create, :create_with_store], raise: false
-  before_action :check_signup_enabled, only: [:create, :create_with_store]
-  before_action :ensure_account_name, only: [:create, :create_with_store]
-  before_action :check_account_name_uniqueness, only: [:create, :create_with_store]
-  before_action :validate_captcha, only: [:create, :create_with_store]
-  before_action :fetch_account, except: [:create, :create_with_store]
-  before_action :check_authorization, except: [:create, :create_with_store]
+                     only: [:create], raise: false
+  before_action :check_signup_enabled, only: [:create]
+  before_action :ensure_account_name, only: [:create]
+  before_action :check_account_name_uniqueness, only: [:create]
+  before_action :validate_captcha, only: [:create]
+  before_action :fetch_account, except: [:create]
+  before_action :check_authorization, except: [:create]
 
   rescue_from CustomExceptions::Account::InvalidEmail,
               CustomExceptions::Account::InvalidParams,
@@ -17,7 +17,6 @@ class Api::V1::AccountsController < Api::BaseController
               CustomExceptions::Account::NameExists,
               CustomExceptions::Account::UserErrors,
               CustomExceptions::Account::AIBackendSetupFailed,
-              AiBackendAccountBuilder::BuildError,
               with: :render_error_response
 
   def show
@@ -40,24 +39,6 @@ class Api::V1::AccountsController < Api::BaseController
     else
       render_error_response(CustomExceptions::Account::SignupFailed.new({}))
     end
-  end
-
-  def create_with_store
-    result = AiBackendAccountBuilder.perform(account_params.to_h)
-
-    @user = result[:user]
-    @account = result[:account]
-
-    if @user
-      send_auth_headers(@user)
-      render 'api/v1/accounts/create', format: :json, locals: { resource: @user }
-    else
-      render_error_response(CustomExceptions::Account::SignupFailed.new({}))
-    end
-  rescue AiBackendAccountBuilder::BuildError => e
-    # Log the full error for debugging but return a generic message
-    Rails.logger.error "Account creation failed: #{e.message}"
-    render json: { error: 'Account setup failed. Please try again later.' }, status: :unprocessable_entity
   end
 
   def cache_keys

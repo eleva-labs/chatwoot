@@ -1,5 +1,11 @@
 require 'httparty'
 
+# StoreService - Manage stores in AI Backend (mapped to Chatwoot accounts)
+#
+# IMPORTANT: Defaults to id_type=external, using Chatwoot account.id
+# - create_store(account, email) - Creates store with external_id = account.id
+# - get_store(account_id) - Gets store by Chatwoot account.id
+# - update_store(account_id, attrs) - Updates store by Chatwoot account.id
 class AiBackendService::StoreService
   include HTTParty
 
@@ -16,17 +22,17 @@ class AiBackendService::StoreService
 
   # Create store with external_id (Chatwoot account.id)
   def create_store(account, user_email)
-    store_data = Schemas::StoreRequest.from_account(account, user_email)
+    store_data = AiBackendService::Schemas::StoreRequest.from_account(account, user_email)
 
     response = self.class.post(
       "#{ai_backend_api_url}/api/stores",
-      body: { store: store_data.to_h }.to_json,
+      body: store_data.to_h.to_json,
       headers: self.class.headers
     )
 
     handle_response(response)
 
-    Schemas::StoreResponse.from_api(response.parsed_response)
+    AiBackendService::Schemas::StoreResponse.from_api(response.parsed_response)
   end
 
   # Get store by ID (internal UUID or external ID based on id_type)
@@ -39,23 +45,23 @@ class AiBackendService::StoreService
 
     handle_response(response)
 
-    Schemas::StoreResponse.from_api(response.parsed_response)
+    AiBackendService::Schemas::StoreResponse.from_api(response.parsed_response)
   end
 
   # Update store by ID
   def update_store(store_id, attributes)
-    store_data = Schemas::StoreRequest.new(**attributes)
+    store_data = AiBackendService::Schemas::StoreRequest.new(**attributes)
 
     response = self.class.put(
       "#{ai_backend_api_url}/api/stores/#{store_id}",
       query: { id_type: @id_type },
-      body: { store: store_data.to_h }.to_json,
+      body: store_data.to_h.to_json,
       headers: self.class.headers
     )
 
     handle_response(response)
 
-    Schemas::StoreResponse.from_api(response.parsed_response)
+    AiBackendService::Schemas::StoreResponse.from_api(response.parsed_response)
   end
 
   private

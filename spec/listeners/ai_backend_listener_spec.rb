@@ -85,7 +85,7 @@ RSpec.describe AiBackendListener do
 
       listener.agent_bot_created(event)
 
-      expect(agent_system_service).to have_received(:create_agent_system).with(agent_bot, 'store-uuid-123')
+      expect(agent_system_service).to have_received(:create_agent_system).with(agent_bot, 123)
     end
 
     it 'skips system bots' do
@@ -141,7 +141,7 @@ RSpec.describe AiBackendListener do
 
       listener.agent_added(event)
 
-      expect(user_service).to have_received(:create_user).with(user, 'store-uuid-123')
+      expect(user_service).to have_received(:create_user).with(user, 123)
     end
 
     it 'returns early when user is nil' do

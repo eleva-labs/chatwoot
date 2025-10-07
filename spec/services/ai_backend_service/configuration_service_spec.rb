@@ -19,7 +19,8 @@ RSpec.describe AiBackendService::ConfigurationService do
     before do
       allow(service).to receive(:get_configuration).and_return({})
       stub_request(:put, "#{ai_backend_url}/api/configurations")
-        .to_return(status: 200, body: { success: true }.to_json)
+        .with(query: { id_type: 'external' })
+        .to_return(status: 200, body: { success: true }.to_json, headers: { 'Content-Type' => 'application/json' })
     end
 
     it 'saves configuration successfully' do
@@ -30,7 +31,8 @@ RSpec.describe AiBackendService::ConfigurationService do
         config_data: config_data
       )
 
-      expect(a_request(:put, "#{ai_backend_url}/api/configurations")).to have_been_made
+      expect(a_request(:put, "#{ai_backend_url}/api/configurations")
+        .with(query: { id_type: 'external' })).to have_been_made
     end
   end
 
@@ -39,7 +41,8 @@ RSpec.describe AiBackendService::ConfigurationService do
 
     before do
       stub_request(:get, "#{ai_backend_url}/api/configurations")
-        .to_return(status: 200, body: api_response.to_json)
+        .with(query: { scope: scope, resource_id: resource_id, key: config_key, id_type: 'external' })
+        .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
     end
 
     it 'returns configuration data' do
@@ -49,7 +52,7 @@ RSpec.describe AiBackendService::ConfigurationService do
         config_key: config_key
       )
 
-      expect(result).to eq({ timezone: 'UTC' })
+      expect(result).to eq({ 'timezone' => 'UTC' })
     end
   end
 end

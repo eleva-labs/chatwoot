@@ -36,18 +36,90 @@ app/javascript/dashboard/
 └── i18n/               # Translations (en.json, es.json)
 ```
 
-See `docs/ignored/ARCHITECTURE.md` for full details.
+See `docs/ARCHITECTURE.md` for full details.
 
 ## Commands
 
 **See Taskfile.yml first** - Most commands are there
 
-Essential quick reference:
-- **Setup**: `bundle install && pnpm install`
-- **Run Dev**: `pnpm dev` or `overmind start -f ./Procfile.dev`
-- **Test Backend**: `task test-backend-file -- spec/path/to/file_spec.rb` (use `SETUP_DB=true` first time)
-- **Test Frontend**: `pnpm test` or `pnpm test:watch`
+### Docker Development Setup
+
+**From Scratch (First Time)**
+```bash
+# 1. Build Docker images
+task docker-build
+
+# 2. Start containers
+docker compose up -d
+
+# 3. Prepare development database
+task docker-setup-dev
+
+# 4. Access app at http://localhost:3000
+```
+
+**After Code Changes (Quick Reload)**
+```bash
+# For Ruby/service changes - restart containers
+docker compose restart
+
+# For env variable changes - reload without rebuild
+task docker-reload-env
+```
+
+**After DB Schema Changes or docker-down**
+```bash
+# Re-prepare database (required after docker compose down)
+task docker-setup-dev
+```
+
+**Full Rebuild (When Needed)**
+```bash
+# Complete rebuild and setup
+task docker-chatwoot-build
+```
+
+### Unit Testing
+
+**IMPORTANT: Always use Taskfile commands for tests - they handle RAILS_ENV=test automatically**
+
+**Backend Tests (RSpec)**
+```bash
+# First time setup - starts test DB and runs tests
+SETUP_DB=true task test-backend-file -- spec/path/to/file_spec.rb
+
+# Subsequent runs - no DB setup needed
+task test-backend-file -- spec/path/to/file_spec.rb
+
+# Run specific test module
+task test-backend-module -- spec/models
+
+# Run all backend tests
+task test-backend-all
+
+# Cleanup after tests
+task test-cleanup
+```
+
+**⚠️ NEVER run `bundle exec rspec` directly - always use task commands!**
+- Task commands automatically set `RAILS_ENV=test`
+- Running rspec directly defaults to development environment and tests will fail
+
+**Frontend Tests (Vitest)**
+```bash
+# Run all tests
+pnpm test
+
+# Watch mode
+pnpm test:watch
+
+# Coverage report
+pnpm test:coverage
+```
+
+### Quick Reference
 - **Lint**: `pnpm eslint:fix` (JS/Vue) | `bundle exec rubocop -a` (Ruby)
+- **Run Dev (Non-Docker)**: `pnpm dev` or `overmind start -f ./Procfile.dev`
 
 ## Critical Code Style Rules
 
