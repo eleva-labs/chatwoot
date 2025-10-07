@@ -235,4 +235,85 @@ RSpec.describe AiBackendService::StoreService do
       end
     end
   end
+
+  describe '#delete_store' do
+    let(:store_id) { 123 }
+
+    context 'when deletion succeeds' do
+      it 'deletes the store and returns true' do
+        stub_request(:delete, "#{ai_backend_url}/api/stores/#{store_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 200, body: '{}')
+
+        result = service.delete_store(store_id)
+
+        expect(result).to be true
+        expect(a_request(:delete, "#{ai_backend_url}/api/stores/#{store_id}").with(
+                 query: { id_type: 'external' }
+               )).to have_been_made
+      end
+    end
+
+    context 'when store not found (404)' do
+      it 'returns true (idempotent deletion)' do
+        stub_request(:delete, "#{ai_backend_url}/api/stores/#{store_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 404, body: { error: 'Not found' }.to_json)
+
+        result = service.delete_store(store_id)
+
+        expect(result).to be true
+      end
+
+      it 'logs 404 as success' do
+        stub_request(:delete, "#{ai_backend_url}/api/stores/#{store_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 404)
+        allow(Rails.logger).to receive(:info)
+
+        service.delete_store(store_id)
+
+        expect(Rails.logger).to have_received(:info).with(/Store already deleted/)
+      end
+    end
+
+    context 'when deletion fails with bad request (400)' do
+      it 'raises StoreError' do
+        stub_request(:delete, "#{ai_backend_url}/api/stores/#{store_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 400, body: { error: 'Bad request' }.to_json)
+
+        expect { service.delete_store(store_id) }
+          .to raise_error(AiBackendService::StoreService::StoreError, /Bad request/)
+      end
+    end
+
+    context 'when deletion fails with server error (500)' do
+      it 'raises StoreError' do
+        stub_request(:delete, "#{ai_backend_url}/api/stores/#{store_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 500, body: { error: 'Internal server error' }.to_json)
+
+        expect { service.delete_store(store_id) }
+          .to raise_error(AiBackendService::StoreService::StoreError, /Unexpected error/)
+      end
+    end
+
+    context 'with custom id_type' do
+      let(:service) { described_class.new(id_type: 'internal') }
+      let(:store_id) { 'uuid-abc-123' }
+
+      it 'uses custom id_type in query params' do
+        stub_request(:delete, "#{ai_backend_url}/api/stores/#{store_id}")
+          .with(query: { id_type: 'internal' })
+          .to_return(status: 200, body: '{}')
+
+        service.delete_store(store_id)
+
+        expect(a_request(:delete, "#{ai_backend_url}/api/stores/#{store_id}").with(
+                 query: { id_type: 'internal' }
+               )).to have_been_made
+      end
+    end
+  end
 end

@@ -30,6 +30,7 @@ class AgentBot < ApplicationRecord
   validates :outgoing_url, length: { maximum: Limits::URL_LENGTH_LIMIT }
 
   after_create_commit :notify_creation
+  after_destroy_commit :dispatch_destroy_event
 
   def available_name
     name
@@ -63,6 +64,16 @@ class AgentBot < ApplicationRecord
 
     Rails.configuration.dispatcher.dispatch(
       AGENT_BOT_CREATED,
+      Time.zone.now,
+      agent_bot: self
+    )
+  end
+
+  def dispatch_destroy_event
+    return if system_bot? # Skip system bots
+
+    Rails.configuration.dispatcher.dispatch(
+      AGENT_BOT_DELETED,
       Time.zone.now,
       agent_bot: self
     )

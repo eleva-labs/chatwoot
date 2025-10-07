@@ -73,7 +73,7 @@ class AccountUser < ApplicationRecord
   end
 
   def notify_deletion
-    Rails.configuration.dispatcher.dispatch(AGENT_REMOVED, Time.zone.now, account: account)
+    Rails.configuration.dispatcher.dispatch(AGENT_REMOVED, Time.zone.now, account: account, user: user, account_user: self)
   end
 
   def update_presence_in_redis

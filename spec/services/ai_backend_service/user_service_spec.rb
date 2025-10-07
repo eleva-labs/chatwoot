@@ -87,4 +87,68 @@ RSpec.describe AiBackendService::UserService do
              )).to have_been_made
     end
   end
+
+  describe '#delete_user' do
+    let(:user_id) { 789 }
+
+    context 'when deletion succeeds' do
+      it 'deletes the user and returns true' do
+        stub_request(:delete, "#{ai_backend_url}/api/users/#{user_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 200, body: '{}')
+
+        result = service.delete_user(user_id)
+
+        expect(result).to be true
+        expect(a_request(:delete, "#{ai_backend_url}/api/users/#{user_id}").with(
+                 query: { id_type: 'external' }
+               )).to have_been_made
+      end
+    end
+
+    context 'when user not found (404)' do
+      it 'returns true (idempotent deletion)' do
+        stub_request(:delete, "#{ai_backend_url}/api/users/#{user_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 404, body: { error: 'Not found' }.to_json)
+
+        result = service.delete_user(user_id)
+
+        expect(result).to be true
+      end
+
+      it 'logs 404 as success' do
+        stub_request(:delete, "#{ai_backend_url}/api/users/#{user_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 404)
+        allow(Rails.logger).to receive(:info)
+
+        service.delete_user(user_id)
+
+        expect(Rails.logger).to have_received(:info).with(/User already deleted/)
+      end
+    end
+
+    context 'when deletion fails with bad request (400)' do
+      it 'raises UserError' do
+        stub_request(:delete, "#{ai_backend_url}/api/users/#{user_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 400, body: { error: 'Bad request' }.to_json)
+
+        expect { service.delete_user(user_id) }
+          .to raise_error(AiBackendService::UserService::UserError, /Bad request/)
+      end
+    end
+
+    context 'when deletion fails with server error (500)' do
+      it 'raises UserError' do
+        stub_request(:delete, "#{ai_backend_url}/api/users/#{user_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 500, body: { error: 'Internal server error' }.to_json)
+
+        expect { service.delete_user(user_id) }
+          .to raise_error(AiBackendService::UserService::UserError, /Unexpected error/)
+      end
+    end
+  end
 end

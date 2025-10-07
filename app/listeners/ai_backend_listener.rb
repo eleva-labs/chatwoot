@@ -7,14 +7,11 @@ class AiBackendListener < BaseListener
     user = account.users.first
     user_email = user&.email || account.support_email
 
-    # Create store with account.id as external_id
-    store_service = AiBackendService::StoreService.new
-    store_service.create_store(account, user_email)
+    AiBackend::CreateStoreJob.perform_later(account.id, user_email)
 
-    Rails.logger.info "AI Backend: Store created for account #{account.id} (external_id)"
-  rescue AiBackendService::StoreService::StoreError => e
-    Rails.logger.error "AI Backend: Store creation failed for account #{account.id}: #{e.message}"
-    # TODO: Retry strategy
+    Rails.logger.info "AI Backend: Enqueued store creation for account #{account.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue store creation for account #{account.id}: #{e.message}"
   end
 
   # Handle agent bot creation -> create agent system in AI backend
@@ -24,18 +21,11 @@ class AiBackendListener < BaseListener
 
     return unless account # Skip system bots (account_id is nil)
 
-    # Get store by account.id using external_id lookup
-    store_service = AiBackendService::StoreService.new
-    store_service.get_store(account.id) # Verify store exists
+    AiBackend::CreateAgentSystemJob.perform_later(agent_bot.id, account.id)
 
-    # Create agent system with bot.id as external_id, using account.id as store external_id
-    agent_system_service = AiBackendService::AgentSystemService.new
-    agent_system_service.create_agent_system(agent_bot, account.id)
-
-    Rails.logger.info "AI Backend: Agent system created for bot #{agent_bot.id} (external_id)"
-  rescue AiBackendService::StoreService::StoreError, AiBackendService::AgentSystemService::AgentSystemError => e
-    Rails.logger.error "AI Backend: Agent system creation failed for bot #{agent_bot.id}: #{e.message}"
-    # TODO: Retry strategy
+    Rails.logger.info "AI Backend: Enqueued agent system creation for bot #{agent_bot.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue agent system creation for bot #{agent_bot.id}: #{e.message}"
   end
 
   # Handle user addition to account -> create user in AI backend
@@ -48,17 +38,45 @@ class AiBackendListener < BaseListener
 
     return unless user
 
-    # Get store by account.id using external_id lookup
-    store_service = AiBackendService::StoreService.new
-    store_service.get_store(account.id) # Verify store exists
+    AiBackend::CreateUserJob.perform_later(user.id, account.id)
 
-    # Create user with user.id as external_id, using account.id as store external_id
-    user_service = AiBackendService::UserService.new
-    user_service.create_user(user, account.id)
+    Rails.logger.info "AI Backend: Enqueued user creation for user #{user.id} in account #{account.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue user creation for user #{user&.id}: #{e.message}"
+  end
 
-    Rails.logger.info "AI Backend: User created for user #{user.id} in account #{account.id} (external_id)"
-  rescue AiBackendService::StoreService::StoreError, AiBackendService::UserService::UserError => e
-    Rails.logger.error "AI Backend: User creation failed for user #{user&.id}: #{e.message}"
-    # TODO: Retry strategy
+  # Handle account deletion -> delete store from AI backend
+  def account_deleted(event)
+    account = event.data[:account]
+
+    AiBackend::DeleteStoreJob.perform_later(account.id)
+
+    Rails.logger.info "AI Backend: Enqueued store deletion for account #{account.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue store deletion for account #{account.id}: #{e.message}"
+  end
+
+  # Handle agent bot deletion -> delete agent system from AI backend
+  def agent_bot_deleted(event)
+    agent_bot = event.data[:agent_bot]
+
+    AiBackend::DeleteAgentSystemJob.perform_later(agent_bot.id)
+
+    Rails.logger.info "AI Backend: Enqueued agent system deletion for bot #{agent_bot.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue agent system deletion for bot #{agent_bot.id}: #{e.message}"
+  end
+
+  # Handle user removal from account -> delete user from AI backend
+  def agent_removed(event)
+    user = event.data[:user]
+
+    return unless user
+
+    AiBackend::DeleteUserJob.perform_later(user.id)
+
+    Rails.logger.info "AI Backend: Enqueued user deletion for user #{user.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue user deletion for user #{user&.id}: #{e.message}"
   end
 end

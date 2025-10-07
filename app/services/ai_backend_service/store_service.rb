@@ -64,12 +64,38 @@ class AiBackendService::StoreService
     AiBackendService::Schemas::StoreResponse.from_api(response.parsed_response)
   end
 
+  # Delete store by ID (idempotent - 404 returns true)
+  def delete_store(store_id)
+    response = self.class.delete(
+      "#{ai_backend_api_url}/api/stores/#{store_id}",
+      query: { id_type: @id_type },
+      headers: self.class.headers
+    )
+
+    handle_delete_response(response)
+    true
+  end
+
   private
 
   def handle_response(response)
     case response.code
     when 404
       raise StoreError, "Store not found: #{response.request.last_uri}"
+    when 400
+      raise StoreError, "Bad request: #{response.code} - #{response.body}"
+    when 200..299
+      # Success
+    else
+      raise StoreError, "Unexpected error: #{response.code} - #{response.body}"
+    end
+  end
+
+  def handle_delete_response(response)
+    case response.code
+    when 404
+      # Store already deleted - idempotent success
+      Rails.logger.info('Store already deleted (404) - treating as success')
     when 400
       raise StoreError, "Bad request: #{response.code} - #{response.body}"
     when 200..299

@@ -49,26 +49,27 @@ tasks:
   test-backend-all:
     desc: 'Run all backend RSpec tests (set SETUP_DB=true to setup DB, CLEANUP=true to cleanup)'
     cmds:
-      - '{{if eq .SETUP_DB "true"}}task: test-setup-db{{end}}'
+      - '{{if eq .SETUP_DB "true"}}{{end}}'
+      - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "Running all RSpec tests"
       - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec --format documentation
-      - '{{if eq .CLEANUP "true"}}task: test-cleanup{{end}}'
+      - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-module:
     desc: 'Run RSpec tests for a specific module (usage: task test-backend-module -- spec/models, set SETUP_DB=true to setup DB)'
     cmds:
-      - '{{if eq .SETUP_DB "true"}}task: test-setup-db{{end}}'
+      - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "Running RSpec tests for {{.CLI_ARGS}}"
       - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
-      - '{{if eq .CLEANUP "true"}}task: test-cleanup{{end}}'
+      - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-file:
     desc: 'Run RSpec tests for a specific file (usage: task test-backend-file -- spec/models/user_spec.rb, set SETUP_DB=true to setup DB)'
     cmds:
-      - '{{if eq .SETUP_DB "true"}}task: test-setup-db{{end}}'
+      - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "Running RSpec test file {{.CLI_ARGS}}"
       - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
-      - '{{if eq .CLEANUP "true"}}task: test-cleanup{{end}}'
+      - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-local:
     desc: 'Run RSpec tests locally (requires local postgres/redis)'

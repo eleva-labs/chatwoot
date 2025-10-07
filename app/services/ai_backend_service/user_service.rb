@@ -51,12 +51,38 @@ class AiBackendService::UserService
     response.parsed_response
   end
 
+  # Delete user by ID (idempotent - 404 returns true)
+  def delete_user(user_id)
+    response = self.class.delete(
+      "#{ai_backend_api_url}/api/users/#{user_id}",
+      query: { id_type: @id_type },
+      headers: self.class.headers
+    )
+
+    handle_delete_response(response)
+    true
+  end
+
   private
 
   def handle_response(response)
     case response.code
     when 404
       raise UserError, "User not found: #{response.request.last_uri}"
+    when 400
+      raise UserError, "Bad request: #{response.code} - #{response.body}"
+    when 200..299
+      # Success
+    else
+      raise UserError, "Unexpected error: #{response.code} - #{response.body}"
+    end
+  end
+
+  def handle_delete_response(response)
+    case response.code
+    when 404
+      # User already deleted - idempotent success
+      Rails.logger.info('User already deleted (404) - treating as success')
     when 400
       raise UserError, "Bad request: #{response.code} - #{response.body}"
     when 200..299

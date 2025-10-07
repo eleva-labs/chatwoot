@@ -64,8 +64,11 @@ RSpec.describe AgentBot do
 
     context 'when creating agent bot with account' do
       it 'dispatches AGENT_BOT_CREATED event' do
+        # Allow account.created event to be dispatched (from factory creating account)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch).with('account.created', anything, anything)
+
         expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
-          AGENT_BOT_CREATED,
+          'agent_bot.created',
           anything,
           hash_including(agent_bot: instance_of(AgentBot))
         )
@@ -79,6 +82,43 @@ RSpec.describe AgentBot do
         expect(Rails.configuration.dispatcher).not_to receive(:dispatch)
 
         create(:agent_bot, account: nil)
+      end
+    end
+
+    context 'when deleting agent bot with account' do
+      it 'dispatches AGENT_BOT_DELETED event after destroy' do
+        agent_bot = create(:agent_bot, account: account)
+
+        expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
+          'agent_bot.deleted',
+          anything,
+          hash_including(agent_bot: agent_bot)
+        )
+
+        agent_bot.destroy
+      end
+
+      it 'includes agent_bot in event data' do
+        agent_bot = create(:agent_bot, account: account)
+        received_data = nil
+
+        allow(Rails.configuration.dispatcher).to receive(:dispatch) do |_event, _time, data|
+          received_data = data
+        end
+
+        agent_bot.destroy
+
+        expect(received_data[:agent_bot]).to eq(agent_bot)
+      end
+    end
+
+    context 'when deleting system bot (no account)' do
+      it 'does not dispatch AGENT_BOT_DELETED event' do
+        agent_bot = create(:agent_bot, account: nil)
+
+        expect(Rails.configuration.dispatcher).not_to receive(:dispatch)
+
+        agent_bot.destroy
       end
     end
   end

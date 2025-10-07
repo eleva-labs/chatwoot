@@ -4,6 +4,7 @@ module Events::Types
   ### Installation Events ###
   # account events
   ACCOUNT_CREATED = 'account.created'
+  ACCOUNT_DELETED = 'account.deleted'
   ACCOUNT_CACHE_INVALIDATED = 'account.cache_invalidated'
 
   #### Account Events ###
@@ -57,6 +58,7 @@ module Events::Types
 
   # agent bot events
   AGENT_BOT_CREATED = 'agent_bot.created'
+  AGENT_BOT_DELETED = 'agent_bot.deleted'
 
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'

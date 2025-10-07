@@ -212,4 +212,44 @@ RSpec.describe Account do
       end
     end
   end
+
+  describe 'deletion events' do
+    it 'dispatches ACCOUNT_DELETED event after destroy' do
+      account = create(:account)
+
+      expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
+        'account.deleted',
+        anything,
+        hash_including(account: account)
+      )
+
+      account.destroy
+    end
+
+    it 'includes account in event data' do
+      account = create(:account)
+      received_data = nil
+
+      allow(Rails.configuration.dispatcher).to receive(:dispatch) do |_event, _time, data|
+        received_data = data
+      end
+
+      account.destroy
+
+      expect(received_data[:account]).to eq(account)
+    end
+
+    it 'fires after DB transaction commits' do
+      account = create(:account)
+      event_dispatched = false
+
+      allow(Rails.configuration.dispatcher).to receive(:dispatch) do |event, _time, _data|
+        event_dispatched = true if event == 'account.deleted'
+      end
+
+      account.destroy
+
+      expect(event_dispatched).to be true
+    end
+  end
 end

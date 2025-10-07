@@ -51,12 +51,38 @@ class AiBackendService::AgentSystemService
     response.parsed_response
   end
 
+  # Delete agent system by ID (idempotent - 404 returns true)
+  def delete_agent_system(agent_system_id)
+    response = self.class.delete(
+      "#{ai_backend_api_url}/api/agent-systems/#{agent_system_id}",
+      query: { id_type: @id_type },
+      headers: self.class.headers
+    )
+
+    handle_delete_response(response)
+    true
+  end
+
   private
 
   def handle_response(response)
     case response.code
     when 404
       raise AgentSystemError, "Agent system not found: #{response.request.last_uri}"
+    when 400
+      raise AgentSystemError, "Bad request: #{response.code} - #{response.body}"
+    when 200..299
+      # Success
+    else
+      raise AgentSystemError, "Unexpected error: #{response.code} - #{response.body}"
+    end
+  end
+
+  def handle_delete_response(response)
+    case response.code
+    when 404
+      # Agent system already deleted - idempotent success
+      Rails.logger.info('Agent system already deleted (404) - treating as success')
     when 400
       raise AgentSystemError, "Bad request: #{response.code} - #{response.body}"
     when 200..299
