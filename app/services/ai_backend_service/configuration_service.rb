@@ -187,6 +187,7 @@ class AiBackendService::ConfigurationService
   def ai_backend_api_url
     Rails.application.config.ai_backend_api_url ||
       ENV['AI_BACKEND_URL'] ||
-      Rails.application.credentials.ai_backend_api_url
+      Rails.application.credentials.ai_backend_api_url ||
+      'http://localhost:8000'
   end
 end
