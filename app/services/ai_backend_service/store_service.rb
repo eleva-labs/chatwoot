@@ -65,10 +65,12 @@ class AiBackendService::StoreService
   end
 
   # Delete store by ID (idempotent - 404 returns true)
-  def delete_store(store_id)
+  # @param store_id [String, Integer] Store identifier
+  # @param cascade [Boolean] If true, also delete related users and agent-systems (default: true)
+  def delete_store(store_id, cascade: true)
     response = self.class.delete(
       "#{ai_backend_api_url}/api/stores/#{store_id}",
-      query: { id_type: @id_type },
+      query: { id_type: @id_type, cascade: cascade },
       headers: self.class.headers
     )
 

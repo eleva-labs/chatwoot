@@ -52,10 +52,12 @@ class AiBackendService::AgentSystemService
   end
 
   # Delete agent system by ID (idempotent - 404 returns true)
-  def delete_agent_system(agent_system_id)
+  # @param agent_system_id [String, Integer] Agent system identifier
+  # @param cascade [Boolean] Reserved for future use (workflows are always cascade-deleted, default: true)
+  def delete_agent_system(agent_system_id, cascade: true)
     response = self.class.delete(
       "#{ai_backend_api_url}/api/agent-systems/#{agent_system_id}",
-      query: { id_type: @id_type },
+      query: { id_type: @id_type, cascade: cascade },
       headers: self.class.headers
     )
 

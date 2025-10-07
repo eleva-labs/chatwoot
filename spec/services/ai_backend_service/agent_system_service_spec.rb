@@ -186,14 +186,27 @@ RSpec.describe AiBackendService::AgentSystemService do
     context 'when deletion succeeds' do
       it 'deletes the agent system and returns true' do
         stub_request(:delete, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', cascade: true })
           .to_return(status: 200, body: '{}')
 
         result = service.delete_agent_system(agent_system_id)
 
         expect(result).to be true
         expect(a_request(:delete, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}").with(
-                 query: { id_type: 'external' }
+                 query: { id_type: 'external', cascade: true }
+               )).to have_been_made
+      end
+
+      it 'accepts cascade parameter' do
+        stub_request(:delete, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}")
+          .with(query: { id_type: 'external', cascade: false })
+          .to_return(status: 200, body: '{}')
+
+        result = service.delete_agent_system(agent_system_id, cascade: false)
+
+        expect(result).to be true
+        expect(a_request(:delete, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}").with(
+                 query: { id_type: 'external', cascade: false }
                )).to have_been_made
       end
     end
@@ -201,7 +214,7 @@ RSpec.describe AiBackendService::AgentSystemService do
     context 'when agent system not found (404)' do
       it 'returns true (idempotent deletion)' do
         stub_request(:delete, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', cascade: true })
           .to_return(status: 404, body: { error: 'Not found' }.to_json)
 
         result = service.delete_agent_system(agent_system_id)
@@ -211,7 +224,7 @@ RSpec.describe AiBackendService::AgentSystemService do
 
       it 'logs 404 as success' do
         stub_request(:delete, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', cascade: true })
           .to_return(status: 404)
         allow(Rails.logger).to receive(:info)
 
@@ -224,7 +237,7 @@ RSpec.describe AiBackendService::AgentSystemService do
     context 'when deletion fails with bad request (400)' do
       it 'raises AgentSystemError' do
         stub_request(:delete, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', cascade: true })
           .to_return(status: 400, body: { error: 'Bad request' }.to_json)
 
         expect { service.delete_agent_system(agent_system_id) }
@@ -235,7 +248,7 @@ RSpec.describe AiBackendService::AgentSystemService do
     context 'when deletion fails with server error (500)' do
       it 'raises AgentSystemError' do
         stub_request(:delete, "#{ai_backend_url}/api/agent-systems/#{agent_system_id}")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', cascade: true })
           .to_return(status: 500, body: { error: 'Internal server error' }.to_json)
 
         expect { service.delete_agent_system(agent_system_id) }
