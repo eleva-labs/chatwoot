@@ -81,10 +81,16 @@ RSpec.configure do |config|
   config.include FileUploadHelpers
   config.include CsvSpecHelpers
   config.include InstagramSpecHelpers
+  config.include AiBackendStubs
   config.include Devise::Test::IntegrationHelpers, type: :request
   config.include ActiveSupport::Testing::TimeHelpers
   config.include ActionCable::TestHelper
   config.include ActiveJob::TestHelper
+
+  # Automatically stub AI Backend API calls before each test
+  config.before do
+    stub_ai_backend_requests
+  end
 end
 
 Shoulda::Matchers.configure do |config|
