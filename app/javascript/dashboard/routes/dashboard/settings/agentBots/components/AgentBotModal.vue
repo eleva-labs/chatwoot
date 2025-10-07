@@ -120,7 +120,7 @@ const resetForm = () => {
   Object.assign(formState, {
     botName: '',
     botDescription: '',
-    botUrl: `${window.chatwootConfig.aiBackendUrl}/api/chatwoot/${storeId}/agent-bot-webhook`,
+    botUrl: `${window.chatwootConfig.aiBackendUrl}/api/webhooks/chatwoot/message?store_id=${storeId}&agent_system_id=pending&id_type=external`,
     botAvatar: null,
     botAvatarUrl: '',
   });
