@@ -30,6 +30,7 @@ describe NotificationBuilder do
       perform_enqueued_jobs do
         user.account_users.destroy_all
       end
+      user.reload
       expect(
         described_class.new(
           notification_type: 'conversation_creation',
