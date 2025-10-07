@@ -9,12 +9,13 @@ RSpec.describe InboxMember do
     let(:inbox_member) { create(:inbox_member) }
 
     # ref: https://github.com/chatwoot/chatwoot/issues/4616
-    context 'when parent inbox is destroyed' do
+    context 'when parent inbox is destroyed', :perform_enqueued do
       it 'enques and processes DestroyAssociationAsyncJob' do
-        perform_enqueued_jobs do
-          inbox_member.inbox.destroy!
-        end
-        expect { inbox_member.reload }.to raise_error(ActiveRecord::RecordNotFound)
+        inbox = inbox_member.inbox
+
+        expect do
+          perform_enqueued_jobs { inbox.destroy! }
+        end.to change { InboxMember.exists?(inbox_member.id) }.from(true).to(false)
       end
     end
   end
