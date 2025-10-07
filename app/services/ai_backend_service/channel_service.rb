@@ -5,7 +5,7 @@ class AiBackendService::ChannelService
 
   def initialize(id_type: AiBackendService::Constants::IdType::EXTERNAL)
     @id_type = id_type
-    @base_url = Rails.application.config.ai_backend_api_url
+    @base_url = ai_backend_api_url
   end
 
   # Create channel in AI backend
@@ -79,5 +79,13 @@ class AiBackendService::ChannelService
     JSON.parse(response.body, object_class: OpenStruct)
   rescue StandardError => e
     raise ChannelError, "Channel update failed: #{e.message}"
+  end
+
+  private
+
+  def ai_backend_api_url
+    Rails.application.config.ai_backend_api_url ||
+      ENV['AI_BACKEND_URL'] ||
+      Rails.application.credentials.ai_backend_api_url
   end
 end
