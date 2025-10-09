@@ -103,4 +103,30 @@ class AiBackendListener < BaseListener
   rescue StandardError => e
     Rails.logger.error "AI Backend: Failed to enqueue channel deletion for inbox #{inbox_id}: #{e.message}"
   end
+
+  # Handle agent bot assignment to inbox -> assign agent system to channel in AI backend
+  def agent_bot_inbox_created(event)
+    agent_bot_inbox = event.data[:agent_bot_inbox]
+
+    AiBackend::AssignAgentBotToChannelJob.perform_later(
+      agent_bot_inbox.agent_bot_id,
+      agent_bot_inbox.inbox_id
+    )
+
+    Rails.logger.info "AI Backend: Enqueued agent bot #{agent_bot_inbox.agent_bot_id} assignment to channel #{agent_bot_inbox.inbox_id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue agent bot assignment: #{e.message}"
+  end
+
+  # Handle agent bot unassignment from inbox -> unassign agent system from channel in AI backend
+  def agent_bot_inbox_deleted(event)
+    agent_bot_id = event.data[:agent_bot_id]
+    inbox_id = event.data[:inbox_id]
+
+    AiBackend::UnassignAgentBotFromChannelJob.perform_later(inbox_id)
+
+    Rails.logger.info "AI Backend: Enqueued agent bot #{agent_bot_id} unassignment from channel #{inbox_id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue agent bot unassignment: #{e.message}"
+  end
 end

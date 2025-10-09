@@ -298,4 +298,91 @@ RSpec.describe AiBackendListener do
       expect { listener.inbox_deleted(event) }.not_to raise_error
     end
   end
+
+  describe '#agent_bot_inbox_created' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, id: 789, account: account) }
+    let(:agent_bot) { create(:agent_bot, id: 456, account: account) }
+    let(:agent_bot_inbox) { create(:agent_bot_inbox, agent_bot: agent_bot, inbox: inbox, account: account) }
+    let(:event) { double(data: { agent_bot_inbox: agent_bot_inbox }) }
+
+    it 'enqueues AssignAgentBotToChannelJob with correct parameters' do
+      expect(AiBackend::AssignAgentBotToChannelJob).to receive(:perform_later).with(456, 789)
+
+      listener.agent_bot_inbox_created(event)
+    end
+
+    it 'logs job enqueue' do
+      allow(AiBackend::AssignAgentBotToChannelJob).to receive(:perform_later)
+      allow(Rails.logger).to receive(:info)
+
+      listener.agent_bot_inbox_created(event)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /Enqueued agent bot 456 assignment to channel 789/
+      )
+    end
+
+    it 'logs error on failure' do
+      allow(AiBackend::AssignAgentBotToChannelJob).to receive(:perform_later).and_raise(StandardError, 'Redis down')
+      allow(Rails.logger).to receive(:error)
+
+      listener.agent_bot_inbox_created(event)
+
+      expect(Rails.logger).to have_received(:error).with(
+        /Failed to enqueue agent bot assignment: Redis down/
+      )
+    end
+
+    it 'does not raise error on failure' do
+      allow(AiBackend::AssignAgentBotToChannelJob).to receive(:perform_later).and_raise(StandardError, 'Redis down')
+
+      expect { listener.agent_bot_inbox_created(event) }.not_to raise_error
+    end
+  end
+
+  describe '#agent_bot_inbox_deleted' do
+    let(:event) do
+      double(data: {
+               agent_bot_inbox_id: 123,
+               agent_bot_id: 456,
+               inbox_id: 789,
+               account_id: 111
+             })
+    end
+
+    it 'enqueues UnassignAgentBotFromChannelJob with inbox_id' do
+      expect(AiBackend::UnassignAgentBotFromChannelJob).to receive(:perform_later).with(789)
+
+      listener.agent_bot_inbox_deleted(event)
+    end
+
+    it 'logs job enqueue with agent_bot_id and inbox_id' do
+      allow(AiBackend::UnassignAgentBotFromChannelJob).to receive(:perform_later)
+      allow(Rails.logger).to receive(:info)
+
+      listener.agent_bot_inbox_deleted(event)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /Enqueued agent bot 456 unassignment from channel 789/
+      )
+    end
+
+    it 'logs error on failure' do
+      allow(AiBackend::UnassignAgentBotFromChannelJob).to receive(:perform_later).and_raise(StandardError, 'Redis down')
+      allow(Rails.logger).to receive(:error)
+
+      listener.agent_bot_inbox_deleted(event)
+
+      expect(Rails.logger).to have_received(:error).with(
+        /Failed to enqueue agent bot unassignment: Redis down/
+      )
+    end
+
+    it 'does not raise error on failure' do
+      allow(AiBackend::UnassignAgentBotFromChannelJob).to receive(:perform_later).and_raise(StandardError, 'Redis down')
+
+      expect { listener.agent_bot_inbox_deleted(event) }.not_to raise_error
+    end
+  end
 end

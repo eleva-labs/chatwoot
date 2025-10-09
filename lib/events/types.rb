@@ -61,6 +61,10 @@ module Events::Types
   AGENT_BOT_CREATED = 'agent_bot.created'
   AGENT_BOT_DELETED = 'agent_bot.deleted'
 
+  # agent bot inbox assignment events
+  AGENT_BOT_INBOX_CREATED = 'agent_bot_inbox.created'
+  AGENT_BOT_INBOX_DELETED = 'agent_bot_inbox.deleted'
+
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'
 end

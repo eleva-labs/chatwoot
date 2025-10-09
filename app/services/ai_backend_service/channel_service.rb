@@ -67,7 +67,7 @@ class AiBackendService::ChannelService
   # @param attributes [Hash] Attributes to update
   # @return [Hash] Updated channel data
   def update_channel(channel_id, attributes)
-    response = HTTParty.patch(
+    response = HTTParty.put(
       "#{@base_url}/api/channels/#{channel_id}",
       body: attributes.to_json,
       headers: { 'Content-Type' => 'application/json' },
@@ -79,6 +79,23 @@ class AiBackendService::ChannelService
     JSON.parse(response.body, object_class: OpenStruct)
   rescue StandardError => e
     raise ChannelError, "Channel update failed: #{e.message}"
+  end
+
+  # Assign agent system to channel
+  # @param channel_id [Integer] The Chatwoot inbox.id (external_id)
+  # @param agent_system_id [Integer] The Chatwoot agent_bot.id (external_id)
+  # @return [Hash] Updated channel data
+  def assign_agent_system(channel_id, agent_system_id)
+    Rails.logger.info("AI Backend: Assigning agent system #{agent_system_id} to channel #{channel_id}")
+    update_channel(channel_id, { agent_system_id: agent_system_id.to_s })
+  end
+
+  # Unassign agent system from channel
+  # @param channel_id [Integer] The Chatwoot inbox.id (external_id)
+  # @return [Hash] Updated channel data
+  def unassign_agent_system(channel_id)
+    Rails.logger.info("AI Backend: Unassigning agent system from channel #{channel_id}")
+    update_channel(channel_id, { agent_system_id: nil })
   end
 
   private

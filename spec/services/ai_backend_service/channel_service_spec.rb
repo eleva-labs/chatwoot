@@ -263,7 +263,7 @@ RSpec.describe AiBackendService::ChannelService do
 
     context 'when update is successful' do
       before do
-        stub_request(:patch, "#{ai_backend_url}/api/channels/#{channel_id}")
+        stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
           .with(
             query: { id_type: 'external' },
             body: update_attributes.to_json
@@ -282,21 +282,144 @@ RSpec.describe AiBackendService::ChannelService do
       it 'includes id_type in query params' do
         service.update_channel(channel_id, update_attributes)
 
-        expect(a_request(:patch, "#{ai_backend_url}/api/channels/#{channel_id}").with(
+        expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(
                  query: { id_type: 'external' }
                )).to have_been_made
+      end
+
+      it 'uses PUT HTTP verb (not PATCH)' do
+        service.update_channel(channel_id, update_attributes)
+
+        expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external' })).to have_been_made
+        expect(a_request(:patch, "#{ai_backend_url}/api/channels/#{channel_id}")).not_to have_been_made
       end
     end
 
     context 'when update fails' do
       it 'raises ChannelError' do
-        stub_request(:patch, "#{ai_backend_url}/api/channels/#{channel_id}")
+        stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
           .with(query: { id_type: 'external' })
           .to_return(status: 400, body: { error: 'Invalid data' }.to_json)
 
         expect do
           service.update_channel(channel_id, update_attributes)
         end.to raise_error(AiBackendService::ChannelService::ChannelError, /Failed to update channel/)
+      end
+    end
+  end
+
+  describe '#assign_agent_system' do
+    let(:channel_id) { 789 }
+    let(:agent_system_id) { 456 }
+
+    let(:api_response) do
+      {
+        id: 'uuid-channel-123',
+        externalId: '789',
+        agentSystemId: '456'
+      }
+    end
+
+    context 'when assignment succeeds' do
+      before do
+        stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
+          .with(
+            query: { id_type: 'external' },
+            body: { agent_system_id: '456' }.to_json
+          )
+          .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
+      end
+
+      it 'calls update_channel with agent_system_id' do
+        result = service.assign_agent_system(channel_id, agent_system_id)
+
+        expect(result).to be_a(OpenStruct)
+        expect(result.agentSystemId).to eq('456')
+        expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external' })).to have_been_made
+      end
+
+      it 'logs the assignment' do
+        expect(Rails.logger).to receive(:info).with(
+          "AI Backend: Assigning agent system #{agent_system_id} to channel #{channel_id}"
+        )
+
+        service.assign_agent_system(channel_id, agent_system_id)
+      end
+
+      it 'converts agent_system_id to string' do
+        service.assign_agent_system(channel_id, agent_system_id)
+
+        expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(
+                 query: { id_type: 'external' },
+                 body: hash_including('agent_system_id' => '456')
+               )).to have_been_made
+      end
+    end
+
+    context 'when assignment fails' do
+      before do
+        stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 500, body: { error: 'Internal Server Error' }.to_json)
+      end
+
+      it 'raises ChannelError' do
+        expect do
+          service.assign_agent_system(channel_id, agent_system_id)
+        end.to raise_error(AiBackendService::ChannelService::ChannelError, /Channel update failed/)
+      end
+    end
+  end
+
+  describe '#unassign_agent_system' do
+    let(:channel_id) { 789 }
+
+    let(:api_response) do
+      {
+        id: 'uuid-channel-123',
+        externalId: '789',
+        agentSystemId: nil
+      }
+    end
+
+    context 'when unassignment succeeds' do
+      before do
+        stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
+          .with(
+            query: { id_type: 'external' },
+            body: { agent_system_id: nil }.to_json
+          )
+          .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
+      end
+
+      it 'calls update_channel with null agent_system_id' do
+        result = service.unassign_agent_system(channel_id)
+
+        expect(result).to be_a(OpenStruct)
+        expect(result.agentSystemId).to be_nil
+        expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external' })).to have_been_made
+      end
+
+      it 'logs the unassignment' do
+        expect(Rails.logger).to receive(:info).with(
+          "AI Backend: Unassigning agent system from channel #{channel_id}"
+        )
+
+        service.unassign_agent_system(channel_id)
+      end
+    end
+
+    context 'when unassignment fails' do
+      before do
+        stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
+          .with(query: { id_type: 'external' })
+          .to_return(status: 404, body: { error: 'Not found' }.to_json)
+      end
+
+      it 'raises ChannelError' do
+        expect do
+          service.unassign_agent_system(channel_id)
+        end.to raise_error(AiBackendService::ChannelService::ChannelError, /Channel update failed/)
       end
     end
   end
