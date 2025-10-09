@@ -162,6 +162,11 @@ class Account < ApplicationRecord
     ISO_639.find(account_locale)&.english_name&.downcase || 'english'
   end
 
+  # Check if user is the account owner (first administrator with no inviter)
+  def owner?(user)
+    account_users.find_by(user: user, inviter_id: nil, role: :administrator).present?
+  end
+
   def custom_feature_enabled?(feature_name)
     return false unless defined?(CustomFeaturesManagerService)
 

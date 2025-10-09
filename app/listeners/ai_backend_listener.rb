@@ -133,4 +133,30 @@ class AiBackendListener < BaseListener
   rescue StandardError => e
     Rails.logger.error "AI Backend: Failed to enqueue agent bot unassignment: #{e.message}"
   end
+
+  # Handle owner token updates -> sync to AI backend store configuration
+  def owner_token_updated(event)
+    account = event.data[:account]
+    user = event.data[:user]
+    token = event.data[:token]
+
+    AiBackend::SyncOwnerTokenJob.perform_later(account.id, user.id, token)
+
+    Rails.logger.info "AI Backend: Enqueued owner token sync for account #{account.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue owner token sync for account #{account.id}: #{e.message}"
+  end
+
+  # Handle bot token updates -> sync to AI backend agent system configuration
+  def bot_token_updated(event)
+    agent_bot = event.data[:agent_bot]
+    account = event.data[:account]
+    token = event.data[:token]
+
+    AiBackend::SyncBotTokenJob.perform_later(agent_bot.id, account.id, token)
+
+    Rails.logger.info "AI Backend: Enqueued bot token sync for agent_bot #{agent_bot.id}"
+  rescue StandardError => e
+    Rails.logger.error "AI Backend: Failed to enqueue bot token sync for agent_bot #{agent_bot.id}: #{e.message}"
+  end
 end

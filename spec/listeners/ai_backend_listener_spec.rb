@@ -385,4 +385,78 @@ RSpec.describe AiBackendListener do
       expect { listener.agent_bot_inbox_deleted(event) }.not_to raise_error
     end
   end
+
+  describe '#owner_token_updated' do
+    let(:account) { create(:account, id: 123) }
+    let(:user) { create(:user, id: 456) }
+    let(:token) { 'test_owner_token_abc123' }
+    let(:event) { double(data: { account: account, user: user, token: token }) }
+
+    it 'enqueues SyncOwnerTokenJob with correct parameters' do
+      expect(AiBackend::SyncOwnerTokenJob).to receive(:perform_later).with(123, 456, token)
+
+      listener.owner_token_updated(event)
+    end
+
+    it 'logs job enqueue' do
+      allow(AiBackend::SyncOwnerTokenJob).to receive(:perform_later)
+      allow(Rails.logger).to receive(:info)
+
+      listener.owner_token_updated(event)
+
+      expect(Rails.logger).to have_received(:info).with(/Enqueued owner token sync for account 123/)
+    end
+
+    it 'logs error on failure' do
+      allow(AiBackend::SyncOwnerTokenJob).to receive(:perform_later).and_raise(StandardError, 'Job enqueue failed')
+      allow(Rails.logger).to receive(:error)
+
+      listener.owner_token_updated(event)
+
+      expect(Rails.logger).to have_received(:error).with(/Failed to enqueue owner token sync for account 123/)
+    end
+
+    it 'does not raise error on failure' do
+      allow(AiBackend::SyncOwnerTokenJob).to receive(:perform_later).and_raise(StandardError, 'Job enqueue failed')
+
+      expect { listener.owner_token_updated(event) }.not_to raise_error
+    end
+  end
+
+  describe '#bot_token_updated' do
+    let(:account) { create(:account, id: 123) }
+    let(:agent_bot) { create(:agent_bot, id: 456, account: account) }
+    let(:token) { 'test_bot_token_xyz789' }
+    let(:event) { double(data: { agent_bot: agent_bot, account: account, token: token }) }
+
+    it 'enqueues SyncBotTokenJob with correct parameters' do
+      expect(AiBackend::SyncBotTokenJob).to receive(:perform_later).with(456, 123, token)
+
+      listener.bot_token_updated(event)
+    end
+
+    it 'logs job enqueue' do
+      allow(AiBackend::SyncBotTokenJob).to receive(:perform_later)
+      allow(Rails.logger).to receive(:info)
+
+      listener.bot_token_updated(event)
+
+      expect(Rails.logger).to have_received(:info).with(/Enqueued bot token sync for agent_bot 456/)
+    end
+
+    it 'logs error on failure' do
+      allow(AiBackend::SyncBotTokenJob).to receive(:perform_later).and_raise(StandardError, 'Job enqueue failed')
+      allow(Rails.logger).to receive(:error)
+
+      listener.bot_token_updated(event)
+
+      expect(Rails.logger).to have_received(:error).with(/Failed to enqueue bot token sync for agent_bot 456/)
+    end
+
+    it 'does not raise error on failure' do
+      allow(AiBackend::SyncBotTokenJob).to receive(:perform_later).and_raise(StandardError, 'Job enqueue failed')
+
+      expect { listener.bot_token_updated(event) }.not_to raise_error
+    end
+  end
 end

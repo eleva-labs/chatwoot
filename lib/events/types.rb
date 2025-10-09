@@ -67,4 +67,8 @@ module Events::Types
 
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'
+
+  # token events
+  OWNER_TOKEN_UPDATED = 'owner_token.updated'
+  BOT_TOKEN_UPDATED = 'bot_token.updated'
 end

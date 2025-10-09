@@ -44,6 +44,10 @@ module AiBackendService::Constants
     # User configurations
     USER_PREFERENCES = 'user_preferences_config'
 
+    # Authentication configurations (Pydantic model names from AI Backend)
+    GENERAL_STORE_CONFIG = 'GeneralStoreConfig'
+    AGENT_SYSTEM_CONFIG = 'AgentSystemConfig'
+
     ALL = [
       NOTIFICATIONS,
       MESSAGING,
@@ -53,7 +57,9 @@ module AiBackendService::Constants
       CONVERSATION,
       AGENT_BEHAVIOR,
       AGENT_KNOWLEDGE,
-      USER_PREFERENCES
+      USER_PREFERENCES,
+      GENERAL_STORE_CONFIG,
+      AGENT_SYSTEM_CONFIG
     ].freeze
 
     STORE_CONFIGS = [
@@ -62,12 +68,14 @@ module AiBackendService::Constants
       GENERAL_STORE,
       ECOMMERCE,
       CALENDLY,
-      CONVERSATION
+      CONVERSATION,
+      GENERAL_STORE_CONFIG
     ].freeze
 
     AGENT_CONFIGS = [
       AGENT_BEHAVIOR,
-      AGENT_KNOWLEDGE
+      AGENT_KNOWLEDGE,
+      AGENT_SYSTEM_CONFIG
     ].freeze
 
     USER_CONFIGS = [
