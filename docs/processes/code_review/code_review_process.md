@@ -20,6 +20,16 @@
 
 **Outputs**: Review plan, detailed findings report, action items
 
+### Document Location
+
+**IMPORTANT**: All code review documents MUST be created in `/docs/ignored/code_review/`
+
+- **Commit analysis**: `/docs/ignored/code_review/<branch_name>_commit_analysis.md`
+- **Review plan**: `/docs/ignored/code_review/<branch_name>_review_plan.md`
+- **Review report**: `/docs/ignored/code_review/<branch_name>_review_report.md`
+- These documents are NOT committed to the repository
+- Templates remain in `/docs/processes/code_review/` for reference
+
 ## Key Principles
 
 1. **Systematic Analysis** - Methodical commit-by-commit review, document all findings
@@ -121,9 +131,9 @@
 
 **Objective**: Execute review, identify gaps/issues
 
-**Key Review Areas**:
+### Key Review Areas
 
-### 1. Models Layer
+#### 1. Models Layer
 ```bash
 git diff development...HEAD -- app/models/
 ```
@@ -144,7 +154,7 @@ Impact: Could allow invalid priority values
 Fix: Add `validates :priority, presence: true, inclusion: { in: priorities.keys }`
 ```
 
-### 2. Migrations
+#### 2. Migrations
 ```bash
 git diff development...HEAD -- db/migrate/
 ```
@@ -156,15 +166,7 @@ git diff development...HEAD -- db/migrate/
 - Column types appropriate?
 - No data manipulation in schema migrations? (use separate data migration if needed)
 
-**Example Finding**:
-```
-🚨 CRITICAL: db/migrate/20251006120000_add_priority_to_stores.rb:5
-Migration missing index on priority field
-Impact: Slow queries when filtering by priority
-Fix: Add `add_index :stores, :priority`
-```
-
-### 3. Services Layer
+#### 3. Services Layer
 ```bash
 git diff development...HEAD -- app/services/
 ```
@@ -176,15 +178,7 @@ git diff development...HEAD -- app/services/
 - Error handling? (raise appropriate exceptions)
 - No direct controller concerns?
 
-**Example Finding**:
-```
-⚠️ MAJOR: app/services/stores/update_priority_service.rb:10
-Service doesn't dispatch STORE_PRIORITY_UPDATED event
-Impact: Listeners won't trigger, breaking event-driven flow
-Fix: Add dispatcher.dispatch call in perform method
-```
-
-### 4. Controllers
+#### 4. Controllers
 ```bash
 git diff development...HEAD -- app/controllers/api/
 ```
@@ -196,15 +190,7 @@ git diff development...HEAD -- app/controllers/api/
 - HTTP status codes appropriate? (`:created`, `:ok`, `:unprocessable_entity`)
 - Render Jbuilder views (not raw JSON)?
 
-**Example Finding**:
-```
-⚠️ MAJOR: app/controllers/api/v1/accounts/stores_controller.rb:25
-Controller has business logic instead of using service object
-Impact: Violates thin controller pattern, harder to test
-Fix: Extract logic to Stores::UpdatePriorityService
-```
-
-### 5. Jobs Layer
+#### 5. Jobs Layer
 ```bash
 git diff development...HEAD -- app/jobs/
 ```
@@ -215,7 +201,7 @@ git diff development...HEAD -- app/jobs/
 - Error handling for external services?
 - Idempotent operations?
 
-### 6. Listeners Layer
+#### 6. Listeners Layer
 ```bash
 git diff development...HEAD -- app/listeners/
 ```
@@ -225,7 +211,7 @@ git diff development...HEAD -- app/listeners/
 - Event handler methods match event names?
 - No complex business logic? (trigger jobs instead)
 
-### 7. Jbuilder Views
+#### 7. Jbuilder Views
 ```bash
 git diff development...HEAD -- app/views/api/
 ```
@@ -244,7 +230,7 @@ Impact: Frontend expects camelCase, will break API contract
 Fix: Change to `json.priorityLabel @store.priority.humanize`
 ```
 
-### 8. Vue Components
+#### 8. Vue Components
 ```bash
 git diff development...HEAD -- app/javascript/dashboard/components/
 ```
@@ -257,15 +243,7 @@ git diff development...HEAD -- app/javascript/dashboard/components/
 - Emits declared?
 - No business logic? (in Vuex actions instead)
 
-**Example Finding**:
-```
-⚠️ MAJOR: app/javascript/dashboard/components/StorePriorityBadge.vue:15
-Using inline styles instead of Tailwind CSS
-Impact: Violates project styling standards
-Fix: Replace `style="color: red"` with Tailwind class `text-red-600`
-```
-
-### 9. Vuex Store
+#### 9. Vuex Store
 ```bash
 git diff development...HEAD -- app/javascript/dashboard/store/modules/
 ```
@@ -277,15 +255,7 @@ git diff development...HEAD -- app/javascript/dashboard/store/modules/
 - Getters for computed state?
 - No direct state mutations in actions?
 
-**Example Finding**:
-```
-⚠️ MAJOR: app/javascript/dashboard/store/modules/stores.js:45
-Action mutating state directly instead of using mutation
-Impact: Breaks Vuex pattern, harder to debug state changes
-Fix: Use `commit('SET_STORE_PRIORITY', payload)` instead of direct mutation
-```
-
-### 10. API Clients
+#### 10. API Clients
 ```bash
 git diff development...HEAD -- app/javascript/dashboard/api/
 ```
@@ -296,7 +266,7 @@ git diff development...HEAD -- app/javascript/dashboard/api/
 - Error handling present?
 - Returns promises?
 
-### 11. i18n Files
+#### 11. i18n Files
 ```bash
 git diff development...HEAD -- app/javascript/dashboard/i18n/locale/
 git diff development...HEAD -- config/locales/
@@ -317,7 +287,7 @@ Impact: Spanish users will see English text
 Fix: Add Spanish translations for STORES.PRIORITY.* keys
 ```
 
-### 12. Cross-Component Completeness
+#### 12. Cross-Component Completeness
 
 For each model field change, verify complete propagation:
 
@@ -345,7 +315,7 @@ Added `priority` field to Store model but:
 Fix: Update Jbuilder, Vue component, and i18n files
 ```
 
-### 13. Test Coverage
+#### 13. Test Coverage
 ```bash
 git diff development...HEAD -- spec/
 git diff development...HEAD -- app/javascript/dashboard/**/__tests__/
@@ -369,15 +339,7 @@ git diff development...HEAD -- app/javascript/dashboard/**/__tests__/
 - Mocking appropriate? (factories, stubs)
 - Test coverage adequate (≥80% for changed files)?
 
-**Example Finding**:
-```
-⚠️ MAJOR: Missing tests for new service
-app/services/stores/update_priority_service.rb created without spec
-Impact: No test coverage for business logic
-Fix: Create spec/services/stores/update_priority_service_spec.rb
-```
-
-### 14. Patterns & Code Style
+#### 14. Patterns & Code Style
 
 **Rails Patterns**:
 - [ ] Service objects follow initialize + perform pattern
@@ -398,15 +360,7 @@ Fix: Create spec/services/stores/update_priority_service_spec.rb
 - [ ] No console.log statements
 - [ ] No commented-out code
 
-**Example Finding**:
-```
-💡 MINOR: app/services/stores/create_service.rb:25
-Using instance variable instead of local variable
-Impact: Minor style inconsistency
-Fix: Change `@store` to local `store` where not needed as instance var
-```
-
-### 15. Enterprise Compatibility
+#### 15. Enterprise Compatibility
 
 ```bash
 git diff development...HEAD -- enterprise/
@@ -426,6 +380,8 @@ app/models/store.rb changes conflict with enterprise/app/models/store.rb
 Impact: Enterprise edition will break
 Fix: Update Enterprise override or use prepend_mod_with pattern
 ```
+
+### Finding Severity Levels
 
 **Document Findings** (by severity):
 - 🚨 **Critical**: Must fix before merge (breaking changes, data loss, API contract violations)
@@ -484,30 +440,54 @@ Fix: Update Enterprise override or use prepend_mod_with pattern
 
 **Deliverable**: `/docs/ignored/code_review/<branch_name>_review_report.md`
 
-## Best Practices
+## Templates
 
-**For Reviewers**:
-- ✅ Be systematic, provide context/evidence, be constructive, think full-stack
-- ✅ Use git diff, Grep/Glob effectively, document everything
-- ✅ Check both backend and frontend, verify i18n completeness (en + es)
-- ✅ Run RuboCop and ESLint to catch style issues
-- ✅ Verify Enterprise compatibility
-- ❌ Don't be vague, skip cross-component checks, ignore patterns, rush conclusions
-- ❌ Don't forget frontend implications of backend changes
-- ❌ Don't skip i18n verification
+### Template Locations
 
-**For Authors**:
-- ✅ Write clear commits (no Claude references), keep atomic, update tests, be receptive to feedback
-- ✅ Update BOTH en and es for i18n changes
-- ✅ Run RuboCop and ESLint before submitting
-- ✅ Check Enterprise compatibility if applicable
-- ❌ Don't take feedback personally, ignore findings, merge with critical issues
+**Process Templates** (committed to repo):
+- **Commit Analysis Template**: `/docs/processes/code_review/COMMIT_ANALYSIS_TEMPLATE.md`
+- **Review Plan Template**: `/docs/processes/code_review/REVIEW_PLAN_TEMPLATE.md`
+- **Review Report Template**: `/docs/processes/code_review/REVIEW_REPORT_TEMPLATE.md`
 
-**General**:
-- Schedule focused time (70-170 min), take breaks for long reviews
-- Encourage dialogue, use findings as discussion points
-- Track common issues, refine templates over time
-- Use pair review for complex full-stack changes
+**Runtime Documents** (created in `/docs/ignored/code_review/`):
+- Commit Analysis: `<branch>_commit_analysis.md`
+- Review Plan: `<branch>_review_plan.md`
+- Final Report: `<branch>_review_report.md`
+
+### Template Key Sections
+
+**1. Commit Analysis Template**
+- Commits: total, categories (features/refactors/fixes)
+- Affected components: models, services, controllers, jobs, vue, vuex, i18n, tests
+- Change relationships
+- Areas for review
+- Potential issues identified
+- Enterprise impact
+- Review strategy
+
+**2. Review Plan Template**
+- Scope: in/out, prioritized
+- Checklist: models, migrations, services, controllers, jobs, listeners, jbuilder, vue, vuex, api clients, i18n, cross-component, tests, patterns, enterprise
+- Strategy: review order, approach
+- Progress tracking with findings log
+- Blockers and questions
+
+**3. Review Report Template**
+- Executive summary: overall assessment, go/no-go
+- Findings: critical/major/minor with location, evidence, fix
+- Action items: must do/should do/can defer
+- Metadata: files reviewed (backend + frontend), metrics, sign-off
+
+### Example Workflow
+
+```
+5 commits: 2 features, 2 refactors, 1 fix
+→ Affected: Models (Store), Services (UpdatePriorityService), Controllers (StoresController), Vue (StorePriorityBadge), Vuex (stores.js), i18n (en + es)
+→ GAPS FOUND:
+  - Missing Jbuilder camelCase field (critical)
+  - Missing Vitest component test (major)
+  - Spanish i18n missing (critical)
+```
 
 ## Quick Checklist
 
@@ -523,187 +503,6 @@ Fix: Update Enterprise override or use prepend_mod_with pattern
 
 **Completion**: Report delivered, critical issues flagged, re-review if needed
 
-## Templates
-
-### Template Locations
-
-**Process Templates** (committed to repo):
-- **Commit Analysis Template**: `/docs/processes/code_review/COMMIT_ANALYSIS_TEMPLATE.md`
-- **Review Plan Template**: `/docs/processes/code_review/REVIEW_PLAN_TEMPLATE.md`
-- **Review Report Template**: `/docs/processes/code_review/REVIEW_REPORT_TEMPLATE.md`
-
-**Runtime Documents** (created in `/docs/ignored/code_review/`):
-- Commit Analysis: `<branch>_commit_analysis.md`
-- Review Plan: `<branch>_review_plan.md`
-- Final Report: `<branch>_review_report.md`
-
----
-
-### 1. Commit Analysis Template
-
-**Template**: `/docs/processes/code_review/COMMIT_ANALYSIS_TEMPLATE.md`
-**Runtime Location**: `/docs/ignored/code_review/<branch>_commit_analysis.md`
-
-**Key Sections**:
-- Commits: total, categories (features/refactors/fixes)
-- Affected components: models, services, controllers, jobs, vue, vuex, i18n, tests
-- Change relationships
-- Areas for review
-- Potential issues identified
-- Enterprise impact
-- Review strategy
-
----
-
-### 2. Review Plan Template
-
-**Template**: `/docs/processes/code_review/REVIEW_PLAN_TEMPLATE.md`
-**Runtime Location**: `/docs/ignored/code_review/<branch>_review_plan.md`
-
-**Key Sections**:
-- Scope: in/out, prioritized
-- Checklist: models, migrations, services, controllers, jobs, listeners, jbuilder, vue, vuex, api clients, i18n, cross-component, tests, patterns, enterprise
-- Strategy: review order, approach
-- Progress tracking with findings log
-- Blockers and questions
-
----
-
-### 3. Review Report Template
-
-**Template**: `/docs/processes/code_review/REVIEW_REPORT_TEMPLATE.md`
-**Runtime Location**: `/docs/ignored/code_review/<branch>_review_report.md`
-
-**Key Sections**:
-- Executive summary: overall assessment, go/no-go
-- Findings: critical/major/minor with location, evidence, fix
-- Action items: must do/should do/can defer
-- Metadata: files reviewed (backend + frontend), metrics, sign-off
-
----
-
-### Example Workflow
-
-```
-5 commits: 2 features, 2 refactors, 1 fix
-→ Affected: Models (Store), Services (UpdatePriorityService), Controllers (StoresController), Vue (StorePriorityBadge), Vuex (stores.js), i18n (en + es)
-→ GAPS FOUND:
-  - Missing Jbuilder camelCase field (critical)
-  - Missing Vitest component test (major)
-  - Spanish i18n missing (critical)
-```
-
-## Troubleshooting
-
-**Too Many Commits**: Group by theme (`git log --grep`), focus on key commits touching critical files, or request squashing/rebasing
-
-**Unclear Commit Messages**: Read diffs to infer intent (`git show <sha>`), ask author for clarification
-
-**Missing Cross-Component Changes**: Use systematic checklist (model → migration → controller → jbuilder → vue → vuex → i18n → tests), search for field references with Grep
-
-**Frontend Not Updated**: Always check `git diff` for Vue, Vuex, and i18n changes when backend changes, ask "Does this need UI?"
-
-**i18n Incomplete**: Check both en.json and es.json (and en.yml/es.yml), verify all new UI text has translations
-
-**Enterprise Conflicts**: Search `enterprise/` directory with `rg -n "ClassName" app enterprise`, ask author about Enterprise compatibility
-
-**Intentional vs Accidental Gaps**: Mark as question not issue, review related docs/comments, ask author
-
-**Review Fatigue**: Take breaks (45-min chunks), split review across sessions, get second reviewer for complex full-stack reviews
-
-## Quick Reference
-
-**Git Commands**:
-```bash
-# Commit analysis
-git log --oneline --graph development..HEAD
-git log --stat development..HEAD
-
-# File changes
-git diff --name-only development...HEAD
-git diff --stat development...HEAD
-
-# Diffs
-git diff development...HEAD -- app/models/
-git diff development...HEAD -- app/javascript/dashboard/components/
-git show <commit-sha>
-
-# Search
-git log -p -S "search_term" development..HEAD
-git log --grep="pattern" development..HEAD
-```
-
-**Search Patterns**:
-```bash
-# Models
-Glob: "app/models/**/*.rb"
-Grep: "class.*ApplicationRecord"
-
-# Services
-Glob: "app/services/**/*.rb"
-Grep: "def perform"
-
-# Controllers
-Glob: "app/controllers/api/**/*.rb"
-Grep: "class.*Controller"
-
-# Vue Components
-Glob: "app/javascript/dashboard/components/**/*.vue"
-Grep: "<script setup>"
-
-# Vuex Store
-Glob: "app/javascript/dashboard/store/modules/**/*.js"
-Grep: "namespaced: true"
-
-# i18n
-Glob: "app/javascript/dashboard/i18n/locale/{en,es}.json"
-Glob: "config/locales/{en,es}.yml"
-
-# Tests - Backend
-Glob: "spec/**/*_spec.rb"
-Grep: "RSpec.describe"
-
-# Tests - Frontend
-Glob: "app/javascript/dashboard/**/__tests__/**/*.spec.js"
-Grep: "describe.*Component"
-
-# Migrations
-Glob: "db/migrate/**/*.rb"
-Grep: "def change"
-
-# Enterprise
-Glob: "enterprise/app/**/*.rb"
-Grep: "prepend_mod_with"
-```
-
-**Code Quality Commands**:
-```bash
-# Backend linting
-bundle exec rubocop -a
-
-# Frontend linting
-pnpm eslint:fix
-
-# Backend tests
-bundle exec rspec
-
-# Frontend tests
-pnpm test
-```
-
-**Review Checklist** (30 min minimum):
-- Models (5 min): Associations, validations, enums, scopes, no business logic
-- Migrations (5 min): Reversible, defaults, indexes
-- Services (5 min): SRP, perform method, event dispatching
-- Controllers (5 min): Thin, strong params, error handling
-- Jbuilder (3 min): camelCase, complete fields
-- Vue Components (5 min): Composition API, Tailwind only, i18n
-- Vuex Store (3 min): Actions/mutations/getters pattern
-- i18n (5 min): en + es updated (JSON + YML)
-- Cross-Component (5 min): Model → Migration + Jbuilder + Vue + Vuex + i18n
-- Tests (7 min): RSpec + Vitest coverage adequate
-- Enterprise (2 min): No conflicts, compatibility verified
-
 ## Related Documentation
 
 ### Internal Documentation
@@ -712,9 +511,10 @@ pnpm test
 - [Research Process](/docs/processes/design/research_and_design_process.md) - For initial feature research
 - [Development Process](/docs/processes/development/development_process.md) - Full development workflow
 - [API Testing Process](/docs/processes/tests/api_testing_process.md) - API testing procedures
+- [Troubleshooting Guide](/docs/processes/troubleshooting.md) - Common review issues and solutions
 
 **Technical Documentation**:
-- [CLAUDE.md](/CLAUDE.md) - Project guidelines and commands
+- [CLAUDE.md](/CLAUDE.md) - Project guidelines, commands, patterns, best practices
 - [ARCHITECTURE.md](/docs/ARCHITECTURE.md) - System architecture overview
 - [README.md](/README.md) - Project overview and setup
 
@@ -750,9 +550,10 @@ pnpm test
 - Added i18n verification (en.json + es.json, en.yml + es.yml)
 - Updated testing sections (RSpec + Vitest)
 - Added cross-component completeness checklist for full-stack features
-- Updated search patterns for Rails and Vue.js files
-- Added code quality commands (RuboCop + ESLint)
-- Updated troubleshooting for full-stack issues
+- Removed redundant best practices (now in CLAUDE.md)
+- Removed troubleshooting section (separate doc)
+- Removed quick reference commands (now in CLAUDE.md and Taskfile.yml)
+- Simplified to focus on review process flow
 
 ### Version 1.0.0 (2025-10-04)
 
@@ -763,11 +564,6 @@ pnpm test
 - Defined 4-phase review workflow
 - Created comprehensive checklists for all layers
 - Added templates for commit analysis, review plan, and final report
-- Included examples for simple and complex reviews
-- Added troubleshooting section for common review challenges
-- Created quick reference for git commands and search patterns
-- Defined best practices for reviewers and code authors
-- Integrated with existing development process workflow
 
 **Migration Notes**:
 - Previous version focused on Clean Architecture layers (Domain/Application/Infrastructure)

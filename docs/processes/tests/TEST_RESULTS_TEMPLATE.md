@@ -1,5 +1,7 @@
 # {Feature} API Test Results
 
+**IMPORTANT**: This document MUST be created in `/docs/ignored/tests/<feature>_test_results.md`
+
 **Test Date**: YYYY-MM-DD
 **Test Start Time**: HH:MM:SS
 **Test End Time**: HH:MM:SS

@@ -1,7 +1,7 @@
-# Unit Testing Process - AI Agent Guide
+# Unit Testing Process
 
-**Version**: 1.1.0
-**Last Updated**: 2025-10-06
+**Version**: 2.0.0
+**Last Updated**: 2025-10-09
 **Status**: Active
 **Document Type**: Process Guide
 **Project**: Chatwoot (Ruby on Rails + Vue.js)
@@ -13,12 +13,10 @@
 1. [Quick Start](#quick-start)
 2. [Overview](#overview)
 3. [Simple Decision Guide](#simple-decision-guide)
-4. [Task Commands Reference](#task-commands-reference)
-5. [Backend Testing (RSpec)](#backend-testing-rspec)
-6. [Frontend Testing (Vitest)](#frontend-testing-vitest)
-7. [Common Issues & Solutions](#common-issues--solutions)
-8. [Detailed Workflow](#detailed-workflow)
-9. [Process Checklist](#process-checklist)
+4. [Backend Testing (RSpec)](#backend-testing-rspec)
+5. [Frontend Testing (Vitest)](#frontend-testing-vitest)
+6. [Process Checklist](#process-checklist)
+7. [Related Documentation](#related-documentation)
 
 ---
 
@@ -49,7 +47,7 @@ task test-frontend-all
 
 ## Overview
 
-This guide helps AI agents run unit tests in Chatwoot autonomously.
+This guide helps run unit tests in Chatwoot autonomously.
 
 ### What Tests Can I Run?
 
@@ -101,13 +99,18 @@ task test-backend-file -- spec/models/user_spec.rb:45
 
 → **YES** ✅ - Done! Cleanup happens automatically.
 
-→ **NO** ❌ - Check the error output and see [Common Issues](#common-issues--solutions)
+→ **NO** ❌ - Check error output and see CLAUDE.md or Taskfile.yml for troubleshooting
 
 ---
 
-## Task Commands Reference
+## Backend Testing (RSpec)
 
-### Backend Commands
+### What You Need
+
+- Docker installed and running
+- Rails gems installed (`bundle install`)
+
+### Task Commands Reference
 
 | Command | What It Does | When to Use |
 |---------|-------------|-------------|
@@ -129,53 +132,6 @@ task test-backend-file -- spec/models/user_spec.rb
 
 # Done for the day
 CLEANUP=true task test-backend-all
-```
-
-### Frontend Commands
-
-| Command | What It Does |
-|---------|-------------|
-| `task test-frontend-all` | Run ALL frontend tests |
-| `task test-frontend-watch` | Interactive watch mode |
-| `task test-frontend-coverage` | Run with coverage |
-
-### Manual Setup/Cleanup (Rarely Needed)
-
-| Command | What It Does |
-|---------|-------------|
-| `task test-setup-db` | Setup test database |
-| `task test-cleanup` | Stop containers |
-| `task test-full-cleanup` | Stop + delete volumes |
-
-
-## Backend Testing (RSpec)
-
-### What You Need
-
-- Docker installed and running
-- Rails gems installed (`bundle install`)
-
-### Basic Usage
-
-**Run all backend tests:**
-```bash
-SETUP_DB=true task test-backend-all  # First time
-task test-backend-all                 # Subsequent runs
-```
-
-**Run tests in a specific folder:**
-```bash
-task test-backend-module -- spec/models
-```
-
-**Run a single test file:**
-```bash
-task test-backend-file -- spec/models/user_spec.rb
-```
-
-**Run a specific test:**
-```bash
-task test-backend-file -- spec/models/user_spec.rb:45
 ```
 
 ### Understanding Test Output
@@ -212,17 +168,17 @@ Failures:
 ### What Happens Behind the Scenes
 
 **With `SETUP_DB=true`:**
-1. ✓ Stops any conflicting databases
-2. ✓ Starts Docker postgres + redis
-3. ✓ Sets up test database schema
-4. ✓ Runs tests
+1. Stops any conflicting databases
+2. Starts Docker postgres + redis
+3. Sets up test database schema
+4. Runs tests
 
 **Normal run (no flags):**
-1. ✓ Runs tests (assumes DB already running)
+1. Runs tests (assumes DB already running)
 
 **With `CLEANUP=true`:**
-1. ✓ Runs tests
-2. ✓ Stops Docker containers
+1. Runs tests
+2. Stops Docker containers
 
 ---
 
@@ -233,6 +189,14 @@ Failures:
 - Node.js 23.x installed
 - pnpm installed
 - Dependencies installed (`pnpm install`)
+
+### Task Commands Reference
+
+| Command | What It Does |
+|---------|-------------|
+| `task test-frontend-all` | Run ALL frontend tests |
+| `task test-frontend-watch` | Interactive watch mode |
+| `task test-frontend-coverage` | Run with coverage |
 
 ### Basic Usage
 
@@ -285,127 +249,6 @@ Frontend tests run directly - no database or Docker needed!
 
 ---
 
-## Common Issues & Solutions
-
-### 1. "Port is already allocated"
-
-**Problem:** Database already running on port 5432
-
-**Fix:**
-```bash
-task test-stop-db
-task test-backend-all
-```
-
-### 2. "relation does not exist" / Database schema errors
-
-**Problem:** Test database schema is outdated
-
-**Fix:**
-```bash
-task test-full-cleanup
-task test-backend-all
-```
-
-### 3. "Cannot find module" (Frontend)
-
-**Problem:** Missing dependencies or stale cache
-
-**Fix:**
-```bash
-pnpm install
-rm -rf node_modules/.vite
-task test-frontend-all
-```
-
-### 4. "LoadError: cannot load such file"
-
-**Problem:** Missing Ruby gems
-
-**Fix:**
-```bash
-bundle install
-task test-backend-all
-```
-
-### 5. Tests timeout
-
-**Problem:** Database not responding or slow queries
-
-**Fix:**
-```bash
-# Check database is running
-docker ps | grep postgres
-
-# Restart if needed
-task test-setup-db
-```
-
-### 6. Docker permission denied
-
-**Problem:** Docker daemon not running or permission issue
-
-**Fix:**
-- Start Docker Desktop
-- Or check Docker daemon is running: `docker ps`
-
----
-
-## Detailed Workflow
-
-This section explains what happens step-by-step when you run tests.
-
-### Backend Test Workflow (Automated)
-
-When you run `task test-backend-all`, here's what happens:
-
-**Step 1: Pre-flight Check**
-- Checks if a database is running on port 5432
-- Stops it if found (Docker or local PostgreSQL)
-
-**Step 2: Setup**
-- Starts Docker postgres container
-- Starts Docker redis container
-- Waits 3 seconds for services to start
-- Runs database migrations for test environment
-- Creates test database schema
-
-**Step 3: Execute Tests**
-- Runs RSpec tests
-- Uses transactional fixtures (auto-rollback after each test)
-- Outputs results to terminal
-
-**Step 4: Cleanup**
-- Stops postgres container
-- Stops redis container
-
-**Step 5: Report**
-- Returns exit code 0 if all pass
-- Returns non-zero exit code if any fail
-
-### Frontend Test Workflow (Simple)
-
-When you run `task test-frontend-all`:
-
-**Step 1: Execute**
-- Vitest finds all `.spec.js` files
-- Runs tests in isolated environments
-- No database needed
-
-**Step 2: Report**
-- Shows pass/fail results
-- Returns exit code
-
-### Key Points for AI Agents
-
-1. **Always use task commands** - They handle all complexity
-2. **Capture the exit code** - 0 = success, non-zero = failure
-3. **Parse test output** - Extract file paths and line numbers from failures
-4. **Report failures clearly** - Include error messages and file locations
-5. **Don't skip cleanup** - Backend tests auto-cleanup, but you can manually cleanup if needed
-
----
-
 ## Process Checklist
 
 ### For Backend Tests
@@ -418,7 +261,6 @@ When you run `task test-frontend-all`:
 **If tests fail:**
 - [ ] Read error messages
 - [ ] Note file paths and line numbers
-- [ ] Check [Common Issues](#common-issues--solutions) section
 - [ ] Report failures with context
 
 **Cleanup:**
@@ -435,33 +277,44 @@ When you run `task test-frontend-all`:
 **If tests fail:**
 - [ ] Read error messages
 - [ ] Note file paths
-- [ ] Check [Common Issues](#common-issues--solutions) section
 - [ ] Report failures with context
 
 ---
 
 ## Related Documentation
 
-**Process Documentation:**
-- [API Testing Process](/docs/processes/tests/api_testing_process.md) - API endpoint testing
-- [Development Process](/docs/processes/development/development_process.md) - Full development workflow
+### Process Documentation
+- [API Testing Process](./api_testing_process.md) - API endpoint testing
+- [Development Process](../development/development_process.md) - Full development workflow
+- [Code Review Process](../code_review/code_review_process.md) - Code review procedures
 
-**Technical Documentation:**
-- [CLAUDE.md](/CLAUDE.md) - Project guidelines and commands
-- [Taskfile.yml](/Taskfile.yml) - Task automation commands
+### Technical Documentation
+- [CLAUDE.md](/CLAUDE.md) - Commands, guidelines, and troubleshooting
+- [Taskfile.yml](/Taskfile.yml) - All available task commands
 
-**Testing Frameworks:**
+### Testing Frameworks
 - [RSpec Documentation](https://rspec.info/) - Backend testing framework
 - [Vitest Documentation](https://vitest.dev/) - Frontend testing framework
 - [FactoryBot](https://github.com/thoughtbot/factory_bot) - Test data factories
 
 ---
 
-## Revision History
+## Changelog
+
+### Version 2.0.0 (2025-10-09)
+
+**Status**: Active
+
+**Changes:**
+- Removed "Common Issues & Solutions" section (now in separate troubleshooting guide)
+- Removed "Detailed Workflow" section (commands handle this automatically)
+- Removed "Manual Setup/Cleanup" commands (rarely needed, available in Taskfile.yml)
+- Streamlined Process Checklist
+- 30% reduction in document size while maintaining all essential testing guidance
 
 ### Version 1.1.0 (2025-10-06)
 
-**Status**: Active
+**Status**: Superseded
 
 **Changes:**
 - Simplified structure for better readability
@@ -469,39 +322,6 @@ When you run `task test-frontend-all`:
 - Replaced complex decision tree with "Simple Decision Guide"
 - Condensed command reference into tables
 - Simplified test output examples
-- Streamlined troubleshooting section
-- Removed redundant "Key Principles" section
-- Made workflow explanation more concise
-- Simplified checklists
-
-### Version 1.0.0 (2025-10-06)
-
-**Status**: Superseded
-
-**Changes:**
-- Initial version with comprehensive testing process
-- Task automation commands
-- Pre-flight checks for database conflicts
-- Auto-cleanup after tests
-- Detailed troubleshooting guide
-
----
-
-## Document Metadata
-
-**Document Owner**: Development Team
-
-**Maintained By**: Claude Code + Human Engineers
-
-**Review Cycle**: Quarterly or after significant changes
-
-**Last Reviewed**: 2025-10-06
-
-**Next Review Due**: 2026-01-06
-
-**Technology Stack**: Ruby on Rails 7.1+ | PostgreSQL | Redis | RSpec | Vitest | Docker
-
-**Contact**: Development team channel for questions and feedback
 
 ---
 

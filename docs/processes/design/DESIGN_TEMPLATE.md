@@ -1,5 +1,7 @@
 # [Feature Name] - Design Document
 
+**IMPORTANT**: This document MUST be created in `/docs/ignored/design/<feature_name>_design.md`
+
 **Session ID**: <uuid-or-timestamp>
 **Created**: YYYY-MM-DD HH:MM:SS
 **Author**: Claude Code (Anthropic)
@@ -13,7 +15,7 @@
 
 <!-- 2-3 paragraphs summarizing the design, problem being solved, and proposed solution -->
 
-###Key Benefits
+### Key Benefits
 - Benefit 1: [Description of value delivered]
 - Benefit 2: [Description of improvement]
 - Benefit 3: [Description of impact]
@@ -68,10 +70,6 @@ end
 2. **Problem 2**: [Description]
    - **Impact**: [Effect on system/users]
    - **Evidence**: [Supporting data]
-
-3. **Problem 3**: [Description]
-   - **Impact**: [Consequences]
-   - **Evidence**: [References]
 
 ### Files Affected
 - `app/models/store.rb:15` - [Current role/purpose]
@@ -280,18 +278,6 @@ class Api::V1::Accounts::StoresController < Api::V1::Accounts::BaseController
     @stores = @stores.by_priority.page(params[:page])
   end
 
-  def create
-    @store = Stores::CreateService.new(
-      account: Current.account,
-      params: store_params,
-      user: Current.user
-    ).perform
-
-    render json: @store, status: :created
-  rescue ActiveRecord::RecordInvalid => e
-    render json: { error: e.record.errors.full_messages }, status: :unprocessable_entity
-  end
-
   def update_priority
     Stores::UpdatePriorityService.new(
       store: @store,
@@ -324,7 +310,7 @@ namespace :api do
     namespace :accounts do
       resources :stores do
         member do
-          patch :update_priority  # POST /api/v1/accounts/:account_id/stores/:id/update_priority
+          patch :update_priority
         end
       end
     end
@@ -679,21 +665,12 @@ RSpec.describe Store, type: :model do
 
   describe 'scopes' do
     describe '.high_priority' do
-      let!(:high_store) { create(:store, priority: :high) }
-      let!(:low_store) { create(:store, priority: :low) }
-
-      it 'returns only high priority stores' do
-        expect(Store.high_priority).to include(high_store)
-        expect(Store.high_priority).not_to include(low_store)
-      end
+      # Test high priority scope returns correct records
     end
   end
 
   describe '#prioritized_name' do
-    it 'returns formatted name with priority' do
-      store = build(:store, name: 'Test Store', priority: :high)
-      expect(store.prioritized_name).to eq('[HIGH] Test Store')
-    end
+    # Test name formatting with priority
   end
 end
 ```
@@ -711,22 +688,11 @@ RSpec.describe Stores::UpdatePriorityService do
     end
 
     it 'dispatches priority changed event' do
-      expect(Rails.configuration.dispatcher).to receive(:dispatch)
-        .with(STORE_PRIORITY_CHANGED, anything, hash_including(
-          store: store,
-          old_priority: 'medium',
-          new_priority: 'high'
-        ))
-
-      service.perform
+      # Test event dispatching
     end
 
     context 'with invalid priority' do
-      let(:service) { described_class.new(store: store, priority: 'invalid') }
-
-      it 'raises RecordInvalid' do
-        expect { service.perform }.to raise_error(ActiveRecord::RecordInvalid)
-      end
+      # Test error handling
     end
   end
 end
@@ -735,29 +701,13 @@ end
 **Request Specs** (`spec/requests/api/v1/accounts/stores_spec.rb`):
 ```ruby
 RSpec.describe 'Api::V1::Accounts::Stores', type: :request do
-  let(:account) { create(:account) }
-  let(:user) { create(:user, account: account) }
-  let(:token) { user.create_token.token }
-  let(:headers) { { 'api_access_token' => token } }
-  let(:store) { create(:store, account: account, priority: :medium) }
-
   describe 'PATCH /api/v1/accounts/:account_id/stores/:id/update_priority' do
     it 'updates store priority successfully' do
-      patch "/api/v1/accounts/#{account.id}/stores/#{store.id}/update_priority",
-            params: { priority: 'high' },
-            headers: headers
-
-      expect(response).to have_http_status(:ok)
-      json = JSON.parse(response.body)
-      expect(json['priority']).to eq('high')
+      # Test successful priority update
     end
 
     it 'returns error for invalid priority' do
-      patch "/api/v1/accounts/#{account.id}/stores/#{store.id}/update_priority",
-            params: { priority: 'invalid' },
-            headers: headers
-
-      expect(response).to have_http_status(:unprocessable_entity)
+      # Test validation error handling
     end
   end
 end
@@ -781,33 +731,16 @@ describe('StorePrioritySelector', () => {
   const store = createStore({ modules: { stores: mockStore } });
 
   it('renders priority selector', () => {
-    const wrapper = mount(StorePrioritySelector, {
-      props: { storeId: '1' },
-      global: { plugins: [store], mocks: { $t: (key) => key } },
-    });
-
-    expect(wrapper.find('select').exists()).toBe(true);
-    expect(wrapper.findAll('option').length).toBe(3);
+    // Test component renders correctly
   });
 
   it('calls updatePriority action on change', async () => {
-    const wrapper = mount(StorePrioritySelector, {
-      props: { storeId: '1' },
-      global: { plugins: [store], mocks: { $t: (key) => key } },
-    });
-
-    await wrapper.find('select').setValue('high');
-    await wrapper.find('select').trigger('change');
-
-    expect(mockStore.actions.updatePriority).toHaveBeenCalledWith(
-      expect.anything(),
-      { id: '1', priority: 'high' }
-    );
+    // Test action is called with correct params
   });
 });
 ```
 
-**Coverage Goals**:
+### Coverage Goals
 - Backend: ≥85% for changed files
 - Frontend: ≥80% for new components
 
@@ -902,7 +835,7 @@ git revert <commit-hash>
 
 - **Architecture**: [docs/ARCHITECTURE.md](../../ARCHITECTURE.md)
 - **Development Guidelines**: [CLAUDE.md](../../CLAUDE.md)
-- **Development Process**: [development/development_process.md](../development/development_process.md)
+- **Development Process**: [../development/development_process.md](../development/development_process.md)
 - **Research Report**: [Link to research document]
 
 ---

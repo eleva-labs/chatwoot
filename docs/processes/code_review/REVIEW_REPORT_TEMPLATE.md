@@ -1,6 +1,8 @@
 # Code Review - Final Report
 ## [Branch Name]
 
+**IMPORTANT**: This document MUST be created in `/docs/ignored/code_review/<branch_name>_review_report.md`
+
 **Review ID**: <unique_id>
 **Branch**: `<branch_name>`
 **Base Branch**: `development` | `main`

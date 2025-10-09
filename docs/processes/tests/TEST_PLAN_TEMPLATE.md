@@ -1,5 +1,7 @@
 # {Feature} API Test Plan
 
+**IMPORTANT**: This document MUST be created in `/docs/ignored/tests/<feature>_test_plan.md`
+
 **Base URL**: `http://localhost:3000/api/v1`
 **Last Updated**: YYYY-MM-DD
 **Author**: [Your Name]

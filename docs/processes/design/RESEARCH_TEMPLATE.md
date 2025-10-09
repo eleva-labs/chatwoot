@@ -1,5 +1,7 @@
 # [Feature Name] - Research Report
 
+**IMPORTANT**: This document MUST be created in `/docs/ignored/design/<feature_name>_research.md`
+
 **Session ID**: <unique_session_id>
 **Created**: YYYY-MM-DD HH:MM:SS
 **Research Agent**: Claude Code (Anthropic)

@@ -1,11 +1,13 @@
 # [Feature Name] - Execution Plan
 
+**IMPORTANT**: This document MUST be created in `/docs/ignored/development/<feature_name>_execution.md`
+
 **Session ID**: <uuid-or-timestamp>
 **Created**: YYYY-MM-DD HH:MM:SS
 **Started**: Not started | YYYY-MM-DD HH:MM:SS
 **Completed**: In Progress | YYYY-MM-DD HH:MM:SS
 **Status**: Not Started | In Progress | Completed | Blocked | Paused
-**Design Doc**: [Link to design document](/docs/processes/design/feature_name_design.md)
+**Design Doc**: [Link to design document](/docs/ignored/design/feature_name_design.md)
 **Related Request**: <user request summary>
 
 ---
