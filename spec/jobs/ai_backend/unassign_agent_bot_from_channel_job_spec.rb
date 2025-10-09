@@ -16,9 +16,9 @@ RSpec.describe AiBackend::UnassignAgentBotFromChannelJob, type: :job do
     end
 
     it 'calls unassign_agent_system on ChannelService' do
-      expect(service).to receive(:unassign_agent_system).with(inbox.id)
+      expect(service).to receive(:unassign_agent_system).with(inbox.id, account.id)
 
-      job.perform(inbox.id)
+      job.perform(inbox.id, account.id)
     end
 
     it 'logs success' do
@@ -26,7 +26,7 @@ RSpec.describe AiBackend::UnassignAgentBotFromChannelJob, type: :job do
         "AI Backend: Successfully unassigned agent bot from channel #{inbox.id}"
       )
 
-      job.perform(inbox.id)
+      job.perform(inbox.id, account.id)
     end
 
     context 'when service raises ChannelError' do
@@ -42,7 +42,7 @@ RSpec.describe AiBackend::UnassignAgentBotFromChannelJob, type: :job do
         )
 
         expect do
-          job.perform(inbox.id)
+          job.perform(inbox.id, account.id)
         end.to raise_error(AiBackendService::ChannelService::ChannelError)
       end
     end
@@ -58,7 +58,7 @@ RSpec.describe AiBackend::UnassignAgentBotFromChannelJob, type: :job do
         )
 
         expect do
-          job.perform(inbox.id)
+          job.perform(inbox.id, account.id)
         end.to raise_error(StandardError)
       end
     end

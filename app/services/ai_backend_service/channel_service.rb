@@ -19,7 +19,7 @@ class AiBackendService::ChannelService
       "#{@base_url}/api/channels",
       body: request_body.to_json,
       headers: { 'Content-Type' => 'application/json' },
-      query: { id_type: @id_type }
+      query: { id_type: @id_type, store_id: store_id.to_s }
     )
 
     raise ChannelError, "Failed to create channel: #{response.body}" unless response.success?
@@ -52,7 +52,7 @@ class AiBackendService::ChannelService
   def delete_channel(channel_id, store_id)
     response = HTTParty.delete(
       "#{@base_url}/api/channels/#{channel_id}",
-      query: { id_type: @id_type, store_id: store_id }
+      query: { id_type: @id_type, store_id: store_id.to_s }
     )
 
     raise ChannelError, "Failed to delete channel: #{response.body}" unless response.success?
@@ -64,14 +64,15 @@ class AiBackendService::ChannelService
 
   # Update channel in AI backend
   # @param channel_id [Integer] The Chatwoot inbox.id
+  # @param store_id [Integer] The Chatwoot account.id (required for security)
   # @param attributes [Hash] Attributes to update
   # @return [Hash] Updated channel data
-  def update_channel(channel_id, attributes)
+  def update_channel(channel_id, store_id, attributes)
     response = HTTParty.put(
       "#{@base_url}/api/channels/#{channel_id}",
       body: attributes.to_json,
       headers: { 'Content-Type' => 'application/json' },
-      query: { id_type: @id_type }
+      query: { id_type: @id_type, store_id: store_id.to_s }
     )
 
     raise ChannelError, "Failed to update channel: #{response.body}" unless response.success?
@@ -83,19 +84,21 @@ class AiBackendService::ChannelService
 
   # Assign agent system to channel
   # @param channel_id [Integer] The Chatwoot inbox.id (external_id)
+  # @param store_id [Integer] The Chatwoot account.id
   # @param agent_system_id [Integer] The Chatwoot agent_bot.id (external_id)
   # @return [Hash] Updated channel data
-  def assign_agent_system(channel_id, agent_system_id)
+  def assign_agent_system(channel_id, store_id, agent_system_id)
     Rails.logger.info("AI Backend: Assigning agent system #{agent_system_id} to channel #{channel_id}")
-    update_channel(channel_id, { agent_system_id: agent_system_id.to_s })
+    update_channel(channel_id, store_id, { agent_system_id: agent_system_id.to_s })
   end
 
   # Unassign agent system from channel
   # @param channel_id [Integer] The Chatwoot inbox.id (external_id)
+  # @param store_id [Integer] The Chatwoot account.id
   # @return [Hash] Updated channel data
-  def unassign_agent_system(channel_id)
+  def unassign_agent_system(channel_id, store_id)
     Rails.logger.info("AI Backend: Unassigning agent system from channel #{channel_id}")
-    update_channel(channel_id, { agent_system_id: nil })
+    update_channel(channel_id, store_id, { agent_system_id: nil })
   end
 
   private

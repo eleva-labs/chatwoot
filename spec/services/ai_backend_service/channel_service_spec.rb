@@ -28,17 +28,11 @@ RSpec.describe AiBackendService::ChannelService do
     let(:store_id) { account.id }
     let(:expected_request_body) do
       {
+        external_id: '789',
         name: 'Test Channel',
-        channelType: inbox.channel_type,
-        externalId: '789',
-        storeId: '456',
-        isActive: true,
-        metadata: {
-          email_address: inbox.email_address,
-          phone_number: inbox.channel.try(:phone_number),
-          greeting_enabled: inbox.greeting_enabled,
-          timezone: inbox.timezone
-        }
+        platform: 'chatwoot',
+        channel_type: inbox.channel_type.to_s.split('::').last.downcase,
+        is_active: true
       }
     end
 
@@ -58,7 +52,7 @@ RSpec.describe AiBackendService::ChannelService do
       before do
         stub_request(:post, "#{ai_backend_url}/api/channels")
           .with(
-            query: { id_type: 'external' },
+            query: { id_type: 'external', store_id: '456' },
             body: expected_request_body.to_json
           )
           .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
@@ -77,17 +71,16 @@ RSpec.describe AiBackendService::ChannelService do
         service.create_channel(inbox, store_id)
 
         expect(a_request(:post, "#{ai_backend_url}/api/channels").with(
-                 query: { id_type: 'external' },
-                 body: hash_including(externalId: '789')
+                 query: { id_type: 'external', store_id: '456' },
+                 body: hash_including(external_id: '789')
                )).to have_been_made
       end
 
-      it 'includes store_id in request body' do
+      it 'includes store_id in query params' do
         service.create_channel(inbox, store_id)
 
         expect(a_request(:post, "#{ai_backend_url}/api/channels").with(
-                 query: { id_type: 'external' },
-                 body: hash_including(storeId: '456')
+                 query: { id_type: 'external', store_id: '456' }
                )).to have_been_made
       end
     end
@@ -95,7 +88,7 @@ RSpec.describe AiBackendService::ChannelService do
     context 'when the API call fails' do
       it 'raises ChannelError on 400' do
         stub_request(:post, "#{ai_backend_url}/api/channels")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', store_id: '456' })
           .to_return(status: 400, body: { error: 'Bad request' }.to_json)
 
         expect do
@@ -105,7 +98,7 @@ RSpec.describe AiBackendService::ChannelService do
 
       it 'raises ChannelError on 500' do
         stub_request(:post, "#{ai_backend_url}/api/channels")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', store_id: '456' })
           .to_return(status: 500, body: { error: 'Internal error' }.to_json)
 
         expect do
@@ -189,14 +182,14 @@ RSpec.describe AiBackendService::ChannelService do
     context 'when deletion succeeds' do
       it 'deletes the channel and returns true' do
         stub_request(:delete, "#{ai_backend_url}/api/channels/#{channel_id}")
-          .with(query: { id_type: 'external', store_id: store_id })
+          .with(query: { id_type: 'external', store_id: '456' })
           .to_return(status: 200, body: '{}')
 
         result = service.delete_channel(channel_id, store_id)
 
         expect(result).to be true
         expect(a_request(:delete, "#{ai_backend_url}/api/channels/#{channel_id}").with(
-                 query: { id_type: 'external', store_id: store_id }
+                 query: { id_type: 'external', store_id: '456' }
                )).to have_been_made
       end
     end
@@ -204,7 +197,7 @@ RSpec.describe AiBackendService::ChannelService do
     context 'when deletion fails with bad request (400)' do
       it 'raises ChannelError' do
         stub_request(:delete, "#{ai_backend_url}/api/channels/#{channel_id}")
-          .with(query: { id_type: 'external', store_id: store_id })
+          .with(query: { id_type: 'external', store_id: '456' })
           .to_return(status: 400, body: { error: 'Bad request' }.to_json)
 
         expect { service.delete_channel(channel_id, store_id) }
@@ -215,7 +208,7 @@ RSpec.describe AiBackendService::ChannelService do
     context 'when deletion fails with server error (500)' do
       it 'raises ChannelError' do
         stub_request(:delete, "#{ai_backend_url}/api/channels/#{channel_id}")
-          .with(query: { id_type: 'external', store_id: store_id })
+          .with(query: { id_type: 'external', store_id: '456' })
           .to_return(status: 500, body: { error: 'Internal server error' }.to_json)
 
         expect { service.delete_channel(channel_id, store_id) }
@@ -229,13 +222,13 @@ RSpec.describe AiBackendService::ChannelService do
 
       it 'uses custom id_type in query params' do
         stub_request(:delete, "#{ai_backend_url}/api/channels/#{channel_id}")
-          .with(query: { id_type: 'internal', store_id: store_id })
+          .with(query: { id_type: 'internal', store_id: '456' })
           .to_return(status: 200, body: '{}')
 
         service.delete_channel(channel_id, store_id)
 
         expect(a_request(:delete, "#{ai_backend_url}/api/channels/#{channel_id}").with(
-                 query: { id_type: 'internal', store_id: store_id }
+                 query: { id_type: 'internal', store_id: '456' }
                )).to have_been_made
       end
     end
@@ -243,6 +236,7 @@ RSpec.describe AiBackendService::ChannelService do
 
   describe '#update_channel' do
     let(:channel_id) { 789 }
+    let(:store_id) { 456 }
     let(:update_attributes) do
       {
         name: 'Updated Channel',
@@ -265,32 +259,33 @@ RSpec.describe AiBackendService::ChannelService do
       before do
         stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
           .with(
-            query: { id_type: 'external' },
+            query: { id_type: 'external', store_id: '456' },
             body: update_attributes.to_json
           )
           .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
       end
 
       it 'updates channel and returns response' do
-        response = service.update_channel(channel_id, update_attributes)
+        response = service.update_channel(channel_id, store_id, update_attributes)
 
         expect(response).to be_a(OpenStruct)
         expect(response.name).to eq('Updated Channel')
         expect(response.isActive).to be false
       end
 
-      it 'includes id_type in query params' do
-        service.update_channel(channel_id, update_attributes)
+      it 'includes id_type and store_id in query params' do
+        service.update_channel(channel_id, store_id, update_attributes)
 
         expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(
-                 query: { id_type: 'external' }
+                 query: { id_type: 'external', store_id: '456' }
                )).to have_been_made
       end
 
       it 'uses PUT HTTP verb (not PATCH)' do
-        service.update_channel(channel_id, update_attributes)
+        service.update_channel(channel_id, store_id, update_attributes)
 
-        expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external' })).to have_been_made
+        expect(a_request(:put,
+                         "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external', store_id: '456' })).to have_been_made
         expect(a_request(:patch, "#{ai_backend_url}/api/channels/#{channel_id}")).not_to have_been_made
       end
     end
@@ -298,11 +293,11 @@ RSpec.describe AiBackendService::ChannelService do
     context 'when update fails' do
       it 'raises ChannelError' do
         stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', store_id: '456' })
           .to_return(status: 400, body: { error: 'Invalid data' }.to_json)
 
         expect do
-          service.update_channel(channel_id, update_attributes)
+          service.update_channel(channel_id, store_id, update_attributes)
         end.to raise_error(AiBackendService::ChannelService::ChannelError, /Failed to update channel/)
       end
     end
@@ -310,6 +305,7 @@ RSpec.describe AiBackendService::ChannelService do
 
   describe '#assign_agent_system' do
     let(:channel_id) { 789 }
+    let(:store_id) { 456 }
     let(:agent_system_id) { 456 }
 
     let(:api_response) do
@@ -324,18 +320,19 @@ RSpec.describe AiBackendService::ChannelService do
       before do
         stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
           .with(
-            query: { id_type: 'external' },
+            query: { id_type: 'external', store_id: '456' },
             body: { agent_system_id: '456' }.to_json
           )
           .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
       end
 
       it 'calls update_channel with agent_system_id' do
-        result = service.assign_agent_system(channel_id, agent_system_id)
+        result = service.assign_agent_system(channel_id, store_id, agent_system_id)
 
         expect(result).to be_a(OpenStruct)
         expect(result.agentSystemId).to eq('456')
-        expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external' })).to have_been_made
+        expect(a_request(:put,
+                         "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external', store_id: '456' })).to have_been_made
       end
 
       it 'logs the assignment' do
@@ -343,14 +340,14 @@ RSpec.describe AiBackendService::ChannelService do
           "AI Backend: Assigning agent system #{agent_system_id} to channel #{channel_id}"
         )
 
-        service.assign_agent_system(channel_id, agent_system_id)
+        service.assign_agent_system(channel_id, store_id, agent_system_id)
       end
 
       it 'converts agent_system_id to string' do
-        service.assign_agent_system(channel_id, agent_system_id)
+        service.assign_agent_system(channel_id, store_id, agent_system_id)
 
         expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(
-                 query: { id_type: 'external' },
+                 query: { id_type: 'external', store_id: '456' },
                  body: hash_including('agent_system_id' => '456')
                )).to have_been_made
       end
@@ -359,13 +356,13 @@ RSpec.describe AiBackendService::ChannelService do
     context 'when assignment fails' do
       before do
         stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', store_id: '456' })
           .to_return(status: 500, body: { error: 'Internal Server Error' }.to_json)
       end
 
       it 'raises ChannelError' do
         expect do
-          service.assign_agent_system(channel_id, agent_system_id)
+          service.assign_agent_system(channel_id, store_id, agent_system_id)
         end.to raise_error(AiBackendService::ChannelService::ChannelError, /Channel update failed/)
       end
     end
@@ -373,6 +370,7 @@ RSpec.describe AiBackendService::ChannelService do
 
   describe '#unassign_agent_system' do
     let(:channel_id) { 789 }
+    let(:store_id) { 456 }
 
     let(:api_response) do
       {
@@ -386,18 +384,19 @@ RSpec.describe AiBackendService::ChannelService do
       before do
         stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
           .with(
-            query: { id_type: 'external' },
+            query: { id_type: 'external', store_id: '456' },
             body: { agent_system_id: nil }.to_json
           )
           .to_return(status: 200, body: api_response.to_json, headers: { 'Content-Type' => 'application/json' })
       end
 
       it 'calls update_channel with null agent_system_id' do
-        result = service.unassign_agent_system(channel_id)
+        result = service.unassign_agent_system(channel_id, store_id)
 
         expect(result).to be_a(OpenStruct)
         expect(result.agentSystemId).to be_nil
-        expect(a_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external' })).to have_been_made
+        expect(a_request(:put,
+                         "#{ai_backend_url}/api/channels/#{channel_id}").with(query: { id_type: 'external', store_id: '456' })).to have_been_made
       end
 
       it 'logs the unassignment' do
@@ -405,20 +404,20 @@ RSpec.describe AiBackendService::ChannelService do
           "AI Backend: Unassigning agent system from channel #{channel_id}"
         )
 
-        service.unassign_agent_system(channel_id)
+        service.unassign_agent_system(channel_id, store_id)
       end
     end
 
     context 'when unassignment fails' do
       before do
         stub_request(:put, "#{ai_backend_url}/api/channels/#{channel_id}")
-          .with(query: { id_type: 'external' })
+          .with(query: { id_type: 'external', store_id: '456' })
           .to_return(status: 404, body: { error: 'Not found' }.to_json)
       end
 
       it 'raises ChannelError' do
         expect do
-          service.unassign_agent_system(channel_id)
+          service.unassign_agent_system(channel_id, store_id)
         end.to raise_error(AiBackendService::ChannelService::ChannelError, /Channel update failed/)
       end
     end

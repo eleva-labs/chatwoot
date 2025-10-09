@@ -5,9 +5,9 @@ class AiBackend::DeleteUserJob < ApplicationJob
 
   retry_on StandardError, wait: :exponentially_longer, attempts: 5
 
-  def perform(user_id)
+  def perform(user_id, account_id)
     service = AiBackendService::UserService.new
-    service.delete_user(user_id)
+    service.delete_user(user_id, account_id)
 
     Rails.logger.info("Successfully deleted user for user_id: #{user_id} from AI Backend")
   rescue StandardError => e

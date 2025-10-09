@@ -197,7 +197,7 @@ RSpec.describe AiBackendListener do
     let(:event) { double(data: { user_id: 789, account_id: 123 }) }
 
     it 'enqueues DeleteUserJob with user ID' do
-      expect(AiBackend::DeleteUserJob).to receive(:perform_later).with(789)
+      expect(AiBackend::DeleteUserJob).to receive(:perform_later).with(789, 123)
 
       listener.agent_removed(event)
     end

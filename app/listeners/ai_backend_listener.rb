@@ -59,8 +59,9 @@ class AiBackendListener < BaseListener
   # Handle agent bot deletion -> delete agent system from AI backend
   def agent_bot_deleted(event)
     agent_bot_id = event.data[:agent_bot_id]
+    account_id = event.data[:account_id]
 
-    AiBackend::DeleteAgentSystemJob.perform_later(agent_bot_id)
+    AiBackend::DeleteAgentSystemJob.perform_later(agent_bot_id, account_id)
 
     Rails.logger.info "AI Backend: Enqueued agent system deletion for bot #{agent_bot_id}"
   rescue StandardError => e
@@ -70,10 +71,11 @@ class AiBackendListener < BaseListener
   # Handle user removal from account -> delete user from AI backend
   def agent_removed(event)
     user_id = event.data[:user_id]
+    account_id = event.data[:account_id]
 
     return unless user_id
 
-    AiBackend::DeleteUserJob.perform_later(user_id)
+    AiBackend::DeleteUserJob.perform_later(user_id, account_id)
 
     Rails.logger.info "AI Backend: Enqueued user deletion for user #{user_id}"
   rescue StandardError => e
@@ -110,7 +112,8 @@ class AiBackendListener < BaseListener
 
     AiBackend::AssignAgentBotToChannelJob.perform_later(
       agent_bot_inbox.agent_bot_id,
-      agent_bot_inbox.inbox_id
+      agent_bot_inbox.inbox_id,
+      agent_bot_inbox.inbox.account_id
     )
 
     Rails.logger.info "AI Backend: Enqueued agent bot #{agent_bot_inbox.agent_bot_id} assignment to channel #{agent_bot_inbox.inbox_id}"
@@ -122,8 +125,9 @@ class AiBackendListener < BaseListener
   def agent_bot_inbox_deleted(event)
     agent_bot_id = event.data[:agent_bot_id]
     inbox_id = event.data[:inbox_id]
+    account_id = event.data[:account_id]
 
-    AiBackend::UnassignAgentBotFromChannelJob.perform_later(inbox_id)
+    AiBackend::UnassignAgentBotFromChannelJob.perform_later(inbox_id, account_id)
 
     Rails.logger.info "AI Backend: Enqueued agent bot #{agent_bot_id} unassignment from channel #{inbox_id}"
   rescue StandardError => e

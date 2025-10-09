@@ -182,4 +182,77 @@ RSpec.describe AiBackendService::Schemas do
       end
     end
   end
+
+  describe 'ChannelRequest' do
+    let(:account) { create(:account, id: 456) }
+    let(:inbox) { create(:inbox, id: 789, account: account, name: 'Test Channel', channel_type: 'Channel::WebWidget') }
+
+    describe '.from_inbox' do
+      it 'creates channel request from inbox' do
+        request = described_class::ChannelRequest.from_inbox(inbox, account.id)
+
+        expect(request.name).to eq('Test Channel')
+        expect(request.channel_type).to eq('Channel::WebWidget')
+        expect(request.platform).to eq('chatwoot')
+        expect(request.external_id).to eq(789)
+        expect(request.is_active).to be true
+      end
+
+      it 'always sets platform to chatwoot' do
+        instagram_inbox = create(:inbox, channel_type: 'Channel::Instagram')
+        request = described_class::ChannelRequest.from_inbox(instagram_inbox, account.id)
+
+        expect(request.platform).to eq('chatwoot')
+      end
+    end
+
+    describe '#to_h' do
+      it 'serializes to hash with snake_case keys and string IDs' do
+        request = described_class::ChannelRequest.new(
+          name: 'Test Channel',
+          channel_type: 'Channel::WebWidget',
+          platform: 'chatwoot',
+          external_id: 789,
+          is_active: true
+        )
+
+        hash = request.to_h
+
+        expect(hash[:external_id]).to eq('789')
+        expect(hash[:name]).to eq('Test Channel')
+        expect(hash[:platform]).to eq('chatwoot')
+        expect(hash[:channel_type]).to eq('webwidget')
+        expect(hash[:is_active]).to be true
+      end
+
+      it 'converts external_id to string' do
+        request = described_class::ChannelRequest.new(
+          name: 'Test',
+          channel_type: 'Channel::Instagram',
+          platform: 'chatwoot',
+          external_id: 123,
+          is_active: true
+        )
+
+        hash = request.to_h
+
+        expect(hash[:external_id]).to eq('123')
+        expect(hash[:external_id]).to be_a(String)
+      end
+
+      it 'normalizes channel_type to lowercase' do
+        request = described_class::ChannelRequest.new(
+          name: 'Test',
+          channel_type: 'Channel::Instagram',
+          platform: 'chatwoot',
+          external_id: 123,
+          is_active: true
+        )
+
+        hash = request.to_h
+
+        expect(hash[:channel_type]).to eq('instagram')
+      end
+    end
+  end
 end

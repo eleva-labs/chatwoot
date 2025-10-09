@@ -125,37 +125,36 @@ module AiBackendService::Schemas
   ChannelRequest = Struct.new(
     :name,
     :channel_type,
+    :platform,
     :external_id,
-    :store_id,
     :is_active,
-    :metadata,
     keyword_init: true
   ) do
     def to_h
       {
+        external_id: external_id.to_s,
         name: name,
-        channelType: channel_type,
-        externalId: external_id.to_s,
-        storeId: store_id.to_s,
-        isActive: is_active,
-        metadata: metadata || {}
+        platform: platform,
+        channel_type: normalized_channel_type,
+        is_active: is_active
       }
     end
 
-    def self.from_inbox(inbox, store_id)
+    def self.from_inbox(inbox, _store_id)
       new(
         name: inbox.name,
         channel_type: inbox.channel_type,
+        platform: 'chatwoot',
         external_id: inbox.id,
-        store_id: store_id,
-        is_active: true,
-        metadata: {
-          email_address: inbox.email_address,
-          phone_number: inbox.channel.try(:phone_number),
-          greeting_enabled: inbox.greeting_enabled,
-          timezone: inbox.timezone
-        }
+        is_active: true
       )
+    end
+
+    private
+
+    def normalized_channel_type
+      # Extract platform from channel_type (e.g., "Channel::Instagram" -> "instagram")
+      channel_type.to_s.split('::').last.downcase
     end
   end
 end

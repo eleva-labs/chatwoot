@@ -19,10 +19,11 @@ RSpec.describe AiBackend::AssignAgentBotToChannelJob, type: :job do
     it 'calls assign_agent_system on ChannelService' do
       expect(service).to receive(:assign_agent_system).with(
         inbox.id,
+        account.id,
         agent_bot.id
       )
 
-      job.perform(agent_bot.id, inbox.id)
+      job.perform(agent_bot.id, inbox.id, account.id)
     end
 
     it 'logs success' do
@@ -30,7 +31,7 @@ RSpec.describe AiBackend::AssignAgentBotToChannelJob, type: :job do
         "AI Backend: Successfully assigned agent bot #{agent_bot.id} to channel #{inbox.id}"
       )
 
-      job.perform(agent_bot.id, inbox.id)
+      job.perform(agent_bot.id, inbox.id, account.id)
     end
 
     context 'when service raises ChannelError' do
@@ -46,7 +47,7 @@ RSpec.describe AiBackend::AssignAgentBotToChannelJob, type: :job do
         )
 
         expect do
-          job.perform(agent_bot.id, inbox.id)
+          job.perform(agent_bot.id, inbox.id, account.id)
         end.to raise_error(AiBackendService::ChannelService::ChannelError)
       end
     end
@@ -62,7 +63,7 @@ RSpec.describe AiBackend::AssignAgentBotToChannelJob, type: :job do
         )
 
         expect do
-          job.perform(agent_bot.id, inbox.id)
+          job.perform(agent_bot.id, inbox.id, account.id)
         end.to raise_error(StandardError)
       end
     end

@@ -28,7 +28,7 @@ class AiBackendService::UserService
 
     response = self.class.post(
       "#{ai_backend_api_url}/api/users",
-      query: { store_id: store_id, id_type: @id_type },
+      query: { store_id: store_id.to_s, id_type: @id_type },
       body: user_data.to_h.to_json,
       headers: self.class.headers
     )
@@ -52,10 +52,12 @@ class AiBackendService::UserService
   end
 
   # Delete user by ID (idempotent - 404 returns true)
-  def delete_user(user_id)
+  # @param user_id [String, Integer] User identifier
+  # @param store_id [String, Integer] Store identifier (account_id)
+  def delete_user(user_id, store_id)
     response = self.class.delete(
       "#{ai_backend_api_url}/api/users/#{user_id}",
-      query: { id_type: @id_type },
+      query: { id_type: @id_type, store_id: store_id.to_s },
       headers: self.class.headers
     )
 

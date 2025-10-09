@@ -75,7 +75,8 @@ class AgentBot < ApplicationRecord
     Rails.configuration.dispatcher.dispatch(
       AGENT_BOT_DELETED,
       Time.zone.now,
-      agent_bot_id: id
+      agent_bot_id: id,
+      account_id: account_id
     )
   end
 end

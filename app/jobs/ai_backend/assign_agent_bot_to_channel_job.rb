@@ -9,11 +9,12 @@ class AiBackend::AssignAgentBotToChannelJob < ApplicationJob
 
   # @param agent_bot_id [Integer] The Chatwoot agent_bot.id (external_id)
   # @param inbox_id [Integer] The Chatwoot inbox.id (external_id)
-  def perform(agent_bot_id, inbox_id)
+  # @param account_id [Integer] The Chatwoot account.id (store_id)
+  def perform(agent_bot_id, inbox_id, account_id)
     channel_service = AiBackendService::ChannelService.new
 
     # Call channel update API with agent_system_id
-    channel_service.assign_agent_system(inbox_id, agent_bot_id)
+    channel_service.assign_agent_system(inbox_id, account_id, agent_bot_id)
 
     Rails.logger.info("AI Backend: Successfully assigned agent bot #{agent_bot_id} to channel #{inbox_id}")
   rescue AiBackendService::ChannelService::ChannelError => e
