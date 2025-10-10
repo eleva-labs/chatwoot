@@ -27,7 +27,7 @@ class AiBackend::CreateAgentSystemJob < ApplicationJob
     query_params = {
       store_id: store_id,
       agent_system_id: agent_bot.id,
-      id_type: 'external'
+      id_type: AiBackendService::Constants::IdType::EXTERNAL
     }
 
     "#{base_url}/api/webhooks/chatwoot/message?#{query_params.to_query}"

@@ -153,7 +153,7 @@ class ForwardNotificationService
       notification_config = config_service.get_configuration(
         scope: AiBackendService::Constants::Scope::STORE,
         resource_id: store_id,
-        config_key: AiBackendService::Constants::ConfigKey::NOTIFICATIONS
+        config_key: AiBackendService::Constants::ConfigKey::NOTIFICATIONS_CONFIG
       )
 
       return notification_config if notification_config.present?

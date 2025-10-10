@@ -19,7 +19,8 @@ RSpec.describe AiBackend::SyncOwnerTokenJob, type: :job do
           scope: AiBackendService::Constants::Scope::STORE,
           resource_id: 123,
           config_key: AiBackendService::Constants::ConfigKey::GENERAL_STORE_CONFIG,
-          config_data: { chatwoot_access_token: token }
+          config_data: { chatwoot_app_api_token: token },
+          partial: true
         )
 
         described_class.new.perform(account.id, user.id, token)

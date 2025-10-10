@@ -96,6 +96,33 @@ RSpec.describe AccountBuilder do
         # Allow for small time differences during test execution
         expect(ends_on).to be_within(5.seconds).of(expected_end_date)
       end
+
+      it 'dispatches owner_token_updated event after user is linked to account' do
+        # Expect the event to be dispatched when account is created
+        expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
+          Events::Types::OWNER_TOKEN_UPDATED,
+          an_instance_of(ActiveSupport::TimeWithZone),
+          hash_including(
+            account: an_instance_of(Account),
+            user: an_instance_of(User),
+            token: an_instance_of(String)
+          )
+        )
+
+        user, account = account_builder.perform
+
+        # Verify user has access token
+        expect(user.access_token).to be_present
+        expect(user.accounts).to include(account)
+      end
+
+      it 'creates access token for user during account creation' do
+        user, _account = account_builder.perform
+
+        # User should have access token created via after_create callback
+        expect(user.access_token).to be_present
+        expect(user.access_token.token).to be_present
+      end
     end
   end
 end

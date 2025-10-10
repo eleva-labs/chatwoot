@@ -19,7 +19,9 @@ RSpec.describe AiBackend::SyncBotTokenJob, type: :job do
           scope: AiBackendService::Constants::Scope::AGENT_SYSTEM,
           resource_id: 456,
           config_key: AiBackendService::Constants::ConfigKey::AGENT_SYSTEM_CONFIG,
-          config_data: { chatwoot_access_token: token }
+          config_data: { chatwoot_bot_api_token: token },
+          partial: true,
+          store_id: 123
         )
 
         described_class.new.perform(agent_bot.id, account.id, token)

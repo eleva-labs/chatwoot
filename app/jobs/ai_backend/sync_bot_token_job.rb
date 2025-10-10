@@ -12,16 +12,18 @@ class AiBackend::SyncBotTokenJob < ApplicationJob
 
     config_service = AiBackendService::ConfigurationService.new
 
-    # Simple config data - only contains the token
+    # Partial update - only send the token field that needs to be updated
     config_data = {
-      chatwoot_access_token: token
+      chatwoot_bot_api_token: token
     }
 
     config_service.save_configuration(
       scope: AiBackendService::Constants::Scope::AGENT_SYSTEM,
       resource_id: agent_bot_id,
       config_key: AiBackendService::Constants::ConfigKey::AGENT_SYSTEM_CONFIG,
-      config_data: config_data
+      config_data: config_data,
+      partial: true,
+      store_id: account_id
     )
 
     Rails.logger.info("Successfully synced bot token for agent_bot_id: #{agent_bot_id}")

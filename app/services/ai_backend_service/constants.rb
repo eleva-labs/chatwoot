@@ -27,60 +27,45 @@ module AiBackendService::Constants
     end
   end
 
-  # Configuration keys for different config types
+  # Configuration keys and their expected fields (based on AI Backend Python schemas)
+  #
+  # Note: All configs support partial updates - you can send only the fields you want to update
   module ConfigKey
     # Store configurations
-    NOTIFICATIONS = 'notifications_config'
-    MESSAGING = 'messaging_config'
-    GENERAL_STORE = 'general_store_config'
-    ECOMMERCE = 'ecommerce_config'
-    CALENDLY = 'calendly_config'
-    CONVERSATION = 'conversation_config'
+    GENERAL_STORE_CONFIG = 'general_store_config'
+    NOTIFICATIONS_CONFIG = 'notifications_config'
+    MESSAGING_CONFIG = 'messaging_config'
+    ECOMMERCE_CONFIG = 'ecommerce_config'
+    CALENDLY_CONFIG = 'calendly_config'
+    CONVERSATION_CONFIG = 'conversation_config'
 
-    # Agent configurations
-    AGENT_BEHAVIOR = 'agent_behavior_config'
-    AGENT_KNOWLEDGE = 'agent_knowledge_config'
-
-    # User configurations
-    USER_PREFERENCES = 'user_preferences_config'
-
-    # Authentication configurations (Pydantic model names from AI Backend)
-    GENERAL_STORE_CONFIG = 'GeneralStoreConfig'
-    AGENT_SYSTEM_CONFIG = 'AgentSystemConfig'
+    # Agent system configurations
+    AGENT_SYSTEM_CONFIG = 'agent_system_config'
 
     ALL = [
-      NOTIFICATIONS,
-      MESSAGING,
-      GENERAL_STORE,
-      ECOMMERCE,
-      CALENDLY,
-      CONVERSATION,
-      AGENT_BEHAVIOR,
-      AGENT_KNOWLEDGE,
-      USER_PREFERENCES,
       GENERAL_STORE_CONFIG,
+      NOTIFICATIONS_CONFIG,
+      MESSAGING_CONFIG,
+      ECOMMERCE_CONFIG,
+      CALENDLY_CONFIG,
+      CONVERSATION_CONFIG,
       AGENT_SYSTEM_CONFIG
     ].freeze
 
     STORE_CONFIGS = [
-      NOTIFICATIONS,
-      MESSAGING,
-      GENERAL_STORE,
-      ECOMMERCE,
-      CALENDLY,
-      CONVERSATION,
-      GENERAL_STORE_CONFIG
+      GENERAL_STORE_CONFIG,
+      NOTIFICATIONS_CONFIG,
+      MESSAGING_CONFIG,
+      ECOMMERCE_CONFIG,
+      CALENDLY_CONFIG,
+      CONVERSATION_CONFIG
     ].freeze
 
     AGENT_CONFIGS = [
-      AGENT_BEHAVIOR,
-      AGENT_KNOWLEDGE,
       AGENT_SYSTEM_CONFIG
     ].freeze
 
-    USER_CONFIGS = [
-      USER_PREFERENCES
-    ].freeze
+    USER_CONFIGS = [].freeze
 
     def self.valid?(config_key)
       ALL.include?(config_key)

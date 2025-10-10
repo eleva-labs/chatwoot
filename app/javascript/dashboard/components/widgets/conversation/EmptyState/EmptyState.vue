@@ -1,6 +1,7 @@
 <script>
 import { computed, onMounted } from 'vue';
 import { mapGetters } from 'vuex';
+import { useStore } from 'vuex';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useRouter } from 'vue-router';
@@ -18,12 +19,12 @@ export default {
   },
   setup() {
     const { isAdmin } = useAdmin();
-    const { accountScopedUrl, currentAccount } = useAccount();
+    const { accountScopedUrl } = useAccount();
     const router = useRouter();
+    const store = useStore();
 
-    const isOnboardingCompleted = computed(
-      () =>
-        currentAccount.value?.custom_attributes?.onboarding_completed || false
+    const isOnboardingCompleted = computed(() =>
+      store.getters['accounts/isOnboardingCompleted']()
     );
 
     const shouldRedirectToOnboarding = computed(

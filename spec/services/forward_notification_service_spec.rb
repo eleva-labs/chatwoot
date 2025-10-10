@@ -285,7 +285,7 @@ RSpec.describe ForwardNotificationService do
         expect(config_service_double).to have_received(:get_configuration).with(
           scope: AiBackendService::Constants::Scope::STORE,
           resource_id: 'test_store_123',
-          config_key: AiBackendService::Constants::ConfigKey::NOTIFICATIONS
+          config_key: AiBackendService::Constants::ConfigKey::NOTIFICATIONS_CONFIG
         )
         expect(result).to eq(notification_config)
       end

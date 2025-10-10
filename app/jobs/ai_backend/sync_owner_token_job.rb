@@ -12,16 +12,17 @@ class AiBackend::SyncOwnerTokenJob < ApplicationJob
 
     config_service = AiBackendService::ConfigurationService.new
 
-    # Simple config data - only contains the token
+    # Partial update - only send the token field that needs to be updated
     config_data = {
-      chatwoot_access_token: token
+      chatwoot_app_api_token: token
     }
 
     config_service.save_configuration(
       scope: AiBackendService::Constants::Scope::STORE,
       resource_id: account_id,
       config_key: AiBackendService::Constants::ConfigKey::GENERAL_STORE_CONFIG,
-      config_data: config_data
+      config_data: config_data,
+      partial: true
     )
 
     Rails.logger.info("Successfully synced owner token for account_id: #{account_id}")
