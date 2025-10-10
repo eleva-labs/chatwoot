@@ -56,6 +56,11 @@ class AccessToken < ApplicationRecord
     return unless owner.is_a?(AgentBot)
     return unless owner.account # Skip system bots (account_id IS NULL)
 
+    # Skip automatic dispatch on creation - AgentBot handles this manually
+    # to ensure proper event ordering (AGENT_BOT_CREATED before BOT_TOKEN_UPDATED)
+    # Only dispatch on token updates (not creation)
+    return if saved_change_to_id? # Skip on create (when id changes from nil)
+
     Rails.configuration.dispatcher.dispatch(
       BOT_TOKEN_UPDATED,
       Time.zone.now,

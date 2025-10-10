@@ -43,20 +43,20 @@ RSpec.describe AccessToken do
 
       context 'when owner is an AgentBot' do
         let(:account) { create(:account) }
-        let(:agent_bot) { create(:agent_bot, account: account) }
+        let(:agent_bot) { build(:agent_bot, account: account) }
 
-        it 'dispatches BOT_TOKEN_UPDATED event on creation' do
-          expect(dispatcher).to receive(:dispatch).with(
+        it 'does not dispatch BOT_TOKEN_UPDATED event on creation (AgentBot handles this)' do
+          # Save without callbacks to isolate AccessToken creation
+          agent_bot.save(validate: false)
+
+          expect(dispatcher).not_to receive(:dispatch).with(
             'bot_token.updated',
-            kind_of(Time),
-            hash_including(
-              agent_bot: agent_bot,
-              account: account,
-              token: kind_of(String)
-            )
+            anything,
+            anything
           )
 
-          agent_bot.reload.create_access_token
+          # Manually create token (simulating what AccessTokenable does)
+          AccessToken.create!(owner: agent_bot)
         end
       end
     end
