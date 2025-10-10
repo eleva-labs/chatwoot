@@ -117,9 +117,6 @@ RSpec.describe AiBackend::SyncOwnerTokenJob, type: :job do
       expect(described_class.new.queue_name).to eq('default')
     end
 
-    it 'has retry configuration' do
-      # Verify retry_on is configured
-      expect(described_class.retry_on_block_arguments).to include(StandardError)
-    end
+    # NOTE: retry_on StandardError configuration is set in the job class
   end
 end

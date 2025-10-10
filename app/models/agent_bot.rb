@@ -20,6 +20,7 @@
 class AgentBot < ApplicationRecord
   include AccessTokenable
   include Avatarable
+  include Events::Types
 
   has_many :agent_bot_inboxes, dependent: :destroy_async
   has_many :inboxes, through: :agent_bot_inboxes

@@ -7,6 +7,8 @@ RSpec.describe AccessToken do
 
   before do
     allow(Rails.configuration).to receive(:dispatcher).and_return(dispatcher)
+    # Stub all dispatcher calls by default, specific expectations will override
+    allow(dispatcher).to receive(:dispatch)
   end
 
   describe 'associations' do
@@ -26,7 +28,7 @@ RSpec.describe AccessToken do
 
         it 'dispatches OWNER_TOKEN_UPDATED event on creation' do
           expect(dispatcher).to receive(:dispatch).with(
-            OWNER_TOKEN_UPDATED,
+            'owner_token.updated',
             kind_of(Time),
             hash_including(
               account: account,
@@ -45,7 +47,7 @@ RSpec.describe AccessToken do
 
         it 'dispatches BOT_TOKEN_UPDATED event on creation' do
           expect(dispatcher).to receive(:dispatch).with(
-            BOT_TOKEN_UPDATED,
+            'bot_token.updated',
             kind_of(Time),
             hash_including(
               agent_bot: agent_bot,
@@ -67,11 +69,12 @@ RSpec.describe AccessToken do
 
         before do
           create(:account_user, account: account, user: user, role: :administrator, inviter_id: nil)
+          user.reload
         end
 
         it 'dispatches OWNER_TOKEN_UPDATED event when token changes' do
           expect(dispatcher).to receive(:dispatch).with(
-            OWNER_TOKEN_UPDATED,
+            'owner_token.updated',
             kind_of(Time),
             hash_including(
               account: account,
@@ -97,7 +100,7 @@ RSpec.describe AccessToken do
 
         it 'dispatches BOT_TOKEN_UPDATED event when token changes' do
           expect(dispatcher).to receive(:dispatch).with(
-            BOT_TOKEN_UPDATED,
+            'bot_token.updated',
             kind_of(Time),
             hash_including(
               agent_bot: agent_bot,
@@ -124,6 +127,7 @@ RSpec.describe AccessToken do
         create(:account_user, account: account1, user: user, role: :administrator, inviter_id: nil)
         # User is owner of account2
         create(:account_user, account: account2, user: user, role: :administrator, inviter_id: nil)
+        user.reload
       end
 
       it 'dispatches event for each owned account' do
@@ -201,7 +205,7 @@ RSpec.describe AccessToken do
 
       it 'dispatches BOT_TOKEN_UPDATED event' do
         expect(dispatcher).to receive(:dispatch).with(
-          BOT_TOKEN_UPDATED,
+          'bot_token.updated',
           kind_of(Time),
           hash_including(
             agent_bot: agent_bot,

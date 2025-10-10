@@ -66,6 +66,8 @@ RSpec.describe AgentBot do
       it 'dispatches AGENT_BOT_CREATED event' do
         # Allow account.created event to be dispatched (from factory creating account)
         allow(Rails.configuration.dispatcher).to receive(:dispatch).with('account.created', anything, anything)
+        # Allow bot_token.updated event to be dispatched (from AccessToken creation)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch).with('bot_token.updated', anything, anything)
 
         expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
           'agent_bot.created',

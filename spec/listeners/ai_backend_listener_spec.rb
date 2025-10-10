@@ -166,10 +166,10 @@ RSpec.describe AiBackendListener do
   end
 
   describe '#agent_bot_deleted' do
-    let(:event) { double(data: { agent_bot_id: 456 }) }
+    let(:event) { double(data: { agent_bot_id: 456, account_id: 789 }) }
 
     it 'enqueues DeleteAgentSystemJob with bot ID' do
-      expect(AiBackend::DeleteAgentSystemJob).to receive(:perform_later).with(456)
+      expect(AiBackend::DeleteAgentSystemJob).to receive(:perform_later).with(456, 789)
 
       listener.agent_bot_deleted(event)
     end
@@ -307,7 +307,7 @@ RSpec.describe AiBackendListener do
     let(:event) { double(data: { agent_bot_inbox: agent_bot_inbox }) }
 
     it 'enqueues AssignAgentBotToChannelJob with correct parameters' do
-      expect(AiBackend::AssignAgentBotToChannelJob).to receive(:perform_later).with(456, 789)
+      expect(AiBackend::AssignAgentBotToChannelJob).to receive(:perform_later).with(456, 789, account.id)
 
       listener.agent_bot_inbox_created(event)
     end
@@ -352,7 +352,7 @@ RSpec.describe AiBackendListener do
     end
 
     it 'enqueues UnassignAgentBotFromChannelJob with inbox_id' do
-      expect(AiBackend::UnassignAgentBotFromChannelJob).to receive(:perform_later).with(789)
+      expect(AiBackend::UnassignAgentBotFromChannelJob).to receive(:perform_later).with(789, 111)
 
       listener.agent_bot_inbox_deleted(event)
     end

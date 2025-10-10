@@ -62,6 +62,7 @@ class AccountBuilder
   def create_and_link_user
     if @user.present? || create_user
       link_user_to_account(@user, @account)
+      @user.reload # Reload to pick up the new account association
       @user
     else
       raise UserErrors.new(errors: @user.errors)
