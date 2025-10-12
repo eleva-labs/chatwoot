@@ -98,7 +98,21 @@ RSpec.describe AccountBuilder do
       end
 
       it 'dispatches owner_token_updated event after user is linked to account' do
-        # Expect the event to be dispatched when account is created
+        # Allow the account.created event (triggered by Account's after_create_commit callback)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch).with(
+          Events::Types::ACCOUNT_CREATED,
+          an_instance_of(ActiveSupport::TimeWithZone),
+          hash_including(account: an_instance_of(Account))
+        )
+
+        # Allow the agent.added event (triggered by AccountUser's after_create_commit callback)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch).with(
+          Events::Types::AGENT_ADDED,
+          an_instance_of(ActiveSupport::TimeWithZone),
+          hash_including(account: an_instance_of(Account), account_user: an_instance_of(AccountUser))
+        )
+
+        # Expect the owner_token_updated event to be dispatched when user is linked to account
         expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
           Events::Types::OWNER_TOKEN_UPDATED,
           an_instance_of(ActiveSupport::TimeWithZone),
