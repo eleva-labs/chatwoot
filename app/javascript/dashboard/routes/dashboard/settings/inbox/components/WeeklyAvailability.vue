@@ -157,7 +157,26 @@ export default {
         <p class="mb-4 text-n-slate-11">
           {{ $t('INBOX_MGMT.BUSINESS_HOURS.TOGGLE_HELP') }}
         </p>
-        <div v-if="isBusinessHoursEnabled" class="mb-6">
+
+        <!-- Agent Bot Working Hours Setting -->
+        <div v-if="isBusinessHoursEnabled">
+          <label for="agent-bot-respects-hours" class="toggle-input-wrap">
+            <input
+              id="agent-bot-respects-hours"
+              v-model="agentBotRespectsWorkingHours"
+              type="checkbox"
+              class="ltr:mr-2 rtl:ml-2"
+            />
+            {{ $t('INBOX_MGMT.WEEKLY_AVAILABILITY.AGENT_BOT_RESPECTS_HOURS') }}
+          </label>
+          <p class="mb-4 text-n-slate-11">
+            {{
+              $t('INBOX_MGMT.WEEKLY_AVAILABILITY.AGENT_BOT_RESPECTS_HOURS_HELP')
+            }}
+          </p>
+        </div>
+
+        <div v-if="isBusinessHoursEnabled" class="mt-6 mb-6">
           <div>
             <label class="unavailable-input-wrap">
               {{ $t('INBOX_MGMT.BUSINESS_HOURS.UNAVAILABLE_MESSAGE_LABEL') }}
@@ -203,33 +222,6 @@ export default {
             :time-slot="timeSlot"
             @update="data => onSlotUpdate(timeSlot.day, data)"
           />
-        </div>
-
-        <!-- Agent Bot Working Hours Setting -->
-        <div
-          v-if="isBusinessHoursEnabled"
-          class="flex items-start gap-2 p-4 mb-4 rounded-lg bg-n-alpha-black2"
-        >
-          <input
-            id="agent-bot-respects-hours"
-            v-model="agentBotRespectsWorkingHours"
-            type="checkbox"
-            class="mt-1 ltr:mr-2 rtl:ml-2"
-          />
-          <div class="flex-1">
-            <label for="agent-bot-respects-hours" class="font-medium text-sm">
-              {{
-                $t('INBOX_MGMT.WEEKLY_AVAILABILITY.AGENT_BOT_RESPECTS_HOURS')
-              }}
-            </label>
-            <p class="mt-1 text-xs text-n-slate-11">
-              {{
-                $t(
-                  'INBOX_MGMT.WEEKLY_AVAILABILITY.AGENT_BOT_RESPECTS_HOURS_HELP'
-                )
-              }}
-            </p>
-          </div>
         </div>
 
         <NextButton
