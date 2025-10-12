@@ -786,6 +786,12 @@
       },
       "ALL_DAY": "All-Day"
     },
+    "WEEKLY_AVAILABILITY": {
+      "AGENT_BOT_RESPECTS_HOURS": "Disable agent bot during off-hours",
+      "AGENT_BOT_RESPECTS_HOURS_HELP": "When enabled, agent bot webhooks will not be triggered outside of business hours. Out-of-office messages will be sent instead.",
+      "AGENT_BOT_SETTING_UPDATED": "Agent bot settings updated successfully",
+      "AGENT_BOT_SETTING_ERROR": "Failed to update agent bot settings"
+    },
     "IMAP": {
       "TITLE": "IMAP",
       "SUBTITLE": "Set your IMAP details",

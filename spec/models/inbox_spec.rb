@@ -457,4 +457,82 @@ RSpec.describe Inbox do
       end
     end
   end
+
+  describe '#agent_bot_respects_working_hours?' do
+    let(:inbox) { FactoryBot.create(:inbox) }
+
+    context 'when flag is set to true' do
+      before do
+        inbox.update(
+          auto_assignment_config: { 'agent_bot_respects_working_hours' => true }
+        )
+      end
+
+      it 'returns true' do
+        expect(inbox.agent_bot_respects_working_hours?).to be true
+      end
+    end
+
+    context 'when flag is set to false' do
+      before do
+        inbox.update(
+          auto_assignment_config: { 'agent_bot_respects_working_hours' => false }
+        )
+      end
+
+      it 'returns false' do
+        expect(inbox.agent_bot_respects_working_hours?).to be false
+      end
+    end
+
+    context 'when flag is not set' do
+      it 'defaults to false' do
+        expect(inbox.agent_bot_respects_working_hours?).to be false
+      end
+    end
+
+    context 'when auto_assignment_config is nil' do
+      before do
+        inbox.update(auto_assignment_config: nil)
+      end
+
+      it 'defaults to false' do
+        expect(inbox.agent_bot_respects_working_hours?).to be false
+      end
+    end
+  end
+
+  describe '#agent_bot_respects_working_hours=' do
+    let(:inbox) { FactoryBot.create(:inbox) }
+
+    it 'sets the flag to true' do
+      inbox.agent_bot_respects_working_hours = true
+      inbox.save
+      inbox.reload
+      expect(inbox.agent_bot_respects_working_hours?).to be true
+    end
+
+    it 'sets the flag to false' do
+      inbox.agent_bot_respects_working_hours = false
+      inbox.save
+      inbox.reload
+      expect(inbox.agent_bot_respects_working_hours?).to be false
+    end
+
+    it 'initializes auto_assignment_config if nil' do
+      inbox.update(auto_assignment_config: nil)
+      inbox.agent_bot_respects_working_hours = true
+      expect(inbox.auto_assignment_config).not_to be_nil
+      expect(inbox.auto_assignment_config['agent_bot_respects_working_hours']).to be true
+    end
+
+    it 'preserves existing auto_assignment_config keys' do
+      inbox.update(auto_assignment_config: { 'max_assignment_limit' => 5 })
+      inbox.agent_bot_respects_working_hours = true
+      inbox.save
+      inbox.reload
+      expect(inbox.auto_assignment_config['max_assignment_limit']).to eq(5)
+      expect(inbox.auto_assignment_config['agent_bot_respects_working_hours']).to be true
+    end
+  end
 end

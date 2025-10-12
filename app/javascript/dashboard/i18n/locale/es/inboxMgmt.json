@@ -787,6 +787,12 @@
       },
       "ALL_DAY": "Todo el día"
     },
+    "WEEKLY_AVAILABILITY": {
+      "AGENT_BOT_RESPECTS_HOURS": "Deshabilitar AI Bot de agente fuera del horario laboral",
+      "AGENT_BOT_RESPECTS_HOURS_HELP": "Cuando está deshabilitado, El AI Bot de agente no responderá fuera del horario laboral.",
+      "AGENT_BOT_SETTING_UPDATED": "Configuración del bot de agente actualizada exitosamente",
+      "AGENT_BOT_SETTING_ERROR": "No se pudo actualizar la configuración del bot de agente"
+    },
     "IMAP": {
       "TITLE": "IMAP",
       "SUBTITLE": "Configura los detalles de IMAP",

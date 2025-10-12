@@ -191,6 +191,26 @@ class Inbox < ApplicationRecord
     members.ids
   end
 
+  # Agent bot working hours configuration
+  # Determines if agent bot webhooks should respect business hours.
+  # When enabled, incoming messages outside business hours will not trigger
+  # agent bot webhooks, preventing conflicting automated responses.
+  # Uses auto_assignment_config JSONB column to avoid migration (Chatwoot sync compatible).
+  #
+  # @return [Boolean] true if agent bot should respect working hours, false otherwise
+  def agent_bot_respects_working_hours?
+    auto_assignment_config&.dig('agent_bot_respects_working_hours') || false
+  end
+
+  # Sets the agent bot working hours respect flag
+  #
+  # @param value [Boolean] whether agent bot should respect working hours
+  # @return [Boolean] the value that was set
+  def agent_bot_respects_working_hours=(value)
+    self.auto_assignment_config ||= {}
+    self.auto_assignment_config['agent_bot_respects_working_hours'] = value
+  end
+
   private
 
   def default_name_for_blank_name
