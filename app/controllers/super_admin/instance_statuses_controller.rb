@@ -25,6 +25,7 @@ class SuperAdmin::InstanceStatusesController < SuperAdmin::ApplicationController
 
   def chatwoot_version
     @metrics['Chatwoot version'] = Chatwoot.config[:version]
+    @metrics['Custom version'] = Chatwoot.config[:custom_version]
   end
 
   def sha

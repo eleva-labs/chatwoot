@@ -6,6 +6,10 @@ allOf:
         type: string
         description: Latest version of Chatwoot available
         example: "3.0.0"
+      custom_version:
+        type: string
+        description: Current custom fork version
+        example: "1.0.0"
       subscribed_features:
         type: array
         items:
