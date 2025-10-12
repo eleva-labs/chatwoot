@@ -569,15 +569,18 @@ git diff main...hotfix/critical-fix --stat
 
 **Target Audience**: Stakeholders, product managers, technical reviewers
 
-**Title Format**:
+**Title Format** (must follow semantic commit convention):
 ```
-Release: <Version/Sprint/Date> - <Key highlights>
+release: v<version> - <Key highlights>
+chore(release): v<version> - <Key highlights>
 ```
 
+**Note**: Repository enforces semantic PR titles via `.github/workflows/lint_pr.yml`. Use lowercase type prefixes.
+
 **Title Examples**:
-- `Release: Sprint 12 - WhatsApp Integration & UI Improvements`
-- `Release: v2.3.0 - Assignment Policies & Captain Enhancements`
-- `Release: 2025-10-12 - Q4 Feature Bundle`
+- `release: v2.3.0 - WhatsApp Integration & UI Improvements`
+- `chore(release): v0.1.1 - Email Fixes & Localization Updates`
+- `release: v2.4.0 - Assignment Policies & Captain Enhancements`
 
 **Description Format**:
 ```markdown
@@ -656,16 +659,19 @@ gh pr view --web
 
 **Target Audience**: Technical reviewers, developers
 
-**Title Format**:
+**Title Format** (must follow semantic commit convention):
 ```
 feat: <Brief description>
-Feature: <Name of feature>
+feat(<scope>): <Brief description>
 ```
 
+**Note**: Repository enforces semantic PR titles via `.github/workflows/lint_pr.yml`. Always use lowercase `feat:`.
+
 **Title Examples**:
-- `feat: Add WhatsApp QR code authentication`
-- `Feature: Content templates for quick replies`
-- `feat: Implement assignment policies for inbox capacity`
+- `feat: add WhatsApp QR code authentication`
+- `feat(templates): implement content templates for quick replies`
+- `feat(assignment): implement assignment policies for inbox capacity`
+- `feat: AI Backend full synchronization refactor`
 
 **Description Format**:
 ```markdown
@@ -728,16 +734,19 @@ gh pr view --web
 
 **Target Audience**: Developers, incident responders (for hotfixes)
 
-**Title Format**:
+**Title Format** (must follow semantic commit convention):
 ```
 fix: <Brief description of what was fixed>
-hotfix: <Critical issue description>
+fix(<scope>): <Brief description>
 ```
 
+**Note**: Repository enforces semantic PR titles via `.github/workflows/lint_pr.yml`. Use lowercase `fix:`. For hotfixes, still use `fix:` as the type (hotfix is not a standard semantic commit type).
+
 **Title Examples**:
-- `fix: Resolve audio upload error in WhatsApp channels`
-- `hotfix: Prevent duplicate reauthorization emails`
-- `fix: Correct AI banner positioning in conversation card`
+- `fix: resolve audio upload error in WhatsApp channels`
+- `fix(auth): prevent duplicate reauthorization emails`
+- `fix(ui): correct AI banner positioning in conversation card`
+- `fix(instagram): resolve contact creation issue`
 
 **Description Format**:
 ```markdown
