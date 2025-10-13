@@ -85,6 +85,23 @@ shared_examples_for 'reauthorizable' do
         expect(AdministratorNotifications::ChannelNotificationsMailer).to have_received(:with).with(account: obj.account)
       end
     end
+
+    it 'does not send duplicate emails when called multiple times' do
+      # First call should send email
+      obj.prompt_reauthorization!
+
+      # Second call should NOT send another email
+      obj.prompt_reauthorization!
+
+      # Verify mailer was only called once (not twice)
+      if model.to_s == 'AutomationRule'
+        expect(AdministratorNotifications::AccountNotificationMailer).to have_received(:with).with(account: obj.account).once
+      elsif model.to_s == 'Integrations::Hook'
+        expect(AdministratorNotifications::IntegrationsNotificationMailer).to have_received(:with).with(account: obj.account).once
+      else
+        expect(AdministratorNotifications::ChannelNotificationsMailer).to have_received(:with).with(account: obj.account).once
+      end
+    end
   end
 
   it 'reauthorized!' do
@@ -99,5 +116,53 @@ shared_examples_for 'reauthorizable' do
     # authorization errors are reset
     expect(obj.authorization_error_count).to eq 0
     expect(obj.reauthorization_required?).to be false
+  end
+
+  context 'complete reauthorization lifecycle' do
+    before do
+      # Setup mailer mocks based on model type
+      if model.to_s == 'AutomationRule'
+        setup_automation_rule_mailer(obj)
+      elsif model.to_s == 'Integrations::Hook'
+        setup_integrations_hook_mailer(obj)
+      else
+        setup_channel_mailer(obj)
+      end
+    end
+
+    it 'allows sending a new email after reconnection and subsequent expiration' do
+      # Phase 1: Channel expires - should send email
+      obj.authorization_error!
+      obj.prompt_reauthorization!
+      expect(obj.reauthorization_required?).to be true
+
+      # Verify first email was sent
+      if model.to_s == 'AutomationRule'
+        expect(AdministratorNotifications::AccountNotificationMailer).to have_received(:with).with(account: obj.account).once
+      elsif model.to_s == 'Integrations::Hook'
+        expect(AdministratorNotifications::IntegrationsNotificationMailer).to have_received(:with).with(account: obj.account).once
+      else
+        expect(AdministratorNotifications::ChannelNotificationsMailer).to have_received(:with).with(account: obj.account).once
+      end
+
+      # Phase 2: User reconnects - clears the flag
+      obj.reauthorized!
+      expect(obj.reauthorization_required?).to be false
+      expect(obj.authorization_error_count).to eq 0
+
+      # Phase 3: Channel expires again - should send a NEW email
+      obj.authorization_error!
+      obj.prompt_reauthorization!
+      expect(obj.reauthorization_required?).to be true
+
+      # Verify second email was sent (total of 2 calls)
+      if model.to_s == 'AutomationRule'
+        expect(AdministratorNotifications::AccountNotificationMailer).to have_received(:with).with(account: obj.account).twice
+      elsif model.to_s == 'Integrations::Hook'
+        expect(AdministratorNotifications::IntegrationsNotificationMailer).to have_received(:with).with(account: obj.account).twice
+      else
+        expect(AdministratorNotifications::ChannelNotificationsMailer).to have_received(:with).with(account: obj.account).twice
+      end
+    end
   end
 end
