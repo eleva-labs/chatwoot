@@ -55,9 +55,10 @@ class AiBackendService::ConfigurationService
   end
 
   def get_configuration(store_id, config_key)
+    # Use new API format: GET /api/configurations/{key}?scope=store&store_id={id}&id_type=external
     response = self.class.get(
-      "#{ai_backend_api_url}/api/configurations/",
-      query: { key: config_key, store_id: store_id },
+      "#{ai_backend_api_url}/api/configurations/#{config_key}",
+      query: { scope: 'store', store_id: store_id, id_type: 'external' },
       headers: self.class.headers
     )
 
@@ -67,7 +68,8 @@ class AiBackendService::ConfigurationService
     handle_response(response)
 
     body = response.parsed_response
-    body.is_a?(Hash) ? (body.dig('configuration', 'data') || {}) : {}
+    # New API returns 'value' field, old API returned nested 'configuration.data'
+    body.is_a?(Hash) ? (body.dig('value') || body.dig('configuration', 'data') || {}) : {}
   end
 
   private
