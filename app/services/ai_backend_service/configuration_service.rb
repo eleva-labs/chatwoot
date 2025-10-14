@@ -78,7 +78,8 @@ class AiBackendService::ConfigurationService
     handle_response(response)
 
     body = response.parsed_response
-    body.is_a?(Hash) ? (body.dig('data') || {}) : {}
+    # API returns 'value' field, but we also support 'data' for backwards compatibility
+    body.is_a?(Hash) ? (body.dig('value') || body.dig('data') || {}) : {}
   end
 
   # Get all configurations for a resource
