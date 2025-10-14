@@ -4,28 +4,276 @@ env:
   COMPOSE_FILE: docker-compose.yaml
 
 tasks:
-  # ---------------------------------------------------------------------
-  # docker
-  # ---------------------------------------------------------------------
-  docker-build-base:
-    desc: 'Build base Docker image'
+  # =====================================================================
+  # VERSION MANAGEMENT
+  # Commands for managing Chatwoot and custom fork versions
+  # =====================================================================
+
+  version-show:
+    desc: 'Display current Chatwoot, custom, and git versions'
     cmds:
-      - docker compose build base
+      - docker compose exec rails bundle exec rake version:show
+
+  version-bump-patch:
+    desc: 'Bump custom version patch (1.0.0 → 1.0.1)'
+    cmds:
+      - docker compose exec rails bundle exec rake version:bump type=patch
+      - echo ""
+      - echo "⚠️  Remember to commit these changes and create a git tag!"
+
+  version-bump-minor:
+    desc: 'Bump custom version minor (1.0.0 → 1.1.0)'
+    cmds:
+      - docker compose exec rails bundle exec rake version:bump type=minor
+      - echo ""
+      - echo "⚠️  Remember to commit these changes and create a git tag!"
+
+  version-bump-major:
+    desc: 'Bump custom version major (1.0.0 → 2.0.0)'
+    cmds:
+      - docker compose exec rails bundle exec rake version:bump type=major
+      - echo ""
+      - echo "⚠️  Remember to commit these changes and create a git tag!"
+
+  version-update-chatwoot:
+    desc: 'Update Chatwoot upstream version (usage: task version-update-chatwoot VERSION=4.5.3)'
+    cmds:
+      - |
+        if [ -z "{{.VERSION}}" ]; then
+          echo "❌ Error: VERSION variable is required"
+          echo "Usage: task version-update-chatwoot VERSION=4.5.3"
+          exit 1
+        fi
+      - docker compose exec rails bundle exec rake version:update_chatwoot version={{.VERSION}}
+      - echo ""
+      - echo "⚠️  Remember to commit these changes!"
+
+  # =====================================================================
+  # DEVELOPMENT ENVIRONMENT
+  # Commands for local development setup and management
+  # =====================================================================
+
+  dev-setup:
+    desc: 'Initial setup for development environment'
+    cmds:
+      - task: docker-build
+      - task: docker-setup-dev
+      - task: docker-up
+      - echo "✅ Development environment ready!"
+
+  dev-restart:
+    desc: 'Restart Rails, Sidekiq, and Vite services'
+    cmds:
+      - docker compose restart rails sidekiq vite
+      - echo "✅ Services restarted"
+
+  dev-logs:
+    desc: 'Follow logs for Rails and Sidekiq'
+    cmds:
+      - docker compose logs -f rails sidekiq
+
+  dev-console:
+    desc: 'Open Rails console'
+    cmds:
+      - docker compose exec rails bundle exec rails console
+
+  dev-dbconsole:
+    desc: 'Open database console'
+    cmds:
+      - docker compose exec postgres psql -U postgres -d chatwoot_development
+
+  # =====================================================================
+  # TESTING
+  # Commands for running unit tests (RSpec and Vitest)
+  # =====================================================================
+
+  # Backend Testing (RSpec)
+  # ----------------------
+
+  test-backend-all:
+    desc: 'Run all backend RSpec tests (set SETUP_DB=true to setup DB, CLEANUP=true to cleanup)'
+    cmds:
+      - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
+      - echo "🧪 Running all RSpec tests"
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec --format documentation
+      - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
+
+  test-backend-module:
+    desc: 'Run RSpec tests for a specific module (usage: task test-backend-module -- spec/models)'
+    cmds:
+      - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
+      - echo "🧪 Running RSpec tests for {{.CLI_ARGS}}"
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
+
+  test-backend-file:
+    desc: 'Run RSpec tests for a specific file (usage: task test-backend-file -- spec/models/user_spec.rb)'
+    cmds:
+      - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
+      - echo "🧪 Running RSpec test file {{.CLI_ARGS}}"
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
+
+  test-backend-local:
+    desc: 'Run RSpec tests locally (requires local postgres/redis)'
+    cmds:
+      - echo "🧪 Running RSpec tests locally"
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+
+  # Frontend Testing (Vitest)
+  # -------------------------
+
+  test-frontend-all:
+    desc: 'Run all frontend Vitest tests'
+    cmds:
+      - echo "🧪 Running all Vitest tests"
+      - pnpm test
+
+  test-frontend-watch:
+    desc: 'Run frontend tests in watch mode'
+    cmds:
+      - echo "🧪 Running Vitest in watch mode"
+      - pnpm test:watch
+
+  test-frontend-coverage:
+    desc: 'Run frontend tests with coverage'
+    cmds:
+      - echo "🧪 Running Vitest with coverage"
+      - pnpm test:coverage
+
+  # Test Database Management
+  # ------------------------
+
+  test-setup-db:
+    desc: 'Setup test database (starts Docker postgres and prepares schema)'
+    cmds:
+      - task: test-stop-db
+      - echo "🚀 Starting test database..."
+      - docker compose up -d postgres redis
+      - sleep 5
+      - echo "📦 Preparing test database schema..."
+      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rails db:chatwoot_prepare
+      - echo "✅ Test database ready"
+
+  test-check-db:
+    desc: 'Check for running databases on port 5432'
+    cmds:
+      - |
+        if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+          echo "⚠️  Database is running on port 5432"
+          lsof -Pi :5432 -sTCP:LISTEN
+          exit 1
+        else
+          echo "✅ No database running on port 5432"
+        fi
+    silent: false
+
+  test-stop-db:
+    desc: 'Stop any running databases on port 5432'
+    cmds:
+      - |
+        if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+          echo "🛑 Stopping database on port 5432..."
+          docker ps -q --filter "publish=5432" | xargs -r docker stop
+          brew services list | grep postgresql | grep started && brew services stop postgresql || true
+          sleep 2
+          echo "✅ Database stopped"
+        else
+          echo "✅ No database running"
+        fi
+    silent: false
+
+  test-cleanup:
+    desc: 'Cleanup test database containers'
+    cmds:
+      - echo "🧹 Cleaning up test containers..."
+      - docker compose stop postgres redis
+      - echo "✅ Cleanup complete"
+
+  test-full-cleanup:
+    desc: 'Full cleanup including volumes'
+    cmds:
+      - echo "🧹 Full cleanup (including volumes)..."
+      - docker compose down -v
+      - echo "✅ Full cleanup complete"
+
+  # =====================================================================
+  # DOCKER MANAGEMENT
+  # Commands for managing Docker containers and images
+  # =====================================================================
+
+  # Docker Build Commands
+  # --------------------
 
   docker-build:
     desc: 'Build all Docker images'
     cmds:
       - docker compose build
 
+  docker-build-base:
+    desc: 'Build base Docker image'
+    cmds:
+      - docker compose build base
+
+  docker-chatwoot-build:
+    desc: 'Full Chatwoot build (stop → build → setup → start)'
+    cmds:
+      - echo "🛑 Stopping and removing containers..."
+      - task: docker-down
+      - echo "🔨 Building..."
+      - task: docker-build
+      - echo "⚙️  Setting up development environment..."
+      - task: docker-setup-dev
+      - echo "🚀 Starting containers..."
+      - task: docker-up
+      - echo "✅ Build completed!"
+
+  # Docker Lifecycle Commands
+  # -------------------------
+
+  docker-up:
+    desc: 'Start all Docker containers'
+    cmds:
+      - docker compose up -d
+
+  docker-stop:
+    desc: 'Stop Docker containers (without removing them)'
+    cmds:
+      - docker compose stop
+
+  docker-down:
+    desc: 'Stop and remove Docker containers'
+    cmds:
+      - docker compose down
+
+  docker-restart:
+    desc: 'Restart all Docker containers'
+    cmds:
+      - docker compose restart
+
+  # Docker Setup Commands
+  # --------------------
+
   docker-setup-dev:
-    desc: 'Setup Docker development images'
+    desc: 'Setup Docker development database'
     cmds:
       - docker compose run --rm rails bundle exec rails db:chatwoot_prepare
 
   docker-setup-test:
-    desc: 'Setup Docker unit-test images'
+    desc: 'Setup Docker test database'
     cmds:
       - docker compose run --rm rails bundle exec rails db:chatwoot_prepare RAILS_ENV=test
+
+  docker-reload-env:
+    desc: 'Reload environment variables without rebuilding'
+    cmds:
+      - docker compose stop rails sidekiq vite
+      - docker compose rm -f rails sidekiq vite
+      - docker compose up -d rails sidekiq vite
+      - echo "✅ Environment reloaded"
+
+  # Docker Testing
+  # -------------
 
   docker-test:
     desc: 'Run the full RSpec suite inside the Rails container'
@@ -33,45 +281,57 @@ tasks:
       - docker compose run --rm -e RAILS_ENV=test rails bundle exec rspec --profile=10 --format documentation
     silent: true
 
-  docker-up:
-    desc: 'Start the Docker containers'
-    cmds:
-      - docker compose up -d
-
-  docker-stop:
-    desc: 'Stop the Docker containers (without removing them)'
-    cmds:
-      - docker compose stop
-
-  docker-down:
-    desc: 'Stop the Docker containers'
-    cmds:
-      - docker compose down
+  # =====================================================================
+  # CLEANUP & UTILITIES
+  # Commands for cleaning up resources and utilities
+  # =====================================================================
 
   docker-clean-volumes:
-    desc: 'Delete all Docker volumes'
+    desc: 'Delete all Docker volumes (⚠️  WARNING: Deletes all data!)'
     cmds:
-      - echo "Stopping and removing containers..."
+      - echo "⚠️  This will delete all Docker volumes and data!"
+      - echo "🛑 Stopping and removing containers..."
       - docker compose down -v --remove-orphans
       - docker volume prune -f
-      - echo "Volume cleanup completed!"
+      - echo "✅ Volume cleanup completed!"
 
-  docker-reload-env:
-    desc: 'Reload environment variables without rebuilding'
+  docker-logs:
+    desc: 'View logs from all containers'
     cmds:
-      - docker-compose stop rails sidekiq vite
-      - docker-compose rm -f rails sidekiq vite
-      - docker-compose up -d rails sidekiq vite
+      - docker compose logs -f
 
-  docker-chatwoot-build:
-    desc: 'Build the Chatwoot container'
+  docker-logs-rails:
+    desc: 'View Rails container logs'
     cmds:
-      - echo "Stopping and removing containers..."
-      - task docker-down
-      - echo "Building..."
-      - task docker-build
-      - echo "Setting up development environment..."
-      - task docker-setup-dev
-      - echo "Starting containers..."
-      - task docker-up
-      - echo "Build completed!"
+      - docker compose logs -f rails
+
+  docker-logs-sidekiq:
+    desc: 'View Sidekiq container logs'
+    cmds:
+      - docker compose logs -f sidekiq
+
+  docker-ps:
+    desc: 'Show running Docker containers'
+    cmds:
+      - docker compose ps
+
+  lint-backend:
+    desc: 'Run RuboCop linter and auto-fix issues'
+    cmds:
+      - echo "🔍 Running RuboCop..."
+      - bundle exec rubocop -a
+      - echo "✅ Backend linting complete"
+
+  lint-frontend:
+    desc: 'Run ESLint and auto-fix issues'
+    cmds:
+      - echo "🔍 Running ESLint..."
+      - pnpm eslint:fix
+      - echo "✅ Frontend linting complete"
+
+  lint-all:
+    desc: 'Run all linters (RuboCop + ESLint)'
+    cmds:
+      - task: lint-backend
+      - task: lint-frontend
+

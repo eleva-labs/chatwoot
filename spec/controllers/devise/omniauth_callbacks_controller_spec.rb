@@ -42,7 +42,7 @@ RSpec.describe 'DeviseOverrides::OmniauthCallbacksController', type: :request do
         follow_redirect!
 
         expect(AccountBuilder).to have_received(:new).with({
-                                                             account_name: 'example',
+                                                             account_name: 'test',
                                                              user_full_name: 'test',
                                                              email: 'test_not_preset@example.com',
                                                              locale: I18n.locale,

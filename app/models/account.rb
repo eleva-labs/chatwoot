@@ -111,6 +111,7 @@ class Account < ApplicationRecord
   after_create_commit :notify_creation
   after_create_commit :enqueue_stripe_provisioning_job
   after_destroy :remove_account_sequences
+  after_destroy_commit :dispatch_destroy_event
 
   def agents
     users.where(account_users: { role: :agent })
@@ -161,6 +162,11 @@ class Account < ApplicationRecord
     ISO_639.find(account_locale)&.english_name&.downcase || 'english'
   end
 
+  # Check if user is the account owner (first administrator with no inviter)
+  def owner?(user)
+    account_users.find_by(user: user, inviter_id: nil, role: :administrator).present?
+  end
+
   def custom_feature_enabled?(feature_name)
     return false unless defined?(CustomFeaturesManagerService)
 
@@ -180,9 +186,8 @@ class Account < ApplicationRecord
   end
 
   def feature_enabled?(name)
-    if respond_to?("feature_#{name}?")
-      return send("feature_#{name}?")
-    end
+    return send("feature_#{name}?") if respond_to?("feature_#{name}?")
+
     custom_feature_enabled?(name)
   end
 
@@ -209,6 +214,10 @@ class Account < ApplicationRecord
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def dispatch_destroy_event
+    Rails.configuration.dispatcher.dispatch(ACCOUNT_DELETED, Time.zone.now, account_id: id)
   end
 
   def enqueue_stripe_provisioning_job

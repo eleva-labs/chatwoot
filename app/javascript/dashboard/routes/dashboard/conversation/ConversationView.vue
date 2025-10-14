@@ -75,7 +75,7 @@ export default {
       currentChat: 'getSelectedChat',
     }),
     isOnboardingCompleted() {
-      return this.currentAccount.custom_attributes.onboarding_completed;
+      return this.$store.getters['accounts/isOnboardingCompleted']();
     },
 
     showConversationList() {

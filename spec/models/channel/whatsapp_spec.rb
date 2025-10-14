@@ -30,35 +30,37 @@ RSpec.describe Channel::Whatsapp do
 
   describe 'validate_provider_config' do
     it 'validates false when provider config is wrong' do
-      channel = build(:channel_whatsapp, provider: 'whatsapp_cloud', account: create(:account), validate_provider_config: false, sync_templates: false)
-      
+      channel = build(:channel_whatsapp, provider: 'whatsapp_cloud', account: create(:account), validate_provider_config: false,
+                                         sync_templates: false)
+
       # Manually set the correct provider_config since the factory callback isn't working
       channel.provider_config = channel.provider_config.merge({
-        'api_key' => 'test_key',
-        'phone_number_id' => '123456789',
-        'business_account_id' => '123456789'
-      })
-      
+                                                                'api_key' => 'test_key',
+                                                                'phone_number_id' => '123456789',
+                                                                'business_account_id' => '123456789'
+                                                              })
+
       stub_request(:get, 'https://graph.facebook.com/v14.0/123456789/message_templates?access_token=test_key').to_return(status: 401)
       expect(channel.save).to be(false)
     end
 
     it 'validates true when provider config is right' do
-      channel = build(:channel_whatsapp, provider: 'whatsapp_cloud', account: create(:account), validate_provider_config: false, sync_templates: false)
-      
+      channel = build(:channel_whatsapp, provider: 'whatsapp_cloud', account: create(:account), validate_provider_config: false,
+                                         sync_templates: false)
+
       # Manually set the correct provider_config since the factory callback isn't working
       channel.provider_config = channel.provider_config.merge({
-        'api_key' => 'test_key',
-        'phone_number_id' => '123456789',
-        'business_account_id' => '123456789'
-      })
-      
+                                                                'api_key' => 'test_key',
+                                                                'phone_number_id' => '123456789',
+                                                                'business_account_id' => '123456789'
+                                                              })
+
       stub_request(:get, 'https://graph.facebook.com/v14.0/123456789/message_templates?access_token=test_key')
         .to_return(status: 200,
                    body: { data: [{
                      id: '123456789', name: 'test_template'
                    }] }.to_json)
-      
+
       expect(channel.save).to be(true)
     end
   end
@@ -71,21 +73,21 @@ RSpec.describe Channel::Whatsapp do
     end
 
     it 'generates webhook_verify_token if not present' do
-      channel = build(:channel_whatsapp, 
-                      provider_config: { 
-                        'webhook_verify_token' => nil, 
-                        'api_key' => 'test_key', 
+      channel = build(:channel_whatsapp,
+                      provider_config: {
+                        'webhook_verify_token' => nil,
+                        'api_key' => 'test_key',
                         'phone_number_id' => '123456789',
                         'business_account_id' => '123456789'
-                      }, 
-                      provider: 'whatsapp_cloud', 
+                      },
+                      provider: 'whatsapp_cloud',
                       account: create(:account),
-                      validate_provider_config: false, 
+                      validate_provider_config: false,
                       sync_templates: false)
-      
+
       # Stub sync_templates to prevent HTTP calls
       allow(channel).to receive(:sync_templates)
-      
+
       channel.save!(validate: false)
       create(:inbox, channel: channel, account: channel.account)
 
@@ -95,21 +97,21 @@ RSpec.describe Channel::Whatsapp do
     end
 
     it 'does not generate webhook_verify_token if present' do
-      channel = build(:channel_whatsapp, 
-                      provider: 'whatsapp_cloud', 
-                      provider_config: { 
-                        'webhook_verify_token' => '123', 
-                        'api_key' => 'test_key', 
+      channel = build(:channel_whatsapp,
+                      provider: 'whatsapp_cloud',
+                      provider_config: {
+                        'webhook_verify_token' => '123',
+                        'api_key' => 'test_key',
                         'phone_number_id' => '123456789',
                         'business_account_id' => '123456789'
-                      }, 
+                      },
                       account: create(:account),
-                      validate_provider_config: false, 
+                      validate_provider_config: false,
                       sync_templates: false)
-      
+
       # Stub sync_templates to prevent HTTP calls
       allow(channel).to receive(:sync_templates)
-      
+
       channel.save!(validate: false)
       create(:inbox, channel: channel, account: channel.account)
 
@@ -204,11 +206,11 @@ RSpec.describe Channel::Whatsapp do
       let(:whapi_channel) do
         # Skip validation by building and saving without validation
         channel = build(:channel_whatsapp,
-                       provider: 'whapi',
-                       provider_config: { 'whapi_channel_id' => 'test_id' },
-                       account: create(:account),
-                       validate_provider_config: false,
-                       sync_templates: false)
+                        provider: 'whapi',
+                        provider_config: { 'whapi_channel_id' => 'test_id' },
+                        account: create(:account),
+                        validate_provider_config: false,
+                        sync_templates: false)
         channel.save!(validate: false)
         channel
       end
@@ -241,7 +243,8 @@ RSpec.describe Channel::Whatsapp do
                    'business_account_id' => 'test_waba_id',
                    'api_key' => 'test_access_token'
                  },
-                 sync_templates: false)
+                 sync_templates: false,
+                 validate_provider_config: false)
         end.not_to raise_error
       end
     end
@@ -256,7 +259,8 @@ RSpec.describe Channel::Whatsapp do
                  'business_account_id' => 'test_waba_id',
                  'api_key' => 'test_access_token'
                },
-               sync_templates: false)
+               sync_templates: false,
+               validate_provider_config: false)
       end
     end
 

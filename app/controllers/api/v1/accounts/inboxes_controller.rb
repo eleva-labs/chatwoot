@@ -42,9 +42,19 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def update
-    inbox_params = permitted_params.except(:channel, :csat_config)
+    inbox_params = permitted_params.except(:channel, :csat_config, :auto_assignment_config)
     inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
-    @inbox.update!(inbox_params)
+
+    # Handle auto_assignment_config separately with explicit change tracking
+    if permitted_params[:auto_assignment_config].present?
+      formatted = format_auto_assignment_config(permitted_params[:auto_assignment_config])
+      inbox_params[:auto_assignment_config] = formatted
+    end
+
+    @inbox.assign_attributes(inbox_params)
+    @inbox.auto_assignment_config_will_change! if permitted_params[:auto_assignment_config].present?
+    @inbox.save!
+
     update_inbox_working_hours
     update_channel if channel_update_required?
   end
@@ -147,11 +157,17 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
     }
   end
 
+  def format_auto_assignment_config(config)
+    existing_config = @inbox.auto_assignment_config || {}
+    existing_config.merge(config.to_h)
+  end
+
   def inbox_attributes
     [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled,
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name,
-     { csat_config: [:display_type, :message, { survey_rules: [:operator, { values: [] }] }] }]
+     { csat_config: [:display_type, :message, { survey_rules: [:operator, { values: [] }] }] },
+     { auto_assignment_config: [:max_assignment_limit, :agent_bot_respects_working_hours] }]
   end
 
   def permitted_params(channel_attributes = [])

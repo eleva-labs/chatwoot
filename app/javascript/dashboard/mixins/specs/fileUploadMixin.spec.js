@@ -18,6 +18,10 @@ vi.mock('dashboard/composables', () => ({
   useAlert: vi.fn(),
 }));
 
+vi.mock('@chatwoot/utils', () => ({
+  getMaxUploadSizeByChannel: vi.fn(() => 25),
+}));
+
 describe('FileUploadMixin', () => {
   let wrapper;
   let mockGlobalConfig;

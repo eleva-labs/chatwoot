@@ -62,6 +62,7 @@ class AccountBuilder
   def create_and_link_user
     if @user.present? || create_user
       link_user_to_account(@user, @account)
+      @user.reload # Reload to pick up the new account association
       @user
     else
       raise UserErrors.new(errors: @user.errors)
@@ -72,8 +73,13 @@ class AccountBuilder
     AccountUser.create!(
       account_id: account.id,
       user_id: user.id,
-      role: AccountUser.roles['administrator']
+      role: AccountUser.roles['administrator'],
+      inviter_id: nil # Explicitly mark as account creator (not invited)
     )
+
+    # Sync owner token to AI backend after account creator is linked
+    # NOTE: Only account creators (inviter_id: nil) trigger this, not invited admins
+    dispatch_owner_token_event(user, account) if user.access_token.present?
   end
 
   def create_user
@@ -129,5 +135,19 @@ class AccountBuilder
     padded_id = @account.id.to_s.rjust(12, '0')
     store_uuid = "00000000-0000-0000-0000-#{padded_id}"
     return store_uuid
+  end
+
+  def dispatch_owner_token_event(user, account)
+    Rails.configuration.dispatcher.dispatch(
+      Events::Types::OWNER_TOKEN_UPDATED,
+      Time.zone.now,
+      account: account,
+      user: user,
+      token: user.access_token.token
+    )
+    Rails.logger.info "Dispatched owner_token_updated event for user #{user.id}, account #{account.id}"
+  rescue StandardError => e
+    Rails.logger.error "Failed to dispatch owner_token_updated event: #{e.message}"
+    # Don't raise - account creation should succeed even if token sync fails
   end
 end

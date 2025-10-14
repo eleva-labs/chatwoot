@@ -90,6 +90,19 @@ RUN if [ "$RAILS_ENV" = "production" ]; then \
 # Generate .git_sha file with current commit hash
 RUN git rev-parse HEAD > /app/.git_sha
 
+# Copy custom version file
+COPY VERSION_CUSTOM /app/.custom_version
+
+# Build arguments for labels
+ARG CHATWOOT_VERSION
+ARG CUSTOM_VERSION
+ARG GIT_SHA
+
+# Add Docker labels
+LABEL chatwoot.version="${CHATWOOT_VERSION}"
+LABEL custom.version="${CUSTOM_VERSION}"
+LABEL git.sha="${GIT_SHA}"
+
 # Remove unnecessary files
 RUN rm -rf /gems/ruby/3.4.0/cache/*.gem \
   && find /gems/ruby/3.4.0/gems/ \( -name "*.c" -o -name "*.o" \) -delete \

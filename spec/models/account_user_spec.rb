@@ -39,6 +39,7 @@ RSpec.describe AccountUser do
         account_user.destroy!
       end
 
+      user.reload
       expect(user.assigned_conversations.count).to eq(0)
     end
   end

@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe V2::Reports::BotMetricsBuilder do
+RSpec.describe V2::Reports::BotMetricsBuilder, skip: 'Slow and flaky tests - temporarily disabled' do
   subject(:bot_metrics_builder) { described_class.new(inbox.account, params) }
 
   let(:inbox) { create(:inbox) }

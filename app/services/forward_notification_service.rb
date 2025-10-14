@@ -150,7 +150,11 @@ class ForwardNotificationService
       config_service = AiBackendService::ConfigurationService.new
 
       # Use the configuration service to get notifications config
-      notification_config = config_service.get_configuration(store_id, AiBackendService::ConfigurationService::CONFIGURATION_KEYS[:NOTIFICATIONS])
+      notification_config = config_service.get_configuration(
+        scope: AiBackendService::Constants::Scope::STORE,
+        resource_id: store_id,
+        config_key: AiBackendService::Constants::ConfigKey::NOTIFICATIONS_CONFIG
+      )
 
       return notification_config if notification_config.present?
     rescue StandardError => e

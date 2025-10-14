@@ -3,7 +3,6 @@ import { computed, onMounted, reactive, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
-import { useAccount } from 'dashboard/composables/useAccount';
 import QRCode from 'qrcode';
 import EmptyState from '../../../../components/widgets/EmptyState.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
@@ -14,7 +13,6 @@ import { INBOX_TYPES } from 'dashboard/helper/inbox';
 const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
-const { currentAccount } = useAccount();
 
 const qrCodes = reactive({
   whatsapp: '',
@@ -154,25 +152,6 @@ async function generateQRCodes() {
   }
 }
 
-// Complete the onboarding process
-async function completeOnboarding() {
-  // Check if this is the first inbox creation (onboarding)
-  const isOnboardingCompleted =
-    currentAccount.value?.custom_attributes?.onboarding_completed || false;
-  if (!isOnboardingCompleted) {
-    try {
-      await store.dispatch('accounts/update', {
-        onboarding_completed: true,
-      });
-      // eslint-disable-next-line no-console
-      console.log('Onboarding completed successfully');
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to complete onboarding:', error);
-    }
-  }
-}
-
 // Watch for currentInbox changes and regenerate QR codes when available
 watch(
   currentInbox,
@@ -184,9 +163,8 @@ watch(
   { immediate: true }
 );
 
-onMounted(async () => {
+onMounted(() => {
   generateQRCodes();
-  await completeOnboarding();
 });
 </script>
 
