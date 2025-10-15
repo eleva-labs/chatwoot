@@ -40,6 +40,19 @@ class AiBackendListener < BaseListener
 
     AiBackend::CreateUserJob.perform_later(user.id, account.id)
 
+    # If this user is an owner (administrator with nil inviter) and has a token,
+    # sync it to the store (handles SuperAdmin adding existing owner to new account)
+    if account.owner?(user) && user.access_token.present?
+      Rails.configuration.dispatcher.dispatch(
+        Events::Types::OWNER_TOKEN_UPDATED,
+        Time.zone.now,
+        account: account,
+        user: user,
+        token: user.access_token.token
+      )
+      Rails.logger.info "AI Backend: Dispatched owner token sync for user #{user.id} in account #{account.id}"
+    end
+
     Rails.logger.info "AI Backend: Enqueued user creation for user #{user.id} in account #{account.id}"
   rescue StandardError => e
     Rails.logger.error "AI Backend: Failed to enqueue user creation for user #{user&.id}: #{e.message}"

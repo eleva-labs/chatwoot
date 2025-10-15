@@ -129,6 +129,109 @@ RSpec.describe AiBackendListener do
 
       expect(Rails.logger).to have_received(:error).with(/Failed to enqueue user creation/)
     end
+
+    context 'when owner with token is added' do
+      let(:user) { create(:user) }
+      let(:account_user) { create(:account_user, account: account, user: user, role: :administrator, inviter_id: nil) }
+      let(:event) { double(data: { account: account, account_user: account_user }) }
+
+      before do
+        user.reload # ensure access_token is loaded
+        allow(AiBackend::CreateUserJob).to receive(:perform_later)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch)
+      end
+
+      it 'dispatches OWNER_TOKEN_UPDATED event' do
+        listener.agent_added(event)
+
+        expect(Rails.configuration.dispatcher).to have_received(:dispatch).with(
+          Events::Types::OWNER_TOKEN_UPDATED,
+          anything,
+          account: account,
+          user: user,
+          token: user.access_token.token
+        )
+      end
+
+      it 'logs token sync dispatch' do
+        allow(Rails.logger).to receive(:info)
+
+        listener.agent_added(event)
+
+        expect(Rails.logger).to have_received(:info).with(/Dispatched owner token sync for user #{user.id} in account #{account.id}/)
+      end
+    end
+
+    context 'when invited user is added' do
+      let(:inviter) { create(:user) }
+      let(:user) { create(:user) }
+      let(:account_user) { create(:account_user, account: account, user: user, role: :administrator, inviter_id: inviter.id) }
+      let(:event) { double(data: { account: account, account_user: account_user }) }
+
+      before do
+        user.reload # ensure access_token is loaded
+        allow(AiBackend::CreateUserJob).to receive(:perform_later)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch)
+      end
+
+      it 'does not dispatch OWNER_TOKEN_UPDATED event' do
+        listener.agent_added(event)
+
+        expect(Rails.configuration.dispatcher).not_to have_received(:dispatch).with(
+          Events::Types::OWNER_TOKEN_UPDATED,
+          anything,
+          hash_including(account: account)
+        )
+      end
+    end
+
+    context 'when owner without token is added' do
+      let(:user_without_token) { build(:user) }
+      let(:account_user) { create(:account_user, account: account, user: user_without_token, role: :administrator, inviter_id: nil) }
+      let(:event) { double(data: { account: account, account_user: account_user }) }
+
+      before do
+        # Save user without creating access token
+        user_without_token.save(validate: false)
+        user_without_token.access_token&.destroy
+        user_without_token.reload
+
+        allow(AiBackend::CreateUserJob).to receive(:perform_later)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch)
+      end
+
+      it 'does not dispatch OWNER_TOKEN_UPDATED event' do
+        listener.agent_added(event)
+
+        expect(Rails.configuration.dispatcher).not_to have_received(:dispatch).with(
+          Events::Types::OWNER_TOKEN_UPDATED,
+          anything,
+          hash_including(account: account)
+        )
+      end
+    end
+
+    context 'when agent (non-admin) with token is added' do
+      let(:user) { create(:user) }
+      let(:account_user) { create(:account_user, account: account, user: user, role: :agent, inviter_id: nil) }
+      let(:event) { double(data: { account: account, account_user: account_user }) }
+
+      before do
+        user.reload # ensure access_token is loaded
+        allow(AiBackend::CreateUserJob).to receive(:perform_later)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch)
+      end
+
+      it 'does not dispatch OWNER_TOKEN_UPDATED event' do
+        listener.agent_added(event)
+
+        expect(Rails.configuration.dispatcher).not_to have_received(:dispatch).with(
+          Events::Types::OWNER_TOKEN_UPDATED,
+          anything,
+          hash_including(account: account)
+        )
+      end
+    end
   end
 
   describe '#account_deleted' do
