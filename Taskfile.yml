@@ -82,6 +82,18 @@ tasks:
     cmds:
       - docker compose exec postgres psql -U postgres -d chatwoot_development
 
+  setup-db:
+    desc: 'Clone database from dev/prod to local (usage: task setup-db -- [dev|prod] [--no-exclude] [--exclude TABLE])'
+    cmds:
+      - |
+        # Check for required Python dependencies
+        if ! python3 -c "import boto3" 2>/dev/null; then
+          echo "❌ Error: boto3 is not installed"
+          echo "Install with: pip3 install boto3"
+          exit 1
+        fi
+      - python3 scripts/db/clone_db.py {{.CLI_ARGS}} --yes
+
   # =====================================================================
   # TESTING
   # Commands for running unit tests (RSpec and Vitest)
