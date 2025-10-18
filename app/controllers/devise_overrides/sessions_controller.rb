@@ -20,7 +20,14 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
   end
 
   def render_create_success
-    render partial: 'devise/auth', formats: [:json], locals: { resource: @resource }
+    # TEMPORARY FIX for local development with cloned DB
+    # In development, use gem's default rendering which properly sets auth headers
+    # In production, use custom partial for backward compatibility
+    if Rails.env.development?
+      super
+    else
+      render partial: 'devise/auth', formats: [:json], locals: { resource: @resource }
+    end
   end
 
   private

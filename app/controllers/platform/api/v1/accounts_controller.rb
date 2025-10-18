@@ -45,9 +45,9 @@ class Platform::Api::V1::AccountsController < PlatformController
       end
     end
 
-    if permitted_params[:custom_features].present?
-      @resource.custom_features = permitted_params[:custom_features]
-    end
+    return if permitted_params[:custom_features].blank?
+
+    @resource.custom_features = permitted_params[:custom_features]
   end
 
   def permitted_params

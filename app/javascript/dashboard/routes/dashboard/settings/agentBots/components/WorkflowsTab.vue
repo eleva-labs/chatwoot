@@ -2,7 +2,7 @@
 import { computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
-import WorkflowCanvas from '@/components-next/Workflows/WorkflowCanvas.vue';
+import WorkflowCanvas from 'dashboard/components-next/Workflows/WorkflowCanvas.vue';
 
 const props = defineProps({
   botId: {

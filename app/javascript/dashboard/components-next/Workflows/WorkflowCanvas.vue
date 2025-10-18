@@ -3,7 +3,7 @@ import { computed, watch, nextTick } from 'vue';
 import { VueFlow, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
-import { transformStageGraphToVueFlow } from '@/helper/workflowTransformer';
+import { transformStageGraphToVueFlow } from 'dashboard/helper/workflowTransformer';
 
 const props = defineProps({
   workflow: {
@@ -57,12 +57,6 @@ watch(
 </template>
 
 <style scoped>
-/* Import Vue Flow styles */
-@import '@vue-flow/core/dist/style.css';
-@import '@vue-flow/core/dist/theme-default.css';
-@import '@vue-flow/controls/dist/style.css';
-@import '@vue-flow/background/dist/style.css';
-
 .workflow-canvas {
   background: #fafafa;
 }

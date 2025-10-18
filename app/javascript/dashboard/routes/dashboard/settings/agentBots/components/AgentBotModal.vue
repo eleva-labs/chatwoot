@@ -14,6 +14,7 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
+import WorkflowsTab from './WorkflowsTab.vue';
 
 const props = defineProps({
   type: {
@@ -48,6 +49,7 @@ const formState = reactive({
 
 const [showAccessToken, toggleAccessToken] = useToggle();
 const accessToken = ref('');
+const activeTab = ref('settings');
 
 const v$ = useVuelidate(
   {
@@ -273,7 +275,43 @@ defineExpose({ dialogRef });
     :show-confirm-button="false"
     @close="closeModal"
   >
-    <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
+    <!-- Tabs for Edit mode -->
+    <div
+      v-if="type === MODAL_TYPES.EDIT"
+      class="flex gap-4 border-b border-n-slate-6 mb-4"
+    >
+      <button
+        type="button"
+        class="pb-2 px-1 font-medium text-sm transition-colors"
+        :class="
+          activeTab === 'settings'
+            ? 'text-n-woot-600 border-b-2 border-n-woot-600'
+            : 'text-n-slate-11 hover:text-n-slate-12'
+        "
+        @click="activeTab = 'settings'"
+      >
+        {{ $t('AGENT_BOTS.TABS.SETTINGS') }}
+      </button>
+      <button
+        type="button"
+        class="pb-2 px-1 font-medium text-sm transition-colors"
+        :class="
+          activeTab === 'workflow'
+            ? 'text-n-woot-600 border-b-2 border-n-woot-600'
+            : 'text-n-slate-11 hover:text-n-slate-12'
+        "
+        @click="activeTab = 'workflow'"
+      >
+        {{ $t('AGENT_BOTS.TABS.WORKFLOWS') }}
+      </button>
+    </div>
+
+    <!-- Settings Tab -->
+    <form
+      v-show="activeTab === 'settings'"
+      class="flex flex-col gap-4"
+      @submit.prevent="handleSubmit"
+    >
       <div
         v-if="!showAccessToken || type === MODAL_TYPES.EDIT"
         class="flex flex-col gap-4"
@@ -361,5 +399,10 @@ defineExpose({ dialogRef });
         />
       </div>
     </form>
+
+    <!-- Workflow Tab -->
+    <div v-if="type === MODAL_TYPES.EDIT" v-show="activeTab === 'workflow'">
+      <WorkflowsTab :bot-id="selectedBot.id" />
+    </div>
   </Dialog>
 </template>

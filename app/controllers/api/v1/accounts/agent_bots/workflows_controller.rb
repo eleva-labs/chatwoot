@@ -25,12 +25,12 @@ class Api::V1::Accounts::AgentBots::WorkflowsController < Api::V1::Accounts::Bas
   private
 
   def set_agent_bot
-    @agent_bot = Current.account.agent_bots.find(params[:bot_id])
+    @agent_bot = Current.account.agent_bots.find(params[:agent_bot_id])
   rescue ActiveRecord::RecordNotFound
     render json: { error: I18n.t('errors.agent_bots.not_found') }, status: :not_found
   end
 
   def check_authorization
-    authorize(AgentBot)
+    authorize(@agent_bot || AgentBot)
   end
 end
