@@ -53,18 +53,8 @@ const toggleRequirements = () => {
     }"
   >
     <!-- Connection Handles -->
-    <Handle
-      id="target-left"
-      type="target"
-      :position="Position.Left"
-      connectable
-    />
-    <Handle
-      id="source-right"
-      type="source"
-      :position="Position.Right"
-      connectable
-    />
+    <Handle id="target" type="target" :position="Position.Top" />
+    <Handle id="source" type="source" :position="Position.Bottom" />
 
     <!-- Node Header: Name + START badge -->
     <div class="stage-node-header">
@@ -112,6 +102,7 @@ const toggleRequirements = () => {
           class="flex items-center gap-1.5 text-xs font-medium text-n-amber-11"
         >
           {{ t('WORKFLOWS.NODE.REQUIREMENTS') }}
+          <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
           <span class="ml-1">({{ data.requirements.length }})</span>
         </span>
         <span
@@ -152,6 +143,7 @@ const toggleRequirements = () => {
 .stage-node {
   position: relative !important;
   @apply min-w-[240px] max-w-[320px];
+  width: 280px !important;
   @apply px-4 py-3;
   @apply bg-n-slate-1;
   @apply border-2 border-n-slate-7;
@@ -159,6 +151,7 @@ const toggleRequirements = () => {
   @apply shadow-md;
   @apply transition-all duration-200;
   @apply cursor-pointer;
+  overflow: visible !important;
 }
 
 /* Hover state */

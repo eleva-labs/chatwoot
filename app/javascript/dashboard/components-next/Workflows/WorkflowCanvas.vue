@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, markRaw, onMounted, ref } from 'vue';
+import { computed, markRaw, onMounted, ref } from 'vue';
 import { VueFlow, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
@@ -36,14 +36,29 @@ const nodes = computed(() => {
   if (!isPaneReady.value) {
     return [];
   }
-  return flowData.value.nodes;
+  const n = flowData.value.nodes;
+  // eslint-disable-next-line no-console
+  console.log(
+    '[VueFlow] Rendering nodes:',
+    n.map(node => ({
+      id: node.id,
+      position: node.position,
+      type: node.type,
+    }))
+  );
+  return n;
 });
 
 const edges = computed(() => {
   if (!isPaneReady.value) {
     return [];
   }
-  return flowData.value.edges;
+  const e = flowData.value.edges;
+  // eslint-disable-next-line no-console
+  console.log('[VueFlow] Rendering edges count:', e.length);
+  // eslint-disable-next-line no-console
+  console.log('[VueFlow] Rendering edges:', e);
+  return e;
 });
 
 // Vue Flow composable
@@ -54,9 +69,10 @@ onMounted(() => {
   onPaneReady(() => {
     isPaneReady.value = true;
 
-    nextTick(() => {
+    // Wait for nodes to render and be measured before fitting view
+    setTimeout(() => {
       fitView({ padding: 0.2, duration: 300 });
-    });
+    }, 100);
   });
 });
 </script>
@@ -69,9 +85,9 @@ onMounted(() => {
       :nodes="nodes"
       :edges="edges"
       :node-types="nodeTypes"
-      fit-view-on-init
       :min-zoom="0.2"
       :max-zoom="4"
+      :default-viewport="{ x: 0, y: 0, zoom: 1 }"
       class="h-full"
     >
       <!-- Background grid with theme-aware color -->
@@ -99,12 +115,10 @@ onMounted(() => {
 /* Ensure proper stacking order */
 .workflow-canvas .vue-flow__edges {
   z-index: 1 !important;
-  position: relative;
 }
 
 .workflow-canvas .vue-flow__nodes {
   z-index: 2 !important;
-  position: relative;
 }
 
 /* Edges - Use CSS variables for theme support */
@@ -160,9 +174,12 @@ onMounted(() => {
 .workflow-canvas .vue-flow__handle {
   width: 12px;
   height: 12px;
-  background: rgb(var(--iris-9));
-  border: 2px solid rgb(var(--slate-1));
+  background: rgb(var(--iris-9)) !important;
+  border: 2px solid rgb(var(--slate-1)) !important;
   border-radius: 50%;
+  position: absolute !important;
+  z-index: 1000 !important;
+  pointer-events: all !important;
 }
 
 .workflow-canvas .vue-flow__handle:hover {

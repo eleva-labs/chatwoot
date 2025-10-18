@@ -24,6 +24,11 @@ export function transformStageGraphToVueFlow(workflow) {
       initialNode: stage.initial_node || false,
       requirements: stage.requirements || [],
     },
+    // Explicitly set node dimensions for Vue Flow
+    dimensions: {
+      width: 280,
+      height: 180,
+    },
   }));
 
   // Transform transitions to edges
@@ -36,11 +41,11 @@ export function transformStageGraphToVueFlow(workflow) {
       id: `${stage.id}-${transition.target}`,
       source: stage.id,
       target: transition.target,
-      sourceHandle: 'source-right', // Connect from source node's right handle
-      targetHandle: 'target-left', // Connect to target node's left handle
+      sourceHandle: 'source',
+      targetHandle: 'target',
       label: transition.condition || '',
-      type: 'default',
-      animated: !!transition.condition, // Animate edges with conditions
+      type: 'smoothstep',
+      animated: !!transition.condition,
     }));
   });
 
@@ -48,8 +53,8 @@ export function transformStageGraphToVueFlow(workflow) {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({
-    rankdir: 'LR', // Left to right layout
-    nodesep: 80, // Horizontal spacing between nodes
+    rankdir: 'TB', // Top to bottom layout
+    nodesep: 100, // Horizontal spacing between nodes on same rank
     ranksep: 150, // Vertical spacing between ranks
   });
 
@@ -72,14 +77,36 @@ export function transformStageGraphToVueFlow(workflow) {
   // Apply calculated positions to nodes
   const layoutedNodes = nodes.map(node => {
     const dagreNode = dagreGraph.node(node.id);
+    const finalPosition = {
+      x: dagreNode.x - 140, // Center the node (width / 2)
+      y: dagreNode.y - 90, // Center the node (height / 2)
+    };
+
+    // eslint-disable-next-line no-console
+    console.log(`[Dagre] Node ${node.id}:`, {
+      dagrePos: { x: dagreNode.x, y: dagreNode.y },
+      finalPos: finalPosition,
+      data: node.data.name,
+    });
+
     return {
       ...node,
-      position: {
-        x: dagreNode.x - 140, // Center the node (width / 2)
-        y: dagreNode.y - 90, // Center the node (height / 2)
-      },
+      position: finalPosition,
     };
   });
+
+  // Log edge connections
+  // eslint-disable-next-line no-console
+  console.log(
+    '[Dagre] Edges:',
+    edges.map(e => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.sourceHandle,
+      targetHandle: e.targetHandle,
+    }))
+  );
 
   return { nodes: layoutedNodes, edges };
 }
