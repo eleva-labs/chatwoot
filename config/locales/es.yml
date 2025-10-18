@@ -35,6 +35,12 @@ es:
       presence: no debe estar en blanco
     webhook:
       invalid: Eventos inválidos
+    workflows:
+      not_found: Flujo de trabajo no encontrado
+      fetch_failed: Error al obtener el flujo de trabajo del backend de IA
+      invalid_response: Respuesta inválida del backend de IA
+    agent_bots:
+      not_found: Bot agente no encontrado
     signup:
       disposable_email: No permitimos correos electrónicos desechables
       blocked_domain: Este dominio no está permitido.  Si cree que esto es un error, póngase en contacto con soporte.

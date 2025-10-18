@@ -1,0 +1,9 @@
+{
+  "WORKFLOWS": {
+    "LOADING": "Cargando flujo de trabajo...",
+    "ERROR": "Error al cargar el flujo de trabajo. Inténtalo de nuevo.",
+    "RETRY": "Reintentar",
+    "NO_WORKFLOW": "No hay flujo de trabajo configurado para este agente.",
+    "TITLE": "Visualización de flujo de trabajo"
+  }
+}

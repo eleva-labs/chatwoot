@@ -75,6 +75,11 @@ Rails.application.routes.draw do
           resources :agent_bots, only: [:index, :create, :show, :update, :destroy] do
             delete :avatar, on: :member
             post :reset_access_token, on: :member
+            resources :workflows, only: [], controller: 'agent_bots/workflows' do
+              collection do
+                get :default
+              end
+            end
           end
           resources :contact_inboxes, only: [] do
             collection do

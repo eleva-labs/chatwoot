@@ -49,6 +49,12 @@ en:
       presence: must not be blank
     webhook:
       invalid: Invalid events
+    workflows:
+      not_found: Workflow not found
+      fetch_failed: Failed to fetch workflow from AI backend
+      invalid_response: Invalid response from AI backend
+    agent_bots:
+      not_found: Agent bot not found
     signup:
       disposable_email: We do not allow disposable emails
       blocked_domain: This domain is not allowed. If you believe this is a mistake, please contact support.

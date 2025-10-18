@@ -1,0 +1,9 @@
+{
+  "WORKFLOWS": {
+    "LOADING": "Loading workflow...",
+    "ERROR": "Failed to load workflow. Please try again.",
+    "RETRY": "Retry",
+    "NO_WORKFLOW": "No workflow configured for this agent.",
+    "TITLE": "Workflow Visualization"
+  }
+}

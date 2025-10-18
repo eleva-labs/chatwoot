@@ -6,6 +6,10 @@
     "LEARN_MORE": "Learn about agent bots",
     "GLOBAL_BOT": "Bot del sistema",
     "GLOBAL_BOT_BADGE": "Sistema",
+    "TABS": {
+      "SETTINGS": "Configuración",
+      "WORKFLOWS": "Flujos de trabajo"
+    },
     "AVATAR": {
       "SUCCESS_DELETE": "Avatar del bot eliminado correctamente",
       "ERROR_DELETE": "Error al borrar el bot, por favor intentar más tarde"

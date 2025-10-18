@@ -86,6 +86,16 @@ tasks:
     desc: 'Clone database from dev/prod to local (usage: task setup-db -- [dev|prod] [--no-exclude] [--exclude TABLE])'
     cmds:
       - |
+        # Check if Docker postgres is running
+        if ! docker compose ps postgres | grep -q "Up"; then
+          echo "🚀 Starting Docker postgres container..."
+          docker compose up -d postgres
+          echo "⏳ Waiting for postgres to be ready..."
+          sleep 5
+        else
+          echo "✅ Docker postgres is already running"
+        fi
+      - |
         # Check for required Python dependencies
         if ! python3 -c "import boto3" 2>/dev/null; then
           echo "❌ Error: boto3 is not installed"
@@ -306,6 +316,15 @@ tasks:
       - docker compose down -v --remove-orphans
       - docker volume prune -f
       - echo "✅ Volume cleanup completed!"
+
+  docker-clear-logs:
+    desc: 'Clear Docker logs by recreating containers (preserves volumes/data)'
+    cmds:
+      - echo "🧹 Clearing Docker logs..."
+      - docker compose stop
+      - docker compose rm -f
+      - docker compose up -d
+      - echo "✅ Logs cleared and containers restarted"
 
   docker-logs:
     desc: 'View logs from all containers'

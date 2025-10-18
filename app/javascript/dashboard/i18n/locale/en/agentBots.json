@@ -6,6 +6,10 @@
     "LEARN_MORE": "Learn about AI Bots",
     "GLOBAL_BOT": "System AI Bot",
     "GLOBAL_BOT_BADGE": "System",
+    "TABS": {
+      "SETTINGS": "Settings",
+      "WORKFLOWS": "Workflows"
+    },
     "AVATAR": {
       "SUCCESS_DELETE": "AI Bot avatar deleted successfully",
       "ERROR_DELETE": "Error deleting AI Bot avatar, please try again"
