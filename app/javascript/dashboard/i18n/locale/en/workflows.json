@@ -4,6 +4,12 @@
     "ERROR": "Failed to load workflow. Please try again.",
     "RETRY": "Retry",
     "NO_WORKFLOW": "No workflow configured for this agent.",
-    "TITLE": "Workflow Visualization"
+    "TITLE": "Workflow Visualization",
+    "NODE": {
+      "START_BADGE": "START",
+      "REQUIREMENTS": "Requirements",
+      "EXPAND_REQUIREMENTS": "Expand requirements",
+      "COLLAPSE_REQUIREMENTS": "Collapse requirements"
+    }
   }
 }

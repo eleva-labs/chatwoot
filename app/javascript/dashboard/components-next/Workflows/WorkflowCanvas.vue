@@ -1,9 +1,12 @@
 <script setup>
-import { computed, watch, nextTick } from 'vue';
+import { computed, nextTick, markRaw, onMounted, ref } from 'vue';
 import { VueFlow, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
 import { transformStageGraphToVueFlow } from 'dashboard/helper/workflowTransformer';
+import StageNode from './nodes/StageNode.vue';
+import '@vue-flow/core/dist/style.css';
+import '@vue-flow/core/dist/theme-default.css';
 
 const props = defineProps({
   workflow: {
@@ -11,6 +14,14 @@ const props = defineProps({
     required: true,
   },
 });
+
+// Register custom node types (use markRaw to avoid reactivity overhead)
+const nodeTypes = {
+  stageNode: markRaw(StageNode),
+};
+
+// Track if pane is ready
+const isPaneReady = ref(false);
 
 // Transform workflow data to Vue Flow format
 const flowData = computed(() => {
@@ -20,38 +31,51 @@ const flowData = computed(() => {
   return transformStageGraphToVueFlow(props.workflow);
 });
 
-const nodes = computed(() => flowData.value.nodes);
-const edges = computed(() => flowData.value.edges);
+// Only expose nodes/edges after pane is ready
+const nodes = computed(() => {
+  if (!isPaneReady.value) {
+    return [];
+  }
+  return flowData.value.nodes;
+});
+
+const edges = computed(() => {
+  if (!isPaneReady.value) {
+    return [];
+  }
+  return flowData.value.edges;
+});
 
 // Vue Flow composable
-const { fitView } = useVueFlow();
+const { fitView, onPaneReady } = useVueFlow();
 
-// Auto-fit view when nodes change
-watch(
-  () => nodes.value,
-  () => {
+// Auto-fit view when pane is ready
+onMounted(() => {
+  onPaneReady(() => {
+    isPaneReady.value = true;
+
     nextTick(() => {
       fitView({ padding: 0.2, duration: 300 });
     });
-  },
-  { immediate: true }
-);
+  });
+});
 </script>
 
 <template>
   <div
-    class="workflow-canvas w-full h-full border border-slate-200 rounded-lg overflow-hidden"
+    class="workflow-canvas w-full h-full min-h-[600px] bg-n-slate-2 border border-weak rounded-lg overflow-hidden"
   >
     <VueFlow
       :nodes="nodes"
       :edges="edges"
+      :node-types="nodeTypes"
       fit-view-on-init
       :min-zoom="0.2"
       :max-zoom="4"
-      :default-viewport="{ zoom: 1 }"
+      class="h-full"
     >
-      <!-- Background grid -->
-      <Background pattern-color="#e2e8f0" :gap="16" :size="1" />
+      <!-- Background grid with theme-aware color -->
+      <Background pattern-color="rgb(var(--slate-6))" :gap="16" :size="1" />
 
       <!-- Zoom controls -->
       <Controls show-zoom show-fit-view :show-interactive="false" />
@@ -60,178 +84,116 @@ watch(
 </template>
 
 <style>
-/* NOTE: @vue-flow v1.x bundles CSS with JS, no separate CSS files to import */
-/* Using non-scoped styles to ensure they apply to Vue Flow components */
-
-.workflow-canvas {
-  background-color: #f1f5f9 !important;
+/* Vue Flow Container - Use Tailwind CSS variables */
+.workflow-canvas .vue-flow {
+  background: rgb(var(--slate-2));
+  height: 100%;
+  min-height: 600px;
   position: relative;
 }
 
-/* Vue Flow Container */
-.workflow-canvas .vue-flow {
-  background-color: #f1f5f9 !important;
-}
-
 .workflow-canvas .vue-flow__viewport {
-  background-color: #f1f5f9 !important;
+  position: relative;
 }
 
-/* Nodes - Large, colorful, easy to see */
-.workflow-canvas .vue-flow__node {
-  padding: 20px 24px !important;
-  border-radius: 12px !important;
-  border: 3px solid #3b82f6 !important;
-  background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%) !important;
-  min-width: 200px !important;
-  max-width: 300px !important;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2) !important;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
+/* Ensure proper stacking order */
+.workflow-canvas .vue-flow__edges {
+  z-index: 1 !important;
+  position: relative;
 }
 
-.workflow-canvas .vue-flow__node:hover {
-  border-color: #2563eb !important;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3) !important;
-  transform: translateY(-2px) !important;
+.workflow-canvas .vue-flow__nodes {
+  z-index: 2 !important;
+  position: relative;
 }
 
-.workflow-canvas .vue-flow__node.selected {
-  border-color: #1d4ed8 !important;
-  box-shadow: 0 8px 32px rgba(29, 78, 216, 0.4) !important;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+/* Edges - Use CSS variables for theme support */
+.workflow-canvas .vue-flow__edge {
+  z-index: 1;
+  pointer-events: all;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
-/* Node Labels - FORCE TEXT TO SHOW */
-.workflow-canvas .vue-flow__node,
-.workflow-canvas .vue-flow__node *,
-.workflow-canvas .vue-flow__node .label,
-.workflow-canvas .vue-flow__node-label,
-.workflow-canvas .vue-flow__node div,
-.workflow-canvas .vue-flow__node span {
-  font-size: 15px !important;
-  font-weight: 600 !important;
-  color: #1e293b !important;
-  line-height: 1.4 !important;
-  text-align: center !important;
-  word-wrap: break-word !important;
-  overflow: visible !important;
-  white-space: normal !important;
-  display: block !important;
-}
-
-/* Connection Handles - Larger and more visible */
-.workflow-canvas .vue-flow__handle {
-  width: 14px !important;
-  height: 14px !important;
-  background: #3b82f6 !important;
-  border: 3px solid #ffffff !important;
-  border-radius: 50% !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
-}
-
-.workflow-canvas .vue-flow__handle:hover {
-  background: #1d4ed8 !important;
-  transform: scale(1.3) !important;
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4) !important;
-}
-
-.workflow-canvas .vue-flow__handle-top {
-  top: -7px !important;
-}
-
-.workflow-canvas .vue-flow__handle-bottom {
-  bottom: -7px !important;
-}
-
-.workflow-canvas .vue-flow__handle-left {
-  left: -7px !important;
-}
-
-.workflow-canvas .vue-flow__handle-right {
-  right: -7px !important;
-}
-
-/* Edges - Thick, visible lines */
 .workflow-canvas .vue-flow__edge-path {
-  stroke: #64748b !important;
-  stroke-width: 3 !important;
-  stroke-linecap: round !important;
+  stroke: rgb(var(--amber-9)) !important;
+  stroke-width: 4 !important;
+  stroke-linecap: round;
+  fill: none;
 }
 
 .workflow-canvas .vue-flow__edge.selected .vue-flow__edge-path {
-  stroke: #3b82f6 !important;
-  stroke-width: 4 !important;
+  stroke: rgb(var(--iris-9));
+  stroke-width: 4;
 }
 
+/* Animated edges (for conditions) */
+.workflow-canvas .vue-flow__edge.animated .vue-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Edge Labels - Amber badges */
 .workflow-canvas .vue-flow__edge-text {
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  fill: #1e293b !important;
-  background: #ffffff !important;
-  padding: 4px 8px !important;
-  border-radius: 4px !important;
+  font-size: 13px;
+  font-weight: 700;
+  fill: rgb(var(--slate-12));
 }
 
 .workflow-canvas .vue-flow__edge-textbg {
-  fill: #ffffff !important;
-  stroke: #cbd5e1 !important;
-  stroke-width: 1 !important;
+  fill: rgb(var(--amber-4));
+  stroke: rgb(var(--amber-9));
+  stroke-width: 2;
+  rx: 10;
 }
 
-/* Controls - Larger, visible buttons */
+/* Connection Handles */
+.workflow-canvas .vue-flow__handle {
+  width: 12px;
+  height: 12px;
+  background: rgb(var(--iris-9));
+  border: 2px solid rgb(var(--slate-1));
+  border-radius: 50%;
+}
+
+.workflow-canvas .vue-flow__handle:hover {
+  background: rgb(var(--iris-10));
+  transform: scale(1.2);
+}
+
+/* Controls - Use Tailwind-compatible styles */
 .workflow-canvas .vue-flow__controls {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  bottom: 24px !important;
-  left: 24px !important;
-  z-index: 10 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: 24px;
+  left: 24px;
 }
 
 .workflow-canvas .vue-flow__controls button {
-  background: #ffffff !important;
-  border: 2px solid #cbd5e1 !important;
-  border-radius: 8px !important;
-  padding: 12px !important;
-  cursor: pointer !important;
-  transition: all 0.2s !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-  width: 40px !important;
-  height: 40px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  background: rgb(var(--slate-1));
+  border: 1px solid rgb(var(--slate-7));
+  border-radius: 8px;
+  padding: 8px;
+  width: 36px;
+  height: 36px;
 }
 
 .workflow-canvas .vue-flow__controls button:hover {
-  background: #f1f5f9 !important;
-  border-color: #3b82f6 !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2) !important;
+  background: rgb(var(--slate-3));
+  border-color: rgb(var(--iris-9));
 }
 
 .workflow-canvas .vue-flow__controls button svg {
-  width: 20px !important;
-  height: 20px !important;
-  color: #475569 !important;
-}
-
-.workflow-canvas .vue-flow__controls button:hover svg {
-  color: #3b82f6 !important;
-}
-
-/* Background Grid */
-.workflow-canvas .vue-flow__background {
-  background-color: #f1f5f9 !important;
-}
-
-.workflow-canvas .vue-flow__background-pattern {
-  stroke: #cbd5e1 !important;
-  stroke-width: 1 !important;
+  color: rgb(var(--slate-11));
 }
 </style>

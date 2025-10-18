@@ -82,34 +82,28 @@ class AiBackendService::PromptsService
   end
 
   def parse_workflow_from_prompt(response_data)
-    # TEMPORARY: The AI Backend currently wraps the JSON in markdown code blocks
-    # This should be fixed on the backend side to return clean JSON
-    # Example current format: "```json\n{\"nodes\": [...], \"edges\": [...]}\n```"
-    prompt_text = response_data['prompt']
-    raise PromptsError, 'No prompt field in response' if prompt_text.nil?
+    # PromptResponse schema: { "prompt": "<json_string>" } or { "prompt": {...} }
+    prompt_data = response_data['prompt']
+    raise PromptsError, 'No prompt field in response' if prompt_data.nil?
 
-    # Try to extract JSON from markdown code block (temporary workaround)
-    json_text = if prompt_text.include?('```json')
-                  # The markdown might be incomplete - extract everything after ```json
-                  # Use greedy match (.*) instead of lazy (.*?) to capture all content
-                  json_match = prompt_text.match(/```json\s*\n(.*)(?:\n```)?$/m)
-                  raise PromptsError, 'Could not extract JSON from markdown code block' unless json_match
+    # Handle both cases: prompt is already a Hash (HTTParty auto-parsed) or a JSON string
+    parsed_data = if prompt_data.is_a?(Hash)
+                    # Already parsed by HTTParty
+                    prompt_data
+                  elsif prompt_data.is_a?(String)
+                    # Parse the JSON string to get the workflow structure
+                    JSON.parse(prompt_data)
+                  else
+                    raise PromptsError, "Unexpected prompt data type: #{prompt_data.class}"
+                  end
 
-                  json_match[1].strip
-                else
-                  # If no markdown wrapper, use the text directly (future clean format)
-                  prompt_text
-                end
-
-    # Parse the JSON string to get the workflow structure
-    parsed_data = JSON.parse(json_text)
-
-    # Transform from AI Backend format {nodes, edges} to frontend StageGraph format
-    # AI Backend: {nodes: [{id, name, description}], edges: [{from, to, condition}]}
+    # AI Backend format: {nodes: [{id, name, description, initial_node, details}], edges: [{from, to, condition}]}
+    # Transform from AI Backend format to frontend StageGraph format
     # Frontend expects: {data: {stages: [...]}, layoutData: {nodes: {}}}
     transform_to_stage_graph(parsed_data)
   rescue JSON::ParserError => e
     Rails.logger.error("Failed to parse workflow JSON: #{e.message}")
+    Rails.logger.error("Prompt data was: #{prompt_data.inspect}")
     raise PromptsError, "Invalid workflow JSON: #{e.message}"
   end
 
@@ -117,6 +111,8 @@ class AiBackendService::PromptsService
     # Transform nodes to stages with transitions
     nodes = workflow_data['nodes'] || []
     edges = workflow_data['edges'] || []
+
+    Rails.logger.info("Transforming workflow - nodes count: #{nodes.size}, edges count: #{edges.size}")
 
     stages = nodes.map do |node|
       # Find all outgoing edges for this node
@@ -126,6 +122,8 @@ class AiBackendService::PromptsService
         id: node['id'],
         name: node['name'],
         description: node['description'],
+        initial_node: node['initial_node'] || false,
+        requirements: node.dig('details', 'requirements') || [],
         transitions: outgoing_edges.map do |edge|
           {
             target: edge['to'],
@@ -135,10 +133,13 @@ class AiBackendService::PromptsService
       }
     end
 
-    {
+    result = {
       data: { stages: stages },
       layoutData: { nodes: {} } # No layout data from AI Backend yet
     }
+
+    Rails.logger.info("Transformed StageGraph: #{result.to_json}")
+    result
   end
 
   def ai_backend_api_url

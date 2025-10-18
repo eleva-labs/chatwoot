@@ -4,6 +4,12 @@
     "ERROR": "Error al cargar el flujo de trabajo. Inténtalo de nuevo.",
     "RETRY": "Reintentar",
     "NO_WORKFLOW": "No hay flujo de trabajo configurado para este agente.",
-    "TITLE": "Visualización de flujo de trabajo"
+    "TITLE": "Visualización de flujo de trabajo",
+    "NODE": {
+      "START_BADGE": "INICIO",
+      "REQUIREMENTS": "Requisitos",
+      "EXPAND_REQUIREMENTS": "Expandir requisitos",
+      "COLLAPSE_REQUIREMENTS": "Contraer requisitos"
+    }
   }
 }

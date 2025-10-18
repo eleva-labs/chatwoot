@@ -72,7 +72,7 @@ onMounted(() => {
     </div>
 
     <!-- Success State - Show Canvas -->
-    <div v-else-if="workflow" class="h-96">
+    <div v-else-if="workflow" class="h-[600px] w-full">
       <WorkflowCanvas :workflow="workflow" />
     </div>
 
