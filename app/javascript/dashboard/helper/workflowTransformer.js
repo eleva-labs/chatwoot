@@ -12,24 +12,62 @@ export function transformStageGraphToVueFlow(workflow) {
   const layoutData = workflow.layoutData || {};
   const nodeLayouts = layoutData.nodes || {};
 
-  // Transform stages to nodes
+  // Build a simple hierarchical layout based on connections
+  // Calculate depth for each node (how far from start)
+  const nodeDepths = {};
+  const calculateDepth = (nodeId, depth = 0, visited = new Set()) => {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
+
+    nodeDepths[nodeId] = Math.max(nodeDepths[nodeId] || 0, depth);
+
+    const stage = stages.find(s => s.id === nodeId);
+    if (stage?.transitions) {
+      stage.transitions.forEach(t => {
+        calculateDepth(t.target, depth + 1, visited);
+      });
+    }
+  };
+
+  calculateDepth('start');
+
+  // Count nodes at each depth level
+  const depthCounts = {};
+  Object.entries(nodeDepths).forEach(([, depth]) => {
+    depthCounts[depth] = (depthCounts[depth] || 0) + 1;
+  });
+
+  // Track position within each depth level
+  const depthPositions = {};
+
+  // Transform stages to nodes with hierarchical layout
   const nodes = stages.map(stage => {
     const layout = nodeLayouts[stage.id] || {};
 
+    // Calculate position based on depth (hierarchical layout)
+    const depth = nodeDepths[stage.id] || 0;
+    const positionInDepth = depthPositions[depth] || 0;
+    depthPositions[depth] = positionInDepth + 1;
+
+    const nodesAtThisDepth = depthCounts[depth] || 1;
+
+    // Horizontal spacing (left to right flow)
+    const x = layout.x || depth * 400;
+
+    // Vertical spacing - center nodes at each level
+    const verticalSpacing = 180;
+    const totalHeight = (nodesAtThisDepth - 1) * verticalSpacing;
+    const startY = -totalHeight / 2;
+    const y = layout.y || startY + positionInDepth * verticalSpacing;
+
     return {
       id: stage.id,
-      type: 'default', // Use Vue Flow default node for POC
-      position: {
-        x: layout.x || 0,
-        y: layout.y || 0,
-      },
+      type: 'default',
+      position: { x, y },
+      label: stage.name, // Vue Flow uses 'label' at the top level, not in data
       data: {
-        label: stage.name,
+        label: stage.name, // Also keep it in data for compatibility
         description: stage.description || '',
-      },
-      style: {
-        width: layout.width ? `${layout.width}px` : undefined,
-        height: layout.height ? `${layout.height}px` : undefined,
       },
     };
   });

@@ -26,4 +26,8 @@ class AgentBotPolicy < ApplicationPolicy
   def reset_access_token?
     @account_user.administrator?
   end
+
+  def default?
+    @account_user.administrator? || @account_user.agent?
+  end
 end

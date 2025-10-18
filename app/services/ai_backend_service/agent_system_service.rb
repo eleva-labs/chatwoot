@@ -17,8 +17,7 @@ class AiBackendService::AgentSystemService
     @id_type = id_type
     self.class.base_uri ai_backend_api_url
     self.class.headers({
-                         'Content-Type' => 'application/json',
-                         'Authorization' => 'application/json'
+                         'Content-Type' => 'application/json'
                        })
   end
 
