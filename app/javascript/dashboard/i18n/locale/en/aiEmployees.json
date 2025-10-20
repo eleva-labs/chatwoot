@@ -1,0 +1,100 @@
+{
+  "AI_EMPLOYEES": {
+    "HEADER": "AI Employees",
+    "DESCRIPTION": "AI Employees are autonomous members of your team that handle conversations, automate workflows, and assist your human agents 24/7.",
+    "ADD_BUTTON": "Add AI Employee",
+    "SYSTEM_BADGE": "System",
+
+    "TABS": {
+      "GENERAL": "General",
+      "WORKFLOWS": "Workflows"
+    },
+
+    "LIST": {
+      "LOADING": "Loading AI Employees...",
+      "EMPTY": "No AI Employees found. Create your first AI Employee by clicking 'Add AI Employee'."
+    },
+
+    "CARD": {
+      "NO_DESCRIPTION": "No description provided",
+      "CONFIGURE": "Configure",
+      "DELETE": "Delete"
+    },
+
+    "CREATE": {
+      "TITLE": "Add AI Employee",
+      "DESCRIPTION": "Create a new AI Employee to assist your team",
+      "SUCCESS": "AI Employee created successfully",
+      "ERROR": "Could not create AI Employee. Please try again."
+    },
+
+    "UPDATE": {
+      "SUCCESS": "AI Employee updated successfully",
+      "ERROR": "Could not update AI Employee. Please try again."
+    },
+
+    "DELETE": {
+      "TITLE": "Delete AI Employee",
+      "MESSAGE": "Are you sure you want to delete {name}? This action cannot be undone.",
+      "CONFIRM": "Yes, Delete",
+      "CANCEL": "No, Keep",
+      "SUCCESS": "AI Employee deleted successfully",
+      "ERROR": "Could not delete AI Employee. Please try again."
+    },
+
+    "DETAIL": {
+      "BACK": "Back to AI Employees",
+      "DELETE": "Delete"
+    },
+
+    "FORM": {
+      "GENERAL": {
+        "TITLE": "AI Employee Configuration",
+        "DESCRIPTION": "Configure the basic settings for your AI Employee"
+      },
+      "AVATAR": {
+        "LABEL": "AI Employee avatar"
+      },
+      "NAME": {
+        "LABEL": "AI Employee name",
+        "PLACEHOLDER": "Enter AI Employee name"
+      },
+      "DESCRIPTION": {
+        "LABEL": "Description",
+        "PLACEHOLDER": "What does this AI Employee do?"
+      },
+      "WEBHOOK_URL": {
+        "LABEL": "Webhook URL",
+        "PLACEHOLDER": "https://example.com/webhook"
+      },
+      "ACCESS_TOKEN": {
+        "LABEL": "Access Token",
+        "COPY_SUCCESS": "Access token copied to clipboard",
+        "RESET_SUCCESS": "Access token regenerated successfully",
+        "RESET_ERROR": "Unable to regenerate access token. Please try again."
+      },
+      "ERRORS": {
+        "NAME_REQUIRED": "AI Employee name is required",
+        "URL_REQUIRED": "Webhook URL is required",
+        "VALID_URL": "Please enter a valid URL starting with http:// or https://"
+      },
+      "SAVE": "Save Changes",
+      "CANCEL": "Cancel",
+      "CREATE": "Create AI Employee"
+    },
+
+    "AVATAR": {
+      "SUCCESS_DELETE": "AI Employee avatar deleted successfully",
+      "ERROR_DELETE": "Error deleting AI Employee avatar. Please try again."
+    },
+
+    "WORKFLOWS": {
+      "LOADING": "Loading workflow...",
+      "ERROR_TITLE": "Failed to load workflow",
+      "ERROR_MESSAGE": "We couldn't load the workflow for this AI Employee. Please try again.",
+      "RETRY": "Retry",
+      "EMPTY_TITLE": "No workflow configured",
+      "EMPTY_MESSAGE": "This AI Employee doesn't have a workflow configured yet."
+    }
+  }
+}

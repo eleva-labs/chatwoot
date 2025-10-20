@@ -1,0 +1,100 @@
+{
+  "AI_EMPLOYEES": {
+    "HEADER": "Empleados AI",
+    "DESCRIPTION": "Los Empleados AI son miembros autónomos de su equipo que manejan conversaciones, automatizan flujos de trabajo y asisten a sus agentes humanos 24/7.",
+    "ADD_BUTTON": "Agregar Empleado AI",
+    "SYSTEM_BADGE": "Sistema",
+
+    "TABS": {
+      "GENERAL": "General",
+      "WORKFLOWS": "Flujos de trabajo"
+    },
+
+    "LIST": {
+      "LOADING": "Cargando Empleados AI...",
+      "EMPTY": "No se encontraron Empleados AI. Cree su primer Empleado AI haciendo clic en 'Agregar Empleado AI'."
+    },
+
+    "CARD": {
+      "NO_DESCRIPTION": "Sin descripción",
+      "CONFIGURE": "Configurar",
+      "DELETE": "Eliminar"
+    },
+
+    "CREATE": {
+      "TITLE": "Agregar Empleado AI",
+      "DESCRIPTION": "Crear un nuevo Empleado AI para asistir a su equipo",
+      "SUCCESS": "Empleado AI creado exitosamente",
+      "ERROR": "No se pudo crear el Empleado AI. Por favor, inténtelo de nuevo."
+    },
+
+    "UPDATE": {
+      "SUCCESS": "Empleado AI actualizado exitosamente",
+      "ERROR": "No se pudo actualizar el Empleado AI. Por favor, inténtelo de nuevo."
+    },
+
+    "DELETE": {
+      "TITLE": "Eliminar Empleado AI",
+      "MESSAGE": "¿Está seguro de que desea eliminar {name}? Esta acción no se puede deshacer.",
+      "CONFIRM": "Sí, Eliminar",
+      "CANCEL": "No, Mantener",
+      "SUCCESS": "Empleado AI eliminado exitosamente",
+      "ERROR": "No se pudo eliminar el Empleado AI. Por favor, inténtelo de nuevo."
+    },
+
+    "DETAIL": {
+      "BACK": "Volver a Empleados AI",
+      "DELETE": "Eliminar"
+    },
+
+    "FORM": {
+      "GENERAL": {
+        "TITLE": "Configuración del Empleado AI",
+        "DESCRIPTION": "Configure los ajustes básicos para su Empleado AI"
+      },
+      "AVATAR": {
+        "LABEL": "Avatar del Empleado AI"
+      },
+      "NAME": {
+        "LABEL": "Nombre del Empleado AI",
+        "PLACEHOLDER": "Ingrese el nombre del Empleado AI"
+      },
+      "DESCRIPTION": {
+        "LABEL": "Descripción",
+        "PLACEHOLDER": "¿Qué hace este Empleado AI?"
+      },
+      "WEBHOOK_URL": {
+        "LABEL": "URL de Webhook",
+        "PLACEHOLDER": "https://ejemplo.com/webhook"
+      },
+      "ACCESS_TOKEN": {
+        "LABEL": "Token de Acceso",
+        "COPY_SUCCESS": "Token de acceso copiado al portapapeles",
+        "RESET_SUCCESS": "Token de acceso regenerado exitosamente",
+        "RESET_ERROR": "No se pudo regenerar el token de acceso. Por favor, inténtelo de nuevo."
+      },
+      "ERRORS": {
+        "NAME_REQUIRED": "El nombre del Empleado AI es obligatorio",
+        "URL_REQUIRED": "La URL de Webhook es obligatoria",
+        "VALID_URL": "Por favor, ingrese una URL válida comenzando con http:// o https://"
+      },
+      "SAVE": "Guardar Cambios",
+      "CANCEL": "Cancelar",
+      "CREATE": "Crear Empleado AI"
+    },
+
+    "AVATAR": {
+      "SUCCESS_DELETE": "Avatar del Empleado AI eliminado exitosamente",
+      "ERROR_DELETE": "Error al eliminar el avatar del Empleado AI. Por favor, inténtelo de nuevo."
+    },
+
+    "WORKFLOWS": {
+      "LOADING": "Cargando flujo de trabajo...",
+      "ERROR_TITLE": "Error al cargar el flujo de trabajo",
+      "ERROR_MESSAGE": "No pudimos cargar el flujo de trabajo para este Empleado AI. Por favor, inténtelo de nuevo.",
+      "RETRY": "Reintentar",
+      "EMPTY_TITLE": "Sin flujo de trabajo configurado",
+      "EMPTY_MESSAGE": "Este Empleado AI aún no tiene un flujo de trabajo configurado."
+    }
+  }
+}

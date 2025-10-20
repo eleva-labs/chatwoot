@@ -8,6 +8,7 @@ import { frontendURL } from '../../helper/URLHelper';
 import helpcenterRoutes from './helpcenter/helpcenter.routes';
 import campaignsRoutes from './campaigns/campaigns.routes';
 import { routes as captainRoutes } from './captain/captain.routes';
+import aiEmployeeRoutes from './aiEmployees/aiEmployee.routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 
@@ -18,6 +19,7 @@ export default {
       component: AppContainer,
       children: [
         ...captainRoutes,
+        ...aiEmployeeRoutes.routes,
         ...inboxRoutes,
         ...conversation.routes,
         ...settings.routes,

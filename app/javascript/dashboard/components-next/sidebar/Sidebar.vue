@@ -239,6 +239,13 @@ const menuItems = computed(() => {
       ],
     },
     {
+      name: 'AI Employees',
+      label: t('SIDEBAR.AI_EMPLOYEES'),
+      icon: 'i-lucide-bot',
+      to: accountScopedRoute('ai_employees_list'),
+      activeOn: ['ai_employees_list', 'ai_employees_show'],
+    },
+    {
       name: 'Contacts',
       label: t('SIDEBAR.CONTACTS'),
       icon: 'i-lucide-contact',
@@ -456,12 +463,13 @@ const menuItems = computed(() => {
           icon: 'i-lucide-workflow',
           to: accountScopedRoute('automation_list'),
         },
-        {
-          name: 'Settings Agent Bots',
-          label: t('SIDEBAR.AGENT_BOTS'),
-          icon: 'i-lucide-bot',
-          to: accountScopedRoute('agent_bots'),
-        },
+        // DISABLED - Moved to top-level "AI Employees" section
+        // {
+        //   name: 'Settings Agent Bots',
+        //   label: t('SIDEBAR.AGENT_BOTS'),
+        //   icon: 'i-lucide-bot',
+        //   to: accountScopedRoute('agent_bots'),
+        // },
         {
           name: 'Settings Macros',
           label: t('SIDEBAR.MACROS'),
