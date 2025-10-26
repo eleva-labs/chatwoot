@@ -18,9 +18,12 @@ class ForwardNotificationService
   def perform_notification_sending
     # Find the notification channels and their target chats
     notification_channels = extract_notification_channels
-    return if notification_channels.empty?
 
-    # Process each channel synchronously (Sidekiq worker handles concurrency)
+    if notification_channels.empty?
+        Rails.logger.warn "Notification config not found: #{notification_channels}"
+        return
+    end
+    
     notification_channels.each do |channel_config|
       send_to_channel(channel_config)
     end
