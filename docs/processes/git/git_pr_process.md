@@ -276,12 +276,42 @@ The process is successful when:
 
 ### Prerequisites (All PR Types)
 
-- [ ] On the correct source branch
+- [ ] On the correct source branch with proper naming convention
 - [ ] All changes are committed
 - [ ] Branch is up-to-date with remote
 - [ ] Push access to repository
 - [ ] GitHub CLI (`gh`) installed and authenticated
 - [ ] Target branch exists (development or main)
+
+### Branch Naming Convention
+
+**Format**: `<type>/<description>` or `<type>-<description>`
+
+**Valid Types** (matches semantic commit types):
+- `feat` - New features
+- `fix` - Bug fixes
+- `hotfix` - Critical production fixes
+- `chore` - Maintenance tasks, builds, releases
+- `docs` - Documentation changes
+- `refactor` - Code refactoring
+- `test` - Test additions or modifications
+- `perf` - Performance improvements
+- `ci` - CI/CD changes
+- `style` - Code style/formatting changes
+
+**Examples**:
+- `feat/whatsapp-qr-auth`
+- `fix/audio-upload-error`
+- `hotfix/duplicate-emails`
+- `chore/bump-version-0.2.0`
+- `docs/update-pr-process`
+- `refactor/ai-backend-service`
+
+**Notes**:
+- Use kebab-case for descriptions (lowercase with hyphens)
+- Keep branch names concise but descriptive
+- Both `/` and `-` separators are acceptable (prefer `/` for consistency)
+- Branch names don't need to match PR titles exactly, but should use the same type prefix
 
 ---
 
@@ -571,16 +601,16 @@ git diff main...hotfix/critical-fix --stat
 
 **Title Format** (must follow semantic commit convention):
 ```
-release: v<version> - <Key highlights>
 chore(release): v<version> - <Key highlights>
+chore: release v<version> - <Key highlights>
 ```
 
-**Note**: Repository enforces semantic PR titles via `.github/workflows/lint_pr.yml`. Use lowercase type prefixes.
+**Note**: Repository enforces semantic PR titles via `.github/workflows/lint_pr.yml`. Use lowercase `chore` type (not `release` - it's not a valid semantic commit type).
 
 **Title Examples**:
-- `release: v2.3.0 - WhatsApp Integration & UI Improvements`
+- `chore(release): v2.3.0 - WhatsApp Integration & UI Improvements`
 - `chore(release): v0.1.1 - Email Fixes & Localization Updates`
-- `release: v2.4.0 - Assignment Policies & Captain Enhancements`
+- `chore: release v2.4.0 - Assignment Policies & Captain Enhancements`
 
 **Description Format**:
 ```markdown
@@ -997,6 +1027,49 @@ gh pr view --web
 | **Unclear commit messages** | Cannot categorize changes | Review actual diffs for context | Enforce commit message standards |
 | **Missing context** | Reviewers ask too many questions | Add more detail to PR description | Include "why" for major changes |
 | **Wrong base branch** | PR created against wrong branch | Close and recreate with correct base | Double-check branch in command |
+| **PR title lint fails** | "Lint PR" check fails | Use semantic commit format (see below) | Follow PR title conventions |
+
+### PR Title Lint Check Failures
+
+**Symptom**: The "Lint PR / Validate PR title" GitHub check fails
+
+**Cause**: PR title doesn't follow [Conventional Commits](https://www.conventionalcommits.org/) format
+
+**Valid PR Title Format**:
+```
+<type>: <description>
+<type>(<scope>): <description>
+```
+
+**Valid Types**:
+- `feat` - New features
+- `fix` - Bug fixes
+- `chore` - Maintenance, builds, releases
+- `docs` - Documentation changes
+- `refactor` - Code refactoring
+- `test` - Test changes
+- `perf` - Performance improvements
+- `ci` - CI/CD changes
+- `style` - Code style changes
+- `build` - Build system changes
+- `revert` - Revert previous changes
+
+**Common Mistakes**:
+- ❌ `release: v0.2.0` - **Invalid** (`release` is not a valid type)
+- ✅ `chore(release): v0.2.0` - **Valid** (use `chore` for releases)
+- ❌ `Release: Sprint 12` - **Invalid** (capitalized, invalid type)
+- ✅ `chore: release Sprint 12` - **Valid** (lowercase `chore`)
+- ❌ `Add new feature` - **Invalid** (missing type prefix)
+- ✅ `feat: add new feature` - **Valid**
+
+**How to Fix**:
+1. Go to your PR on GitHub
+2. Click "Edit" on the PR title
+3. Update to follow `<type>: <description>` format
+4. Use lowercase for type prefix
+5. The check will re-run automatically
+
+**Note**: The lint check validates PR **titles** only, not branch names or commit messages.
 
 ### When to Escalate
 
