@@ -12,28 +12,58 @@ tasks:
   version-show:
     desc: 'Display current Chatwoot, custom, and git versions'
     cmds:
-      - docker compose exec rails bundle exec rake version:show
+      - |
+        echo "Chatwoot Version: $(cat VERSION_CW)"
+        echo "Custom Version:   $(cat VERSION_CUSTOM)"
+        echo "Git SHA:          $(git rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
 
   version-bump-patch:
     desc: 'Bump custom version patch (1.0.0 → 1.0.1)'
     cmds:
-      - docker compose exec rails bundle exec rake version:bump type=patch
-      - echo ""
-      - echo "⚠️  Remember to commit these changes and create a git tag!"
+      - |
+        current=$(cat VERSION_CUSTOM)
+        IFS='.' read -r major minor patch <<< "$current"
+        patch=$((patch + 1))
+        new_version="$major.$minor.$patch"
+        echo "Bumping custom version: $current → $new_version"
+        echo "$new_version" > VERSION_CUSTOM
+        sed -i.bak "s/custom_version: '[^']*'/custom_version: '$new_version'/" config/app.yml && rm config/app.yml.bak
+        echo "✓ Version bumped successfully to $new_version"
+        echo ""
+        echo "⚠️  Remember to commit these changes and create a git tag!"
 
   version-bump-minor:
     desc: 'Bump custom version minor (1.0.0 → 1.1.0)'
     cmds:
-      - docker compose exec rails bundle exec rake version:bump type=minor
-      - echo ""
-      - echo "⚠️  Remember to commit these changes and create a git tag!"
+      - |
+        current=$(cat VERSION_CUSTOM)
+        IFS='.' read -r major minor patch <<< "$current"
+        minor=$((minor + 1))
+        patch=0
+        new_version="$major.$minor.$patch"
+        echo "Bumping custom version: $current → $new_version"
+        echo "$new_version" > VERSION_CUSTOM
+        sed -i.bak "s/custom_version: '[^']*'/custom_version: '$new_version'/" config/app.yml && rm config/app.yml.bak
+        echo "✓ Version bumped successfully to $new_version"
+        echo ""
+        echo "⚠️  Remember to commit these changes and create a git tag!"
 
   version-bump-major:
     desc: 'Bump custom version major (1.0.0 → 2.0.0)'
     cmds:
-      - docker compose exec rails bundle exec rake version:bump type=major
-      - echo ""
-      - echo "⚠️  Remember to commit these changes and create a git tag!"
+      - |
+        current=$(cat VERSION_CUSTOM)
+        IFS='.' read -r major minor patch <<< "$current"
+        major=$((major + 1))
+        minor=0
+        patch=0
+        new_version="$major.$minor.$patch"
+        echo "Bumping custom version: $current → $new_version"
+        echo "$new_version" > VERSION_CUSTOM
+        sed -i.bak "s/custom_version: '[^']*'/custom_version: '$new_version'/" config/app.yml && rm config/app.yml.bak
+        echo "✓ Version bumped successfully to $new_version"
+        echo ""
+        echo "⚠️  Remember to commit these changes and create a git tag!"
 
   version-update-chatwoot:
     desc: 'Update Chatwoot upstream version (usage: task version-update-chatwoot VERSION=4.5.3)'
@@ -44,9 +74,16 @@ tasks:
           echo "Usage: task version-update-chatwoot VERSION=4.5.3"
           exit 1
         fi
-      - docker compose exec rails bundle exec rake version:update_chatwoot version={{.VERSION}}
-      - echo ""
-      - echo "⚠️  Remember to commit these changes!"
+        version="{{.VERSION}}"
+        current=$(cat VERSION_CW)
+        echo "Updating Chatwoot version: $current → $version"
+        echo "$version" > VERSION_CW
+        sed -i.bak "s/version: '[^']*'/version: '$version'/" config/app.yml && rm config/app.yml.bak
+        # Update package.json
+        sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$version\"/" package.json && rm package.json.bak
+        echo "✓ Chatwoot upstream version updated to $version"
+        echo ""
+        echo "⚠️  Remember to commit these changes!"
 
   # =====================================================================
   # DEVELOPMENT ENVIRONMENT
