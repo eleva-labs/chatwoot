@@ -89,7 +89,7 @@ class Contact < ApplicationRecord
       Arel::Nodes::SqlLiteral.new(
         sanitize_sql_for_order(
           "\"contacts\".\"additional_attributes\"->>'company_name' #{direction}
-          NULLS LAST"
+          NULLS LAST, \"contacts\".\"id\" ASC"
         )
       )
     )
@@ -99,7 +99,7 @@ class Contact < ApplicationRecord
       Arel::Nodes::SqlLiteral.new(
         sanitize_sql_for_order(
           "\"contacts\".\"additional_attributes\"->>'city' #{direction}
-          NULLS LAST"
+          NULLS LAST, \"contacts\".\"id\" ASC"
         )
       )
     )
@@ -109,7 +109,7 @@ class Contact < ApplicationRecord
       Arel::Nodes::SqlLiteral.new(
         sanitize_sql_for_order(
           "\"contacts\".\"additional_attributes\"->>'country' #{direction}
-          NULLS LAST"
+          NULLS LAST, \"contacts\".\"id\" ASC"
         )
       )
     )
@@ -227,9 +227,9 @@ class Contact < ApplicationRecord
     self.additional_attributes = {} if additional_attributes.blank?
     self.custom_attributes = {} if custom_attributes.blank?
     # Set default AI flag only when the record is being created and the key is missing
-    if new_record? && !custom_attributes.key?('ai_enabled')
-      self.custom_attributes['ai_enabled'] = ENV.fetch('CW_DEFAULT_AI_BOT_ENABLED', 'false') == 'true'
-    end
+    return unless new_record? && !custom_attributes.key?('ai_enabled')
+
+    custom_attributes['ai_enabled'] = ENV.fetch('CW_DEFAULT_AI_BOT_ENABLED', 'false') == 'true'
   end
 
   def sync_contact_attributes

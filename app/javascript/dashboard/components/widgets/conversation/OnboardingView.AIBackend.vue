@@ -86,18 +86,18 @@ const onboardingSteps = shallowRef({
 
 const greetingMessage = computed(() => {
   const hours = new Date().getHours();
-  let translationKey;
-  if (hours < 12) {
-    translationKey = 'ONBOARDING.GREETING_MORNING';
-  } else if (hours < 18) {
-    translationKey = 'ONBOARDING.GREETING_AFTERNOON';
-  } else {
-    translationKey = 'ONBOARDING.GREETING_EVENING';
-  }
-  return t(translationKey, {
+  const params = {
     name: currentUser.value.name,
     installationName: globalConfig.value.installationName,
-  });
+  };
+
+  if (hours < 12) {
+    return t('ONBOARDING.GREETING_MORNING', params);
+  }
+  if (hours < 18) {
+    return t('ONBOARDING.GREETING_AFTERNOON', params);
+  }
+  return t('ONBOARDING.GREETING_EVENING', params);
 });
 
 function loadSavedStep() {
@@ -154,10 +154,6 @@ async function finishHandler() {
         chatwootConfig
       );
     }
-
-    await store.dispatch('accounts/update', {
-      onboarding_completed: true,
-    });
 
     useAlert(
       t('ONBOARDING.COMPLETED', {

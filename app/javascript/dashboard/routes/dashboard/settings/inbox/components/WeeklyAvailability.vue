@@ -37,6 +37,7 @@ export default {
       isBusinessHoursEnabled: false,
       unavailableMessage: '',
       timeZone: DEFAULT_TIMEZONE,
+      agentBotRespectsWorkingHours: false,
       dayNames: {
         0: 'Sunday',
         1: 'Monday',
@@ -83,6 +84,7 @@ export default {
         out_of_office_message: unavailableMessage,
         working_hours: timeSlots = [],
         timezone: timeZone,
+        auto_assignment_config: autoAssignmentConfig = {},
       } = this.inbox;
       const slots = timeSlotParse(timeSlots).length
         ? timeSlotParse(timeSlots)
@@ -93,6 +95,18 @@ export default {
       this.timeZone =
         this.timeZones.find(item => timeZone === item.value) ||
         DEFAULT_TIMEZONE;
+
+      // Only update agentBotRespectsWorkingHours if it's explicitly set in the config
+      // This prevents resetting when the store doesn't have the updated value yet
+      if (
+        Object.prototype.hasOwnProperty.call(
+          autoAssignmentConfig,
+          'agent_bot_respects_working_hours'
+        )
+      ) {
+        this.agentBotRespectsWorkingHours =
+          autoAssignmentConfig.agent_bot_respects_working_hours;
+      }
     },
     onSlotUpdate(slotIndex, slotData) {
       this.timeSlots = this.timeSlots.map(item =>
@@ -108,6 +122,10 @@ export default {
           out_of_office_message: this.unavailableMessage,
           working_hours: timeSlotTransform(this.timeSlots),
           timezone: this.timeZone.value,
+          auto_assignment_config: {
+            ...this.inbox.auto_assignment_config,
+            agent_bot_respects_working_hours: this.agentBotRespectsWorkingHours,
+          },
           channel: {},
         };
         await this.$store.dispatch('inboxes/updateInbox', payload);
@@ -139,7 +157,26 @@ export default {
         <p class="mb-4 text-n-slate-11">
           {{ $t('INBOX_MGMT.BUSINESS_HOURS.TOGGLE_HELP') }}
         </p>
-        <div v-if="isBusinessHoursEnabled" class="mb-6">
+
+        <!-- Agent Bot Working Hours Setting -->
+        <div v-if="isBusinessHoursEnabled">
+          <label for="agent-bot-respects-hours" class="toggle-input-wrap">
+            <input
+              id="agent-bot-respects-hours"
+              v-model="agentBotRespectsWorkingHours"
+              type="checkbox"
+              class="ltr:mr-2 rtl:ml-2"
+            />
+            {{ $t('INBOX_MGMT.WEEKLY_AVAILABILITY.AGENT_BOT_RESPECTS_HOURS') }}
+          </label>
+          <p class="mb-4 text-n-slate-11">
+            {{
+              $t('INBOX_MGMT.WEEKLY_AVAILABILITY.AGENT_BOT_RESPECTS_HOURS_HELP')
+            }}
+          </p>
+        </div>
+
+        <div v-if="isBusinessHoursEnabled" class="mt-6 mb-6">
           <div>
             <label class="unavailable-input-wrap">
               {{ $t('INBOX_MGMT.BUSINESS_HOURS.UNAVAILABLE_MESSAGE_LABEL') }}
@@ -186,6 +223,7 @@ export default {
             @update="data => onSlotUpdate(timeSlot.day, data)"
           />
         </div>
+
         <NextButton
           type="submit"
           :label="$t('INBOX_MGMT.BUSINESS_HOURS.UPDATE')"

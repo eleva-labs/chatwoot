@@ -32,6 +32,7 @@ module Enterprise::Inbox
   end
 
   def ensure_valid_max_assignment_limit
+    return if auto_assignment_config.blank?
     return if auto_assignment_config['max_assignment_limit'].blank?
     return if auto_assignment_config['max_assignment_limit'].to_i.positive?
 

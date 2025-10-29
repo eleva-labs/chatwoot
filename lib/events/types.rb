@@ -4,6 +4,7 @@ module Events::Types
   ### Installation Events ###
   # account events
   ACCOUNT_CREATED = 'account.created'
+  ACCOUNT_DELETED = 'account.deleted'
   ACCOUNT_CACHE_INVALIDATED = 'account.cache_invalidated'
 
   #### Account Events ###
@@ -42,9 +43,10 @@ module Events::Types
   CONTACT_MERGED = 'contact.merged'
   CONTACT_DELETED = 'contact.deleted'
 
-  # contact events
+  # inbox events
   INBOX_CREATED = 'inbox.created'
   INBOX_UPDATED = 'inbox.updated'
+  INBOX_DELETED = 'inbox.deleted'
 
   # notification events
   NOTIFICATION_CREATED = 'notification.created'
@@ -55,6 +57,18 @@ module Events::Types
   AGENT_ADDED = 'agent.added'
   AGENT_REMOVED = 'agent.removed'
 
+  # agent bot events
+  AGENT_BOT_CREATED = 'agent_bot.created'
+  AGENT_BOT_DELETED = 'agent_bot.deleted'
+
+  # agent bot inbox assignment events
+  AGENT_BOT_INBOX_CREATED = 'agent_bot_inbox.created'
+  AGENT_BOT_INBOX_DELETED = 'agent_bot_inbox.deleted'
+
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'
+
+  # token events
+  OWNER_TOKEN_UPDATED = 'owner_token.updated'
+  BOT_TOKEN_UPDATED = 'bot_token.updated'
 end

@@ -37,6 +37,107 @@ describe AgentBotListener do
         listener.message_created(event)
       end
     end
+
+    context 'when agent bot respects working hours' do
+      let!(:agent_bot_inbox) { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot) }
+
+      before do
+        inbox.update(
+          working_hours_enabled: true,
+          auto_assignment_config: { 'agent_bot_respects_working_hours' => true }
+        )
+      end
+
+      context 'when inbox is out of office' do
+        before do
+          allow(inbox).to receive(:out_of_office?).and_return(true)
+        end
+
+        it 'does not trigger webhook for incoming messages' do
+          incoming_message = create(:message, message_type: 'incoming',
+                                              account: account,
+                                              inbox: inbox,
+                                              conversation: conversation)
+          incoming_event = Events::Base.new(event_name, Time.zone.now, message: incoming_message)
+
+          expect(AgentBots::WebhookJob).not_to receive(:perform_later)
+          listener.message_created(incoming_event)
+        end
+
+        it 'triggers webhook for outgoing messages' do
+          outgoing_message = create(:message, message_type: 'outgoing',
+                                              account: account,
+                                              inbox: inbox,
+                                              conversation: conversation)
+          outgoing_event = Events::Base.new(event_name, Time.zone.now, message: outgoing_message)
+
+          expect(AgentBots::WebhookJob).to receive(:perform_later).once
+          listener.message_created(outgoing_event)
+        end
+      end
+
+      context 'when inbox is within business hours' do
+        before do
+          allow(inbox).to receive(:out_of_office?).and_return(false)
+        end
+
+        it 'triggers webhook for incoming messages' do
+          incoming_message = create(:message, message_type: 'incoming',
+                                              account: account,
+                                              inbox: inbox,
+                                              conversation: conversation)
+          incoming_event = Events::Base.new(event_name, Time.zone.now, message: incoming_message)
+
+          expect(AgentBots::WebhookJob).to receive(:perform_later).once
+          listener.message_created(incoming_event)
+        end
+      end
+    end
+
+    context 'when agent bot does not respect working hours' do
+      let!(:agent_bot_inbox) { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot) }
+
+      before do
+        inbox.update(
+          working_hours_enabled: true,
+          auto_assignment_config: { 'agent_bot_respects_working_hours' => false }
+        )
+        allow(inbox).to receive(:out_of_office?).and_return(true)
+      end
+
+      it 'triggers webhook even outside business hours' do
+        incoming_message = create(:message, message_type: 'incoming',
+                                            account: account,
+                                            inbox: inbox,
+                                            conversation: conversation)
+        incoming_event = Events::Base.new(event_name, Time.zone.now, message: incoming_message)
+
+        expect(AgentBots::WebhookJob).to receive(:perform_later).once
+        listener.message_created(incoming_event)
+      end
+    end
+
+    context 'when working hours are not enabled' do
+      let!(:agent_bot_inbox) { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot) }
+
+      before do
+        inbox.update(
+          working_hours_enabled: false,
+          auto_assignment_config: { 'agent_bot_respects_working_hours' => true }
+        )
+      end
+
+      it 'triggers webhook regardless of the flag' do
+        incoming_message = create(:message, message_type: 'incoming',
+                                            account: account,
+                                            inbox: inbox,
+                                            conversation: conversation)
+        incoming_event = Events::Base.new(event_name, Time.zone.now, message: incoming_message)
+
+        expect(AgentBots::WebhookJob).to receive(:perform_later).once
+        listener.message_created(incoming_event)
+      end
+    end
   end
 
   describe '#webwidget_triggered' do

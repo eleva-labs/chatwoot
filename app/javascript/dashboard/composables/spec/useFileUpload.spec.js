@@ -13,7 +13,9 @@ vi.mock('dashboard/composables', () => ({
 vi.mock('vue-i18n');
 vi.mock('activestorage');
 vi.mock('shared/helpers/FileHelper');
-vi.mock('@chatwoot/utils');
+vi.mock('@chatwoot/utils', () => ({
+  getMaxUploadSizeByChannel: vi.fn(),
+}));
 
 describe('useFileUpload', () => {
   const mockAttachFile = vi.fn();

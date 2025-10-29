@@ -154,9 +154,11 @@ class ForwardNotificationService
 
       # Use the configuration service to get notifications config
       notification_config = config_service.get_configuration(
-        store_id,
-        AiBackendService::ConfigurationService::CONFIGURATION_KEYS[:NOTIFICATIONS]
+        scope: AiBackendService::Constants::Scope::STORE,
+        resource_id: store_id,
+        config_key: AiBackendService::Constants::ConfigKey::NOTIFICATIONS_CONFIG
       )
+
       return notification_config if notification_config.present?
     rescue StandardError => e
       Rails.logger.error "Error getting notification config: #{e.message}"

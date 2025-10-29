@@ -30,6 +30,7 @@ class AccountDashboard < Administrate::BaseDashboard
   ATTRIBUTE_TYPES = {
     id: Field::Number.with_options(searchable: true),
     name: Field::String.with_options(searchable: true),
+    support_email: Field::String.with_options(searchable: true),
     created_at: Field::DateTime,
     updated_at: Field::DateTime,
     users: CountField,
@@ -68,6 +69,7 @@ class AccountDashboard < Administrate::BaseDashboard
   SHOW_PAGE_ATTRIBUTES = (%i[
     id
     name
+    support_email
     created_at
     updated_at
     locale
@@ -90,6 +92,7 @@ class AccountDashboard < Administrate::BaseDashboard
                                end
   FORM_ATTRIBUTES = (%i[
     name
+    support_email
     locale
     status
   ] + enterprise_form_attributes).freeze

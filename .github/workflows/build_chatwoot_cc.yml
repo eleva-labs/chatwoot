@@ -61,20 +61,26 @@ jobs:
           REPO_NAME_WORKER="${PROJECT_NAME}-chatwoot-worker-${ENVIRONMENT}"
           ECR_URL_WEB="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME_WEB}"
           ECR_URL_WORKER="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME_WORKER}"
-          
+
           echo "ECR_URL_WEB=${ECR_URL_WEB}" >> $GITHUB_ENV
           echo "ECR_URL_WORKER=${ECR_URL_WORKER}" >> $GITHUB_ENV
-          
+
           VERSION_TAG="${{ github.sha }}"
           echo "VERSION_TAG=${VERSION_TAG}" >> $GITHUB_ENV
-          
+
+          # Read custom version
+          CUSTOM_VERSION=$(cat VERSION_CUSTOM)
+          echo "CUSTOM_VERSION=${CUSTOM_VERSION}" >> $GITHUB_ENV
+
           SANITIZED_REF=$(echo "$GIT_REF" | sed 's/\//-/g')
           echo "WEB_MAIN_TAG=${ECR_URL_WEB}:${SANITIZED_REF}" >> $GITHUB_ENV
           echo "WEB_COMMIT_TAG=${ECR_URL_WEB}:${VERSION_TAG}" >> $GITHUB_ENV
           echo "WEB_LATEST_TAG=${ECR_URL_WEB}:latest" >> $GITHUB_ENV
+          echo "WEB_CUSTOM_VERSION_TAG=${ECR_URL_WEB}:v${CUSTOM_VERSION}" >> $GITHUB_ENV
           echo "WORKER_MAIN_TAG=${ECR_URL_WORKER}:${SANITIZED_REF}" >> $GITHUB_ENV
           echo "WORKER_COMMIT_TAG=${ECR_URL_WORKER}:${VERSION_TAG}" >> $GITHUB_ENV
           echo "WORKER_LATEST_TAG=${ECR_URL_WORKER}:latest" >> $GITHUB_ENV
+          echo "WORKER_CUSTOM_VERSION_TAG=${ECR_URL_WORKER}:v${CUSTOM_VERSION}" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -106,13 +112,18 @@ jobs:
           cache-to: type=registry,ref=${{ env.ECR_URL_WEB }}:buildcache,mode=max
           build-args: |
             RAILS_ENV=production
+            CHATWOOT_VERSION=4.5.2
+            CUSTOM_VERSION=${{ env.CUSTOM_VERSION }}
+            GIT_SHA=${{ github.sha }}
           tags: |
             ${{ env.WEB_MAIN_TAG }}
             ${{ env.WEB_COMMIT_TAG }}
             ${{ env.WEB_LATEST_TAG }}
+            ${{ env.WEB_CUSTOM_VERSION_TAG }}
             ${{ env.WORKER_MAIN_TAG }}
             ${{ env.WORKER_COMMIT_TAG }}
             ${{ env.WORKER_LATEST_TAG }}
+            ${{ env.WORKER_CUSTOM_VERSION_TAG }}
 
   build-prod:
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod') || github.event_name == 'push'
@@ -140,17 +151,21 @@ jobs:
           REPO_NAME_WORKER="${PROJECT_NAME}-chatwoot-worker-${ENVIRONMENT}"
           ECR_URL_WEB="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME_WEB}"
           ECR_URL_WORKER="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME_WORKER}"
-          
+
           echo "ECR_URL_WEB=${ECR_URL_WEB}" >> $GITHUB_ENV
           echo "ECR_URL_WORKER=${ECR_URL_WORKER}" >> $GITHUB_ENV
-          
+
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             VERSION_TAG="${{ github.ref_name }}"
           else
             VERSION_TAG="${{ github.sha }}"
           fi
           echo "VERSION_TAG=${VERSION_TAG}" >> $GITHUB_ENV
-          
+
+          # Read custom version
+          CUSTOM_VERSION=$(cat VERSION_CUSTOM)
+          echo "CUSTOM_VERSION=${CUSTOM_VERSION}" >> $GITHUB_ENV
+
           SANITIZED_REF=$(echo "$GIT_REF" | sed 's/\//-/g')
           if [ "${{ github.ref_name }}" = "main" ]; then
             echo "WEB_MAIN_TAG=${ECR_URL_WEB}:latest" >> $GITHUB_ENV
@@ -166,6 +181,8 @@ jobs:
           echo "WORKER_COMMIT_TAG=${ECR_URL_WORKER}:${VERSION_TAG}" >> $GITHUB_ENV
           echo "WEB_LATEST_TAG=${ECR_URL_WEB}:latest" >> $GITHUB_ENV
           echo "WORKER_LATEST_TAG=${ECR_URL_WORKER}:latest" >> $GITHUB_ENV
+          echo "WEB_CUSTOM_VERSION_TAG=${ECR_URL_WEB}:v${CUSTOM_VERSION}" >> $GITHUB_ENV
+          echo "WORKER_CUSTOM_VERSION_TAG=${ECR_URL_WORKER}:v${CUSTOM_VERSION}" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -197,10 +214,15 @@ jobs:
           cache-to: type=registry,ref=${{ env.ECR_URL_WEB }}:buildcache,mode=max
           build-args: |
             RAILS_ENV=production
+            CHATWOOT_VERSION=4.5.2
+            CUSTOM_VERSION=${{ env.CUSTOM_VERSION }}
+            GIT_SHA=${{ github.sha }}
           tags: |
             ${{ env.WEB_MAIN_TAG }}
             ${{ env.WEB_COMMIT_TAG }}
             ${{ env.WEB_LATEST_TAG }}
+            ${{ env.WEB_CUSTOM_VERSION_TAG }}
             ${{ env.WORKER_MAIN_TAG }}
             ${{ env.WORKER_COMMIT_TAG }}
             ${{ env.WORKER_LATEST_TAG }}
+            ${{ env.WORKER_CUSTOM_VERSION_TAG }}

@@ -30,10 +30,11 @@ class Instagram::CallbacksController < ApplicationController
 
     if already_exists
       redirect_to app_instagram_inbox_settings_url(account_id: account_id, inbox_id: inbox.id)
-    elsif account.custom_attributes['onboarding_completed'] == true
-      #Redirect to conversation page if onboarding is not completed
+    elsif account.inboxes.exists?
+      # Redirect to inbox agents page if onboarding is completed (account has inboxes)
       redirect_to app_instagram_inbox_agents_url(account_id: account_id, inbox_id: inbox.id)
     else
+      # Redirect to dashboard for first-time setup
       redirect_to app_dashboard_url(account_id: account_id)
     end
   end

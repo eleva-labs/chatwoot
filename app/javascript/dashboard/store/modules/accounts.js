@@ -51,9 +51,9 @@ export const getters = {
     const { features = {} } = findRecordById($state, id);
     return features[featureName] || false;
   },
-  isOnboardingCompleted: $state => id => {
-    const account = findRecordById($state, id);
-    return account.custom_attributes.onboarding_completed || false;
+  isOnboardingCompleted: ($state, _getters, _rootState, rootGetters) => () => {
+    const inboxes = rootGetters['inboxes/getInboxes'];
+    return inboxes && inboxes.length > 0;
   },
 };
 

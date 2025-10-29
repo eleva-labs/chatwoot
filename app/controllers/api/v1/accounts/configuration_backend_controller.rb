@@ -2,18 +2,20 @@
 class Api::V1::Accounts::ConfigurationBackendController < Api::V1::Accounts::BaseController
   def create
     Rails.logger.debug '=== ConfigurationBackendController#create called ==='
-    store_id = Current.account.custom_attributes['store_id']
 
-    return render json: { error: 'Store not configured for this account' }, status: :unprocessable_entity if store_id.blank?
+    # Use account.id directly as the store external_id (matching the listener pattern)
+    store_id = Current.account.id
 
-    result = AiBackendService::SetupService.save_configuration(
-      store_id,
-      permitted_params[:key],
-      permitted_params[:data]
+    configuration_service = AiBackendService::ConfigurationService.new
+    result = configuration_service.save_configuration(
+      scope: AiBackendService::Constants::Scope::STORE,
+      resource_id: store_id,
+      config_key: permitted_params[:key],
+      config_data: permitted_params[:data]
     )
 
     render json: result
-  rescue AiBackendService::SetupService::SetupError => e
+  rescue AiBackendService::ConfigurationService::ConfigurationError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
 

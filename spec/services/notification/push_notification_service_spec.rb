@@ -3,7 +3,7 @@ require 'rails_helper'
 describe Notification::PushNotificationService do
   let!(:account) { create(:account) }
   let!(:user) { create(:user, account: account) }
-  let!(:notification) { create(:notification, user: user, account: user.accounts.first) }
+  let!(:notification) { create(:notification, user: user, account: account) }
   let(:fcm_double) { instance_double(FCM) }
   let(:fcm_service_double) { instance_double(Notification::FcmService, fcm_client: fcm_double) }
 

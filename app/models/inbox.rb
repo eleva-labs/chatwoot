@@ -80,6 +80,7 @@ class Inbox < ApplicationRecord
 
   after_create_commit :dispatch_create_event
   after_update_commit :dispatch_update_event
+  after_destroy_commit :dispatch_destroy_event
 
   scope :order_by_name, -> { order('lower(name) ASC') }
 
@@ -190,6 +191,26 @@ class Inbox < ApplicationRecord
     members.ids
   end
 
+  # Agent bot working hours configuration
+  # Determines if agent bot webhooks should respect business hours.
+  # When enabled, incoming messages outside business hours will not trigger
+  # agent bot webhooks, preventing conflicting automated responses.
+  # Uses auto_assignment_config JSONB column to avoid migration (Chatwoot sync compatible).
+  #
+  # @return [Boolean] true if agent bot should respect working hours, false otherwise
+  def agent_bot_respects_working_hours?
+    auto_assignment_config&.dig('agent_bot_respects_working_hours') || false
+  end
+
+  # Sets the agent bot working hours respect flag
+  #
+  # @param value [Boolean] whether agent bot should respect working hours
+  # @return [Boolean] the value that was set
+  def agent_bot_respects_working_hours=(value)
+    self.auto_assignment_config ||= {}
+    self.auto_assignment_config['agent_bot_respects_working_hours'] = value
+  end
+
   private
 
   def default_name_for_blank_name
@@ -209,15 +230,21 @@ class Inbox < ApplicationRecord
   end
 
   def dispatch_create_event
-    return if ENV['ENABLE_INBOX_EVENTS'].blank?
-
     Rails.configuration.dispatcher.dispatch(INBOX_CREATED, Time.zone.now, inbox: self)
   end
 
   def dispatch_update_event
-    return if ENV['ENABLE_INBOX_EVENTS'].blank?
-
     Rails.configuration.dispatcher.dispatch(INBOX_UPDATED, Time.zone.now, inbox: self, changed_attributes: previous_changes)
+  end
+
+  def dispatch_destroy_event
+    Rails.configuration.dispatcher.dispatch(
+      INBOX_DELETED,
+      Time.zone.now,
+      inbox_id: id,
+      account_id: account_id,
+      channel_type: channel_type
+    )
   end
 
   def ensure_valid_max_assignment_limit
