@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 module Billing
-  # Service to create Stripe Checkout Sessions for immediate payment processing
-  # This provides a better UX by redirecting users directly to Stripe's checkout
+  # Service to create Stripe Checkout Sessions for all subscription plans
+  # This ensures payment methods are always collected before charging customers
+  # and provides a better UX by redirecting users to Stripe's hosted checkout
   class CreateCheckoutSessionService
     include BillingPlans
 
@@ -26,9 +27,11 @@ module Billing
       end
 
       begin
-        # For free trial conversion, we'll create a setup session that collects payment method
-        # but doesn't charge immediately - the subscription will be created via webhook
-        checkout_session = create_setup_session
+        # Create checkout session:
+        # - For free_trial: Setup mode (collects payment method without charging)
+        # - For paid plans: Subscription mode (creates subscription and collects payment)
+        # Subscription finalization is handled via checkout.session.completed webhook
+        checkout_session = create_checkout_session
 
         success_response(
           checkout_url: checkout_session.url,
@@ -53,13 +56,14 @@ module Billing
       current_plan == @plan_name && subscription_status == 'active'
     end
 
-    def create_setup_session
+    def create_checkout_session
       session_params = {
         success_url: success_url,
         cancel_url: cancel_url,
         allow_promotion_codes: true,
+        client_reference_id: @account.id.to_s, # Additional tracking reference
         metadata: {
-          account_id: @account.id,
+          account_id: @account.id.to_s, # Store as string per Stripe best practice
           plan_name: @plan_name
         }
       }
@@ -69,8 +73,13 @@ module Billing
       if existing_customer_id.present?
         Rails.logger.info "Using existing Stripe customer for checkout: #{existing_customer_id}"
         session_params[:customer] = existing_customer_id
+        # Update customer info if it has changed
+        session_params[:customer_update] = { name: 'auto', address: 'auto' }
       else
-        Rails.logger.info 'No existing customer found, Stripe will create a new one'
+        Rails.logger.info 'No existing customer found, creating new customer during checkout'
+        # Automatically create customer for new checkouts (Stripe best practice)
+        session_params[:customer_creation] = 'always'
+        session_params[:customer_email] = @account.users.first&.email
       end
 
       # For free trial plans, we just collect payment method without charging
@@ -88,8 +97,13 @@ module Billing
         # Propagate metadata to the subscription object for reliable account linking
         session_params[:subscription_data] = {
           metadata: {
-            account_id: @account.id,
+            account_id: @account.id.to_s, # Store as string per Stripe best practice
             plan_name: @plan_name
+          },
+          trial_settings: {
+            end_behavior: {
+              missing_payment_method: 'cancel' # Cancel subscription if no payment method at trial end
+            }
           }
         }
       end

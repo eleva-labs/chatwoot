@@ -399,6 +399,19 @@ Rails.application.routes.draw do
             get :portal, on: :member
             get :limits, on: :member
           end
+          
+          # Billing add-ons and conversation packs
+          namespace :billing do
+            resource :add_ons, only: [:index, :update] do
+              get :index, on: :collection
+              post :update, on: :collection
+              get :limits, on: :collection
+            end
+            
+            resource :conversation_packs, only: [:show] do
+              post :purchase, on: :member
+            end
+          end
           resources :summary_reports, only: [] do
             collection do
               get :agent
@@ -523,13 +536,13 @@ Rails.application.routes.draw do
   # ----------------------------------------------------------------------
   # Routes for billing webhooks
   namespace :webhooks do
-    # Generic billing webhook endpoints (provider-agnostic)
+    # Provider-specific webhook endpoints
+    post 'stripe/process_event', to: 'stripe#process_event'
+    get 'stripe/health', to: 'stripe#health'
+
+    # Generic billing webhook endpoints (provider-agnostic, for future providers)
     post 'billing/process_event', to: 'billing#process_event'
     get 'billing/health', to: 'billing#health'
-
-    # Legacy Stripe-specific endpoints (for backward compatibility)
-    post 'stripe/process_event', to: 'billing#process_event'
-    get 'stripe/health', to: 'billing#health'
 
     # Shopify compliance webhooks
     post 'shopify/compliance', to: 'shopify#compliance'

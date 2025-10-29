@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 
 import BillingCard from './components/BillingCard.vue';
 import BillingHeader from './components/BillingHeader.vue';
+import BillingLimitsCard from './components/BillingLimitsCard.vue';
 import DetailItem from './components/DetailItem.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
@@ -241,6 +242,9 @@ onMounted(() => {
             />
           </div>
         </BillingCard>
+
+        <!-- Usage Limits Card (for users with billing plans) -->
+        <BillingLimitsCard v-if="hasABillingPlan" />
 
         <BillingHeader
           class="px-1 mt-5"

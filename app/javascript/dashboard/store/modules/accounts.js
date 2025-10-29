@@ -221,6 +221,68 @@ export const actions = {
     }
   },
 
+  fetchAddOns: async () => {
+    try {
+      const response = await BillingAPI.getAddOns();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  fetchAddOnLimits: async () => {
+    try {
+      const response = await BillingAPI.getAddOnLimits();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  purchaseAddOn: async (_, { add_on_type, action, quantity = null }) => {
+    try {
+      const response = await BillingAPI.updateAddOn(
+        add_on_type,
+        action,
+        quantity
+      );
+      if (response.data.success) {
+        return response;
+      }
+      throw new Error(response.data.error || 'Failed to purchase add-on');
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  fetchConversationPacks: async () => {
+    try {
+      const response = await BillingAPI.getConversationPacks();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  purchaseConversationPack: async () => {
+    try {
+      const response = await BillingAPI.purchaseConversationPack();
+      if (response.data.success) {
+        return response;
+      }
+      throw new Error(
+        response.data.error || 'Failed to purchase conversation pack'
+      );
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
   getCacheKeys: async () => {
     return AccountAPI.getCacheKeys();
   },

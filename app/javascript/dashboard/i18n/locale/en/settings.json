@@ -379,6 +379,23 @@
       "DESCRIPTION": "View your previous invoices, edit your billing details, or cancel your subscription.",
       "BUTTON_TXT": "Go to billing portal"
     },
+    "LIMITS": {
+      "TITLE": "Usage & Limits",
+      "DESCRIPTION": "Track your usage and purchase additional capacity as needed.",
+      "LOADING": "Loading limits...",
+      "AGENTS": "Agents",
+      "INBOXES": "Inboxes",
+      "CONVERSATIONS": "Conversations",
+      "USED": "used",
+      "USED_THIS_PERIOD": "used this period",
+      "BASE": "base",
+      "PURCHASED": "purchased",
+      "UNLIMITED": "Unlimited",
+      "ADD_MORE": "Add",
+      "BUY_PACK": "Buy Pack",
+      "WARNING": "Warning",
+      "WARNING_MESSAGE": "You're approaching your plan limits. Purchase additional capacity or upgrade to continue."
+    },
     "SETUP_IN_PROGRESS": {
       "MESSAGE": "Subscription setup in progress..."
     },

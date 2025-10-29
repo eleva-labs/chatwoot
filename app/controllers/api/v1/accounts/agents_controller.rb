@@ -20,6 +20,13 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
     )
 
     @agent = builder.perform
+  rescue ActiveRecord::RecordInvalid => e
+    # Check if it's a limit error
+    if e.record.errors[:base].any? { |error| error.include?('limit reached') }
+      render_limit_error(:agent)
+    else
+      raise
+    end
   end
 
   def update
@@ -88,21 +95,44 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   end
 
   def validate_limit_for_bulk_create
-    limit_available = params[:emails].count <= available_agent_count
+    limit_service = Billing::UnifiedLimitService.new(Current.account, :agent)
+    emails_count = params[:emails].count
+    
+    limit_available = limit_service.remaining >= emails_count
 
-    render_payment_required('Account limit exceeded. Please purchase more licenses') unless limit_available
+    render_limit_error(:agent, count: emails_count) unless limit_available
   end
 
   def validate_limit
-    render_payment_required('Account limit exceeded. Please purchase more licenses') unless can_add_agent?
+    limit_service = Billing::UnifiedLimitService.new(Current.account, :agent)
+    render_limit_error(:agent) unless limit_service.can_create?
   end
 
   def available_agent_count
-    Current.account.usage_limits[:agents] - agents.count
+    limit_service = Billing::UnifiedLimitService.new(Current.account, :agent)
+    limit_service.remaining
   end
 
   def can_add_agent?
     available_agent_count.positive?
+  end
+
+  def render_limit_error(resource_type, options = {})
+    limit_service = Billing::UnifiedLimitService.new(Current.account, resource_type)
+    status_info = limit_service.status
+    upgrade_options = limit_service.upgrade_options
+
+    render json: {
+      error: "#{resource_type.to_s.capitalize} limit reached",
+      limit_info: {
+        current: status_info[:current],
+        base_limit: status_info[:base_limit],
+        purchased: status_info[:purchased],
+        total_allowed: status_info[:total_allowed],
+        remaining: status_info[:remaining]
+      },
+      upgrade_options: upgrade_options
+    }, status: :payment_required # HTTP 402
   end
 
   def delete_user_record(agent)

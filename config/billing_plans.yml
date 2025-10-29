@@ -34,10 +34,28 @@ plans:
     price_id: "price_1RqHHDLIubTPR6wgjFoVzrfR"
     feature_tiers:
       - "starter"
-    limits: # Fallback limits for community plan (in case the limits are not set in the payment provider)
+    limits: # Base limits included in the plan (before add-ons)
       agents: 5
       inboxes: 2
       conversations_monthly: 4000
+    add_ons:
+      agent:
+        lookup_key: 'extra_agent_starter'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      inbox:
+        lookup_key: 'extra_inbox_starter'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      channel:
+        lookup_key: 'extra_channel_starter'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+    conversation_packs:
+      lookup_key: 'conversation_pack_starter'
+      price_id: null  # Will be fetched from Stripe using lookup_key
+      conversations: 10000  # Number of conversations in pack
+      unit_price: null  # Will be fetched from Stripe
 
   professional:
     name: "Professional"
@@ -46,10 +64,28 @@ plans:
     feature_tiers:
       - "starter"
       - "professional"
-    limits: # Fallback limits for community plan (in case the limits are not set in the payment provider)
+    limits: # Base limits included in the plan (before add-ons)
       agents: 15
-      inboxes: 2
+      inboxes: 5
       conversations_monthly: 10000
+    add_ons:
+      agent:
+        lookup_key: 'extra_agent_professional'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      inbox:
+        lookup_key: 'extra_inbox_professional'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      channel:
+        lookup_key: 'extra_channel_professional'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+    conversation_packs:
+      lookup_key: 'conversation_pack_professional'
+      price_id: null  # Will be fetched from Stripe using lookup_key
+      conversations: 25000  # Number of conversations in pack
+      unit_price: null  # Will be fetched from Stripe
 
   enterprise:
     name: "Enterprise"
@@ -59,10 +95,11 @@ plans:
       - "starter"
       - "professional"
       - "enterprise"
-    limits: # Fallback limits for community plan (in case the limits are not set in the payment provider)
+    limits: # Unlimited for enterprise
       agents: -1  # Unlimited
       inboxes: -1  # Unlimited
       conversations_monthly: -1  # Unlimited
+    # No add-ons needed - enterprise has unlimited everything
 
 # Default plan for new accounts
 default_plan: "free_trial" 

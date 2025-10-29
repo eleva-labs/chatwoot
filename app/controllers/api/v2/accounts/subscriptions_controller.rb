@@ -28,14 +28,6 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
   def create
     plan_name = subscription_params[:plan_name] || 'free_trial'
 
-    # Check if customer creation is already in progress (with timeout)
-    if customer_creation_in_progress?
-      return render json: {
-        success: false,
-        error: 'Subscription creation already in progress'
-      }, status: :conflict
-    end
-
     # Check if customer already exists (only reject if they have an active Stripe customer)
     # Allow trial accounts (those with plan_name but no stripe_customer_id) to proceed
     # Allow inactive subscriptions to create new subscriptions
@@ -51,46 +43,25 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
       end
     end
 
-    # For free trial users and starter plan, create Stripe Checkout Session immediately
-    if %w[free_trial starter].include?(plan_name)
-      service = Billing::CreateCheckoutSessionService.new(current_account, plan_name)
-      result = service.perform
+    # Use Stripe Checkout Session for all plans
+    # This ensures payment methods are always collected before charging
+    service = Billing::CreateCheckoutSessionService.new(current_account, plan_name)
+    result = service.perform
 
-      if result[:success]
-        render json: {
-          success: true,
-          message: 'Checkout session created successfully',
-          data: {
-            checkout_url: result[:data][:checkout_url],
-            session_id: result[:data][:session_id]
-          }
-        }
-      else
-        render json: {
-          success: false,
-          error: result[:error]
-        }, status: :unprocessable_entity
-      end
-    else
-      # For paid plans, use the background job approach
-      # Mark as creating customer to prevent duplicate requests
-      custom_attrs = current_account.custom_attributes || {}
-      custom_attrs['is_creating_billing_customer'] = true
-      custom_attrs['creating_billing_customer_since'] = Time.current.iso8601
-      current_account.update!(custom_attributes: custom_attrs)
-
-      # Enqueue background job for customer creation
-      Billing::CreateCustomerJob.perform_later(current_account, plan_name)
-
+    if result[:success]
       render json: {
         success: true,
-        message: 'Subscription creation initiated. You will be notified when complete.',
+        message: 'Checkout session created successfully',
         data: {
-          account_id: current_account.id,
-          plan_name: plan_name,
-          status: 'processing'
+          checkout_url: result[:data][:checkout_url],
+          session_id: result[:data][:session_id]
         }
-      }, status: :accepted
+      }
+    else
+      render json: {
+        success: false,
+        error: result[:error]
+      }, status: :unprocessable_entity
     end
   rescue StandardError => e
     Rails.logger.error "Error creating subscription: #{e.message}"
@@ -239,35 +210,6 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
 
   def conversations_this_month
     current_account.conversations.where(created_at: Time.current.all_month).count
-  end
-
-  def customer_creation_in_progress?
-    custom_attrs = current_account.custom_attributes || {}
-    return false unless custom_attrs['is_creating_billing_customer']
-
-    # Check if the flag was set more than 5 minutes ago (timeout)
-    created_at = custom_attrs['creating_billing_customer_since']
-    if created_at.present?
-      created_time = Time.parse(created_at)
-      if Time.current - created_time > 5.minutes
-        # Clear the stuck flag
-        clear_customer_creation_flag
-        return false
-      end
-    end
-
-    true
-  rescue StandardError
-    # If there's any error parsing the timestamp, clear the flag
-    clear_customer_creation_flag
-    false
-  end
-
-  def clear_customer_creation_flag
-    custom_attrs = current_account.custom_attributes || {}
-    custom_attrs.delete('is_creating_billing_customer')
-    custom_attrs.delete('creating_billing_customer_since')
-    current_account.update!(custom_attributes: custom_attrs)
   end
 
   def check_authorization

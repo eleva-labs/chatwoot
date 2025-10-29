@@ -30,6 +30,38 @@ class BillingAPI extends ApiClient {
   getLimits() {
     return axios.get(`${this.url}subscription/limits`);
   }
+
+  // GET /api/v2/accounts/:account_id/billing/add_ons
+  getAddOns() {
+    return axios.get(`${this.url}billing/add_ons`);
+  }
+
+  // GET /api/v2/accounts/:account_id/billing/add_ons/limits
+  getAddOnLimits() {
+    return axios.get(`${this.url}billing/add_ons/limits`);
+  }
+
+  // POST /api/v2/accounts/:account_id/billing/add_ons
+  updateAddOn(addOnType, action, quantity = null) {
+    const payload = {
+      add_on_type: addOnType,
+      action: action,
+    };
+    if (quantity !== null) {
+      payload.quantity = quantity;
+    }
+    return axios.post(`${this.url}billing/add_ons`, payload);
+  }
+
+  // GET /api/v2/accounts/:account_id/billing/conversation_packs
+  getConversationPacks() {
+    return axios.get(`${this.url}billing/conversation_packs`);
+  }
+
+  // POST /api/v2/accounts/:account_id/billing/conversation_packs/purchase
+  purchaseConversationPack() {
+    return axios.post(`${this.url}billing/conversation_packs/purchase`);
+  }
 }
 
 export default new BillingAPI();

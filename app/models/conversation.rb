@@ -69,6 +69,8 @@ class Conversation < ApplicationRecord
   validates :uuid, uniqueness: true
   validate :validate_referer_url
 
+  before_create :check_conversation_limit
+
   enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3 }
   enum priority: { low: 0, medium: 1, high: 2, urgent: 3 }
 
@@ -196,6 +198,15 @@ class Conversation < ApplicationRecord
   end
 
   private
+
+  def check_conversation_limit
+    limit_service = Billing::ConversationLimitService.new(account)
+
+    return true if limit_service.can_create_conversation?
+
+    errors.add(:base, 'Conversation limit reached for this billing period. Please purchase a conversation pack or upgrade your plan.')
+    throw :abort
+  end
 
   def execute_after_update_commit_callbacks
     handle_resolved_status_change
