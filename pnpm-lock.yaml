@@ -43,6 +43,9 @@ importers:
       '@lk77/vue3-color':
         specifier: ^3.0.6
         version: 3.0.6
+      '@lottiefiles/dotlottie-vue':
+        specifier: ^0.10.6
+        version: 0.10.6(vue@3.5.12(typescript@5.6.2))
       '@radix-ui/colors':
         specifier: ^3.0.0
         version: 3.0.0
@@ -1004,6 +1007,14 @@ packages:
 
   '@lk77/vue3-color@3.0.6':
     resolution: {integrity: sha512-1e/TJrk2jJFo7z+teHjavndVxV9c25J5FA6LVEKJFKqLQzYDesTijxBmX1rAmiHHnFrjfVcwie5QAr3PzZbR2Q==}
+
+  '@lottiefiles/dotlottie-vue@0.10.6':
+    resolution: {integrity: sha512-CI1OaUPx/m7TKcVQwLbTK+PMKCzv2F2N6gsPEQawM0wZleDLCzLehGnc7GJlOhdz96gFdRtO9f2Z/EicnUWc/w==}
+    peerDependencies:
+      vue: ^3.3.4
+
+  '@lottiefiles/dotlottie-web@0.55.0':
+    resolution: {integrity: sha512-MYpRPxc0630GruhmL5ufTNvjobi9SZG1Zgdr1mr7KCYV1WwMYEO4DobGnR5E+Wbvgp1ChY+7hBKynYobCculGw==}
 
   '@material/mwc-icon@0.25.3':
     resolution: {integrity: sha512-36076AWZIRSr8qYOLjuDDkxej/HA0XAosrj7TS1ZeLlUBnLUtbDtvc1S7KSa0hqez7ouzOqGaWK24yoNnTa2OA==}
@@ -5436,6 +5447,13 @@ snapshots:
       '@lit-labs/ssr-dom-shim': 1.1.1
 
   '@lk77/vue3-color@3.0.6': {}
+
+  '@lottiefiles/dotlottie-vue@0.10.6(vue@3.5.12(typescript@5.6.2))':
+    dependencies:
+      '@lottiefiles/dotlottie-web': 0.55.0
+      vue: 3.5.12(typescript@5.6.2)
+
+  '@lottiefiles/dotlottie-web@0.55.0': {}
 
   '@material/mwc-icon@0.25.3':
     dependencies:
