@@ -1,0 +1,12 @@
+      "TITLE": "Modelos Twilio",
+      "SUBTITLE": "Selecione um modelo Twilio que você deseja enviar",
+      "NO_TEMPLATES_FOUND": "Não há modelos encontrados para",
+      "NO_TEMPLATES_AVAILABLE": "Não há modelos Twilio disponíveis. Clique em Atualizar para sincronizar os modelos do Twilio.",
+        "TEMPLATE_BODY": "Conteúdo do Modelo",
+        "CATEGORY": "Categoria"
+      },
+      "TYPES": {
+        "MEDIA": "Mídia",
+        "QUICK_REPLY": "Resposta Rápida",
+      "MEDIA_URL_LABEL": "Digite a URL completa da mídia",
+      "MEDIA_URL_PLACEHOLDER": "https://exemplo.com.br/imagem.jpg"

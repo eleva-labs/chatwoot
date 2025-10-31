@@ -1,33 +1,14 @@
 {
   "CONTENT_TEMPLATES": {
     "MODAL": {
-<<<<<<< HEAD
-      "TITLE": "Twilio Templates",
-      "SUBTITLE": "Select the Twilio template you want to send",
-      "TEMPLATE_SELECTED_SUBTITLE": "Configure template: {templateName}"
-=======
       "TITLE": "Modelli Twilio",
       "SUBTITLE": "Seleziona il modello Twilio che vuoi inviare",
       "TEMPLATE_SELECTED_SUBTITLE": "Configura template: {templateName}"
->>>>>>> develop
     },
     "PICKER": {
       "SEARCH_PLACEHOLDER": "Cerca modelli",
       "NO_TEMPLATES_FOUND": "Nessun modello trovato per",
       "NO_CONTENT": "No content",
-<<<<<<< HEAD
-      "HEADER": "Header",
-      "BODY": "Body",
-      "FOOTER": "Footer",
-      "BUTTONS": "Buttons",
-      "CATEGORY": "Categoria",
-      "MEDIA_CONTENT": "Media Content",
-      "MEDIA_CONTENT_FALLBACK": "media content",
-      "NO_TEMPLATES_AVAILABLE": "No Twilio templates available. Click refresh to sync templates from Twilio.",
-      "REFRESH_BUTTON": "Refresh templates",
-      "REFRESH_SUCCESS": "Templates refresh initiated. It may take a couple of minutes to update.",
-      "REFRESH_ERROR": "Failed to refresh templates. Please try again.",
-=======
       "HEADER": "Intestazione",
       "BODY": "Corpo",
       "FOOTER": "Piè",
@@ -39,7 +20,6 @@
       "REFRESH_BUTTON": "Aggiorna modelli",
       "REFRESH_SUCCESS": "Aggiornamento modelli iniziato. Potrebbe volerci qualche minuto per aggiornare.",
       "REFRESH_ERROR": "Impossibile aggiornare i modelli. Per favore riprova.",
->>>>>>> develop
       "LABELS": {
         "LANGUAGE": "Lingua",
         "TEMPLATE_BODY": "Corpo modello",
@@ -47,11 +27,7 @@
       },
       "TYPES": {
         "MEDIA": "Media",
-<<<<<<< HEAD
-        "QUICK_REPLY": "Quick Reply",
-=======
         "QUICK_REPLY": "Risposta Rapida",
->>>>>>> develop
         "TEXT": "Testo"
       }
     },
@@ -63,13 +39,8 @@
       "GO_BACK_LABEL": "Torna indietro",
       "SEND_MESSAGE_LABEL": "Invia messaggio",
       "FORM_ERROR_MESSAGE": "Si prega di compilare tutte le variabili prima di inviare",
-<<<<<<< HEAD
-      "MEDIA_HEADER_LABEL": "{type} Header",
-      "MEDIA_URL_LABEL": "Enter full media URL",
-=======
       "MEDIA_HEADER_LABEL": "Intestazione {type}",
       "MEDIA_URL_LABEL": "Inserisci l'URL completo del media",
->>>>>>> develop
       "MEDIA_URL_PLACEHOLDER": "https://example.com/image.jpg"
     },
     "FORM": {

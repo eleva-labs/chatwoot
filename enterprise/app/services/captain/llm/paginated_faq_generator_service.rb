@@ -8,10 +8,7 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::BaseOpenAiService
   def initialize(document, options = {})
     super()
     @document = document
-<<<<<<< HEAD
-=======
     @language = options[:language] || 'english'
->>>>>>> develop
     @pages_per_chunk = options[:pages_per_chunk] || DEFAULT_PAGES_PER_CHUNK
     @max_pages = options[:max_pages] # Optional limit from UI
     @total_pages_processed = 0
@@ -122,11 +119,7 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::BaseOpenAiService
   end
 
   def page_chunk_prompt(start_page, end_page)
-<<<<<<< HEAD
-    Captain::Llm::SystemPromptsService.paginated_faq_generator(start_page, end_page)
-=======
     Captain::Llm::SystemPromptsService.paginated_faq_generator(start_page, end_page, @language)
->>>>>>> develop
   end
 
   def standard_chat_parameters
@@ -136,11 +129,7 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::BaseOpenAiService
       messages: [
         {
           role: 'system',
-<<<<<<< HEAD
-          content: Captain::Llm::SystemPromptsService.faq_generator
-=======
           content: Captain::Llm::SystemPromptsService.faq_generator(@language)
->>>>>>> develop
         },
         {
           role: 'user',

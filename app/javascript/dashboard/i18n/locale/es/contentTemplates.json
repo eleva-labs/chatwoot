@@ -1,21 +1,14 @@
 {
   "CONTENT_TEMPLATES": {
     "MODAL": {
-<<<<<<< HEAD
       "TITLE": "Plantillas de Twilio",
       "SUBTITLE": "Selecciona la plantilla de Twilio que quieres enviar",
       "TEMPLATE_SELECTED_SUBTITLE": "Configurar plantilla: {templateName}"
-=======
-      "TITLE": "Twilio Templates",
-      "SUBTITLE": "Select the Twilio template you want to send",
-      "TEMPLATE_SELECTED_SUBTITLE": "Configure template: {templateName}"
->>>>>>> develop
     },
     "PICKER": {
       "SEARCH_PLACEHOLDER": "Buscar plantillas",
       "NO_TEMPLATES_FOUND": "No se encontraron plantillas para",
       "NO_CONTENT": "Sin contenido",
-<<<<<<< HEAD
       "HEADER": "Encabezado",
       "BODY": "Cuerpo",
       "FOOTER": "Pie de página",
@@ -27,32 +20,14 @@
       "REFRESH_BUTTON": "Actualizar plantillas",
       "REFRESH_SUCCESS": "Actualización de plantillas iniciada. Puede tomar un par de minutos para actualizar.",
       "REFRESH_ERROR": "Error al actualizar plantillas. Por favor, inténtalo de nuevo.",
-=======
-      "HEADER": "Header",
-      "BODY": "Body",
-      "FOOTER": "Footer",
-      "BUTTONS": "Buttons",
-      "CATEGORY": "Categoría",
-      "MEDIA_CONTENT": "Media Content",
-      "MEDIA_CONTENT_FALLBACK": "media content",
-      "NO_TEMPLATES_AVAILABLE": "No Twilio templates available. Click refresh to sync templates from Twilio.",
-      "REFRESH_BUTTON": "Refresh templates",
-      "REFRESH_SUCCESS": "Templates refresh initiated. It may take a couple of minutes to update.",
-      "REFRESH_ERROR": "Failed to refresh templates. Please try again.",
->>>>>>> develop
       "LABELS": {
         "LANGUAGE": "Idioma",
         "TEMPLATE_BODY": "Cuerpo de plantilla",
         "CATEGORY": "Categoría"
       },
       "TYPES": {
-<<<<<<< HEAD
         "MEDIA": "Multimedia",
         "QUICK_REPLY": "Respuesta Rápida",
-=======
-        "MEDIA": "Media",
-        "QUICK_REPLY": "Quick Reply",
->>>>>>> develop
         "TEXT": "Texto"
       }
     },
@@ -64,13 +39,8 @@
       "GO_BACK_LABEL": "Volver",
       "SEND_MESSAGE_LABEL": "Enviar mensaje",
       "FORM_ERROR_MESSAGE": "Por favor, rellene todas las variables antes de enviar",
-<<<<<<< HEAD
       "MEDIA_HEADER_LABEL": "Encabezado {type}",
       "MEDIA_URL_LABEL": "Introduzca la URL completa del medio",
-=======
-      "MEDIA_HEADER_LABEL": "{type} Header",
-      "MEDIA_URL_LABEL": "Ingrese la URL completa",
->>>>>>> develop
       "MEDIA_URL_PLACEHOLDER": "https://example.com/image.jpg"
     },
     "FORM": {

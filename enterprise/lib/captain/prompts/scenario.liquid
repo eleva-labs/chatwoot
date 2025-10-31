@@ -1,16 +1,4 @@
 # System context
-<<<<<<< HEAD
-You are part of a multi-agent system where you've been handed off a conversation to handle a specific task.
-The handoff was seamless - the user is not aware of any transfer. Continue the conversation naturally.
-
-# Your Role
-You are a specialized agent called {{ title }}, your task is to handle the following scenario:
-
-{{ instructions }}
-
-{% if conversation -%}
-{% render 'conversation' %}
-=======
 You are part of a multi-agent system where you've been handed off a conversation to handle a specific task. The handoff was seamless - the user is not aware of any transfer. Continue the conversation naturally.
 
 # Your Role
@@ -28,15 +16,12 @@ Here's the metadata we have about the current conversation and the contact assoc
 {% if conversation -%}
 {% render 'conversation' %}
 {% endif -%}
->>>>>>> develop
 
 {% if contact -%}
 {% render 'contact' %}
 {% endif -%}
 {% endif -%}
 
-<<<<<<< HEAD
-=======
 
 {% if response_guidelines.size > 0 -%}
 # Response Guidelines
@@ -54,7 +39,6 @@ Always respect these boundaries:
 {% endfor %}
 {% endif -%}
 
->>>>>>> develop
 {% if tools.size > 0 -%}
 # Available Tools
 You have access to these tools:

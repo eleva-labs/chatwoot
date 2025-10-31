@@ -8,22 +8,14 @@ module Concerns::CaptainToolsHelpers
   TOOL_REFERENCE_REGEX = %r{\[[^\]]+\]\(tool://([^/)]+)\)}
 
   class_methods do
-<<<<<<< HEAD
-    # Returns all available agent tools with their metadata.
-    # Only includes tools that have corresponding class files and can be resolved.
-    #
-    # @return [Array<Hash>] Array of tool hashes with :id, :title, :description, :icon
-    def available_agent_tools
-      @available_agent_tools ||= load_agent_tools
-=======
     # Returns all built-in agent tools with their metadata.
     # Only includes tools that have corresponding class files and can be resolved.
     #
     # @return [Array<Hash>] Array of tool hashes with :id, :title, :description, :icon
     def built_in_agent_tools
       @built_in_agent_tools ||= load_agent_tools
->>>>>>> develop
     end
+    alias_method :available_agent_tools, :built_in_agent_tools
 
     # Resolves a tool class from a tool ID.
     # Converts snake_case tool IDs to PascalCase class names and constantizes them.
@@ -35,22 +27,14 @@ module Concerns::CaptainToolsHelpers
       class_name.safe_constantize
     end
 
-<<<<<<< HEAD
-    # Returns an array of all available tool IDs.
-    # Convenience method that extracts just the IDs from available_agent_tools.
-    #
-    # @return [Array<String>] Array of available tool IDs
-    def available_tool_ids
-      @available_tool_ids ||= available_agent_tools.map { |tool| tool[:id] }
-=======
     # Returns an array of all built-in tool IDs.
     # Convenience method that extracts just the IDs from built_in_agent_tools.
     #
     # @return [Array<String>] Array of built-in tool IDs
     def built_in_tool_ids
       @built_in_tool_ids ||= built_in_agent_tools.map { |tool| tool[:id] }
->>>>>>> develop
     end
+    alias_method :available_tool_ids, :built_in_tool_ids
 
     private
 

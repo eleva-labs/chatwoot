@@ -4,8 +4,6 @@ RSpec.describe Captain::Document, type: :model do
   let(:account) { create(:account) }
   let(:assistant) { create(:captain_assistant, account: account) }
 
-<<<<<<< HEAD
-=======
   describe 'URL normalization' do
     it 'removes a trailing slash before validation' do
       document = create(:captain_document,
@@ -17,7 +15,6 @@ RSpec.describe Captain::Document, type: :model do
     end
   end
 
->>>>>>> develop
   describe 'PDF support' do
     let(:pdf_document) do
       doc = build(:captain_document, assistant: assistant, account: account)
@@ -96,8 +93,6 @@ RSpec.describe Captain::Document, type: :model do
       end
     end
   end
-<<<<<<< HEAD
-=======
 
   describe 'response builder job callback' do
     before { clear_enqueued_jobs }
@@ -255,5 +250,4 @@ RSpec.describe Captain::Document, type: :model do
       end.not_to have_enqueued_job(Captain::Documents::ResponseBuilderJob)
     end
   end
->>>>>>> develop
 end

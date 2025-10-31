@@ -48,15 +48,9 @@ RSpec.describe Captain::Scenario, type: :model do
 
     before do
       # Mock available tools
-<<<<<<< HEAD
-      allow(described_class).to receive(:available_tool_ids).and_return(%w[
-                                                                          add_contact_note add_private_note update_priority
-                                                                        ])
-=======
       allow(described_class).to receive(:built_in_tool_ids).and_return(%w[
                                                                          add_contact_note add_private_note update_priority
                                                                        ])
->>>>>>> develop
     end
 
     describe 'validate_instruction_tools' do
@@ -108,8 +102,6 @@ RSpec.describe Captain::Scenario, type: :model do
         expect(scenario).not_to be_valid
         expect(scenario.errors[:instruction]).not_to include(/contains invalid tools/)
       end
-<<<<<<< HEAD
-=======
 
       it 'is valid with custom tool references' do
         create(:captain_custom_tool, account: account, slug: 'custom_fetch-order')
@@ -153,7 +145,6 @@ RSpec.describe Captain::Scenario, type: :model do
 
         expect(scenario).to be_valid
       end
->>>>>>> develop
     end
 
     describe 'resolve_tool_references' do
@@ -198,8 +189,6 @@ RSpec.describe Captain::Scenario, type: :model do
     end
   end
 
-<<<<<<< HEAD
-=======
   describe 'custom tool integration' do
     let(:account) { create(:account) }
     let(:assistant) { create(:captain_assistant, account: account) }
@@ -334,7 +323,6 @@ RSpec.describe Captain::Scenario, type: :model do
     end
   end
 
->>>>>>> develop
   describe 'factory' do
     it 'creates a valid scenario with associations' do
       account = create(:account)

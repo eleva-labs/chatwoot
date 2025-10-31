@@ -48,8 +48,6 @@ describe Whatsapp::EmbeddedSignupService do
       allow(channel_creation).to receive(:perform).and_return(channel)
 
       allow(channel).to receive(:setup_webhooks)
-<<<<<<< HEAD
-=======
       allow(channel).to receive(:phone_number).and_return('+1234567890')
 
       health_service = instance_double(Whatsapp::HealthService)
@@ -59,7 +57,6 @@ describe Whatsapp::EmbeddedSignupService do
                                                                           throughput: { 'level' => 'STANDARD' },
                                                                           messaging_limit_tier: 'TIER_1000'
                                                                         })
->>>>>>> develop
     end
 
     it 'creates channel and sets up webhooks' do
@@ -69,8 +66,6 @@ describe Whatsapp::EmbeddedSignupService do
       expect(result).to eq(channel)
     end
 
-<<<<<<< HEAD
-=======
     it 'checks health status after channel creation' do
       health_service = instance_double(Whatsapp::HealthService)
       allow(Whatsapp::HealthService).to receive(:new).and_return(health_service)
@@ -114,7 +109,6 @@ describe Whatsapp::EmbeddedSignupService do
       end
     end
 
->>>>>>> develop
     context 'when parameters are invalid' do
       it 'raises ArgumentError for missing parameters' do
         invalid_service = described_class.new(account: account, params: { code: '', business_id: '', waba_id: '' })
@@ -135,11 +129,7 @@ describe Whatsapp::EmbeddedSignupService do
       it 'prompts reauthorization when webhook setup fails' do
         # Create a real channel to test the actual webhook failure behavior
         real_channel = create(:channel_whatsapp, account: account, phone_number: '+1234567890',
-<<<<<<< HEAD
-                                                 sync_templates: false, validate_provider_config: false)
-=======
                                                  validate_provider_config: false, sync_templates: false)
->>>>>>> develop
 
         # Mock the channel creation to return our real channel
         channel_creation = instance_double(Whatsapp::ChannelCreationService)
@@ -176,8 +166,6 @@ describe Whatsapp::EmbeddedSignupService do
           business_id: params[:business_id]
         ).and_return(reauth_service)
         allow(reauth_service).to receive(:perform).with(access_token, phone_info).and_return(channel)
-<<<<<<< HEAD
-=======
 
         allow(channel).to receive(:phone_number).and_return('+1234567890')
 
@@ -188,7 +176,6 @@ describe Whatsapp::EmbeddedSignupService do
                                                                             throughput: { 'level' => 'STANDARD' },
                                                                             messaging_limit_tier: 'TIER_1000'
                                                                           })
->>>>>>> develop
       end
 
       it 'uses ReauthorizationService and sets up webhooks' do
@@ -199,38 +186,6 @@ describe Whatsapp::EmbeddedSignupService do
         expect(result).to eq(channel)
       end
 
-<<<<<<< HEAD
-      it 'clears reauthorization flag' do
-        inbox = create(:inbox, account: account)
-        whatsapp_channel = create(:channel_whatsapp, account: account, phone_number: '+1234567890',
-                                                     sync_templates: false, validate_provider_config: false)
-        inbox.update!(channel: whatsapp_channel)
-        whatsapp_channel.prompt_reauthorization!
-
-        service_with_real_inbox = described_class.new(account: account, params: params, inbox_id: inbox.id)
-
-        # Mock the ReauthorizationService to return our test channel
-        reauth_service = instance_double(Whatsapp::ReauthorizationService)
-        allow(Whatsapp::ReauthorizationService).to receive(:new).with(
-          account: account,
-          inbox_id: inbox.id,
-          phone_number_id: params[:phone_number_id],
-          business_id: params[:business_id]
-        ).and_return(reauth_service)
-
-        # Perform the reauthorization and clear the flag
-        allow(reauth_service).to receive(:perform) do
-          whatsapp_channel.reauthorized!
-          whatsapp_channel
-        end
-
-        allow(whatsapp_channel).to receive(:setup_webhooks).and_return(true)
-
-        expect(whatsapp_channel.reauthorization_required?).to be true
-        result = service_with_real_inbox.perform
-        expect(result).to eq(whatsapp_channel)
-        expect(whatsapp_channel.reauthorization_required?).to be false
-=======
       context 'with real channel requiring reauthorization' do
         let(:inbox) { create(:inbox, account: account) }
         let(:whatsapp_channel) do
@@ -282,7 +237,6 @@ describe Whatsapp::EmbeddedSignupService do
                                                                               messaging_limit_tier: 'TIER_1000'
                                                                             })
         end
->>>>>>> develop
       end
     end
   end
