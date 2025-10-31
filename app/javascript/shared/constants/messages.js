@@ -36,6 +36,7 @@ export const CONVERSATION_PRIORITY_ORDER = {
 
 // Size in mega bytes
 export const MAXIMUM_FILE_UPLOAD_SIZE = 40;
+export const MAXIMUM_FILE_UPLOAD_SIZE_TWILIO_SMS_CHANNEL = 5;
 
 export const ALLOWED_FILE_TYPES =
   'image/*,' +
@@ -48,6 +49,17 @@ export const ALLOWED_FILE_TYPES =
   'application/msword, application/vnd.ms-excel, application/vnd.ms-powerpoint, application/vnd.oasis.opendocument.text,' +
   'application/vnd.openxmlformats-officedocument.presentationml.presentation, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,' +
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document,';
+
+export const ALLOWED_FILE_TYPES_FOR_TWILIO_WHATSAPP =
+  'image/png, image/jpeg,' +
+  'audio/mpeg, audio/opus, audio/ogg, audio/amr,' +
+  'video/mp4,' +
+  'application/pdf,';
+
+export const ALLOWED_FILE_TYPES_FOR_LINE = 'image/png, image/jpeg,video/mp4';
+
+export const ALLOWED_FILE_TYPES_FOR_INSTAGRAM =
+  'image/png, image/jpeg, video/mp4, video/mov, video/webm, audio/aac, audio/mp4, audio/wav, audio/mpeg, audio/ogg';
 
 export const CSAT_RATINGS = [
   {

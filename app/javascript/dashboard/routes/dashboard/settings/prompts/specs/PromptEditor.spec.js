@@ -28,12 +28,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -45,12 +41,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -70,12 +62,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: newPromptProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -87,12 +75,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -106,12 +90,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -128,12 +108,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -156,12 +132,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -180,12 +152,8 @@ describe('PromptEditor.vue', () => {
           isUpdating: true,
         },
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -200,12 +168,8 @@ describe('PromptEditor.vue', () => {
           isSaved: true,
         },
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -220,20 +184,14 @@ describe('PromptEditor.vue', () => {
           isReadonly: true,
         },
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
 
       // The update button should not be rendered
-      expect(wrapper.text()).not.toContain(
-        'PROMPTS_PAGE.EDITOR.UPDATE_BUTTON_TEXT'
-      );
+      expect(wrapper.text()).not.toContain('Update');
     });
   });
 
@@ -242,12 +200,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -264,12 +218,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: emptyPromptProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
