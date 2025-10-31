@@ -6,10 +6,7 @@ import Twilio from './Twilio.vue';
 import ThreeSixtyDialogWhatsapp from './360DialogWhatsapp.vue';
 import CloudWhatsapp from './CloudWhatsapp.vue';
 import WhatsappEmbeddedSignup from './WhatsappEmbeddedSignup.vue';
-import Whapi from './Whapi.vue';
 import ChannelSelector from 'dashboard/components/ChannelSelector.vue';
-
-const emit = defineEmits(['stepChanged']);
 
 const route = useRoute();
 const router = useRouter();
@@ -22,7 +19,6 @@ const PROVIDER_TYPES = {
   WHATSAPP_EMBEDDED: 'whatsapp_embedded',
   WHATSAPP_MANUAL: 'whatsapp_manual',
   THREE_SIXTY_DIALOG: '360dialog',
-  WHAPI: 'whapi',
 };
 
 const hasWhatsappAppId = computed(() => {
@@ -51,12 +47,6 @@ const availableProviders = computed(() => [
     description: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.TWILIO_DESC'),
     icon: 'i-woot-twilio',
   },
-  {
-    key: PROVIDER_TYPES.WHAPI,
-    title: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.WHAPI'),
-    description: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.WHAPI_DESC'),
-    icon: 'i-woot-whatsapp',
-  },
 ]);
 
 const selectProvider = providerValue => {
@@ -76,11 +66,6 @@ const shouldShowCloudWhatsapp = provider => {
 
 const handleManualLinkClick = () => {
   selectProvider(PROVIDER_TYPES.WHATSAPP_MANUAL);
-};
-
-const handleStepChanged = step => {
-  // Emit step changed event
-  emit('stepChanged', step);
 };
 </script>
 
@@ -152,11 +137,6 @@ const handleStepChanged = step => {
         />
         <ThreeSixtyDialogWhatsapp
           v-else-if="selectedProvider === PROVIDER_TYPES.THREE_SIXTY_DIALOG"
-        />
-        <Whapi
-          v-else-if="selectedProvider === PROVIDER_TYPES.WHAPI"
-          :disabled-auto-route="false"
-          @step-changed="handleStepChanged"
         />
         <CloudWhatsapp v-else />
       </div>

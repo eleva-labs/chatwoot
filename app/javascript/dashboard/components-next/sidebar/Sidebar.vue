@@ -10,13 +10,14 @@ import { useStorage } from '@vueuse/core';
 import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
 
-// import Button from 'dashboard/components-next/button/Button.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
+import SidebarChangelogCard from './SidebarChangelogCard.vue';
 import ChannelLeaf from './ChannelLeaf.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
-// import Logo from 'next/icon/Logo.vue';
-// import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
+import Logo from 'next/icon/Logo.vue';
+import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -32,10 +33,14 @@ const emit = defineEmits([
   'closeMobileSidebar',
 ]);
 
-const { accountScopedRoute } = useAccount();
+const { accountScopedRoute, isOnChatwootCloud } = useAccount();
 const store = useStore();
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
+
+const isACustomBrandedInstance = useMapGetter(
+  'globalConfig/isACustomBrandedInstance'
+);
 
 const toggleShortcutModalFn = show => {
   if (show) {
@@ -52,16 +57,12 @@ useSidebarKeyboardShortcuts(toggleShortcutModalFn);
 // and also when the user refreshes the page
 const expandedItem = useStorage(
   'next-sidebar-expanded-item',
-  [],
+  null,
   sessionStorage
 );
 
 const setExpandedItem = name => {
-  if (expandedItem.value.includes(name)) {
-    expandedItem.value = expandedItem.value.filter(item => item !== name);
-  } else {
-    expandedItem.value = [...expandedItem.value, name];
-  }
+  expandedItem.value = expandedItem.value === name ? null : name;
 };
 provideSidebarContext({
   expandedItem,
@@ -113,28 +114,28 @@ const newReportRoutes = () => [
     to: accountScopedRoute('inbox_reports_index'),
     activeOn: ['inbox_reports_show'],
   },
-  // {
-  //   name: 'Reports Team',
-  //   label: t('SIDEBAR.REPORTS_TEAM'),
-  //   to: accountScopedRoute('team_reports_index'),
-  //   activeOn: ['team_reports_show'],
-  // },
+  {
+    name: 'Reports Team',
+    label: t('SIDEBAR.REPORTS_TEAM'),
+    to: accountScopedRoute('team_reports_index'),
+    activeOn: ['team_reports_show'],
+  },
 ];
 
 const reportRoutes = computed(() => newReportRoutes());
 
 const menuItems = computed(() => {
   return [
-    // {
-    //   name: 'Inbox',
-    //   label: t('SIDEBAR.INBOX'),
-    //   icon: 'i-lucide-inbox',
-    //   to: accountScopedRoute('inbox_view'),
-    //   activeOn: ['inbox_view', 'inbox_view_conversation'],
-    //   getterKeys: {
-    //     count: 'notifications/getUnreadCount',
-    //   },
-    // },
+    {
+      name: 'Inbox',
+      label: t('SIDEBAR.INBOX'),
+      icon: 'i-lucide-inbox',
+      to: accountScopedRoute('inbox_view'),
+      activeOn: ['inbox_view', 'inbox_view_conversation'],
+      getterKeys: {
+        count: 'notifications/getUnreadCount',
+      },
+    },
     {
       name: 'Conversation',
       label: t('SIDEBAR.CONVERSATIONS'),
@@ -146,12 +147,12 @@ const menuItems = computed(() => {
           activeOn: ['inbox_conversation'],
           to: accountScopedRoute('home'),
         },
-        // {
-        //   name: 'Mentions',
-        //   label: t('SIDEBAR.MENTIONED_CONVERSATIONS'),
-        //   activeOn: ['conversation_through_mentions'],
-        //   to: accountScopedRoute('conversation_mentions'),
-        // },
+        {
+          name: 'Mentions',
+          label: t('SIDEBAR.MENTIONED_CONVERSATIONS'),
+          activeOn: ['conversation_through_mentions'],
+          to: accountScopedRoute('conversation_mentions'),
+        },
         {
           name: 'Unattended',
           activeOn: ['conversation_through_unattended'],
@@ -235,6 +236,11 @@ const menuItems = computed(() => {
           name: 'Responses',
           label: t('SIDEBAR.CAPTAIN_RESPONSES'),
           to: accountScopedRoute('captain_responses_index'),
+        },
+        {
+          name: 'Tools',
+          label: t('SIDEBAR.CAPTAIN_TOOLS'),
+          to: accountScopedRoute('captain_tools_index'),
         },
       ],
     },
@@ -420,12 +426,12 @@ const menuItems = computed(() => {
           icon: 'i-lucide-square-user',
           to: accountScopedRoute('agent_list'),
         },
-        // {
-        //   name: 'Settings Teams',
-        //   label: t('SIDEBAR.TEAMS'),
-        //   icon: 'i-lucide-users',
-        //   to: accountScopedRoute('settings_teams_list'),
-        // },
+        {
+          name: 'Settings Teams',
+          label: t('SIDEBAR.TEAMS'),
+          icon: 'i-lucide-users',
+          to: accountScopedRoute('settings_teams_list'),
+        },
         {
           name: 'Settings Agent Assignment',
           label: t('SIDEBAR.AGENT_ASSIGNMENT'),
@@ -467,12 +473,6 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.MACROS'),
           icon: 'i-lucide-toy-brick',
           to: accountScopedRoute('macros_wrapper'),
-        },
-        {
-          name: 'Settings Prompts',
-          label: t('SIDEBAR.PROMPTS'),
-          icon: 'i-lucide-terminal',
-          to: accountScopedRoute('prompts_list'),
         },
         {
           name: 'Settings Canned Responses',
@@ -537,20 +537,20 @@ const menuItems = computed(() => {
     ]"
   >
     <section class="grid gap-2 mt-2 mb-4">
-      <div class="flex items-center min-w-0 gap-2 px-2">
-        <!-- <div class="grid flex-shrink-0 size-6 place-content-center">
+      <div class="flex gap-2 items-center px-2 min-w-0">
+        <div class="grid flex-shrink-0 place-content-center size-6">
           <Logo class="size-4" />
-        </div> 
-        <div class="flex-shrink-0 w-px h-3 bg-n-strong" /> -->
+        </div>
+        <div class="flex-shrink-0 w-px h-3 bg-n-strong" />
         <SidebarAccountSwitcher
-          class="flex-grow min-w-0 -mx-1"
+          class="flex-grow -mx-1 min-w-0"
           @show-create-account-modal="emit('showCreateAccountModal')"
         />
       </div>
       <div class="flex gap-2 px-2">
         <RouterLink
           :to="{ name: 'search' }"
-          class="flex items-center w-full gap-2 px-2 py-1 rounded-lg h-7 outline outline-1 outline-n-weak bg-n-solid-3 dark:bg-n-black/30"
+          class="flex gap-2 items-center px-2 py-1 w-full h-7 rounded-lg outline outline-1 outline-n-weak bg-n-solid-3 dark:bg-n-black/30"
         >
           <span class="flex-shrink-0 i-lucide-search size-4 text-n-slate-11" />
           <span class="flex-grow text-left">
@@ -562,7 +562,6 @@ const menuItems = computed(() => {
             {{ searchShortcut }}
           </span>
         </RouterLink>
-        <!--
         <ComposeConversation align-position="right">
           <template #trigger="{ toggle }">
             <Button
@@ -574,10 +573,9 @@ const menuItems = computed(() => {
             />
           </template>
         </ComposeConversation>
-        -->
       </div>
     </section>
-    <nav class="grid flex-grow gap-2 px-2 pb-5 overflow-y-scroll no-scrollbar">
+    <nav class="grid overflow-y-scroll flex-grow gap-2 px-2 pb-5 no-scrollbar">
       <ul class="flex flex-col gap-1.5 m-0 list-none">
         <SidebarGroup
           v-for="item in menuItems"
@@ -587,11 +585,21 @@ const menuItems = computed(() => {
       </ul>
     </nav>
     <section
-      class="p-1 border-t border-n-weak shadow-[0px_-2px_4px_0px_rgba(27,28,29,0.02)] flex-shrink-0 flex justify-between gap-2 items-center"
+      class="flex flex-col flex-shrink-0 relative gap-1 justify-between items-center"
     >
-      <SidebarProfileMenu
-        @open-key-shortcut-modal="emit('openKeyShortcutModal')"
+      <div
+        class="pointer-events-none absolute inset-x-0 -top-[31px] h-8 bg-gradient-to-t from-n-solid-2 to-transparent"
       />
+      <SidebarChangelogCard
+        v-if="isOnChatwootCloud && !isACustomBrandedInstance"
+      />
+      <div
+        class="p-1 flex-shrink-0 flex w-full justify-between z-10 gap-2 items-center border-t border-n-weak shadow-[0px_-2px_4px_0px_rgba(27,28,29,0.02)]"
+      >
+        <SidebarProfileMenu
+          @open-key-shortcut-modal="emit('openKeyShortcutModal')"
+        />
+      </div>
     </section>
   </aside>
 </template>

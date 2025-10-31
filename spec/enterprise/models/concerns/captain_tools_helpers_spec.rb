@@ -42,6 +42,7 @@ RSpec.describe Concerns::CaptainToolsHelpers, type: :concern do
     end
   end
 
+<<<<<<< HEAD
   describe '.available_agent_tools' do
     before do
       # Mock the YAML file loading
@@ -94,6 +95,8 @@ RSpec.describe Concerns::CaptainToolsHelpers, type: :concern do
     end
   end
 
+=======
+>>>>>>> develop
   describe '.resolve_tool_class' do
     it 'resolves valid tool classes' do
       # Mock the constantize to return a class
@@ -116,6 +119,7 @@ RSpec.describe Concerns::CaptainToolsHelpers, type: :concern do
     end
   end
 
+<<<<<<< HEAD
   describe '.available_tool_ids' do
     before do
       allow(test_class).to receive(:available_agent_tools).and_return([
@@ -138,6 +142,8 @@ RSpec.describe Concerns::CaptainToolsHelpers, type: :concern do
     end
   end
 
+=======
+>>>>>>> develop
   describe '#extract_tool_ids_from_text' do
     it 'extracts tool IDs from text' do
       text = 'First [@Add Contact Note](tool://add_contact_note) then [@Update Priority](tool://update_priority)'

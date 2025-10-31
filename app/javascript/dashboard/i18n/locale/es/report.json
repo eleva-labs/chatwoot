@@ -2,8 +2,8 @@
   "REPORT": {
     "HEADER": "Conversaciones",
     "LOADING_CHART": "Cargando datos del gráfico...",
-    "NO_ENOUGH_DATA": "No tenemos suficientes datos para generar el informe. Inténtalo de nuevo más tarde.",
-    "DOWNLOAD_AGENT_REPORTS": "Descargar reporte",
+    "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
+    "DOWNLOAD_AGENT_REPORTS": "Descargar reportes de agente",
     "DATA_FETCHING_FAILED": "Error al obtener datos, por favor intente nuevamente.",
     "SUMMARY_FETCHING_FAILED": "No se pudo obtener el resumen, por favor inténtalo de nuevo más tarde.",
     "METRICS": {
@@ -12,7 +12,7 @@
         "DESC": "( Total )"
       },
       "INCOMING_MESSAGES": {
-        "NAME": "Recibidos",
+        "NAME": "Mensajes recibidos",
         "DESC": "( Total )"
       },
       "OUTGOING_MESSAGES": {
@@ -51,6 +51,7 @@
     },
     "DATE_RANGE_OPTIONS": {
       "LAST_7_DAYS": "Últimos 7 días",
+      "LAST_14_DAYS": "Últimos 14 días",
       "LAST_30_DAYS": "Últimos 30 días",
       "LAST_3_MONTHS": "Últimos 3 meses",
       "LAST_6_MONTHS": "Últimos 6 meses",
@@ -124,12 +125,12 @@
     }
   },
   "AGENT_REPORTS": {
-    "HEADER": "Resumen del Equipo",
-    "DESCRIPTION": "Rastrea fácilmente el rendimiento de tu equipo con métricas clave como conversaciones, tiempos de respuesta, tiempos de resolución y casos resueltos. Haz clic en el nombre de un miembro para obtener más información.",
+    "HEADER": "Resumen de agentes",
+    "DESCRIPTION": "Easily track agent performance with key metrics such as conversations, response times, resolution times, and resolved cases. Click an agent’s name to learn more.",
     "LOADING_CHART": "Cargando datos del gráfico...",
     "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
-    "DOWNLOAD_AGENT_REPORTS": "Descargar reportes del equipo",
-    "FILTER_DROPDOWN_LABEL": "Seleccionar miembro",
+    "DOWNLOAD_AGENT_REPORTS": "Descargar reportes de agente",
+    "FILTER_DROPDOWN_LABEL": "Seleccionar agente",
     "METRICS": {
       "CONVERSATIONS": {
         "NAME": "Conversaciones",
@@ -193,7 +194,7 @@
   },
   "LABEL_REPORTS": {
     "HEADER": "Resumen de etiquetas",
-    "DESCRIPTION": "Rastrea el rendimiento de las etiquetas con métricas clave como conversaciones, tiempos de respuesta, tiempos de resolución y casos resueltos. Haz clic en el nombre de una etiqueta para obtener información detallada.",
+    "DESCRIPTION": "Track label performance with key metrics including conversations, response times, resolution times, and resolved cases. Click a label name for detailed insights.",
     "LOADING_CHART": "Cargando datos del gráfico...",
     "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
     "DOWNLOAD_LABEL_REPORTS": "Descargar reportes de etiquetas",
@@ -260,12 +261,14 @@
     }
   },
   "INBOX_REPORTS": {
-    "HEADER": "Resumen de Canales",
-    "DESCRIPTION": "Visualiza rápidamente el rendimiento de tus canales con métricas clave. Haz clic en el nombre de un canal para obtener más detalles.",
+    "HEADER": "Resumen de bandeja de entrada",
+    "DESCRIPTION": "Quickly view your inbox performance with key metrics like conversations, response times, resolution times, and resolved cases—all in one place. Click an inbox name for more details.",
     "LOADING_CHART": "Cargando datos del gráfico...",
     "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
-    "DOWNLOAD_INBOX_REPORTS": "Descargar reportes de canales",
-    "FILTER_DROPDOWN_LABEL": "Seleccione un canal",
+    "DOWNLOAD_INBOX_REPORTS": "Descargar reportes de bandeja de entrada",
+    "FILTER_DROPDOWN_LABEL": "Seleccione una bandeja de entrada",
+    "ALL_INBOXES": "All Inboxes",
+    "SEARCH_INBOX": "Search Inbox",
     "METRICS": {
       "CONVERSATIONS": {
         "NAME": "Conversaciones",
@@ -328,8 +331,8 @@
     }
   },
   "TEAM_REPORTS": {
-    "HEADER": "Resumen del equipo",
-    "DESCRIPTION": "Obtén una visión general del rendimiento de tu equipo con métricas esenciales, incluidas conversaciones, tiempos de respuesta, tiempos de resolución y casos resueltos. Haz clic en el nombre de un equipo para obtener más detalles.",
+    "HEADER": "Vista general del equipo",
+    "DESCRIPTION": "Get a snapshot of your team’s performance with essential metrics, including conversations, response times, resolution times, and resolved cases. Click a team name for more details.",
     "LOADING_CHART": "Cargando datos del gráfico...",
     "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
     "DOWNLOAD_TEAM_REPORTS": "Descargar informes del equipo",
@@ -396,19 +399,19 @@
     }
   },
   "CSAT_REPORTS": {
-    "HEADER": "Reporte de CSAT",
-    "NO_RECORDS": "No hay respuestas disponibles de encuestas CSAT.",
+    "HEADER": "Reporte de encuestas de satisfacción",
+    "NO_RECORDS": "No hay respuestas de encuestas de satisfacción disponibles.",
     "DOWNLOAD": "Descargar reportes CSAT",
     "DOWNLOAD_FAILED": "Error al descargar los informes CSAT",
     "FILTERS": {
       "AGENTS": {
-        "PLACEHOLDER": "Elegir miembros"
+        "PLACEHOLDER": "Elegir agentes"
       }
     },
     "TABLE": {
       "HEADER": {
         "CONTACT_NAME": "Contacto",
-        "AGENT_NAME": "Miembro asignado",
+        "AGENT_NAME": "Agente asignado",
         "RATING": "Calificación",
         "FEEDBACK_TEXT": "Realimentacion de Comentario"
       }
@@ -429,7 +432,7 @@
     }
   },
   "BOT_REPORTS": {
-    "HEADER": "Reporte de AI Bots",
+    "HEADER": "Informes de bot",
     "METRIC": {
       "TOTAL_CONVERSATIONS": {
         "LABEL": "Núm. de conversaciones",
@@ -445,7 +448,7 @@
       },
       "HANDOFF_RATE": {
         "LABEL": "Tasa de traspasos",
-        "TOOLTIP": "Número total de conversaciones transmitidas a miembros / Número total de conversaciones manejadas por el bot * 100"
+        "TOOLTIP": "Número total de conversaciones transmitidas a agentes / Número total de conversaciones manejadas por el bot * 100"
       }
     }
   },
@@ -454,9 +457,9 @@
     "LIVE": "En vivo",
     "ACCOUNT_CONVERSATIONS": {
       "HEADER": "Conversaciones abiertas",
-      "LOADING_MESSAGE": "Cargando métricas...",
+      "LOADING_MESSAGE": "Cargando métricas de conversación...",
       "OPEN": "Abrir",
-      "UNATTENDED": "Desatendidos",
+      "UNATTENDED": "Desatendido",
       "UNASSIGNED": "Sin asignar",
       "PENDING": "Pendientes"
     },
@@ -467,31 +470,38 @@
       "CONVERSATIONS": "{count} conversaciones",
       "DOWNLOAD_REPORT": "Descargar reporte"
     },
+    "RESOLUTION_HEATMAP": {
+      "HEADER": "Resolutions",
+      "NO_CONVERSATIONS": "No hay conversaciones",
+      "CONVERSATION": "{count} conversación",
+      "CONVERSATIONS": "{count} conversaciones",
+      "DOWNLOAD_REPORT": "Descargar reporte"
+    },
     "AGENT_CONVERSATIONS": {
-      "HEADER": "Conversaciones por miembro",
-      "LOADING_MESSAGE": "Cargando métricas...",
-      "NO_AGENTS": "No hay conversaciones por miembro",
+      "HEADER": "Conversaciones por agentes",
+      "LOADING_MESSAGE": "Cargando métricas del agente...",
+      "NO_AGENTS": "No hay conversaciones por agentes",
       "TABLE_HEADER": {
-        "AGENT": "Miembro",
+        "AGENT": "Agente",
         "OPEN": "Abrir",
-        "UNATTENDED": "Desatendidos",
+        "UNATTENDED": "Desatendido",
         "STATUS": "Estado"
       }
     },
     "TEAM_CONVERSATIONS": {
-      "ALL_TEAMS": "Todos",
-      "HEADER": "Conversaciones",
-      "LOADING_MESSAGE": "Cargando métricas...",
-      "NO_TEAMS": "No hay datos disponibles",
+      "ALL_TEAMS": "All Teams",
+      "HEADER": "Conversations by teams",
+      "LOADING_MESSAGE": "Loading team metrics...",
+      "NO_TEAMS": "There is no data available",
       "TABLE_HEADER": {
         "TEAM": "Equipo",
         "OPEN": "Abrir",
-        "UNATTENDED": "Desatendidos",
+        "UNATTENDED": "Desatendido",
         "STATUS": "Estado"
       }
     },
     "AGENT_STATUS": {
-      "HEADER": "Estado",
+      "HEADER": "Estado del agente",
       "ONLINE": "En línea",
       "BUSY": "Ocupado",
       "OFFLINE": "Fuera de línea"
@@ -508,7 +518,7 @@
   },
   "SLA_REPORTS": {
     "HEADER": "Informes de SLA",
-    "NO_RECORDS": "No hay conversaciones con SLA disponibles.",
+    "NO_RECORDS": "SLA applied conversations are not available.",
     "LOADING": "Cargando datos de SLA...",
     "DOWNLOAD_SLA_REPORTS": "Descargar reportes de SLA",
     "DOWNLOAD_FAILED": "Error al descargar los informes de SLA",
@@ -521,14 +531,14 @@
       "SEARCH": "Buscar filtro",
       "INPUT_PLACEHOLDER": {
         "SLA": "Nombre de SLA",
-        "AGENTS": "Nombre del miembro",
-        "INBOXES": "Nombre del canal",
+        "AGENTS": "Nombre del agente",
+        "INBOXES": "Nombre de la bandeja de entrada",
         "LABELS": "Nombre de la etiqueta",
         "TEAMS": "Nombre del equipo"
       },
       "SLA": "Política de SLA",
-      "INBOXES": "Canales",
-      "AGENTS": "Miembro",
+      "INBOXES": "Bandeja de entrada",
+      "AGENTS": "Agente",
       "LABELS": "Etiqueta",
       "TEAMS": "Equipo"
     },
@@ -536,35 +546,35 @@
     "METRICS": {
       "HIT_RATE": {
         "LABEL": "Tasa de Aciertos",
-        "TOOLTIP": "Porcentaje de SLAs creadas fueron completadas exitosamente"
+        "TOOLTIP": "Percentage of SLAs created were completed successfully"
       },
       "NO_OF_MISSES": {
         "LABEL": "Número de Fallos",
-        "TOOLTIP": "Total de fallos de SLA en un período determinado"
+        "TOOLTIP": "Total SLA misses in a certain period"
       },
       "NO_OF_CONVERSATIONS": {
         "LABEL": "Número de conversaciones",
-        "TOOLTIP": "Total de conversaciones con SLA"
+        "TOOLTIP": "Total number of conversations with SLA"
       }
     },
     "TABLE": {
       "HEADER": {
         "POLICY": "Política",
         "CONVERSATION": "Conversación",
-        "AGENT": "Miembro"
+        "AGENT": "Agente"
       },
       "VIEW_DETAILS": "Ver detalles"
     }
   },
   "SUMMARY_REPORTS": {
-    "INBOX": "Canales",
-    "AGENT": "Miembro",
+    "INBOX": "Bandeja de entrada",
+    "AGENT": "Agente",
     "TEAM": "Equipo",
     "LABEL": "Etiqueta",
-    "AVG_RESOLUTION_TIME": "Tiempo de resolución",
-    "AVG_FIRST_RESPONSE_TIME": "Tiempo de primera respuesta",
-    "AVG_REPLY_TIME": "Tiempo de espera del cliente",
+    "AVG_RESOLUTION_TIME": "Avg. Resolution Time",
+    "AVG_FIRST_RESPONSE_TIME": "Avg. First Response Time",
+    "AVG_REPLY_TIME": "Avg. Customer Waiting Time",
     "RESOLUTION_COUNT": "Número de resoluciones",
-    "CONVERSATIONS": "Número de conversaciones"
+    "CONVERSATIONS": "Núm. de conversaciones"
   }
 }

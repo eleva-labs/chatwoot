@@ -26,6 +26,7 @@ class Channel::Whatsapp < ApplicationRecord
 
   # default at the moment is 360dialog lets change later.
   PROVIDERS = %w[default whatsapp_cloud whapi].freeze
+  before_validation :ensure_webhook_verify_token
 
   validates :provider, inclusion: { in: PROVIDERS }
   validates :phone_number, presence: true, uniqueness: true
@@ -68,6 +69,10 @@ class Channel::Whatsapp < ApplicationRecord
   end
 
   private
+
+  def ensure_webhook_verify_token
+    provider_config['webhook_verify_token'] ||= SecureRandom.hex(16) if provider == 'whatsapp_cloud'
+  end
 
   def validate_provider_config
     errors.add(:provider_config, 'Invalid Credentials') unless provider_config_object.validate_config?

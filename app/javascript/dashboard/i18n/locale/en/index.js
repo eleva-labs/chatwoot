@@ -26,7 +26,6 @@ import integrations from './integrations.json';
 import labelsMgmt from './labelsMgmt.json';
 import login from './login.json';
 import macros from './macros.json';
-import prompts from './prompts.json';
 import report from './report.json';
 import resetPassword from './resetPassword.json';
 import search from './search.json';
@@ -37,6 +36,7 @@ import sla from './sla.json';
 import teamsSettings from './teamsSettings.json';
 import whatsappTemplates from './whatsappTemplates.json';
 import contentTemplates from './contentTemplates.json';
+import mfa from './mfa.json';
 
 export default {
   ...advancedFilters,
@@ -67,7 +67,6 @@ export default {
   ...labelsMgmt,
   ...login,
   ...macros,
-  ...prompts,
   ...report,
   ...resetPassword,
   ...search,
@@ -78,4 +77,5 @@ export default {
   ...teamsSettings,
   ...whatsappTemplates,
   ...contentTemplates,
+  ...mfa,
 };

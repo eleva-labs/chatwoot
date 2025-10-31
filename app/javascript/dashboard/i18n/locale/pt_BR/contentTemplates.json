@@ -1,13 +1,22 @@
 {
   "CONTENT_TEMPLATES": {
     "MODAL": {
+<<<<<<< HEAD
       "TITLE": "Twilio Templates",
       "SUBTITLE": "Select the Twilio template you want to send",
+=======
+      "TITLE": "Modelos Twilio",
+      "SUBTITLE": "Selecione um modelo Twilio que você deseja enviar",
+>>>>>>> develop
       "TEMPLATE_SELECTED_SUBTITLE": "Configurar modelo: {templateName}"
     },
     "PICKER": {
       "SEARCH_PLACEHOLDER": "Pesquisar modelos",
+<<<<<<< HEAD
       "NO_TEMPLATES_FOUND": "Não há templates encontrados para",
+=======
+      "NO_TEMPLATES_FOUND": "Não há modelos encontrados para",
+>>>>>>> develop
       "NO_CONTENT": "Sem conteúdo",
       "HEADER": "Cabeçalho",
       "BODY": "Corpo",
@@ -16,18 +25,31 @@
       "CATEGORY": "Categoria",
       "MEDIA_CONTENT": "Conteúdo de Mídia",
       "MEDIA_CONTENT_FALLBACK": "conteúdo de mídia",
+<<<<<<< HEAD
       "NO_TEMPLATES_AVAILABLE": "No Twilio templates available. Click refresh to sync templates from Twilio.",
+=======
+      "NO_TEMPLATES_AVAILABLE": "Não há modelos Twilio disponíveis. Clique em Atualizar para sincronizar os modelos do Twilio.",
+>>>>>>> develop
       "REFRESH_BUTTON": "Atualizar modelos",
       "REFRESH_SUCCESS": "Atualização de modelos iniciada. Pode levar alguns minutos para atualizar.",
       "REFRESH_ERROR": "Falha ao atualizar os modelos. Por favor, tente novamente.",
       "LABELS": {
         "LANGUAGE": "Idioma",
+<<<<<<< HEAD
         "TEMPLATE_BODY": "Conteúdo do Template",
         "CATEGORY": "Categoria"
       },
       "TYPES": {
         "MEDIA": "Media",
         "QUICK_REPLY": "Quick Reply",
+=======
+        "TEMPLATE_BODY": "Conteúdo do Modelo",
+        "CATEGORY": "Categoria"
+      },
+      "TYPES": {
+        "MEDIA": "Mídia",
+        "QUICK_REPLY": "Resposta Rápida",
+>>>>>>> develop
         "TEXT": "Texto"
       }
     },
@@ -40,8 +62,13 @@
       "SEND_MESSAGE_LABEL": "Enviar Mensagem",
       "FORM_ERROR_MESSAGE": "Por favor, preencha todas as variáveis antes de enviar",
       "MEDIA_HEADER_LABEL": "Cabeçalho {type}",
+<<<<<<< HEAD
       "MEDIA_URL_LABEL": "Enter full media URL",
       "MEDIA_URL_PLACEHOLDER": "https://example.com/image.jpg"
+=======
+      "MEDIA_URL_LABEL": "Digite a URL completa da mídia",
+      "MEDIA_URL_PLACEHOLDER": "https://exemplo.com.br/imagem.jpg"
+>>>>>>> develop
     },
     "FORM": {
       "BACK_BUTTON": "Anterior",

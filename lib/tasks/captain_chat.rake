@@ -118,7 +118,11 @@ class CaptainChatSession
   end
 
   def show_available_tools
+<<<<<<< HEAD
     available_tools = Captain::Assistant.available_tool_ids
+=======
+    available_tools = @assistant.available_tool_ids
+>>>>>>> develop
     if available_tools.any?
       puts "🔧 Available Tools (#{available_tools.count}): #{available_tools.join(', ')}"
     else

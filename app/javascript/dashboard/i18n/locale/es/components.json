@@ -42,7 +42,7 @@
   },
   "FEATURE_SPOTLIGHT": {
     "LEARN_MORE": "Más información",
-    "WATCH_VIDEO": "Ver video"
+    "WATCH_VIDEO": "Watch video"
   },
   "DURATION_INPUT": {
     "MINUTES": "Minutos",
@@ -52,8 +52,5 @@
   },
   "CHANNEL_SELECTOR": {
     "COMING_SOON": "¡Muy pronto!"
-  },
-  "STEP_CIRCLE_FLOW": {
-    "STEP": "Paso:"
   }
 }

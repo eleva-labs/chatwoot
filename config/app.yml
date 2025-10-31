@@ -1,5 +1,5 @@
 shared: &shared
-  version: '4.5.2'
+  version: '4.7.0'
   custom_version: '0.2.0'
 
 development:

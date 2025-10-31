@@ -7,56 +7,16 @@ describe Webhooks::InstagramEventsJob do
     stub_request(:post, /graph\.facebook\.com/)
     stub_request(:get, 'https://www.example.com/test.jpeg')
       .to_return(status: 200, body: '', headers: {})
-    
-    
-    # Add WebMock stubs for story mention API calls
-    stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/mention-message-id-.*\?.*})
-      .to_return(
-        status: 200,
-        body: {
-          story: {
-            mention: {
-              link: 'https://www.example.com/test.jpeg',
-              id: '17920786367196703'
-            }
-          },
-          from: {
-            username: 'Sender-id-1',
-            id: 'Sender-id-1'
-          },
-          id: 'instagram-message-id-1234'
-        }.to_json,
-        headers: { 'Content-Type' => 'application/json' }
-      )
-    
-    # Add WebMock stubs for Facebook API calls
-    stub_request(:delete, %r{https://graph\.facebook\.com/v3\.2/me/subscribed_apps\?access_token=.*})
-      .to_return(status: 200, body: '', headers: {})
   end
 
   let!(:account) { create(:account) }
 
-  def return_object_for(sender_id, inbox = nil)
+  def return_object_for(sender_id)
     { name: 'Jane',
       id: sender_id,
-      account_id: inbox&.account_id || account.id,
+      account_id: instagram_messenger_inbox.account_id,
       profile_pic: 'https://chatwoot-assets.local/sample.png',
       username: 'some_user_name' }
-  end
-
-  # Combined message events into one helper
-  let(:message_events) do
-    {
-      dm: build(:instagram_message_create_event).with_indifferent_access,
-      standby: build(:instagram_message_standby_event).with_indifferent_access,
-      unsend: build(:instagram_message_unsend_event).with_indifferent_access,
-      image_attachment: build(:instagram_message_image_attachment_event).with_indifferent_access,
-      share_attachment: build(:instagram_message_attachment_event).with_indifferent_access,
-      story_mention: build(:instagram_story_mention_event).with_indifferent_access,
-      story_mention_echo: build(:instagram_story_mention_event_with_echo).with_indifferent_access,
-      messaging_seen: build(:messaging_seen_event).with_indifferent_access,
-      unsupported: build(:instagram_message_unsupported_event).with_indifferent_access
-    }
   end
 
   describe '#perform' do
@@ -77,7 +37,6 @@ describe Webhooks::InstagramEventsJob do
 
         expect(instagram_messenger_inbox.contacts.count).to be 1
         expect(instagram_messenger_inbox.contacts.last.additional_attributes['social_instagram_user_name']).to eq 'some_user_name'
-        expect(instagram_messenger_inbox.contacts.last.identifier).to eq 'some_user_name'
         expect(instagram_messenger_inbox.conversations.count).to be 1
         expect(instagram_messenger_inbox.messages.count).to be 1
         expect(instagram_messenger_inbox.messages.last.content_attributes['is_unsupported']).to be_nil
@@ -95,7 +54,6 @@ describe Webhooks::InstagramEventsJob do
 
         expect(instagram_messenger_inbox.contacts.count).to be 1
         expect(instagram_messenger_inbox.contacts.last.additional_attributes['social_instagram_user_name']).to eq 'some_user_name'
-        expect(instagram_messenger_inbox.contacts.last.identifier).to eq 'some_user_name'
         expect(instagram_messenger_inbox.conversations.count).to be 1
         expect(instagram_messenger_inbox.messages.count).to be 1
 
@@ -130,7 +88,7 @@ describe Webhooks::InstagramEventsJob do
       end
 
       it 'creates incoming message with attachments in the instagram inbox' do
-        attachment_event = build(:instagram_message_image_attachment_event).with_indifferent_access
+        attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
         sender_id = attachment_event[:entry][0][:messaging][0][:sender][:id]
 
         allow(Koala::Facebook::API).to receive(:new).and_return(fb_object)
@@ -142,24 +100,6 @@ describe Webhooks::InstagramEventsJob do
         expect(instagram_messenger_inbox.contacts.count).to be 1
         expect(instagram_messenger_inbox.messages.count).to be 1
         expect(instagram_messenger_inbox.messages.last.attachments.count).to be 1
-      end
-
-      it 'creates incoming message with share attachments in the instagram inbox' do
-        share_attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
-        sender_id = share_attachment_event[:entry][0][:messaging][0][:sender][:id]
-
-        allow(Koala::Facebook::API).to receive(:new).and_return(fb_object)
-        allow(fb_object).to receive(:get_object).and_return(
-          return_object_for(sender_id).with_indifferent_access
-        )
-        instagram_webhook.perform_now(share_attachment_event[:entry])
-
-        instagram_messenger_inbox.reload
-
-        expect(instagram_messenger_inbox.contacts.count).to be 1
-        expect(instagram_messenger_inbox.messages.count).to be 1
-        expect(instagram_messenger_inbox.messages.last.attachments.count).to be 0
-        expect(instagram_messenger_inbox.messages.last.content_attributes['shared_content_url']).to eq('https://www.example.com/test.jpeg')
       end
 
       it 'creates incoming message with attachments in the instagram inbox for story mention' do
@@ -237,7 +177,6 @@ describe Webhooks::InstagramEventsJob do
       before do
         instagram_channel.update(access_token: 'valid_instagram_token')
 
-        # Add WebMock stubs for Instagram Graph API calls in Instagram login context
         stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/Sender-id-.*\?.*})
           .to_return(
             status: 200,
@@ -263,7 +202,6 @@ describe Webhooks::InstagramEventsJob do
         instagram_webhook.perform_now(dm_event[:entry])
         expect(instagram_inbox.contacts.count).to eq 1
         expect(instagram_inbox.contacts.last.additional_attributes['social_instagram_user_name']).to eq 'some_user_name'
-        expect(instagram_inbox.contacts.last.identifier).to eq 'some_user_name'
         expect(instagram_inbox.conversations.count).to eq 1
         expect(instagram_inbox.messages.count).to eq 1
         expect(instagram_inbox.messages.last.content_attributes['is_unsupported']).to be_nil
@@ -280,9 +218,7 @@ describe Webhooks::InstagramEventsJob do
         expect(contact.additional_attributes['social_instagram_is_user_follow_business']).to be true
         expect(contact.additional_attributes['social_instagram_is_business_follow_user']).to be true
         expect(contact.additional_attributes['social_instagram_is_verified_user']).to be false
-        expect(contact.identifier).to eq 'some_user_name'
       end
-
 
       it 'handle instagram unsend message event' do
         unsend_event = build(:instagram_message_unsend_event).with_indifferent_access
@@ -308,23 +244,12 @@ describe Webhooks::InstagramEventsJob do
       end
 
       it 'creates incoming message with attachments in the instagram direct inbox' do
-        attachment_event = build(:instagram_message_image_attachment_event).with_indifferent_access
+        attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
         instagram_webhook.perform_now(attachment_event[:entry])
 
         expect(instagram_inbox.contacts.count).to be 1
         expect(instagram_inbox.messages.count).to be 1
         expect(instagram_inbox.messages.last.attachments.count).to be 1
-      end
-
-      it 'creates incoming message with share attachments in the instagram direct inbox' do
-        instagram_webhook.perform_now(message_events[:share_attachment][:entry])
-
-        instagram_inbox.reload
-
-        expect(instagram_inbox.contacts.count).to be 1
-        expect(instagram_inbox.messages.count).to be 1
-        expect(instagram_inbox.messages.last.attachments.count).to be 0
-        expect(instagram_inbox.messages.last.content_attributes['shared_content_url']).to eq('https://www.example.com/test.jpeg')
       end
 
       it 'handles unsupported message' do

@@ -48,6 +48,18 @@ describe Whatsapp::EmbeddedSignupService do
       allow(channel_creation).to receive(:perform).and_return(channel)
 
       allow(channel).to receive(:setup_webhooks)
+<<<<<<< HEAD
+=======
+      allow(channel).to receive(:phone_number).and_return('+1234567890')
+
+      health_service = instance_double(Whatsapp::HealthService)
+      allow(Whatsapp::HealthService).to receive(:new).and_return(health_service)
+      allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                          platform_type: 'CLOUD_API',
+                                                                          throughput: { 'level' => 'STANDARD' },
+                                                                          messaging_limit_tier: 'TIER_1000'
+                                                                        })
+>>>>>>> develop
     end
 
     it 'creates channel and sets up webhooks' do
@@ -57,6 +69,52 @@ describe Whatsapp::EmbeddedSignupService do
       expect(result).to eq(channel)
     end
 
+<<<<<<< HEAD
+=======
+    it 'checks health status after channel creation' do
+      health_service = instance_double(Whatsapp::HealthService)
+      allow(Whatsapp::HealthService).to receive(:new).and_return(health_service)
+      expect(health_service).to receive(:fetch_health_status)
+
+      service.perform
+    end
+
+    context 'when channel is in pending state' do
+      it 'prompts reauthorization for pending channel' do
+        health_service = instance_double(Whatsapp::HealthService)
+        allow(Whatsapp::HealthService).to receive(:new).and_return(health_service)
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'NOT_APPLICABLE',
+                                                                            throughput: { 'level' => 'STANDARD' },
+                                                                            messaging_limit_tier: 'TIER_1000'
+                                                                          })
+
+        expect(channel).to receive(:prompt_reauthorization!)
+        service.perform
+      end
+
+      it 'prompts reauthorization when throughput level is NOT_APPLICABLE' do
+        health_service = instance_double(Whatsapp::HealthService)
+        allow(Whatsapp::HealthService).to receive(:new).and_return(health_service)
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'CLOUD_API',
+                                                                            throughput: { 'level' => 'NOT_APPLICABLE' },
+                                                                            messaging_limit_tier: 'TIER_1000'
+                                                                          })
+
+        expect(channel).to receive(:prompt_reauthorization!)
+        service.perform
+      end
+    end
+
+    context 'when channel is healthy' do
+      it 'does not prompt reauthorization for healthy channel' do
+        expect(channel).not_to receive(:prompt_reauthorization!)
+        service.perform
+      end
+    end
+
+>>>>>>> develop
     context 'when parameters are invalid' do
       it 'raises ArgumentError for missing parameters' do
         invalid_service = described_class.new(account: account, params: { code: '', business_id: '', waba_id: '' })
@@ -77,7 +135,11 @@ describe Whatsapp::EmbeddedSignupService do
       it 'prompts reauthorization when webhook setup fails' do
         # Create a real channel to test the actual webhook failure behavior
         real_channel = create(:channel_whatsapp, account: account, phone_number: '+1234567890',
+<<<<<<< HEAD
                                                  sync_templates: false, validate_provider_config: false)
+=======
+                                                 validate_provider_config: false, sync_templates: false)
+>>>>>>> develop
 
         # Mock the channel creation to return our real channel
         channel_creation = instance_double(Whatsapp::ChannelCreationService)
@@ -114,6 +176,19 @@ describe Whatsapp::EmbeddedSignupService do
           business_id: params[:business_id]
         ).and_return(reauth_service)
         allow(reauth_service).to receive(:perform).with(access_token, phone_info).and_return(channel)
+<<<<<<< HEAD
+=======
+
+        allow(channel).to receive(:phone_number).and_return('+1234567890')
+
+        health_service = instance_double(Whatsapp::HealthService)
+        allow(Whatsapp::HealthService).to receive(:new).and_return(health_service)
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'CLOUD_API',
+                                                                            throughput: { 'level' => 'STANDARD' },
+                                                                            messaging_limit_tier: 'TIER_1000'
+                                                                          })
+>>>>>>> develop
       end
 
       it 'uses ReauthorizationService and sets up webhooks' do
@@ -124,6 +199,7 @@ describe Whatsapp::EmbeddedSignupService do
         expect(result).to eq(channel)
       end
 
+<<<<<<< HEAD
       it 'clears reauthorization flag' do
         inbox = create(:inbox, account: account)
         whatsapp_channel = create(:channel_whatsapp, account: account, phone_number: '+1234567890',
@@ -154,6 +230,59 @@ describe Whatsapp::EmbeddedSignupService do
         result = service_with_real_inbox.perform
         expect(result).to eq(whatsapp_channel)
         expect(whatsapp_channel.reauthorization_required?).to be false
+=======
+      context 'with real channel requiring reauthorization' do
+        let(:inbox) { create(:inbox, account: account) }
+        let(:whatsapp_channel) do
+          create(:channel_whatsapp, account: account, phone_number: '+1234567890',
+                                    validate_provider_config: false, sync_templates: false)
+        end
+        let(:service_with_real_inbox) { described_class.new(account: account, params: params, inbox_id: inbox.id) }
+
+        before do
+          inbox.update!(channel: whatsapp_channel)
+          whatsapp_channel.prompt_reauthorization!
+
+          setup_reauthorization_mocks
+          setup_health_service_mock
+        end
+
+        it 'clears reauthorization flag when reauthorization completes' do
+          expect(whatsapp_channel.reauthorization_required?).to be true
+          result = service_with_real_inbox.perform
+          expect(result).to eq(whatsapp_channel)
+          expect(whatsapp_channel.reauthorization_required?).to be false
+        end
+
+        private
+
+        def setup_reauthorization_mocks
+          reauth_service = instance_double(Whatsapp::ReauthorizationService)
+          allow(Whatsapp::ReauthorizationService).to receive(:new).with(
+            account: account,
+            inbox_id: inbox.id,
+            phone_number_id: params[:phone_number_id],
+            business_id: params[:business_id]
+          ).and_return(reauth_service)
+
+          allow(reauth_service).to receive(:perform) do
+            whatsapp_channel.reauthorized!
+            whatsapp_channel
+          end
+
+          allow(whatsapp_channel).to receive(:setup_webhooks).and_return(true)
+        end
+
+        def setup_health_service_mock
+          health_service = instance_double(Whatsapp::HealthService)
+          allow(Whatsapp::HealthService).to receive(:new).and_return(health_service)
+          allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                              platform_type: 'CLOUD_API',
+                                                                              throughput: { 'level' => 'STANDARD' },
+                                                                              messaging_limit_tier: 'TIER_1000'
+                                                                            })
+        end
+>>>>>>> develop
       end
     end
   end
