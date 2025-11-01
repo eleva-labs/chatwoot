@@ -88,7 +88,7 @@ describe Webhooks::InstagramEventsJob do
       end
 
       it 'creates incoming message with attachments in the instagram inbox' do
-        attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
+        attachment_event = build(:instagram_message_image_attachment_event).with_indifferent_access
         sender_id = attachment_event[:entry][0][:messaging][0][:sender][:id]
 
         allow(Koala::Facebook::API).to receive(:new).and_return(fb_object)
@@ -244,7 +244,7 @@ describe Webhooks::InstagramEventsJob do
       end
 
       it 'creates incoming message with attachments in the instagram direct inbox' do
-        attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
+        attachment_event = build(:instagram_message_image_attachment_event).with_indifferent_access
         instagram_webhook.perform_now(attachment_event[:entry])
 
         expect(instagram_inbox.contacts.count).to be 1

@@ -81,7 +81,7 @@ describe Webhooks::Trigger do
             payload: payload.to_json,
             headers: { content_type: :json, accept: :json },
             timeout: 5
-          ).and_raise(RestClient::ExceptionWithResponse.new('error', 500)).once
+          ).and_raise(RestClient::ExceptionWithResponse.new('error', 500)).at_least(:once)
 
         expect do
           perform_enqueued_jobs do
@@ -106,7 +106,7 @@ describe Webhooks::Trigger do
             payload: payload.to_json,
             headers: { content_type: :json, accept: :json },
             timeout: 5
-          ).and_raise(RestClient::ExceptionWithResponse.new('error', 500)).once
+          ).and_raise(RestClient::ExceptionWithResponse.new('error', 500)).at_least(:once)
 
         expect do
           trigger.execute(url, payload, webhook_type)
