@@ -53,6 +53,97 @@
 - **Frontend**:
   - Use `components-next/` for message bubbles (the rest is being deprecated)
 
+## Custom Migrations
+
+This fork uses a **dual migration system** to avoid conflicts during upstream Chatwoot syncs.
+
+### Overview
+
+- **Upstream migrations**: `db/migrate/` - **Never modify these**
+- **Custom migrations**: `db/migrate_custom/` - Our business-specific changes
+- Both run automatically when you use `rails db:migrate`
+
+### Directory Structure
+
+```
+db/
+├── migrate/              # Upstream Chatwoot (pristine, never touch)
+├── migrate_custom/       # Our custom migrations (timestamps: 20251104120000_*)
+├── schema.rb            # Upstream tables only
+└── schema_custom.rb     # Custom tables only (both committed to git)
+```
+
+### Creating Custom Migrations
+
+**Step 1:** Generate migration using custom generator
+```bash
+rails generate custom_migration AddMetadataToKnowledgeBases
+# Creates: db/migrate_custom/20251104120000_add_metadata_to_knowledge_bases.rb
+```
+
+**Step 2:** Edit the generated migration file
+```ruby
+class AddMetadataToKnowledgeBases < ActiveRecord::Migration[7.1]
+  def change
+    add_column :knowledge_bases, :metadata, :jsonb, default: {}, if_not_exists: true
+  end
+end
+```
+
+**Step 3:** Run migration
+```bash
+rails db:migrate
+# This automatically runs both upstream and custom migrations
+```
+
+### Common Commands
+
+```bash
+# Generate a new custom migration
+rails generate custom_migration MigrationName
+
+# Run all migrations (upstream + custom)
+rails db:migrate
+
+# Check migration status
+rails db:migrate:status          # Upstream migrations
+rails db:migrate:custom:status   # Custom migrations
+
+# Rollback custom migrations only
+rails db:rollback:custom STEP=1
+
+# Dump schemas (both are auto-dumped)
+rails db:schema:dump
+
+# Fresh database setup
+rails db:setup                   # Loads both schemas automatically
+```
+
+### Important Rules
+
+1. **Never edit files in `db/migrate/`** - These are upstream Chatwoot migrations
+2. **Use `rails generate custom_migration`** to create new custom migrations
+3. **Always run `rails db:migrate`** (not `db:migrate:custom`) for normal workflow
+4. **Both schema files are tracked in git** (`schema.rb` and `schema_custom.rb`)
+5. **Custom migrations run AFTER upstream** - Dependencies are guaranteed
+6. **Use `if_not_exists: true`** option to make migrations idempotent
+
+### Troubleshooting
+
+**Problem:** "Cannot run custom migrations: X upstream migrations pending"
+- **Solution:** Run `rails db:migrate` first (this runs both upstream then custom)
+
+**Problem:** Custom tables missing after `db:setup`
+- **Solution:** Ensure `db/schema_custom.rb` exists and is committed to git
+
+**Problem:** Merge conflict in `db/migrate/` or `db/schema.rb`
+- **Solution:** This shouldn't happen! Custom migrations are separate. If it does, custom files may have been added to wrong directory.
+
+### Full Documentation
+
+For complete documentation including architecture, troubleshooting, and best practices, see:
+**[docs/db/CUSTOM_MIGRATIONS.md](docs/db/CUSTOM_MIGRATIONS.md)**
+
 ## Ruby Best Practices
 
 - Use compact `module/class` definitions; avoid nested styles

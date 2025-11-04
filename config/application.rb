@@ -70,6 +70,14 @@ module Chatwoot
     # Disable PDF/video preview generation as we don't use them
     config.active_storage.previewers = []
 
+    # Exclude custom fork-specific tables from standard schema dump
+    # These tables are documented in db/schema_custom.rb instead
+    ActiveRecord::SchemaDumper.ignore_tables = %w[
+      account_prompts
+      knowledge_bases
+      custom_schema_migrations
+    ]
+
     # Active Record Encryption configuration
     # Required for MFA/2FA features - skip if not using encryption
     if ENV['ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY'].present?

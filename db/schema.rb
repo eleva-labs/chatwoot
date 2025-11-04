@@ -28,16 +28,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.index ["token"], name: "index_access_tokens_on_token", unique: true
   end
 
-  create_table "account_prompts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.bigint "account_id"
-    t.string "prompt_key", null: false
-    t.text "text", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "prompt_key"], name: "index_account_prompts_on_account_id_and_prompt_key", unique: true
-    t.index ["account_id"], name: "index_account_prompts_on_account_id"
-  end
-
   create_table "account_saml_settings", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "sso_url"
@@ -897,16 +887,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.jsonb "settings", default: {}
   end
 
-  create_table "knowledge_bases", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.string "name"
-    t.integer "source_type"
-    t.string "url"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id"], name: "index_knowledge_bases_on_account_id"
-  end
-
   create_table "labels", force: :cascade do |t|
     t.string "title"
     t.text "description"
@@ -1269,11 +1249,9 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.index ["inbox_id"], name: "index_working_hours_on_inbox_id"
   end
 
-  add_foreign_key "account_prompts", "accounts"
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "inboxes", "portals"
-  add_foreign_key "knowledge_bases", "accounts"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).
