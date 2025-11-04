@@ -46,6 +46,7 @@ class Billing::PurchaseConversationPackService
     current_extra = @account.custom_attributes&.dig('extra_conversations_purchased')&.to_i || 0
     attrs = @account.custom_attributes || {}
     attrs['extra_conversations_purchased'] = current_extra + pack_config['conversations']
+    attrs['conversations_last_reset'] = Time.current.to_i # Track when packs were added (prevents immediate reset)
     @account.custom_attributes = attrs
     @account.save!
 

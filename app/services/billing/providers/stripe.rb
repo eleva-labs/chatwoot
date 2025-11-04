@@ -55,7 +55,6 @@ module Billing
         subscription_params = {
           customer: customer_id,
           items: [{ price: plan_id, quantity: 1 }], # Fixed quantity - cost is per plan, not per agent
-          auto_advance: true,
           collection_method: 'charge_automatically',
           payment_behavior: 'default_incomplete', # Stripe recommended - handles 3DS and complex payment flows
           expand: ['latest_invoice.payment_intent'], # Get payment details for status tracking

@@ -31,7 +31,7 @@ plans:
   starter:
     name: "Starter"
     description: "Perfect for growing teams"
-    price_id: "price_1RqHHDLIubTPR6wgjFoVzrfR"
+    price_id: "price_1RdbcC4TqKLiHbZ87crta9vQ"
     feature_tiers:
       - "starter"
     limits: # Base limits included in the plan (before add-ons)

@@ -5,7 +5,7 @@
 module BillingPlans
   extend ActiveSupport::Concern
 
-  class_methods do
+  module ClassMethods
     # Load billing plans configuration from YAML file
     def billing_plans_config
       @billing_plans_config ||= YAML.load_file(Rails.root.join('config/billing_plans.yml'))
@@ -266,5 +266,10 @@ module BillingPlans
       Rails.logger.error "Missing required plan limits for plan: #{plan_name}. Missing: #{missing_limits.join(', ')}. Plan limits: #{plan_limits}"
       raise StandardError, "Plan configuration error: Missing required limits (#{missing_limits.join(', ')}) for plan '#{plan_name}'"
     end
-  end
+  end # module ClassMethods
+
+  # Make ClassMethods available directly on the module (enables BillingPlans.method_name)
+  # This allows calling methods like BillingPlans.plan_details('starter') directly
+  # while still supporting include-based usage (self.class.plan_details when included)
+  extend ClassMethods
 end
