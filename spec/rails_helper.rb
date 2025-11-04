@@ -34,6 +34,8 @@ Dir[Rails.root.join('spec', 'support', '**', '*.rb')].each { |f| require f }
 # If you are not using ActiveRecord, you can remove these lines.
 begin
   ActiveRecord::Migration.maintain_test_schema!
+  # Also maintain custom migrations for test schema
+  CustomMigrationRunner.new.migrate
 rescue ActiveRecord::PendingMigrationError => e
   puts e.to_s.strip
   exit 1
