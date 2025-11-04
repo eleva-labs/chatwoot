@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import BillingCard from './components/BillingCard.vue';
 import BillingHeader from './components/BillingHeader.vue';
 import BillingLimitsCard from './components/BillingLimitsCard.vue';
+import BillingSubscriptionCard from './components/BillingSubscriptionCard.vue';
 import DetailItem from './components/DetailItem.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
@@ -32,10 +33,11 @@ const planName = computed(() => {
   const rawPlanName = customAttributes.value.plan_name;
   if (!rawPlanName) return undefined;
 
-  const translationKey = `BILLING_SETTINGS.PLANS.${rawPlanName}`;
-  const translatedName = t(translationKey);
+  const planTranslationKey = `BILLING_SETTINGS.PLANS.${rawPlanName}`;
+  // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+  const translatedName = t(planTranslationKey);
 
-  return translatedName !== translationKey ? translatedName : rawPlanName;
+  return translatedName !== planTranslationKey ? translatedName : rawPlanName;
 });
 
 const subscriptionRenewsOn = computed(() => {
@@ -59,10 +61,13 @@ const subscriptionStatus = computed(() => {
   const rawStatus = customAttributes.value.subscription_status;
   if (!rawStatus) return '-';
 
-  const translationKey = `BILLING_SETTINGS.SUBSCRIPTION_STATUS.${rawStatus}`;
-  const translatedStatus = t(translationKey);
+  const statusTranslationKey = `BILLING_SETTINGS.SUBSCRIPTION_STATUS.${rawStatus}`;
+  // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+  const translatedStatus = t(statusTranslationKey);
 
-  return translatedStatus !== translationKey ? translatedStatus : rawStatus;
+  return translatedStatus !== statusTranslationKey
+    ? translatedStatus
+    : rawStatus;
 });
 
 /**
@@ -245,6 +250,9 @@ onMounted(() => {
 
         <!-- Usage Limits Card (for users with billing plans) -->
         <BillingLimitsCard v-if="hasABillingPlan" />
+
+        <!-- Subscription Breakdown Card (for users with billing plans) -->
+        <BillingSubscriptionCard v-if="hasABillingPlan" />
 
         <BillingHeader
           class="px-1 mt-5"

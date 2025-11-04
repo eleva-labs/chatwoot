@@ -394,7 +394,36 @@
       "ADD_MORE": "Add",
       "BUY_PACK": "Buy Pack",
       "WARNING": "Warning",
-      "WARNING_MESSAGE": "You're approaching your plan limits. Purchase additional capacity or upgrade to continue."
+      "WARNING_MESSAGE": "You're approaching your plan limits. Purchase additional capacity or upgrade to continue.",
+      "BASE_INCLUDED": "Base included",
+      "EXTRA_PURCHASED": "Extra purchased",
+      "CURRENTLY_USING": "Currently using",
+      "CURRENTLY_USED": "Currently used",
+      "AVAILABLE": "Available",
+      "AT_LIMIT": "At limit! ⚠️",
+      "REMAINING": "remaining",
+      "PLAN_LIMIT": "Plan limit",
+      "MONTH": "month",
+      "PURCHASE_EXTRA_AGENT": "Buy Extra Agent",
+      "PURCHASE_EXTRA_INBOX": "Buy Extra Inbox",
+      "PURCHASE_CONVERSATION_PACK": "Buy 10,000 Conversation Pack",
+      "UPGRADE_TO_PURCHASE": "Upgrade plan to purchase add-ons",
+      "UPGRADE_PLAN": "Upgrade Plan",
+      "USAGE": "Usage",
+      "TRACK_TEAM_MEMBERS": "Track your team member usage",
+      "TRACK_CHANNELS": "Track your channel usage",
+      "TRACK_MONTHLY_CONVERSATIONS": "Track conversations this billing period"
+    },
+    "SUBSCRIPTION": {
+      "TITLE": "Current Subscription & Costs",
+      "DESCRIPTION": "View your monthly subscription breakdown and billing details.",
+      "LOADING": "Loading subscription details...",
+      "NO_ACTIVE_PLAN": "No active subscription plan",
+      "INCLUDES": "Includes",
+      "ADD_ONS_LABEL": "Add-ons",
+      "TOTAL_LABEL": "Total (Next billing)",
+      "NEXT_BILLING": "Next billing date",
+      "TRIAL_ENDS": "Trial ends"
     },
     "SETUP_IN_PROGRESS": {
       "MESSAGE": "Subscription setup in progress..."

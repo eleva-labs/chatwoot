@@ -11,7 +11,7 @@ class Billing::ManageSubscriptionAddOnService
     @account = account
     @add_on_type = add_on_type.to_sym
     @plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
-    @plan_config = plan_details(@plan_name)
+    @plan_config = self.class.plan_details(@plan_name)
 
     raise ArgumentError, "Invalid add-on type: #{add_on_type}. Must be one of: #{ADD_ON_TYPES.join(', ')}" unless ADD_ON_TYPES.include?(@add_on_type)
     raise StandardError, "Add-ons not available for plan: #{@plan_name}" unless add_ons_available?

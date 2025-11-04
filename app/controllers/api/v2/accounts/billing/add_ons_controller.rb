@@ -125,6 +125,24 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
     }, status: :internal_server_error
   end
 
+  # GET /api/v2/accounts/:account_id/billing/add_ons/breakdown
+  # Returns subscription cost breakdown (base plan + add-ons)
+  def breakdown
+    service = Billing::SubscriptionBreakdownService.new(current_account)
+    breakdown_data = service.breakdown
+
+    render json: {
+      success: true,
+      data: breakdown_data
+    }
+  rescue StandardError => e
+    Rails.logger.error "Error fetching subscription breakdown: #{e.message}"
+    render json: {
+      success: false,
+      error: 'Failed to fetch subscription breakdown'
+    }, status: :internal_server_error
+  end
+
   private
 
   def validate_add_on_type

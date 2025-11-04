@@ -241,6 +241,16 @@ export const actions = {
     }
   },
 
+  fetchSubscriptionBreakdown: async () => {
+    try {
+      const response = await BillingAPI.getSubscriptionBreakdown();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
   purchaseAddOn: async (_, { add_on_type, action, quantity = null }) => {
     try {
       const response = await BillingAPI.updateAddOn(

@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue';
 import { useStore } from 'dashboard/composables/store.js';
 import { useI18n } from 'vue-i18n';
 import BillingCard from './BillingCard.vue';
-import BillingMeter from './BillingMeter.vue';
 import ButtonV4 from 'next/button/Button.vue';
 
 const { t } = useI18n();
@@ -18,8 +17,9 @@ const fetchLimits = async () => {
   try {
     isLoading.value = true;
     const response = await store.dispatch('accounts/fetchAddOnLimits');
-    if (response?.data) {
-      limits.value = response.data.limits || {};
+    // Access nested data.data.limits from API response
+    if (response?.data?.data) {
+      limits.value = response.data.data.limits || {};
     }
   } catch (error) {
     // Error handling - silent fail
@@ -31,8 +31,9 @@ const fetchLimits = async () => {
 const fetchAddOns = async () => {
   try {
     const response = await store.dispatch('accounts/fetchAddOns');
-    if (response?.data) {
-      addOns.value = response.data.add_ons || {};
+    // Access nested data.data.add_ons from API response
+    if (response?.data?.data) {
+      addOns.value = response.data.data.add_ons || {};
     }
   } catch (error) {
     // Error handling - silent fail
@@ -90,11 +91,30 @@ const getUsagePercentage = limit => {
   return Math.min(limit.usage_percentage, 100);
 };
 
-const getStatusColor = limit => {
-  const percentage = getUsagePercentage(limit);
-  if (percentage >= 100) return 'red';
-  if (percentage >= 80) return 'orange';
-  return 'green';
+const getProgressBarColor = percentage => {
+  if (percentage >= 90) return 'bg-n-ruby-9';
+  if (percentage >= 70) return 'bg-n-amber-9';
+  return 'bg-n-teal-9';
+};
+
+const getUsageTextColor = percentage => {
+  if (percentage >= 90) return 'text-n-ruby-11';
+  if (percentage >= 70) return 'text-n-amber-11';
+  return 'text-n-teal-11';
+};
+
+// eslint-disable-next-line no-unused-vars
+const getAvailableText = limit => {
+  const available = (limit.total_allowed || 0) - (limit.current || 0);
+  if (available <= 0) {
+    return t('BILLING_SETTINGS.LIMITS.AT_LIMIT');
+  }
+  return `${available} ${t('BILLING_SETTINGS.LIMITS.REMAINING')}`;
+};
+
+const getAvailableWarning = limit => {
+  const available = (limit.total_allowed || 0) - (limit.current || 0);
+  return available <= 0;
 };
 
 onMounted(async () => {
@@ -108,144 +128,421 @@ onMounted(async () => {
     :description="t('BILLING_SETTINGS.LIMITS.DESCRIPTION')"
   >
     <div v-if="isLoading" class="flex items-center justify-center py-8">
-      <span class="text-sm text-n-light">{{
+      <span class="text-sm text-n-slate-11">{{
         t('BILLING_SETTINGS.LIMITS.LOADING')
       }}</span>
     </div>
 
-    <div v-else class="space-y-6">
+    <div v-else class="space-y-8 px-4">
       <!-- Agents Usage -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
+      <div
+        class="rounded-lg border p-4 shadow-sm transition-all duration-200"
+        :class="
+          getUsagePercentage(agentLimit) >= 90
+            ? 'border-n-ruby-7 bg-n-ruby-2'
+            : getUsagePercentage(agentLimit) >= 70
+              ? 'border-n-amber-7 bg-n-amber-2'
+              : 'border-n-weak bg-n-solid-2'
+        "
+      >
+        <!-- Summary Header -->
+        <div class="flex items-start justify-between mb-3">
           <div>
-            <h4 class="text-sm font-medium text-n-dark">
+            <h4 class="text-base font-semibold text-n-slate-12 mb-1">
               {{ t('BILLING_SETTINGS.LIMITS.AGENTS') }}
             </h4>
-            <p class="text-xs text-n-light mt-0.5">
-              {{ agentLimit.current || 0 }} /
-              {{ formatLimit(agentLimit.total_allowed) }}
-              {{ t('BILLING_SETTINGS.LIMITS.USED') }}
-              <span v-if="agentLimit.purchased > 0" class="text-n-medium">
-                ({{ agentLimit.base_limit }}
-                {{ t('BILLING_SETTINGS.LIMITS.BASE') }} +
-                {{ agentLimit.purchased }}
-                {{ t('BILLING_SETTINGS.LIMITS.PURCHASED') }})
+            <p class="text-xs text-n-slate-11">
+              {{ t('BILLING_SETTINGS.LIMITS.TRACK_TEAM_MEMBERS') }}
+            </p>
+          </div>
+          <div
+            class="px-3 py-1.5 rounded-md font-semibold text-sm tabular-nums"
+            :class="
+              getUsagePercentage(agentLimit) >= 90
+                ? 'bg-n-ruby-4 text-n-ruby-11'
+                : getUsagePercentage(agentLimit) >= 70
+                  ? 'bg-n-amber-4 text-n-amber-11'
+                  : 'bg-n-teal-4 text-n-teal-11'
+            "
+          >
+            {{ agentLimit.current || 0 }} /
+            {{ formatLimit(agentLimit.total_allowed) }}
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="text-n-slate-11 font-medium">{{
+              t('BILLING_SETTINGS.LIMITS.USAGE')
+            }}</span>
+            <span
+              class="font-semibold tabular-nums"
+              :class="getUsageTextColor(getUsagePercentage(agentLimit))"
+            >
+              {{ Math.round(getUsagePercentage(agentLimit)) }}%
+            </span>
+          </div>
+          <div class="w-full h-3 bg-n-slate-3 rounded-full overflow-hidden">
+            <div
+              class="h-full transition-all duration-500 ease-out"
+              :class="getProgressBarColor(getUsagePercentage(agentLimit))"
+              :style="{ width: `${getUsagePercentage(agentLimit)}%` }"
+            />
+          </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.BASE_INCLUDED') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ agentLimit.base_limit || 0 }}
+            </p>
+          </div>
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.EXTRA_PURCHASED') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ agentLimit.purchased || 0 }}
+            </p>
+          </div>
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.CURRENTLY_USING') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ agentLimit.current || 0 }}
+            </p>
+          </div>
+          <div
+            class="rounded-md p-3 border"
+            :class="
+              getAvailableWarning(agentLimit)
+                ? 'bg-n-ruby-3 border-n-ruby-7'
+                : 'bg-n-solid-1 border-n-weak'
+            "
+          >
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.AVAILABLE') }}
+            </p>
+            <p
+              class="text-lg font-semibold tabular-nums"
+              :class="
+                getAvailableWarning(agentLimit)
+                  ? 'text-n-ruby-11'
+                  : 'text-n-slate-12'
+              "
+            >
+              {{ (agentLimit.total_allowed || 0) - (agentLimit.current || 0) }}
+              <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
+              <span v-if="getAvailableWarning(agentLimit)" class="text-base">
+                ⚠️
               </span>
             </p>
           </div>
+        </div>
+
+        <!-- Purchase Button -->
+        <div class="flex justify-end pt-2 border-t border-n-weak">
           <ButtonV4
-            v-if="canPurchaseAddOns && agentLimit.approaching_limit"
-            xs
+            sm
             solid
             blue
-            :disabled="isPurchasing"
+            :disabled="isPurchasing || !canPurchaseAddOns"
             @click="purchaseAddOn('agent')"
           >
-            {{ t('BILLING_SETTINGS.LIMITS.ADD_MORE') }}
-            <span v-if="agentAddOn.unit_price_formatted">{{
-              agentAddOn.unit_price_formatted
-            }}</span>
+            <template v-if="canPurchaseAddOns">
+              {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_EXTRA_AGENT') }}
+              <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
+              <span v-if="agentAddOn.unit_price_formatted" class="text-xs">
+                - {{ agentAddOn.unit_price_formatted }}/{{
+                  t('BILLING_SETTINGS.LIMITS.MONTH')
+                }}
+              </span>
+            </template>
+            <template v-else>
+              {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_EXTRA_AGENT') }}
+            </template>
           </ButtonV4>
         </div>
-        <BillingMeter
-          :percentage="getUsagePercentage(agentLimit)"
-          :color="getStatusColor(agentLimit)"
-        />
       </div>
 
       <!-- Inboxes Usage -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
+      <div
+        class="rounded-lg border p-4 shadow-sm transition-all duration-200"
+        :class="
+          getUsagePercentage(inboxLimit) >= 90
+            ? 'border-n-ruby-7 bg-n-ruby-2'
+            : getUsagePercentage(inboxLimit) >= 70
+              ? 'border-n-amber-7 bg-n-amber-2'
+              : 'border-n-weak bg-n-solid-2'
+        "
+      >
+        <!-- Summary Header -->
+        <div class="flex items-start justify-between mb-3">
           <div>
-            <h4 class="text-sm font-medium text-n-dark">
+            <h4 class="text-base font-semibold text-n-slate-12 mb-1">
               {{ t('BILLING_SETTINGS.LIMITS.INBOXES') }}
             </h4>
-            <p class="text-xs text-n-light mt-0.5">
-              {{ inboxLimit.current || 0 }} /
-              {{ formatLimit(inboxLimit.total_allowed) }}
-              {{ t('BILLING_SETTINGS.LIMITS.USED') }}
-              <span v-if="inboxLimit.purchased > 0" class="text-n-medium">
-                ({{ inboxLimit.base_limit }}
-                {{ t('BILLING_SETTINGS.LIMITS.BASE') }} +
-                {{ inboxLimit.purchased }}
-                {{ t('BILLING_SETTINGS.LIMITS.PURCHASED') }})
+            <p class="text-xs text-n-slate-11">
+              {{ t('BILLING_SETTINGS.LIMITS.TRACK_CHANNELS') }}
+            </p>
+          </div>
+          <div
+            class="px-3 py-1.5 rounded-md font-semibold text-sm tabular-nums"
+            :class="
+              getUsagePercentage(inboxLimit) >= 90
+                ? 'bg-n-ruby-4 text-n-ruby-11'
+                : getUsagePercentage(inboxLimit) >= 70
+                  ? 'bg-n-amber-4 text-n-amber-11'
+                  : 'bg-n-teal-4 text-n-teal-11'
+            "
+          >
+            {{ inboxLimit.current || 0 }} /
+            {{ formatLimit(inboxLimit.total_allowed) }}
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="text-n-slate-11 font-medium">{{
+              t('BILLING_SETTINGS.LIMITS.USAGE')
+            }}</span>
+            <span
+              class="font-semibold tabular-nums"
+              :class="getUsageTextColor(getUsagePercentage(inboxLimit))"
+            >
+              {{ Math.round(getUsagePercentage(inboxLimit)) }}%
+            </span>
+          </div>
+          <div class="w-full h-3 bg-n-slate-3 rounded-full overflow-hidden">
+            <div
+              class="h-full transition-all duration-500 ease-out"
+              :class="getProgressBarColor(getUsagePercentage(inboxLimit))"
+              :style="{ width: `${getUsagePercentage(inboxLimit)}%` }"
+            />
+          </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.BASE_INCLUDED') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ inboxLimit.base_limit || 0 }}
+            </p>
+          </div>
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.EXTRA_PURCHASED') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ inboxLimit.purchased || 0 }}
+            </p>
+          </div>
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.CURRENTLY_USING') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ inboxLimit.current || 0 }}
+            </p>
+          </div>
+          <div
+            class="rounded-md p-3 border"
+            :class="
+              getAvailableWarning(inboxLimit)
+                ? 'bg-n-ruby-3 border-n-ruby-7'
+                : 'bg-n-solid-1 border-n-weak'
+            "
+          >
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.AVAILABLE') }}
+            </p>
+            <p
+              class="text-lg font-semibold tabular-nums"
+              :class="
+                getAvailableWarning(inboxLimit)
+                  ? 'text-n-ruby-11'
+                  : 'text-n-slate-12'
+              "
+            >
+              {{ (inboxLimit.total_allowed || 0) - (inboxLimit.current || 0) }}
+              <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
+              <span v-if="getAvailableWarning(inboxLimit)" class="text-base">
+                ⚠️
               </span>
             </p>
           </div>
+        </div>
+
+        <!-- Purchase Button -->
+        <div class="flex justify-end pt-2 border-t border-n-weak">
           <ButtonV4
-            v-if="canPurchaseAddOns && inboxLimit.approaching_limit"
-            xs
+            sm
             solid
             blue
-            :disabled="isPurchasing"
+            :disabled="isPurchasing || !canPurchaseAddOns"
             @click="purchaseAddOn('inbox')"
           >
-            {{ t('BILLING_SETTINGS.LIMITS.ADD_MORE') }}
-            <span v-if="inboxAddOn.unit_price_formatted">{{
-              inboxAddOn.unit_price_formatted
-            }}</span>
+            <template v-if="canPurchaseAddOns">
+              {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_EXTRA_INBOX') }}
+              <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
+              <span v-if="inboxAddOn.unit_price_formatted" class="text-xs">
+                - {{ inboxAddOn.unit_price_formatted }}/{{
+                  t('BILLING_SETTINGS.LIMITS.MONTH')
+                }}
+              </span>
+            </template>
+            <template v-else>
+              {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_EXTRA_INBOX') }}
+            </template>
           </ButtonV4>
         </div>
-        <BillingMeter
-          :percentage="getUsagePercentage(inboxLimit)"
-          :color="getStatusColor(inboxLimit)"
-        />
       </div>
 
       <!-- Conversations Usage -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
+      <div
+        class="rounded-lg border p-4 shadow-sm transition-all duration-200"
+        :class="
+          getUsagePercentage(conversationLimit) >= 90
+            ? 'border-n-ruby-7 bg-n-ruby-2'
+            : getUsagePercentage(conversationLimit) >= 70
+              ? 'border-n-amber-7 bg-n-amber-2'
+              : 'border-n-weak bg-n-solid-2'
+        "
+      >
+        <!-- Summary Header -->
+        <div class="flex items-start justify-between mb-3">
           <div>
-            <h4 class="text-sm font-medium text-n-dark">
+            <h4 class="text-base font-semibold text-n-slate-12 mb-1">
               {{ t('BILLING_SETTINGS.LIMITS.CONVERSATIONS') }}
             </h4>
-            <p class="text-xs text-n-light mt-0.5">
-              {{ conversationLimit.current || 0 }} /
-              {{ formatLimit(conversationLimit.total_allowed) }}
-              {{ t('BILLING_SETTINGS.LIMITS.USED_THIS_PERIOD') }}
-              <span
-                v-if="conversationLimit.purchased > 0"
-                class="text-n-medium"
-              >
-                ({{ conversationLimit.plan_limit }}
-                {{ t('BILLING_SETTINGS.LIMITS.BASE') }} +
-                {{ conversationLimit.purchased }}
-                {{ t('BILLING_SETTINGS.LIMITS.PURCHASED') }})
-              </span>
+            <p class="text-xs text-n-slate-11">
+              {{ t('BILLING_SETTINGS.LIMITS.TRACK_MONTHLY_CONVERSATIONS') }}
             </p>
           </div>
+          <div
+            class="px-3 py-1.5 rounded-md font-semibold text-sm tabular-nums"
+            :class="
+              getUsagePercentage(conversationLimit) >= 90
+                ? 'bg-n-ruby-4 text-n-ruby-11'
+                : getUsagePercentage(conversationLimit) >= 70
+                  ? 'bg-n-amber-4 text-n-amber-11'
+                  : 'bg-n-teal-4 text-n-teal-11'
+            "
+          >
+            {{ conversationLimit.current || 0 }} /
+            {{ formatLimit(conversationLimit.total_allowed) }}
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="text-n-slate-11 font-medium">{{
+              t('BILLING_SETTINGS.LIMITS.USAGE')
+            }}</span>
+            <span
+              class="font-semibold tabular-nums"
+              :class="getUsageTextColor(getUsagePercentage(conversationLimit))"
+            >
+              {{ Math.round(getUsagePercentage(conversationLimit)) }}%
+            </span>
+          </div>
+          <div class="w-full h-3 bg-n-slate-3 rounded-full overflow-hidden">
+            <div
+              class="h-full transition-all duration-500 ease-out"
+              :class="
+                getProgressBarColor(getUsagePercentage(conversationLimit))
+              "
+              :style="{ width: `${getUsagePercentage(conversationLimit)}%` }"
+            />
+          </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.PLAN_LIMIT') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ (conversationLimit.plan_limit || 0).toLocaleString() }}
+            </p>
+          </div>
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.EXTRA_PURCHASED') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ (conversationLimit.purchased || 0).toLocaleString() }}
+            </p>
+          </div>
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.CURRENTLY_USED') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ (conversationLimit.current || 0).toLocaleString() }}
+            </p>
+          </div>
+          <div
+            class="rounded-md p-3 border"
+            :class="
+              getAvailableWarning(conversationLimit)
+                ? 'bg-n-ruby-3 border-n-ruby-7'
+                : 'bg-n-solid-1 border-n-weak'
+            "
+          >
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.REMAINING') }}
+            </p>
+            <p
+              class="text-lg font-semibold tabular-nums"
+              :class="
+                getAvailableWarning(conversationLimit)
+                  ? 'text-n-ruby-11'
+                  : 'text-n-slate-12'
+              "
+            >
+              {{
+                (
+                  (conversationLimit.total_allowed || 0) -
+                  (conversationLimit.current || 0)
+                ).toLocaleString()
+              }}
+              <!-- eslint-disable vue/no-bare-strings-in-template -->
+              <span
+                v-if="getAvailableWarning(conversationLimit)"
+                class="text-base"
+              >
+                ⚠️
+              </span>
+              <!-- eslint-enable vue/no-bare-strings-in-template -->
+            </p>
+          </div>
+        </div>
+
+        <!-- Purchase Button -->
+        <div class="flex justify-end pt-2 border-t border-n-weak">
           <ButtonV4
-            v-if="canPurchaseAddOns && conversationLimit.approaching_limit"
-            xs
+            sm
             solid
             blue
-            :disabled="isPurchasing"
+            :disabled="isPurchasing || !canPurchaseAddOns"
             @click="purchaseConversationPack"
           >
-            {{ t('BILLING_SETTINGS.LIMITS.BUY_PACK') }}
+            {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_CONVERSATION_PACK') }}
           </ButtonV4>
         </div>
-        <BillingMeter
-          :percentage="getUsagePercentage(conversationLimit)"
-          :color="getStatusColor(conversationLimit)"
-        />
-      </div>
-
-      <!-- Warning Message when approaching limits -->
-      <div
-        v-if="
-          agentLimit.approaching_limit ||
-          inboxLimit.approaching_limit ||
-          conversationLimit.approaching_limit
-        "
-        class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg"
-      >
-        <p class="text-xs text-orange-800">
-          <span class="font-medium"
-            >{{ t('BILLING_SETTINGS.LIMITS.WARNING') }}:</span
-          >
-          {{ t('BILLING_SETTINGS.LIMITS.WARNING_MESSAGE') }}
-        </p>
       </div>
     </div>
   </BillingCard>

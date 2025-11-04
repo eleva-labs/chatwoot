@@ -406,6 +406,7 @@ Rails.application.routes.draw do
               get :index, on: :collection
               post :update, on: :collection
               get :limits, on: :collection
+              get :breakdown, on: :collection
             end
             
             resource :conversation_packs, only: [:show] do

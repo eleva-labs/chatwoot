@@ -8,7 +8,7 @@ class Billing::ConversationLimitService
   def initialize(account)
     @account = account
     @plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
-    @plan_config = plan_details(@plan_name)
+    @plan_config = self.class.plan_details(@plan_name)
   end
 
   # Check if a new conversation can be created

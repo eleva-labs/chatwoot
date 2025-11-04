@@ -11,7 +11,7 @@ class Billing::UnifiedLimitService
     @account = account
     @resource_type = resource_type.to_sym
     @plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
-    @plan_config = plan_details(@plan_name)
+    @plan_config = self.class.plan_details(@plan_name)
 
     raise ArgumentError, "Invalid resource type: #{resource_type}. Must be one of: #{RESOURCE_TYPES.join(', ')}" unless RESOURCE_TYPES.include?(@resource_type)
   end

@@ -41,6 +41,11 @@ class BillingAPI extends ApiClient {
     return axios.get(`${this.url}billing/add_ons/limits`);
   }
 
+  // GET /api/v2/accounts/:account_id/billing/add_ons/breakdown
+  getSubscriptionBreakdown() {
+    return axios.get(`${this.url}billing/add_ons/breakdown`);
+  }
+
   // POST /api/v2/accounts/:account_id/billing/add_ons
   updateAddOn(addOnType, action, quantity = null) {
     const payload = {
