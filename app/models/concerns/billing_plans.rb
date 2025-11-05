@@ -80,13 +80,13 @@ module BillingPlans
       dynamic_limits = Billing::Providers::Stripe.get_plan_limits_from_stripe(plan_name)
 
       if dynamic_limits.present?
-        Rails.logger.info "Using dynamic limits: #{dynamic_limits} for plan: #{plan_name}"
+        Rails.logger.info "✅ [BILLING] Using Stripe metadata limits for plan '#{plan_name}': #{dynamic_limits}"
         return dynamic_limits
       end
 
       # Fallback to YAML configuration
       yaml_limits = available_plans.dig(plan_name, 'limits') || {}
-      Rails.logger.info "Using YAML fallback limits: #{yaml_limits} for plan: #{plan_name}"
+      Rails.logger.warn "⚠️  [BILLING] Stripe metadata unavailable for plan '#{plan_name}', using YAML fallback: #{yaml_limits}"
 
       yaml_limits
     end
@@ -97,13 +97,13 @@ module BillingPlans
       dynamic_price_id = Billing::Providers::Stripe.get_price_id_for_plan(plan_name)
 
       if dynamic_price_id.present?
-        Rails.logger.info "Using dynamic price_id: #{dynamic_price_id} for plan: #{plan_name}"
+        Rails.logger.info "✅ [BILLING] Using Stripe metadata price_id for plan '#{plan_name}': #{dynamic_price_id}"
         return dynamic_price_id
       end
 
       # Fallback to YAML configuration
       yaml_price_id = available_plans.dig(plan_name, 'price_id')
-      Rails.logger.info "Using YAML fallback price_id: #{yaml_price_id} for plan: #{plan_name}"
+      Rails.logger.warn "⚠️  [BILLING] Stripe metadata unavailable for plan '#{plan_name}', using YAML fallback price_id: #{yaml_price_id}"
 
       yaml_price_id
     end

@@ -441,6 +441,18 @@
       "DESCRIPTION": "¿Tienes a algún problema en la facturación? Estamos aquí para ayudarte.",
       "BUTTON_TXT": "Chatea con nosotros"
     },
+    "TRAINING": {
+      "TITLE": "Asistencia de Agency Force",
+      "DESCRIPTION": "Obtenga ayuda personalizada para configurar flujos de trabajo, incorporar a su equipo y administrar su espacio de trabajo.",
+      "LOADING": "Cargando servicios de capacitación...",
+      "NO_SERVICES": "No hay servicios de capacitación disponibles para su plan.",
+      "PURCHASE_BUTTON": "Comprar",
+      "ALREADY_PURCHASED": "Ya Comprado",
+      "PURCHASE_SUCCESS": "¡Servicio de capacitación comprado exitosamente!",
+      "PURCHASE_ERROR": "No se pudo comprar el servicio de capacitación. Por favor, inténtelo de nuevo.",
+      "INTERVAL_SEPARATOR": "/",
+      "CHECK_MARK": "✓"
+    },
     "NO_BILLING_USER": "Tu cuenta de facturación está siendo configurada. Por favor, actualiza la página e inténtalo de nuevo.",
     "PLANS": {
       "community": "Comunidad",

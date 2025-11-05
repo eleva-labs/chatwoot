@@ -10,6 +10,7 @@ import BillingCard from './components/BillingCard.vue';
 import BillingHeader from './components/BillingHeader.vue';
 import BillingLimitsCard from './components/BillingLimitsCard.vue';
 import BillingSubscriptionCard from './components/BillingSubscriptionCard.vue';
+import BillingTrainingCard from './components/BillingTrainingCard.vue';
 import DetailItem from './components/DetailItem.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
@@ -163,9 +164,27 @@ const checkForCheckoutSuccess = () => {
   }
 };
 
+/**
+ * Loads the Stripe pricing table script dynamically
+ */
+const loadStripePricingScript = () => {
+  // Check if script is already loaded
+  if (
+    document.querySelector('script[src*="js.stripe.com/v3/pricing-table.js"]')
+  ) {
+    return;
+  }
+
+  const script = document.createElement('script');
+  script.src = 'https://js.stripe.com/v3/pricing-table.js';
+  script.async = true;
+  document.head.appendChild(script);
+};
+
 onMounted(() => {
   fetchAccountDetails();
   checkForCheckoutSuccess();
+  loadStripePricingScript();
 });
 </script>
 
@@ -185,6 +204,14 @@ onMounted(() => {
     </template>
     <template #body>
       <section class="grid gap-4">
+        <!-- Stripe Pricing Table -->
+        <div class="mb-8">
+          <stripe-pricing-table
+            pricing-table-id="prctbl_1SPqgz4TqKLiHbZ86bGxTMiM"
+            publishable-key="pk_test_51RdbZa4TqKLiHbZ8KnKMyQqKmml3ZpNmqskOOXiyO2XVmN6SLhssnr9DJSnbpyjqoGLPzoPfYUoYlXMbHSKtrKcV00Y2qEB4J4"
+          />
+        </div>
+
         <!-- Setup Subscription Card (for users without billing plans) -->
         <BillingCard
           v-if="!hasABillingPlan"
@@ -253,6 +280,9 @@ onMounted(() => {
 
         <!-- Subscription Breakdown Card (for users with billing plans) -->
         <BillingSubscriptionCard v-if="hasABillingPlan" />
+
+        <!-- Training Services Card (for users with billing plans) -->
+        <BillingTrainingCard v-if="hasABillingPlan" />
 
         <BillingHeader
           class="px-1 mt-5"

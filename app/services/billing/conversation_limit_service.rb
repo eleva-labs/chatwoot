@@ -175,7 +175,12 @@ class Billing::ConversationLimitService
   def fetch_price_from_stripe(lookup_key)
     return nil unless lookup_key
 
-    prices = ::Stripe::Price.list(lookup_keys: [lookup_key], limit: 1)
+    # Expand product to fetch metadata (name, description, custom fields)
+    prices = ::Stripe::Price.list(
+      lookup_keys: [lookup_key],
+      limit: 1,
+      expand: ['data.product']
+    )
     prices.data.first
   rescue ::Stripe::StripeError => e
     Rails.logger.error "Error fetching price from Stripe: #{e.message}"

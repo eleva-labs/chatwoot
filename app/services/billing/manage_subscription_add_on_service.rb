@@ -5,7 +5,7 @@
 class Billing::ManageSubscriptionAddOnService
   include BillingPlans
 
-  ADD_ON_TYPES = %i[agent inbox channel].freeze
+  ADD_ON_TYPES = %i[agent inbox channel live_training live_1_1_training].freeze
 
   def initialize(account, add_on_type)
     @account = account
@@ -52,23 +52,86 @@ class Billing::ManageSubscriptionAddOnService
 
     lookup_key = add_on_config['lookup_key']
     price = fetch_price_from_stripe(lookup_key)
+    
+    # Return nil if price not found in Stripe (indicates failure)
+    return nil unless price
 
-    {
+    info = {
       type: @add_on_type,
       lookup_key: lookup_key,
       current_quantity: current_quantity,
-      unit_price_cents: price&.unit_amount,
-      unit_price_formatted: format_price(price&.unit_amount),
-      currency: price&.currency&.upcase,
-      interval: price&.recurring&.interval
+      unit_price_cents: price.unit_amount,
+      unit_price_formatted: format_price(price.unit_amount),
+      currency: price.currency&.upcase,
+      interval: price.recurring&.interval
     }
+
+    # Add product metadata if available (name, description, custom fields)
+    if price&.product.present?
+      product = price.product
+      info.merge!({
+        display_name: product.name,
+        description: product.description,
+        product_metadata: product.metadata.to_h  # Include all custom metadata fields
+      })
+    end
+
+    # Enhanced fields for training add-ons
+    if training_add_on?
+      product = price&.product # Requires expand in fetch_price_from_stripe
+
+      info.merge!({
+        display_name: product&.name || I18n.t("billing.training.#{@add_on_type}.name"),
+        description: product&.description,
+        feature_bullets: extract_feature_bullets(product),
+        max_quantity: add_on_config['max_quantity'] || 1,
+        is_owned: current_quantity >= 1,
+        category: add_on_config['category'] || 'training' # Default to 'training' for training add-ons
+      })
+    end
+
+    info
   end
 
   private
 
+  # Check if the current add-on is a training service
+  def training_add_on?
+    %i[live_training live_1_1_training].include?(@add_on_type)
+  end
+
+  # Extract feature bullets from Stripe product metadata
+  # Iterates through metadata keys bullet_1, bullet_2, etc.
+  # Falls back to i18n if no Stripe metadata found
+  def extract_feature_bullets(product)
+    return [] unless product
+
+    bullets = []
+    # Iterate through all possible bullet keys (1-10) without breaking on gaps
+    # This handles non-sequential metadata keys (e.g., bullet_1, bullet_3 without bullet_2)
+    (1..10).each do |i|
+      bullet_text = product.metadata["bullet_#{i}"]
+      bullets << bullet_text if bullet_text.present?
+    end
+
+    # Fallback to i18n if no Stripe metadata
+    if bullets.empty?
+      bullets = I18n.t("billing.training.#{@add_on_type}.bullets", default: [])
+    end
+
+    bullets
+  end
+
   def update_quantity(new_quantity)
     subscription = fetch_subscription
     return failure_response('No active subscription found') unless subscription
+
+    # Enforce max_quantity for training add-ons
+    if training_add_on?
+      add_on_config = @plan_config.dig('add_ons', @add_on_type.to_s)
+      max_qty = add_on_config['max_quantity'] || 1
+      return failure_response('Cannot add more of this add-on') if new_quantity > max_qty
+    end
 
     item = find_subscription_item(subscription)
 
@@ -143,8 +206,12 @@ class Billing::ManageSubscriptionAddOnService
   def fetch_price_from_stripe(lookup_key)
     return nil unless lookup_key
 
-    # Search for price by lookup_key
-    prices = ::Stripe::Price.list(lookup_keys: [lookup_key], limit: 1)
+    # Search for price by lookup_key and expand product to get metadata
+    prices = ::Stripe::Price.list(
+      lookup_keys: [lookup_key],
+      limit: 1,
+      expand: ['data.product']  # Expand product to fetch metadata (name, description, custom fields)
+    )
     prices.data.first
   rescue ::Stripe::StripeError => e
     Rails.logger.error "Error fetching price from Stripe: #{e.message}"

@@ -11,16 +11,25 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
 
   # GET /api/v2/accounts/:account_id/billing/add_ons
   # Returns current add-on quantities and pricing for all add-on types
+  # Categorizes add-ons into capacity_add_ons and training_services
   def index
-    add_ons = {}
+    capacity_add_ons = {}
+    training_services = {}
 
     Billing::ManageSubscriptionAddOnService::ADD_ON_TYPES.each do |type|
       begin
         service = Billing::ManageSubscriptionAddOnService.new(current_account, type)
-        add_ons[type] = service.add_on_info
+        info = service.add_on_info
+        next unless info
+
+        # Categorize by category field
+        if info[:category] == 'training'
+          training_services[type] = info
+        else
+          capacity_add_ons[type] = info
+        end
       rescue StandardError => e
         Rails.logger.warn "Error fetching #{type} add-on info: #{e.message}"
-        add_ons[type] = nil
       end
     end
 
@@ -29,7 +38,8 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
       data: {
         account_id: current_account.id,
         plan_name: current_account.custom_attributes&.dig('plan_name'),
-        add_ons: add_ons.compact
+        add_ons: capacity_add_ons,
+        training_services: training_services
       }
     }
   rescue StandardError => e

@@ -2,6 +2,32 @@
 # Billing Plans Configuration
 # This file defines the subscription plans available and the features associated with each plan.
 # Features are referenced from config/features.yml
+#
+# ==========================================
+# STRIPE METADATA INTEGRATION (Primary Source)
+# ==========================================
+# Plan limits and configurations are now primarily sourced from Stripe Product metadata.
+# YAML values in this file serve as FALLBACK only (used when Stripe API fails).
+#
+# Stripe Product Metadata Structure (Example for Starter plan - prod_SYj4t0aiVpnsVO):
+#   plan_name: "starter"
+#   agents_limit: "5"
+#   inboxes_limit: "2"
+#   conversations_monthly_limit: "4000"
+#   token_credits: "100"
+#   feature_tiers: "starter"
+#   environment: "production" (optional, defaults to all environments)
+#
+# How it works:
+# 1. System calls Billing::Providers::Stripe.get_plan_limits_from_stripe(plan_name)
+# 2. If Stripe metadata found: Use Stripe values (logged as "✅ Using Stripe metadata")
+# 3. If Stripe fails/missing: Use YAML values (logged as "⚠️  Using YAML fallback")
+#
+# Add-on Products:
+# - Add-on products (agent, inbox, channel) now expand product metadata
+# - Custom metadata fields on add-on products will be available in API responses
+# - Example: Add "display_name", "description", or custom fields to add-on products in Stripe
+# ==========================================
 
 plans:
   community:
@@ -34,6 +60,10 @@ plans:
     price_id: "price_1RdbcC4TqKLiHbZ87crta9vQ"
     feature_tiers:
       - "starter"
+    # IMPORTANT: These limits are FALLBACK values only.
+    # Primary source: Stripe Product metadata (prod_SYj4t0aiVpnsVO for Starter plan)
+    # Expected Stripe metadata keys: agents_limit, inboxes_limit, conversations_monthly_limit, token_credits, feature_tiers, plan_name
+    # System will use YAML limits only if Stripe API fails or metadata is missing.
     limits: # Base limits included in the plan (before add-ons)
       agents: 5
       inboxes: 2
@@ -51,6 +81,27 @@ plans:
         lookup_key: 'extra_channel_starter'
         price_id: null  # Will be fetched from Stripe using lookup_key
         unit_price: null  # Will be fetched from Stripe
+      
+      # Training Services (single-purchase add-ons)
+      live_training:
+        lookup_key: 'live_training_pricing'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+        max_quantity: 1  # Can only purchase once
+        category: 'training'  # Differentiates from capacity add-ons
+        # Product name, price, and bullet descriptions fetched from Stripe product metadata
+        # Expected Stripe product metadata keys: bullet_1, bullet_2, bullet_3, ...
+        # Fallback i18n keys: billing.training.live_training.name, billing.training.live_training.bullets
+      
+      live_1_1_training:
+        lookup_key: 'live_1_1_training_pricing'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+        max_quantity: 1  # Can only purchase once
+        category: 'training'  # Differentiates from capacity add-ons
+        # Expected Stripe product metadata keys: bullet_1, bullet_2, bullet_3, bullet_4
+        # Fallback i18n keys: billing.training.live_1_1_training.name, billing.training.live_1_1_training.bullets
+    
     conversation_packs:
       lookup_key: 'conversation_pack_starter'
       price_id: null  # Will be fetched from Stripe using lookup_key
@@ -64,6 +115,10 @@ plans:
     feature_tiers:
       - "starter"
       - "professional"
+    # IMPORTANT: These limits are FALLBACK values only.
+    # Primary source: Stripe Product metadata
+    # Expected Stripe metadata keys: agents_limit, inboxes_limit, conversations_monthly_limit, token_credits, feature_tiers, plan_name
+    # System will use YAML limits only if Stripe API fails or metadata is missing.
     limits: # Base limits included in the plan (before add-ons)
       agents: 15
       inboxes: 5
@@ -81,6 +136,23 @@ plans:
         lookup_key: 'extra_channel_professional'
         price_id: null  # Will be fetched from Stripe using lookup_key
         unit_price: null  # Will be fetched from Stripe
+      
+      # Training Services (single-purchase add-ons)
+      # Same lookup_keys as starter plan (unified pricing across plans)
+      live_training:
+        lookup_key: 'live_training_pricing'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+        max_quantity: 1  # Can only purchase once
+        category: 'training'  # Differentiates from capacity add-ons
+      
+      live_1_1_training:
+        lookup_key: 'live_1_1_training_pricing'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+        max_quantity: 1  # Can only purchase once
+        category: 'training'  # Differentiates from capacity add-ons
+    
     conversation_packs:
       lookup_key: 'conversation_pack_professional'
       price_id: null  # Will be fetched from Stripe using lookup_key

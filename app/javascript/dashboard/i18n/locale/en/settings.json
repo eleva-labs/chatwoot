@@ -441,6 +441,18 @@
       "DESCRIPTION": "Do you face any issues in billing? We are here to help.",
       "BUTTON_TXT": "Chat with us"
     },
+    "TRAINING": {
+      "TITLE": "Agency Force Assist",
+      "DESCRIPTION": "Get personalized help setting up workflows, onboarding your team and managing your workspace.",
+      "LOADING": "Loading training services...",
+      "NO_SERVICES": "No training services available for your plan.",
+      "PURCHASE_BUTTON": "Purchase",
+      "ALREADY_PURCHASED": "Already Purchased",
+      "PURCHASE_SUCCESS": "Training service purchased successfully!",
+      "PURCHASE_ERROR": "Failed to purchase training service. Please try again.",
+      "INTERVAL_SEPARATOR": "/",
+      "CHECK_MARK": "✓"
+    },
     "NO_BILLING_USER": "Your billing account is being configured. Please refresh the page and try again.",
     "PLANS": {
       "community": "Community",
