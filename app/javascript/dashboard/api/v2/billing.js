@@ -63,9 +63,18 @@ class BillingAPI extends ApiClient {
     return axios.get(`${this.url}billing/conversation_packs`);
   }
 
+  // GET /api/v2/accounts/:account_id/billing/conversation_packs/check_payment_method
+  checkPaymentMethod() {
+    return axios.get(
+      `${this.url}billing/conversation_packs/check_payment_method`
+    );
+  }
+
   // POST /api/v2/accounts/:account_id/billing/conversation_packs/purchase
-  purchaseConversationPack() {
-    return axios.post(`${this.url}billing/conversation_packs/purchase`);
+  purchaseConversationPack(lookupKey) {
+    return axios.post(`${this.url}billing/conversation_packs/purchase`, {
+      lookup_key: lookupKey,
+    });
   }
 
   // GET /api/v2/accounts/:account_id/pricing

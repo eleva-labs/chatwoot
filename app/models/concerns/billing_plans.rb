@@ -266,6 +266,25 @@ module BillingPlans
       Rails.logger.error "Missing required plan limits for plan: #{plan_name}. Missing: #{missing_limits.join(', ')}. Plan limits: #{plan_limits}"
       raise StandardError, "Plan configuration error: Missing required limits (#{missing_limits.join(', ')}) for plan '#{plan_name}'"
     end
+
+    # ==========================================
+    # CONVERSATION PACKS CATALOG METHODS
+    # ==========================================
+
+    # Get the conversation packs catalog (universal, not plan-specific)
+    def conversation_packs_catalog
+      billing_plans_config.dig('conversation_packs', 'available_packs') || []
+    end
+
+    # Get the list of plans eligible for purchasing conversation packs
+    def conversation_pack_eligible_plans
+      billing_plans_config.dig('conversation_packs', 'eligible_plans') || []
+    end
+
+    # Check if a plan can purchase conversation packs
+    def conversation_packs_available_for_plan?(plan_name)
+      conversation_pack_eligible_plans.include?(plan_name.to_s)
+    end
   end # module ClassMethods
 
   # Make ClassMethods available directly on the module (enables BillingPlans.method_name)

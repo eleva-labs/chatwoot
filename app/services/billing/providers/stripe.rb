@@ -356,6 +356,10 @@ module Billing
         subscription_id_for_log = subscription.is_a?(Hash) ? subscription['id'] || subscription_id : subscription.id
         Rails.logger.info "Retrieved subscription: #{subscription_id_for_log}"
 
+        # Set the subscription's payment method as the customer's default for all invoices
+        # This enables one-time purchases (like conversation packs) to use the same payment method
+        set_default_payment_method_for_customer(subscription, stripe_customer_id)
+
         # Update the account with all necessary billing attributes
         update_account_subscription_data(account, subscription, plan_name, stripe_customer_id)
 
@@ -780,6 +784,46 @@ module Billing
         Rails.logger.info "Updated billing status for account #{account.id} to: #{status}"
       rescue StandardError => e
         Rails.logger.error "Failed to update billing status for account #{account.id}: #{e.message}"
+      end
+
+      # Sets the subscription's payment method as the customer's default payment method
+      # This enables one-time purchases (like conversation packs) to use the same payment method
+      # without requiring the user to re-enter payment details or set a default manually
+      def set_default_payment_method_for_customer(subscription, customer_id)
+        Rails.logger.info '---[SET DEFAULT PAYMENT METHOD]---'
+        
+        # Extract payment method from subscription
+        payment_method_id = if subscription.is_a?(Hash)
+                              subscription['default_payment_method']
+                            else
+                              subscription.default_payment_method
+                            end
+
+        unless payment_method_id.present?
+          Rails.logger.warn "No payment method found on subscription, skipping default payment method setup"
+          return
+        end
+
+        Rails.logger.info "Setting payment method #{payment_method_id} as default for customer #{customer_id}"
+
+        # Update customer's invoice_settings.default_payment_method
+        # This is used for all invoices, including one-time purchases
+        ::Stripe::Customer.update(
+          customer_id,
+          invoice_settings: {
+            default_payment_method: payment_method_id
+          }
+        )
+
+        Rails.logger.info "✅ Successfully set payment method #{payment_method_id} as customer default"
+        Rails.logger.info "   Customer #{customer_id} can now make one-time purchases (conversation packs, etc.)"
+      rescue ::Stripe::StripeError => e
+        # Log error but don't fail the webhook - this is a convenience feature
+        # The subscription itself is still valid even if we can't set the default
+        Rails.logger.error "Failed to set default payment method: #{e.message}"
+        Rails.logger.error "   Subscription is still valid, but user may need to add payment method for one-time purchases"
+      rescue StandardError => e
+        Rails.logger.error "Unexpected error setting default payment method: #{e.message}"
       end
 
       # Extract plan limits from subscription metadata

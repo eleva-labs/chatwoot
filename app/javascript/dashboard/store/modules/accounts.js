@@ -268,6 +268,16 @@ export const actions = {
     }
   },
 
+  checkPaymentMethod: async () => {
+    try {
+      const response = await BillingAPI.checkPaymentMethod();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
   fetchConversationPacks: async () => {
     try {
       const response = await BillingAPI.getConversationPacks();
@@ -278,9 +288,9 @@ export const actions = {
     }
   },
 
-  purchaseConversationPack: async () => {
+  purchaseConversationPack: async (_context, { lookup_key }) => {
     try {
-      const response = await BillingAPI.purchaseConversationPack();
+      const response = await BillingAPI.purchaseConversationPack(lookup_key);
       if (response.data.success) {
         return response;
       }

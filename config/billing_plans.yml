@@ -101,12 +101,6 @@ plans:
         category: 'training'  # Differentiates from capacity add-ons
         # Expected Stripe product metadata keys: bullet_1, bullet_2, bullet_3, bullet_4
         # Fallback i18n keys: billing.training.live_1_1_training.name, billing.training.live_1_1_training.bullets
-    
-    conversation_packs:
-      lookup_key: 'conversation_pack_starter'
-      price_id: null  # Will be fetched from Stripe using lookup_key
-      conversations: 10000  # Number of conversations in pack
-      unit_price: null  # Will be fetched from Stripe
 
   professional:
     name: "Professional"
@@ -152,12 +146,6 @@ plans:
         unit_price: null  # Will be fetched from Stripe
         max_quantity: 1  # Can only purchase once
         category: 'training'  # Differentiates from capacity add-ons
-    
-    conversation_packs:
-      lookup_key: 'conversation_pack_professional'
-      price_id: null  # Will be fetched from Stripe using lookup_key
-      conversations: 25000  # Number of conversations in pack
-      unit_price: null  # Will be fetched from Stripe
 
   enterprise:
     name: "Enterprise"
@@ -172,6 +160,38 @@ plans:
       inboxes: -1  # Unlimited
       conversations_monthly: -1  # Unlimited
     # No add-ons needed - enterprise has unlimited everything
+
+# ==========================================
+# CONVERSATION PACKS (Universal Catalog)
+# ==========================================
+# Available to all eligible paid plans (not plan-specific)
+# Frontend displays these options in a selection modal
+conversation_packs:
+  available_packs:
+    - size: 100
+      lookup_key: 'extra_100_conversation_pack'
+      price_id: null  # Fetched from Stripe
+      display_name: 'Extra 100 Conversations'
+      product_id: 'prod_TN3bW94wWyWhU1'
+    
+    - size: 500
+      lookup_key: 'extra_500_conversation_pack'
+      price_id: null
+      display_name: 'Extra 500 Conversations'
+      product_id: 'prod_TN4CdBajG2M0p4'
+    
+    - size: 1000
+      lookup_key: 'extra_1000_conversation_pack'
+      price_id: null
+      display_name: 'Extra 1,000 Conversations'
+      product_id: 'prod_TMKWwjrNBpVOpT'
+  
+  # Plans that can purchase conversation packs
+  # Note: Free Trial cannot purchase ANY add-ons
+  # Note: Enterprise has unlimited, doesn't need packs
+  eligible_plans:
+    - 'starter'
+    - 'professional'
 
 # Default plan for new accounts
 default_plan: "free_trial" 

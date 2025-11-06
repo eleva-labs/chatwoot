@@ -409,8 +409,12 @@ Rails.application.routes.draw do
               get :breakdown, on: :collection
             end
             
-            resource :conversation_packs, only: [:show] do
-              post :purchase, on: :member
+            resources :conversation_packs, only: [] do
+              collection do
+                get '/', action: :index  # List available packs
+                get '/check_payment_method', action: :check_payment_method  # Check if payment method exists
+                post '/purchase', action: :purchase  # Purchase selected pack
+              end
             end
           end
           

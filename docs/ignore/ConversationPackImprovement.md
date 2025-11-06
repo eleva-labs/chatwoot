@@ -1329,6 +1329,5 @@ When users see "No payment method on file" error, they:
 - User can fix payment method via billing portal
 - Retry purchase
 
-**Note:** For future enhancement, Stripe Payment Links could be added as an alternative, but for MVP, direct charging is simpler and faster.
 
 ---

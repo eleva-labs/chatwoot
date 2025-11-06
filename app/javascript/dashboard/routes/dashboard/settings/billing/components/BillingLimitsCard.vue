@@ -6,15 +6,18 @@ import { useAlert } from 'dashboard/composables';
 import BillingCard from './BillingCard.vue';
 import ButtonV4 from 'next/button/Button.vue';
 import ConfirmationModal from 'dashboard/components/widgets/modal/ConfirmationModal.vue';
+import ConversationPackModal from './ConversationPackModal.vue';
 
 const { t } = useI18n();
 const store = useStore();
 
 const limits = ref({});
 const addOns = ref({});
+const conversationPacks = ref([]);
 const isLoading = ref(true);
 const isPurchasing = ref(false);
 const confirmationModal = ref(null);
+const conversationPackModal = ref(null);
 const pendingPurchase = ref({ type: null, name: null, price: null });
 
 const fetchLimits = async () => {
@@ -41,6 +44,18 @@ const fetchAddOns = async () => {
     }
   } catch (error) {
     // Error handling - silent fail
+  }
+};
+
+const fetchConversationPacks = async () => {
+  try {
+    const response = await store.dispatch('accounts/fetchConversationPacks');
+    if (response?.data?.data?.packs) {
+      conversationPacks.value = response.data.data.packs;
+    }
+  } catch (error) {
+    // Silent fail - packs won't be available
+    conversationPacks.value = [];
   }
 };
 
@@ -103,10 +118,15 @@ const confirmPurchase = async addOnType => {
   }
 };
 
-const purchaseConversationPack = async () => {
+const purchaseConversationPack = async lookupKey => {
   try {
     isPurchasing.value = true;
-    await store.dispatch('accounts/purchaseConversationPack');
+    await store.dispatch('accounts/purchaseConversationPack', {
+      lookup_key: lookupKey,
+    });
+
+    // Close modal
+    conversationPackModal.value?.closeModal();
 
     // Refresh limits after purchase
     await fetchLimits();
@@ -130,19 +150,26 @@ const purchaseConversationPack = async () => {
 };
 
 const confirmPurchaseConversationPack = async () => {
-  // Set pending purchase details
-  pendingPurchase.value = {
-    type: 'conversation_pack',
-    name: t('BILLING_SETTINGS.LIMITS.CONVERSATION_PACK'),
-    price: '', // Will be shown in modal if available
-  };
+  // Layer 2: Proactive check for payment method BEFORE opening modal
+  try {
+    const response = await store.dispatch('accounts/checkPaymentMethod');
 
-  // Show confirmation modal
-  const confirmed = await confirmationModal.value.showConfirmation();
-
-  if (confirmed) {
-    await purchaseConversationPack();
+    if (!response?.data?.has_payment_method) {
+      // No payment method found - show error and don't open modal
+      useAlert(t('BILLING_SETTINGS.LIMITS.ADD_PAYMENT_METHOD_FIRST'), {
+        duration: 7000,
+      });
+      return; // Stop here - don't open modal
+    }
+  } catch (error) {
+    // If the check itself fails, continue anyway
+    // (Fail open, not closed - don't unnecessarily block users)
+    // Continue to open modal - backend will catch issues
   }
+
+  // Payment method exists (or check failed but we're being permissive)
+  // Proceed to show the conversation pack selection modal
+  conversationPackModal.value.showModal();
 };
 
 const agentLimit = computed(() => limits.value.agent || {});
@@ -194,7 +221,7 @@ const getAvailableWarning = limit => {
 };
 
 onMounted(async () => {
-  await Promise.all([fetchLimits(), fetchAddOns()]);
+  await Promise.all([fetchLimits(), fetchAddOns(), fetchConversationPacks()]);
 });
 </script>
 
@@ -618,7 +645,7 @@ onMounted(async () => {
             :disabled="isPurchasing || !canPurchaseAddOns"
             @click="confirmPurchaseConversationPack"
           >
-            {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_CONVERSATION_PACK') }}
+            {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_CONVERSATION_PACKS') }}
           </ButtonV4>
         </div>
       </div>
@@ -637,5 +664,13 @@ onMounted(async () => {
     "
     :confirm-label="t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_BUTTON')"
     :cancel-label="t('BILLING_SETTINGS.LIMITS.CANCEL_PURCHASE_BUTTON')"
+  />
+
+  <!-- Conversation Pack Selection Modal -->
+  <ConversationPackModal
+    ref="conversationPackModal"
+    :packs="conversationPacks"
+    :is-purchasing="isPurchasing"
+    @purchase="purchaseConversationPack"
   />
 </template>
