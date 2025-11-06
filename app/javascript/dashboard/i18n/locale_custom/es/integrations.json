@@ -347,8 +347,8 @@
     "COPILOT": {
       "TITLE": "Copilot",
       "TRY_THESE_PROMPTS": "Prueba estas sugerencias",
-      "PANEL_TITLE": "Get started with Copilot",
-      "KICK_OFF_MESSAGE": "Need a quick summary, want to check past conversations, or draft a better reply? Copilot’s here to speed things up.",
+      "PANEL_TITLE": "Comience con Copilot",
+      "KICK_OFF_MESSAGE": "¿Necesita un resumen rápido, quiere revisar conversaciones pasadas o redactar una mejor respuesta? Copilot está aquí para acelerar las cosas.",
       "SEND_MESSAGE": "Enviar mensaje...",
       "EMPTY_MESSAGE": "There was an error generating the response. Please try again.",
       "LOADER": "Captain is thinking",
@@ -413,7 +413,7 @@
       "NO_ASSISTANTS_AVAILABLE": "There are no assistants available in your account.",
       "ADD_NEW": "Create a new assistant",
       "DELETE": {
-        "TITLE": "Are you sure to delete the assistant?",
+        "TITLE": "¿Está seguro de eliminar el asistente?",
         "DESCRIPTION": "This action is permanent. Deleting this assistant will remove it from all connected inboxes and permanently erase all generated knowledge.",
         "CONFIRM": "Sí, eliminar",
         "SUCCESS_MESSAGE": "The assistant has been successfully deleted",
@@ -495,7 +495,7 @@
           "DESCRIPTION": ""
         },
         "CONTROL_ITEMS": {
-          "TITLE": "The Fun Stuff",
+          "TITLE": "Lo Divertido",
           "DESCRIPTION": "Add more control to the assistant. (a bit more visual like a story : Query guardrail → scenarios → output) Nudges user to actually utilise these.",
           "OPTIONS": {
             "GUARDRAILS": {
@@ -733,7 +733,7 @@
         }
       },
       "DELETE": {
-        "TITLE": "Are you sure to delete the document?",
+        "TITLE": "¿Está seguro de eliminar el documento?",
         "DESCRIPTION": "This action is permanent. Deleting this document will permanently erase all generated knowledge.",
         "CONFIRM": "Sí, eliminar",
         "SUCCESS_MESSAGE": "The document has been successfully deleted",

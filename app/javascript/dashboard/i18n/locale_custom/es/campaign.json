@@ -172,13 +172,13 @@
           "TEMPLATE": {
             "LABEL": "WhatsApp Template",
             "PLACEHOLDER": "Select a template",
-            "INFO": "Select a template to use for this campaign.",
+            "INFO": "Seleccione una plantilla para usar en esta campaña.",
             "ERROR": "Template is required",
             "PREVIEW_TITLE": "Procesar {templateName}",
             "LANGUAGE": "Idioma",
             "CATEGORY": "Categoría",
             "VARIABLES_LABEL": "Variables",
-            "VARIABLE_PLACEHOLDER": "Enter value for {variable}"
+            "VARIABLE_PLACEHOLDER": "Ingrese el valor para {variable}"
           },
           "AUDIENCE": {
             "LABEL": "Audiencia",

@@ -2,7 +2,7 @@
   "HELP_CENTER": {
     "TITLE": "Centro de ayuda",
     "NEW_PAGE": {
-      "DESCRIPTION": "Create self-service help center portals for your customers. Help them find answers quickly, without waiting. Streamline inquiries, boost miembro efficiency, and elevate customer support.",
+      "DESCRIPTION": "Cree portales de centro de ayuda de autoservicio para sus clientes. Ayúdeles a encontrar respuestas rápidamente, sin esperar. Optimice las consultas, mejore la eficiencia de los miembros y eleve el soporte al cliente.",
       "CREATE_PORTAL_BUTTON": "Crear Portal"
     },
     "HEADER": {
@@ -684,26 +684,26 @@
     "PORTAL_SWITCHER": {
       "NEW_PORTAL": "New portal",
       "PORTALS": "Portales",
-      "CREATE_PORTAL": "Create and manage multiple portals",
+      "CREATE_PORTAL": "Crear y administrar múltiples portales",
       "ARTICLES": "artículos",
       "DOMAIN": "dominio",
       "PORTAL_NAME": "Nombre del portal"
     },
     "CREATE_PORTAL_DIALOG": {
       "TITLE": "Create new portal",
-      "DESCRIPTION": "Give your portal a name and create a user-friendly URL slug. You can modify both later in the settings.",
+      "DESCRIPTION": "Dele un nombre a su portal y cree una URL amigable. Puede modificar ambos más tarde en la configuración.",
       "CONFIRM_BUTTON_LABEL": "Crear",
       "NAME": {
         "LABEL": "Nombre",
         "PLACEHOLDER": "User Guide | Chatwoot",
-        "MESSAGE": "Choose an name for your portal.",
+        "MESSAGE": "Elija un nombre para su portal.",
         "ERROR": "El nombre es requerido"
       },
       "SLUG": {
         "LABEL": "Slug",
         "PLACEHOLDER": "user-guide",
         "ERROR": "Slug es requerido",
-        "FORMAT_ERROR": "Please enter a valid slug, for eg: user-guide"
+        "FORMAT_ERROR": "Por favor ingrese un slug válido, por ej: guia-usuario"
       }
     },
     "PORTAL_SETTINGS": {
@@ -711,7 +711,7 @@
         "AVATAR": {
           "LABEL": "Logo",
           "IMAGE_UPLOAD_ERROR": "¡No se pudo subir la imagen! Intente nuevamente",
-          "IMAGE_UPLOAD_SUCCESS": "Image added successfully. Please click on save changes to save the logo",
+          "IMAGE_UPLOAD_SUCCESS": "Imagen agregada exitosamente. Por favor haga clic en guardar cambios para guardar el logo",
           "IMAGE_DELETE_SUCCESS": "Logo eliminado correctamente",
           "IMAGE_DELETE_ERROR": "Unable to delete logo",
           "IMAGE_UPLOAD_SIZE_ERROR": "El tamaño de la imagen debe ser menor que {size}MB"
@@ -732,7 +732,7 @@
         "HOME_PAGE_LINK": {
           "LABEL": "Home page link",
           "PLACEHOLDER": "Enlace de página de inicio del portal",
-          "ERROR": "Enter a valid URL. The Home page link must start with 'http://' or 'https://'."
+          "ERROR": "Ingrese una URL válida. El enlace de la página de inicio debe comenzar con 'http://' o 'https://'."
         },
         "SLUG": {
           "LABEL": "Slug",
@@ -741,7 +741,7 @@
         "LIVE_CHAT_WIDGET": {
           "LABEL": "Live chat widget",
           "PLACEHOLDER": "Select live chat widget",
-          "HELP_TEXT": "Select a live chat widget that will appear on your help center",
+          "HELP_TEXT": "Seleccione un widget de chat en vivo que aparecerá en su centro de ayuda",
           "NONE_OPTION": "No widget"
         },
         "BRAND_COLOR": {
@@ -753,8 +753,8 @@
         "CUSTOM_DOMAIN": {
           "HEADER": "Dominio personalizado",
           "LABEL": "Dominio personalizado:",
-          "DESCRIPTION": "You can host your portal on a custom domain. For instance, if your website is yourdomain.com and you want your portal available at docs.yourdomain.com, simply enter that in this field.",
-          "STATUS_DESCRIPTION": "Your custom portal will start working as soon as it is verified.",
+          "DESCRIPTION": "Puede alojar su portal en un dominio personalizado. Por ejemplo, si su sitio web es sudominio.com y desea que su portal esté disponible en docs.sudominio.com, simplemente ingrese eso en este campo.",
+          "STATUS_DESCRIPTION": "Su portal personalizado comenzará a funcionar tan pronto como sea verificado.",
           "PLACEHOLDER": "Dominio personalizado del portal",
           "EDIT_BUTTON": "Editar",
           "ADD_BUTTON": "Add custom domain",
@@ -775,12 +775,12 @@
           },
           "DNS_CONFIGURATION_DIALOG": {
             "HEADER": "DNS configuration",
-            "DESCRIPTION": "Log in to the account you have with your DNS provider, and add a CNAME record for subdomain pointing to chatwoot.help",
+            "DESCRIPTION": "Inicie sesión en la cuenta que tiene con su proveedor de DNS y agregue un registro CNAME para el subdominio que apunte a chatwoot.help",
             "COPY": "Successfully copied CNAME",
             "SEND_INSTRUCTIONS": {
               "HEADER": "Send instructions",
-              "DESCRIPTION": "If you would prefer to have someone from your development team to handle this step, you can enter email address below, and we will send them the required instructions.",
-              "PLACEHOLDER": "Enter their email",
+              "DESCRIPTION": "Si prefiere que alguien de su equipo de desarrollo maneje este paso, puede ingresar la dirección de correo electrónico a continuación y les enviaremos las instrucciones requeridas.",
+              "PLACEHOLDER": "Ingrese su correo electrónico",
               "ERROR": "Enter a valid email address",
               "SEND_BUTTON": "Enviar"
             }
@@ -789,10 +789,10 @@
         "DELETE_PORTAL": {
           "BUTTON": "Delete {portalName}",
           "HEADER": "Eliminar portal",
-          "DESCRIPTION": "Permanently delete this portal. This action is irreversible",
+          "DESCRIPTION": "Eliminar permanentemente este portal. Esta acción es irreversible",
           "DIALOG": {
             "HEADER": "Sure you want to delete {portalName}?",
-            "DESCRIPTION": "This is a permanent action that cannot be reversed.",
+            "DESCRIPTION": "Esta es una acción permanente que no se puede revertir.",
             "CONFIRM_BUTTON_LABEL": "Eliminar"
           }
         },
@@ -812,10 +812,10 @@
     "PDF_UPLOAD": {
       "TITLE": "Upload PDF Document",
       "DESCRIPTION": "Upload a PDF document to automatically generate FAQs using AI",
-      "DRAG_DROP_TEXT": "Drag and drop your PDF file here, or click to select",
+      "DRAG_DROP_TEXT": "Arrastre y suelte su archivo PDF aquí, o haga clic para seleccionar",
       "SELECT_FILE": "Select PDF File",
       "ADDITIONAL_CONTEXT_LABEL": "Additional Context (Optional)",
-      "ADDITIONAL_CONTEXT_PLACEHOLDER": "Provide any additional context or instructions for FAQ generation...",
+      "ADDITIONAL_CONTEXT_PLACEHOLDER": "Proporcione cualquier contexto o instrucción adicional para la generación de preguntas frecuentes...",
       "UPLOADING": "Subiendo...",
       "UPLOAD": "Upload & Process",
       "CANCEL": "Cancelar",
@@ -825,9 +825,9 @@
     },
     "PDF_DOCUMENTS": {
       "TITLE": "PDF Documents",
-      "DESCRIPTION": "Manage uploaded PDF documents and generate FAQs from them",
+      "DESCRIPTION": "Administrar documentos PDF cargados y generar preguntas frecuentes desde ellos",
       "UPLOAD_PDF": "Upload PDF",
-      "UPLOAD_FIRST_PDF": "Upload your first PDF",
+      "UPLOAD_FIRST_PDF": "Cargue su primer PDF",
       "UPLOADED_BY": "Uploaded by",
       "GENERATE_FAQS": "Generate FAQs",
       "GENERATING": "Generando...",
@@ -847,7 +847,7 @@
       "TITLE": "Content Generation",
       "DESCRIPTION": "Upload PDF documents to automatically generate FAQ content using AI",
       "UPLOAD_TITLE": "Upload PDF Document",
-      "DRAG_DROP": "Drag and drop your PDF file here, or click to select",
+      "DRAG_DROP": "Arrastre y suelte su archivo PDF aquí, o haga clic para seleccionar",
       "SELECT_FILE": "Select PDF File",
       "UPLOADING": "Processing document...",
       "UPLOAD_SUCCESS": "Document processed successfully!",
