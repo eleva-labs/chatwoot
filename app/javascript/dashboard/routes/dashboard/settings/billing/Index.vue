@@ -11,6 +11,7 @@ import BillingHeader from './components/BillingHeader.vue';
 import BillingLimitsCard from './components/BillingLimitsCard.vue';
 import BillingSubscriptionCard from './components/BillingSubscriptionCard.vue';
 import BillingTrainingCard from './components/BillingTrainingCard.vue';
+import PricingTable from './components/PricingTable.vue';
 import DetailItem from './components/DetailItem.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
@@ -164,27 +165,9 @@ const checkForCheckoutSuccess = () => {
   }
 };
 
-/**
- * Loads the Stripe pricing table script dynamically
- */
-const loadStripePricingScript = () => {
-  // Check if script is already loaded
-  if (
-    document.querySelector('script[src*="js.stripe.com/v3/pricing-table.js"]')
-  ) {
-    return;
-  }
-
-  const script = document.createElement('script');
-  script.src = 'https://js.stripe.com/v3/pricing-table.js';
-  script.async = true;
-  document.head.appendChild(script);
-};
-
 onMounted(() => {
   fetchAccountDetails();
   checkForCheckoutSuccess();
-  loadStripePricingScript();
 });
 </script>
 
@@ -204,11 +187,12 @@ onMounted(() => {
     </template>
     <template #body>
       <section class="grid gap-4">
-        <!-- Stripe Pricing Table -->
+        <!-- Custom Pricing Table -->
         <div class="mb-8">
-          <stripe-pricing-table
-            pricing-table-id="prctbl_1SPqgz4TqKLiHbZ86bGxTMiM"
-            publishable-key="pk_test_51RdbZa4TqKLiHbZ8KnKMyQqKmml3ZpNmqskOOXiyO2XVmN6SLhssnr9DJSnbpyjqoGLPzoPfYUoYlXMbHSKtrKcV00Y2qEB4J4"
+          <PricingTable
+            :current-plan-name="customAttributes.plan_name"
+            :subscription-status="customAttributes.subscription_status"
+            :has-stripe-customer="hasStripeCustomer"
           />
         </div>
 

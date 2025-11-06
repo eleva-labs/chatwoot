@@ -132,6 +132,10 @@ class Billing::SubscriptionBreakdownService
       'inbox'
     when /channel/
       'channel'
+    when /live_1_1_training/
+      'live_1_1_training'
+    when /live_training/
+      'live_training'
     else
       nil
     end
@@ -145,6 +149,10 @@ class Billing::SubscriptionBreakdownService
       'Extra Inboxes'
     when 'channel'
       'Extra Channels'
+    when 'live_training'
+      'Live Training'
+    when 'live_1_1_training'
+      'Live 1:1 Training with an Expert'
     else
       type.titleize
     end

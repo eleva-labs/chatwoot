@@ -21,19 +21,21 @@ begin
   
   # Get all add-ons (both capacity and training)
   Billing::ManageSubscriptionAddOnService::ADD_ON_TYPES.each do |type|
-    service = Billing::ManageSubscriptionAddOnService.new(
-      account: account,
-      add_on_type: type
-    )
-    
-    info = service.add_on_info
-    next unless info
-    
-    # Categorize by category field
-    if info[:category] == 'training'
-      result[:training_services][type] = info
-    else
-      result[:capacity_add_ons][type] = info
+    begin
+      service = Billing::ManageSubscriptionAddOnService.new(account, type)
+      
+      info = service.add_on_info
+      next unless info
+      
+      # Categorize by category field
+      if info[:category] == 'training'
+        result[:training_services][type] = info
+      else
+        result[:capacity_add_ons][type] = info
+      end
+    rescue StandardError => e
+      puts "\n⚠️  Skipping #{type}: #{e.message}"
+      next
     end
   end
   

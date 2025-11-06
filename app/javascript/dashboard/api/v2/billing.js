@@ -67,6 +67,11 @@ class BillingAPI extends ApiClient {
   purchaseConversationPack() {
     return axios.post(`${this.url}billing/conversation_packs/purchase`);
   }
+
+  // GET /api/v2/accounts/:account_id/pricing
+  getPricingTable() {
+    return axios.get(`${this.url}pricing`);
+  }
 }
 
 export default new BillingAPI();

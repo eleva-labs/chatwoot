@@ -2,8 +2,10 @@
 import { computed, onMounted, ref } from 'vue';
 import { useStore } from 'dashboard/composables/store.js';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import BillingCard from './BillingCard.vue';
 import ButtonV4 from 'next/button/Button.vue';
+import ConfirmationModal from 'dashboard/components/widgets/modal/ConfirmationModal.vue';
 
 const { t } = useI18n();
 const store = useStore();
@@ -12,6 +14,8 @@ const limits = ref({});
 const addOns = ref({});
 const isLoading = ref(true);
 const isPurchasing = ref(false);
+const confirmationModal = ref(null);
+const pendingPurchase = ref({ type: null, name: null, price: null });
 
 const fetchLimits = async () => {
   try {
@@ -40,6 +44,15 @@ const fetchAddOns = async () => {
   }
 };
 
+const getAddOnDisplayName = addOnType => {
+  const names = {
+    agent: t('BILLING_SETTINGS.LIMITS.AGENT_SINGULAR'),
+    inbox: t('BILLING_SETTINGS.LIMITS.INBOX_SINGULAR'),
+    channel: t('BILLING_SETTINGS.LIMITS.CHANNEL_SINGULAR'),
+  };
+  return names[addOnType] || addOnType;
+};
+
 const purchaseAddOn = async addOnType => {
   try {
     isPurchasing.value = true;
@@ -47,12 +60,46 @@ const purchaseAddOn = async addOnType => {
       add_on_type: addOnType,
       action: 'add',
     });
+
     // Refresh limits and add-ons after purchase
     await Promise.all([fetchLimits(), fetchAddOns()]);
+
+    // Show success notification (stays for 5 seconds)
+    useAlert(
+      t('BILLING_SETTINGS.LIMITS.PURCHASE_SUCCESS', {
+        item: getAddOnDisplayName(addOnType),
+      }),
+      { duration: 5000 }
+    );
   } catch (error) {
-    // Error handling - silent fail
+    // Show error notification (stays for 5 seconds)
+    const errorMessage = error?.response?.data?.error || error?.message;
+    useAlert(
+      t('BILLING_SETTINGS.LIMITS.PURCHASE_ERROR', {
+        item: getAddOnDisplayName(addOnType),
+        error: errorMessage || t('BILLING_SETTINGS.LIMITS.GENERIC_ERROR'),
+      }),
+      { duration: 5000 }
+    );
   } finally {
     isPurchasing.value = false;
+  }
+};
+
+const confirmPurchase = async addOnType => {
+  // Set pending purchase details for confirmation modal
+  const addOnInfo = addOns.value[addOnType];
+  pendingPurchase.value = {
+    type: addOnType,
+    name: getAddOnDisplayName(addOnType),
+    price: addOnInfo?.unit_price_formatted || '',
+  };
+
+  // Show confirmation modal
+  const confirmed = await confirmationModal.value.showConfirmation();
+
+  if (confirmed) {
+    await purchaseAddOn(addOnType);
   }
 };
 
@@ -60,12 +107,41 @@ const purchaseConversationPack = async () => {
   try {
     isPurchasing.value = true;
     await store.dispatch('accounts/purchaseConversationPack');
+
     // Refresh limits after purchase
     await fetchLimits();
+
+    // Show success notification (stays for 5 seconds)
+    useAlert(t('BILLING_SETTINGS.LIMITS.CONVERSATION_PACK_SUCCESS'), {
+      duration: 5000,
+    });
   } catch (error) {
-    // Error handling - silent fail
+    // Show error notification (stays for 5 seconds)
+    const errorMessage = error?.response?.data?.error || error?.message;
+    useAlert(
+      t('BILLING_SETTINGS.LIMITS.CONVERSATION_PACK_ERROR', {
+        error: errorMessage || t('BILLING_SETTINGS.LIMITS.GENERIC_ERROR'),
+      }),
+      { duration: 5000 }
+    );
   } finally {
     isPurchasing.value = false;
+  }
+};
+
+const confirmPurchaseConversationPack = async () => {
+  // Set pending purchase details
+  pendingPurchase.value = {
+    type: 'conversation_pack',
+    name: t('BILLING_SETTINGS.LIMITS.CONVERSATION_PACK'),
+    price: '', // Will be shown in modal if available
+  };
+
+  // Show confirmation modal
+  const confirmed = await confirmationModal.value.showConfirmation();
+
+  if (confirmed) {
+    await purchaseConversationPack();
   }
 };
 
@@ -165,8 +241,9 @@ onMounted(async () => {
                   : 'bg-n-teal-4 text-n-teal-11'
             "
           >
-            {{ agentLimit.current || 0 }} /
-            {{ formatLimit(agentLimit.total_allowed) }}
+            {{ agentLimit.current || 0
+            }}{{ t('BILLING_SETTINGS.LIMITS.SEPARATOR')
+            }}{{ formatLimit(agentLimit.total_allowed) }}
           </div>
         </div>
 
@@ -180,7 +257,8 @@ onMounted(async () => {
               class="font-semibold tabular-nums"
               :class="getUsageTextColor(getUsagePercentage(agentLimit))"
             >
-              {{ Math.round(getUsagePercentage(agentLimit)) }}%
+              {{ Math.round(getUsagePercentage(agentLimit))
+              }}{{ t('BILLING_SETTINGS.LIMITS.PERCENTAGE_SYMBOL') }}
             </span>
           </div>
           <div class="w-full h-3 bg-n-slate-3 rounded-full overflow-hidden">
@@ -238,9 +316,8 @@ onMounted(async () => {
               "
             >
               {{ (agentLimit.total_allowed || 0) - (agentLimit.current || 0) }}
-              <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
               <span v-if="getAvailableWarning(agentLimit)" class="text-base">
-                ⚠️
+                {{ t('BILLING_SETTINGS.LIMITS.WARNING_ICON') }}
               </span>
             </p>
           </div>
@@ -253,15 +330,15 @@ onMounted(async () => {
             solid
             blue
             :disabled="isPurchasing || !canPurchaseAddOns"
-            @click="purchaseAddOn('agent')"
+            @click="confirmPurchase('agent')"
           >
             <template v-if="canPurchaseAddOns">
               {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_EXTRA_AGENT') }}
-              <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
               <span v-if="agentAddOn.unit_price_formatted" class="text-xs">
-                - {{ agentAddOn.unit_price_formatted }}/{{
-                  t('BILLING_SETTINGS.LIMITS.MONTH')
-                }}
+                {{ t('BILLING_SETTINGS.LIMITS.SEPARATOR')
+                }}{{ agentAddOn.unit_price_formatted
+                }}{{ t('BILLING_SETTINGS.LIMITS.SLASH')
+                }}{{ t('BILLING_SETTINGS.LIMITS.MONTH') }}
               </span>
             </template>
             <template v-else>
@@ -302,8 +379,9 @@ onMounted(async () => {
                   : 'bg-n-teal-4 text-n-teal-11'
             "
           >
-            {{ inboxLimit.current || 0 }} /
-            {{ formatLimit(inboxLimit.total_allowed) }}
+            {{ inboxLimit.current || 0
+            }}{{ t('BILLING_SETTINGS.LIMITS.SEPARATOR')
+            }}{{ formatLimit(inboxLimit.total_allowed) }}
           </div>
         </div>
 
@@ -317,7 +395,8 @@ onMounted(async () => {
               class="font-semibold tabular-nums"
               :class="getUsageTextColor(getUsagePercentage(inboxLimit))"
             >
-              {{ Math.round(getUsagePercentage(inboxLimit)) }}%
+              {{ Math.round(getUsagePercentage(inboxLimit))
+              }}{{ t('BILLING_SETTINGS.LIMITS.PERCENTAGE_SYMBOL') }}
             </span>
           </div>
           <div class="w-full h-3 bg-n-slate-3 rounded-full overflow-hidden">
@@ -375,9 +454,8 @@ onMounted(async () => {
               "
             >
               {{ (inboxLimit.total_allowed || 0) - (inboxLimit.current || 0) }}
-              <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
               <span v-if="getAvailableWarning(inboxLimit)" class="text-base">
-                ⚠️
+                {{ t('BILLING_SETTINGS.LIMITS.WARNING_ICON') }}
               </span>
             </p>
           </div>
@@ -390,15 +468,15 @@ onMounted(async () => {
             solid
             blue
             :disabled="isPurchasing || !canPurchaseAddOns"
-            @click="purchaseAddOn('inbox')"
+            @click="confirmPurchase('inbox')"
           >
             <template v-if="canPurchaseAddOns">
               {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_EXTRA_INBOX') }}
-              <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
               <span v-if="inboxAddOn.unit_price_formatted" class="text-xs">
-                - {{ inboxAddOn.unit_price_formatted }}/{{
-                  t('BILLING_SETTINGS.LIMITS.MONTH')
-                }}
+                {{ t('BILLING_SETTINGS.LIMITS.SEPARATOR')
+                }}{{ inboxAddOn.unit_price_formatted
+                }}{{ t('BILLING_SETTINGS.LIMITS.SLASH')
+                }}{{ t('BILLING_SETTINGS.LIMITS.MONTH') }}
               </span>
             </template>
             <template v-else>
@@ -439,8 +517,9 @@ onMounted(async () => {
                   : 'bg-n-teal-4 text-n-teal-11'
             "
           >
-            {{ conversationLimit.current || 0 }} /
-            {{ formatLimit(conversationLimit.total_allowed) }}
+            {{ conversationLimit.current || 0
+            }}{{ t('BILLING_SETTINGS.LIMITS.SEPARATOR')
+            }}{{ formatLimit(conversationLimit.total_allowed) }}
           </div>
         </div>
 
@@ -454,7 +533,8 @@ onMounted(async () => {
               class="font-semibold tabular-nums"
               :class="getUsageTextColor(getUsagePercentage(conversationLimit))"
             >
-              {{ Math.round(getUsagePercentage(conversationLimit)) }}%
+              {{ Math.round(getUsagePercentage(conversationLimit))
+              }}{{ t('BILLING_SETTINGS.LIMITS.PERCENTAGE_SYMBOL') }}
             </span>
           </div>
           <div class="w-full h-3 bg-n-slate-3 rounded-full overflow-hidden">
@@ -519,14 +599,12 @@ onMounted(async () => {
                   (conversationLimit.current || 0)
                 ).toLocaleString()
               }}
-              <!-- eslint-disable vue/no-bare-strings-in-template -->
               <span
                 v-if="getAvailableWarning(conversationLimit)"
                 class="text-base"
               >
-                ⚠️
+                {{ t('BILLING_SETTINGS.LIMITS.WARNING_ICON') }}
               </span>
-              <!-- eslint-enable vue/no-bare-strings-in-template -->
             </p>
           </div>
         </div>
@@ -538,7 +616,7 @@ onMounted(async () => {
             solid
             blue
             :disabled="isPurchasing || !canPurchaseAddOns"
-            @click="purchaseConversationPack"
+            @click="confirmPurchaseConversationPack"
           >
             {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_CONVERSATION_PACK') }}
           </ButtonV4>
@@ -546,4 +624,18 @@ onMounted(async () => {
       </div>
     </div>
   </BillingCard>
+
+  <!-- Confirmation Modal -->
+  <ConfirmationModal
+    ref="confirmationModal"
+    :title="t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_TITLE')"
+    :description="
+      t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_DESCRIPTION', {
+        item: pendingPurchase.name,
+        price: pendingPurchase.price,
+      })
+    "
+    :confirm-label="t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_BUTTON')"
+    :cancel-label="t('BILLING_SETTINGS.LIMITS.CANCEL_PURCHASE_BUTTON')"
+  />
 </template>

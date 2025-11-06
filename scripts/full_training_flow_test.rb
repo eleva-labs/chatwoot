@@ -25,6 +25,18 @@ account = Account.joins(:users).first
 
 if account
   puts "      ✅ Account found: #{account.name} (ID: #{account.id})"
+  
+  # Upgrade to starter plan if needed for testing
+  plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
+  if plan_name == 'free_trial'
+    puts "      ⚠️  Account on free_trial, upgrading to starter for testing..."
+    account.custom_attributes ||= {}
+    account.custom_attributes['plan_name'] = 'starter'
+    account.save!
+    puts "      ✅ Account upgraded to starter plan"
+  else
+    puts "      ℹ️  Account plan: #{plan_name}"
+  end
 else
   puts "      ❌ No account found"
   exit 1
@@ -32,10 +44,7 @@ end
 
 # Step 3: Fetch from Stripe
 puts "\n[3/5] Fetching training data from Stripe..."
-service = Billing::ManageSubscriptionAddOnService.new(
-  account: account,
-  add_on_type: 'live_training'
-)
+service = Billing::ManageSubscriptionAddOnService.new(account, 'live_training')
 
 begin
   info = service.add_on_info

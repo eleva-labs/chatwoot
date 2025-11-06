@@ -53,16 +53,20 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
   # POST /api/v2/accounts/:account_id/billing/add_ons
   # Body: { add_on_type: 'agent', action: 'add' } or { add_on_type: 'agent', action: 'set', quantity: 5 }
   def update
-    service = Billing::ManageSubscriptionAddOnService.new(current_account, params[:add_on_type])
+    # Read from add_on params or root params (for backward compatibility)
+    add_on_type = params[:add_on_type] || params.dig(:add_on, :add_on_type)
+    action_type = params.dig(:add_on, :action) || params[:action_type] # Use :action_type to avoid conflict with Rails' params[:action]
+    quantity = params[:quantity] || params.dig(:add_on, :quantity)
 
-    result = case params[:action]
+    service = Billing::ManageSubscriptionAddOnService.new(current_account, add_on_type)
+
+    result = case action_type
              when 'add'
                service.add_unit
              when 'remove'
                service.remove_unit
              when 'set'
-               quantity = params[:quantity].to_i
-               service.set_quantity(quantity)
+               service.set_quantity(quantity.to_i)
              else
                { success: false, error: 'Invalid action. Must be: add, remove, or set' }
              end
@@ -157,8 +161,9 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
 
   def validate_add_on_type
     valid_types = Billing::ManageSubscriptionAddOnService::ADD_ON_TYPES.map(&:to_s)
+    add_on_type = params[:add_on_type] || params.dig(:add_on, :add_on_type)
 
-    unless params[:add_on_type].present? && valid_types.include?(params[:add_on_type])
+    unless add_on_type.present? && valid_types.include?(add_on_type)
       render json: {
         success: false,
         error: "Invalid add_on_type. Must be one of: #{valid_types.join(', ')}"

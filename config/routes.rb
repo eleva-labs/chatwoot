@@ -413,6 +413,10 @@ Rails.application.routes.draw do
               post :purchase, on: :member
             end
           end
+          
+          # Pricing table data
+          resources :pricing, only: [:index]
+          
           resources :summary_reports, only: [] do
             collection do
               get :agent
