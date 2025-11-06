@@ -140,7 +140,8 @@ describe('i18n Dual Locale System', () => {
         expect(esLocale.INBOX_MGMT.HEADER).toBeTruthy();
 
         // Check which locale set is being used
-        const usingCustom = import.meta.env.VITE_USE_CUSTOM_LOCALES === 'true';
+        // Defaults to true (custom locales) unless explicitly set to 'false'
+        const usingCustom = import.meta.env.VITE_USE_CUSTOM_LOCALES !== 'false';
 
         if (usingCustom) {
           // When using custom locales

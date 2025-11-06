@@ -229,6 +229,8 @@
           "WHATSAPP_CLOUD": "Nube de WhatsApp",
           "WHATSAPP_CLOUD_DESC": "Configuración rápida a través de Meta",
           "TWILIO_DESC": "Conectar mediante credenciales de Twilio",
+          "WHAPI": "WhatsApp Directo",
+          "WHAPI_DESC": "Integración simple de WhatsApp con configuración por código QR",
           "360_DIALOG": "360 Diálogo"
         },
         "SELECT_PROVIDER": {
@@ -238,7 +240,9 @@
         "INBOX_NAME": {
           "LABEL": "Nombre de la canal",
           "PLACEHOLDER": "Por favor, introduzca un nombre de canal",
-          "ERROR": "Este campo es obligatorio"
+          "ERROR": "Este campo es obligatorio",
+          "MIN_LENGTH_ERROR": "El nombre del canal debe tener al menos 2 caracteres",
+          "VALID": "¡El nombre del canal se ve bien!"
         },
         "PHONE_NUMBER": {
           "LABEL": "Número de teléfono",
@@ -304,6 +308,13 @@
         "API": {
           "ERROR_MESSAGE": "No pudimos guardar el canal de WhatsApp"
         }
+      },
+      "WHAPI": {
+        "CONTINUE_BUTTON": "Continuar",
+        "LOADING_QR": "Cargando código QR...",
+        "GENERATING_QR": "Generando código QR...",
+        "QR_HELP_TEXT": "Escanea este código QR con tu aplicación móvil de WhatsApp para conectar tu número de teléfono",
+        "SUCCESS_MESSAGE": "¡Canal de WhatsApp creado exitosamente!"
       },
       "VOICE": {
         "TITLE": "Voice Channel",

@@ -45,7 +45,8 @@ import esCustom from './locale_custom/es';
 
 // Determine which locale set to use based on environment variable
 // This is evaluated at build time, so only one set is included in the bundle
-const USE_CUSTOM_LOCALES = import.meta.env.VITE_USE_CUSTOM_LOCALES === 'true';
+// Defaults to true (custom locales) unless explicitly set to 'false'
+const USE_CUSTOM_LOCALES = import.meta.env.VITE_USE_CUSTOM_LOCALES !== 'false';
 
 export default {
   ar,

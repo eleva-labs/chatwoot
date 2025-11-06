@@ -229,6 +229,8 @@
           "WHATSAPP_CLOUD": "WhatsApp Cloud",
           "WHATSAPP_CLOUD_DESC": "Quick setup through Meta",
           "TWILIO_DESC": "Connect via Twilio credentials",
+          "WHAPI": "WhatsApp Direct",
+          "WHAPI_DESC": "Simple WhatsApp integration with QR code setup",
           "360_DIALOG": "360Dialog"
         },
         "SELECT_PROVIDER": {
@@ -238,7 +240,9 @@
         "INBOX_NAME": {
           "LABEL": "Channel Name",
           "PLACEHOLDER": "Please enter an channel name",
-          "ERROR": "This field is required"
+          "ERROR": "This field is required",
+          "MIN_LENGTH_ERROR": "Channel name must be at least 2 characters long",
+          "VALID": "Channel name looks good!"
         },
         "PHONE_NUMBER": {
           "LABEL": "Phone number",
@@ -304,6 +308,13 @@
         "API": {
           "ERROR_MESSAGE": "We were not able to save the WhatsApp channel"
         }
+      },
+      "WHAPI": {
+        "CONTINUE_BUTTON": "Continue",
+        "LOADING_QR": "Loading QR code...",
+        "GENERATING_QR": "Generating QR code...",
+        "QR_HELP_TEXT": "Scan this QR code with your WhatsApp mobile app to connect your phone number",
+        "SUCCESS_MESSAGE": "WhatsApp channel created successfully!"
       },
       "VOICE": {
         "TITLE": "Voice Channel",
