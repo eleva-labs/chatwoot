@@ -1,4 +1,5 @@
 version: '3'
+silent: true
 
 env:
   COMPOSE_FILE: docker-compose.yaml
@@ -114,14 +115,20 @@ tasks:
     cmds:
       - docker compose exec rails bundle exec rails console
 
-  dev-dbconsole:
-    desc: 'Open database console'
-    cmds:
-      - docker compose exec postgres psql -U postgres -d chatwoot_development
-
   setup-db:
     desc: 'Clone database from dev/prod to local (usage: task setup-db -- [dev|prod] [--no-exclude] [--exclude TABLE])'
     cmds:
+      - |
+        # Check if postgres is already running
+        if ! docker compose ps postgres | grep -q "Up"; then
+          echo "🚀 Starting Docker Compose database..."
+          docker compose up -d postgres redis
+          echo "⏳ Waiting for database to be ready..."
+          sleep 5
+          echo "✅ Database started"
+        else
+          echo "✅ Database already running"
+        fi
       - |
         # Check for required Python dependencies
         if ! python3 -c "import boto3" 2>/dev/null; then
