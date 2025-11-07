@@ -20,10 +20,10 @@ class ForwardNotificationService
     notification_channels = extract_notification_channels
 
     if notification_channels.empty?
-        Rails.logger.warn "Notification config not found: #{notification_channels}"
-        return
+      Rails.logger.warn "Notification config not found: #{notification_channels}"
+      return
     end
-    
+
     notification_channels.each do |channel_config|
       send_to_channel(channel_config)
     end
@@ -83,7 +83,7 @@ class ForwardNotificationService
     end
 
     # Validate that the channel has proper configuration
-    unless whatsapp_channel&.provider_config&.dig('api_key').present?
+    if whatsapp_channel&.provider_config&.dig('api_key').blank?
       Rails.logger.warn "WhatsApp channel missing API key for account #{@account.id}"
       return
     end
@@ -145,7 +145,7 @@ class ForwardNotificationService
   end
 
   def find_notification_config
-    store_id = @account.custom_attributes['store_id']
+    store_id = @account.id
     return if store_id.blank?
 
     begin

@@ -765,6 +765,9 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.index ["account_id"], name: "index_custom_roles_on_account_id"
   end
 
+  create_table "custom_schema_migrations", primary_key: "version", id: :string, force: :cascade do |t|
+  end
+
   create_table "dashboard_apps", force: :cascade do |t|
     t.string "title", null: false
     t.jsonb "content", default: []

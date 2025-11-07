@@ -148,6 +148,10 @@ For complete documentation including architecture, troubleshooting, and best pra
 
 - Use compact `module/class` definitions; avoid nested styles
 
+### Git Branches
+- **Base branch**: `development` (NOT `develop`)
+- **Production branch**: `main` (NOT `master`)
+
 ## Enterprise Edition Notes
 
 - Chatwoot has an Enterprise overlay under `enterprise/` that extends/overrides OSS code.

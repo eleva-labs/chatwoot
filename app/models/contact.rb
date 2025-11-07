@@ -247,7 +247,26 @@ class Contact < ApplicationRecord
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(CONTACT_DELETED, Time.zone.now, contact: self)
+    # For deletion events, pass primitive data instead of the object
+    # This prevents deserialization errors when the record is already deleted
+    #
+    # Pattern follows inbox.rb:244 and agent_bot.rb:123
+    # ApplicationJob's discard_on provides additional safety net
+    Rails.configuration.dispatcher.dispatch(
+      CONTACT_DELETED,
+      Time.zone.now,
+      contact_id: id,
+      account_id: account_id,
+      # Pass all fields needed for push_event_data
+      additional_attributes: additional_attributes,
+      custom_attributes: custom_attributes,
+      email: email,
+      identifier: identifier,
+      name: name,
+      phone_number: phone_number,
+      thumbnail: avatar_url,
+      blocked: blocked
+    )
   end
 end
 Contact.include_mod_with('Concerns::Contact')
