@@ -91,7 +91,7 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   def custom_attributes_params
-    params.permit(:industry, :company_size, :timezone, :store_id)
+    params.permit(:industry, :company_size, :timezone)
   end
 
   def settings_params
