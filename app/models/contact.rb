@@ -255,10 +255,15 @@ class Contact < ApplicationRecord
       Time.zone.now,
       contact_id: id,
       account_id: account_id,
+      # Pass all fields needed for push_event_data
+      additional_attributes: additional_attributes,
+      custom_attributes: custom_attributes,
       email: email,
-      phone_number: phone_number,
       identifier: identifier,
-      name: name
+      name: name,
+      phone_number: phone_number,
+      thumbnail: avatar_url,
+      blocked: blocked
     )
   end
 end
