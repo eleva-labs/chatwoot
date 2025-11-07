@@ -45,6 +45,7 @@ class Billing::PurchaseConversationPackService
     invoice = ::Stripe::Invoice.create(
       customer: customer_id,
       auto_advance: true, # Automatically finalize and attempt payment
+      pending_invoice_items_behavior: 'include',
       description: 'Conversation Pack Purchase'
     )
 
