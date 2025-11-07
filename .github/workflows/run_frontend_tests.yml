@@ -20,12 +20,6 @@ on:
       - 'vite.config.ts'
       - '.eslintrc*'
       - '.github/workflows/run_frontend_tests.yml'
-    # Ignore documentation and non-code changes
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/**'
-      - '!.github/workflows/**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     # Only trigger when frontend files change
@@ -37,12 +31,6 @@ on:
       - 'vite.config.ts'
       - '.eslintrc*'
       - '.github/workflows/run_frontend_tests.yml'
-    # Ignore documentation and non-code changes
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/**'
-      - '!.github/workflows/**'
   workflow_dispatch:
 
 jobs:

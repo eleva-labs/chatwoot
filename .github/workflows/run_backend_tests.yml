@@ -22,14 +22,6 @@ on:
       - 'Gemfile*'
       - '.rubocop.yml'
       - '.github/workflows/run_backend_tests.yml'
-    # Ignore documentation and non-code changes
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/**'
-      - '!.github/workflows/**'
-      - 'app/javascript/**'
-      - 'app/assets/**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     # Only trigger when backend files change
@@ -43,14 +35,6 @@ on:
       - 'Gemfile*'
       - '.rubocop.yml'
       - '.github/workflows/run_backend_tests.yml'
-    # Ignore documentation and non-code changes
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/**'
-      - '!.github/workflows/**'
-      - 'app/javascript/**'
-      - 'app/assets/**'
   workflow_dispatch:
 
 jobs:
