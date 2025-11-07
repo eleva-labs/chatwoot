@@ -164,4 +164,8 @@ COPY --from=pre-builder /app/.git_sha /app/.git_sha
 
 WORKDIR /app
 
+# Set production entrypoint for automatic migrations
+COPY docker/entrypoints/production.sh /usr/local/bin/
+ENTRYPOINT ["production.sh"]
+
 EXPOSE 3000
