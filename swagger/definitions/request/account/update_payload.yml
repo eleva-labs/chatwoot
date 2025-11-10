@@ -47,11 +47,3 @@ properties:
     type: string
     description: Account timezone
     example: 'UTC'
-  store_id:
-    type: string
-    description: Store ID associated with the account
-    example: '00000000-0000-0000-0000-000000000123'
-  onboarding_completed:
-    type: boolean
-    description: Whether the onboarding has been completed
-    example: false
