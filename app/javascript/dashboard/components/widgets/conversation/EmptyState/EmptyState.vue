@@ -27,13 +27,23 @@ export default {
       store.getters['accounts/isOnboardingCompleted']()
     );
 
+    // Get inbox loading state to prevent race condition
+    const inboxesUIFlags = computed(() => store.getters['inboxes/getUIFlags']);
+
     const shouldRedirectToOnboarding = computed(
-      () => !isOnboardingCompleted.value && isAdmin.value
+      () =>
+        !isOnboardingCompleted.value &&
+        isAdmin.value &&
+        !inboxesUIFlags.value.isFetching // Guard: don't redirect while loading
     );
 
     // Redirect to Standard Inbox flow for onboarding
     onMounted(() => {
-      if (shouldRedirectToOnboarding.value) {
+      // Only redirect if not fetching (defensive check)
+      if (
+        shouldRedirectToOnboarding.value &&
+        !inboxesUIFlags.value.isFetching
+      ) {
         router.push({
           name: 'settings_inbox_new',
           query: { onboarding: 'true' },
@@ -46,6 +56,7 @@ export default {
       accountScopedUrl,
       isOnboardingCompleted,
       shouldRedirectToOnboarding,
+      inboxesUIFlags,
     };
   },
   computed: {
