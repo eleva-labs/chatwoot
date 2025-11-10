@@ -41,11 +41,15 @@ const confirmationModal = ref(null);
  * Stores details about the training being purchased for confirmation modal
  * Example: { type: 'live_training', name: 'Live Training', price: '$299' }
  */
-const pendingPurchase = ref({
+const defaultPendingPurchase = {
   type: '',
   name: '',
   price: '',
-});
+  action: 'purchase',
+  estimatedCredit: null,
+};
+
+const pendingPurchase = ref({ ...defaultPendingPurchase });
 
 // ============================================================================
 // DATA FETCHING
@@ -155,6 +159,42 @@ const purchaseTraining = async trainingType => {
   }
 };
 
+const removeTraining = async trainingType => {
+  try {
+    isPurchasing.value[trainingType] = true;
+
+    const response = await store.dispatch('accounts/purchaseAddOn', {
+      add_on_type: trainingType,
+      action: 'set',
+      quantity: 0,
+    });
+
+    if (response?.data?.success) {
+      await fetchTrainingAddOns();
+
+      useAlert(t('BILLING_SETTINGS.TRAINING.REMOVE_SUCCESS'), {
+        duration: 5000,
+      });
+    } else {
+      throw new Error('Removal failed - no success flag in response');
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        component: 'BillingTrainingCard',
+        action: 'removeTraining',
+        trainingType,
+      },
+    });
+
+    useAlert(t('BILLING_SETTINGS.TRAINING.REMOVE_ERROR'), {
+      duration: 5000,
+    });
+  } finally {
+    isPurchasing.value[trainingType] = false;
+  }
+};
+
 /**
  * Show confirmation modal before purchasing training
  * @param {string} trainingType - The training type (e.g., 'live_training')
@@ -166,6 +206,8 @@ const confirmPurchaseTraining = async (trainingType, service) => {
     type: trainingType,
     name: service.display_name,
     price: service.unit_price_formatted,
+    action: 'purchase',
+    estimatedCredit: null,
   };
 
   // Show confirmation modal
@@ -176,12 +218,57 @@ const confirmPurchaseTraining = async (trainingType, service) => {
   }
 };
 
+const confirmRemoveTraining = async (trainingType, service) => {
+  let estimatedCredit = null;
+
+  try {
+    const previewResponse = await store.dispatch(
+      'accounts/previewAddOnRemoval',
+      {
+        add_on_type: trainingType,
+        action: 'set',
+        quantity: 0,
+      }
+    );
+
+    estimatedCredit = previewResponse?.data?.estimated_credit;
+  } catch (error) {
+    // Ignore preview errors; continue to confirmation
+  }
+
+  pendingPurchase.value = {
+    type: trainingType,
+    name: service.display_name,
+    price: service.unit_price_formatted,
+    action: 'remove',
+    estimatedCredit:
+      estimatedCredit || t('BILLING_SETTINGS.TRAINING.CALCULATING_CREDIT'),
+  };
+
+  const confirmed = await confirmationModal.value.showConfirmation();
+
+  if (confirmed) {
+    await removeTraining(trainingType);
+  }
+};
+
 /**
  * Check if a specific training type is currently being purchased
  * @param {string} trainingType - The training type to check
  */
 const isTrainingPurchasing = trainingType => {
   return isPurchasing.value[trainingType] || false;
+};
+
+const cancelButtonLabel = trainingType => {
+  const labelMap = {
+    live_training: 'BILLING_SETTINGS.TRAINING.CANCEL_BUTTON_LIVE_TRAINING',
+    live_1_1_training: 'BILLING_SETTINGS.TRAINING.CANCEL_BUTTON_LIVE_1_1_TRAINING',
+  };
+
+  const translationKey = labelMap[trainingType] || 'BILLING_SETTINGS.TRAINING.CANCEL_BUTTON';
+
+  return t(translationKey);
 };
 
 // ============================================================================
@@ -308,20 +395,20 @@ onMounted(() => {
         </div>
 
         <!-- ====================================================================
-             PURCHASE BUTTON / OWNERSHIP STATUS
-             ==================================================================== -->
-        <div class="flex items-center justify-end pt-3 border-t border-n-weak">
-          <!-- Already Owned Status -->
-          <div v-if="service.is_owned" class="flex items-center">
-            <span class="text-n-teal-9 mr-2">{{
-              t('BILLING_SETTINGS.TRAINING.CHECK_MARK')
-            }}</span>
-            <span class="text-sm font-medium text-n-slate-12">
-              {{ t('BILLING_SETTINGS.TRAINING.ALREADY_PURCHASED') }}
-            </span>
-          </div>
+            PURCHASE BUTTON / OWNERSHIP STATUS
+            ==================================================================== -->
+        <div class="flex justify-end pt-3 border-t border-n-weak">
+          <ButtonV4
+            v-if="service.is_owned"
+            sm
+            outline
+            red
+            :loading="isTrainingPurchasing(service.type)"
+            @click="confirmRemoveTraining(service.type, service)"
+          >
+            {{ cancelButtonLabel(service.type) }}
+          </ButtonV4>
 
-          <!-- Purchase Button -->
           <ButtonV4
             v-else
             sm
@@ -340,14 +427,31 @@ onMounted(() => {
   <!-- Confirmation Modal -->
   <ConfirmationModal
     ref="confirmationModal"
-    :title="t('BILLING_SETTINGS.TRAINING.CONFIRM_PURCHASE_TITLE')"
-    :description="
-      t('BILLING_SETTINGS.TRAINING.CONFIRM_PURCHASE_DESCRIPTION', {
-        item: pendingPurchase.name,
-        price: pendingPurchase.price,
-      })
+    :title="
+      pendingPurchase.action === 'remove'
+        ? t('BILLING_SETTINGS.TRAINING.CONFIRM_REMOVE_TITLE')
+        : t('BILLING_SETTINGS.TRAINING.CONFIRM_PURCHASE_TITLE')
     "
-    :confirm-label="t('BILLING_SETTINGS.TRAINING.CONFIRM_PURCHASE_BUTTON')"
-    :cancel-label="t('BILLING_SETTINGS.TRAINING.CANCEL_PURCHASE_BUTTON')"
+    :description="
+      pendingPurchase.action === 'remove'
+        ? t('BILLING_SETTINGS.TRAINING.CONFIRM_REMOVE_DESCRIPTION', {
+            item: pendingPurchase.name,
+            credit: pendingPurchase.estimatedCredit,
+          })
+        : t('BILLING_SETTINGS.TRAINING.CONFIRM_PURCHASE_DESCRIPTION', {
+            item: pendingPurchase.name,
+            price: pendingPurchase.price,
+          })
+    "
+    :confirm-label="
+      pendingPurchase.action === 'remove'
+        ? t('BILLING_SETTINGS.TRAINING.CONFIRM_REMOVE_BUTTON')
+        : t('BILLING_SETTINGS.TRAINING.CONFIRM_PURCHASE_BUTTON')
+    "
+    :cancel-label="
+      pendingPurchase.action === 'remove'
+        ? t('BILLING_SETTINGS.TRAINING.CANCEL_REMOVE_BUTTON')
+        : t('BILLING_SETTINGS.TRAINING.CANCEL_PURCHASE_BUTTON')
+    "
   />
 </template>

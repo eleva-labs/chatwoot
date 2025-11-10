@@ -58,6 +58,20 @@ class BillingAPI extends ApiClient {
     return axios.post(`${this.url}billing/add_ons`, payload);
   }
 
+  // POST /api/v2/accounts/:account_id/billing/add_ons/preview
+  previewAddOnRemoval(addOnType, action, quantity = null) {
+    const payload = {
+      add_on_type: addOnType,
+      action,
+    };
+
+    if (quantity !== null) {
+      payload.quantity = quantity;
+    }
+
+    return axios.post(`${this.url}billing/add_ons/preview`, payload);
+  }
+
   // GET /api/v2/accounts/:account_id/billing/conversation_packs
   getConversationPacks() {
     return axios.get(`${this.url}billing/conversation_packs`);

@@ -18,7 +18,16 @@ const isLoading = ref(true);
 const isPurchasing = ref(false);
 const confirmationModal = ref(null);
 const conversationPackModal = ref(null);
-const pendingPurchase = ref({ type: null, name: null, price: null });
+const defaultPendingPurchase = {
+  type: null,
+  name: null,
+  price: null,
+  action: null,
+  quantity: null,
+  estimatedCredit: null,
+};
+
+const pendingPurchase = ref({ ...defaultPendingPurchase });
 
 const fetchLimits = async () => {
   try {
@@ -58,6 +67,136 @@ const fetchConversationPacks = async () => {
     conversationPacks.value = [];
   }
 };
+
+const agentLimit = computed(() => limits.value.agent || {});
+const inboxLimit = computed(() => limits.value.inbox || {});
+const conversationLimit = computed(() => limits.value.conversation || {});
+
+const agentAddOn = computed(() => addOns.value.agent || {});
+const inboxAddOn = computed(() => addOns.value.inbox || {});
+
+const canPurchaseAddOns = computed(() => {
+  return Object.keys(addOns.value).length > 0;
+});
+
+// Computed properties for extras usage (agents)
+const agentExtrasUsed = computed(() => {
+  const current = agentLimit.value.current || 0;
+  const included = agentLimit.value.base_limit || 0;
+  const purchased = agentLimit.value.purchased || 0;
+  
+  const rawUsed = current - included;
+  return Math.max(0, Math.min(rawUsed, purchased));
+});
+
+const agentExtrasUnused = computed(() => {
+  const purchased = agentLimit.value.purchased || 0;
+  return purchased - agentExtrasUsed.value;
+});
+
+// Computed properties for extras usage (inboxes)
+const inboxExtrasUsed = computed(() => {
+  const current = inboxLimit.value.current || 0;
+  const included = inboxLimit.value.base_limit || 0;
+  const purchased = inboxLimit.value.purchased || 0;
+  
+  const rawUsed = current - included;
+  return Math.max(0, Math.min(rawUsed, purchased));
+});
+
+const inboxExtrasUnused = computed(() => {
+  const purchased = inboxLimit.value.purchased || 0;
+  return purchased - inboxExtrasUsed.value;
+});
+
+// Removal quantity state
+const removalQuantity = ref({ agent: 1, inbox: 1 });
+const removalError = ref({ agent: null, inbox: null });
+
+// Validate removal quantity input
+const validateRemovalQuantity = addOnType => {
+  const quantity = removalQuantity.value[addOnType];
+  const maxRemovable =
+    addOnType === 'agent' ? agentExtrasUnused.value : inboxExtrasUnused.value;
+
+  if (quantity < 1) {
+    removalError.value[addOnType] = t(
+      'BILLING_SETTINGS.LIMITS.QUANTITY_TOO_LOW'
+    );
+    return false;
+  }
+
+  if (quantity > maxRemovable) {
+    const settingsSection =
+      addOnType === 'agent'
+        ? t('BILLING_SETTINGS.LIMITS.SETTINGS_MEMBERS')
+        : t('BILLING_SETTINGS.LIMITS.SETTINGS_CHANNELS');
+
+    removalError.value[addOnType] = t(
+      'BILLING_SETTINGS.LIMITS.QUANTITY_EXCEEDS_UNUSED',
+      {
+        max: maxRemovable,
+        section: settingsSection,
+      }
+    );
+    return false;
+  }
+
+  removalError.value[addOnType] = null;
+  return true;
+};
+
+const confirmationTitle = computed(() => {
+  if (pendingPurchase.value.action === 'remove_quantity') {
+    return t('BILLING_SETTINGS.LIMITS.CONFIRM_REMOVE_TITLE');
+  }
+
+  return t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_TITLE');
+});
+
+const confirmationDescription = computed(() => {
+  if (pendingPurchase.value.action === 'remove_quantity') {
+    const hasExtrasUsed = pendingPurchase.value.extrasUsed > 0;
+    const settingsSection =
+      pendingPurchase.value.type === 'agent'
+        ? t('BILLING_SETTINGS.LIMITS.SETTINGS_MEMBERS')
+        : t('BILLING_SETTINGS.LIMITS.SETTINGS_CHANNELS');
+
+    let description = t(
+      'BILLING_SETTINGS.LIMITS.CONFIRM_REMOVE_QUANTITY_DESCRIPTION',
+      {
+        quantity: pendingPurchase.value.quantity,
+        item: pendingPurchase.value.name,
+        credit: pendingPurchase.value.estimatedCredit,
+      }
+    );
+
+    if (hasExtrasUsed) {
+      description +=
+        '\n\n' +
+        t('BILLING_SETTINGS.LIMITS.REMOVE_MORE_GUIDANCE', {
+          section: settingsSection,
+          extrasUsed: pendingPurchase.value.extrasUsed,
+          item: pendingPurchase.value.name,
+        });
+    }
+
+    return description;
+  }
+
+  return t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_DESCRIPTION', {
+    item: pendingPurchase.value.name,
+    price: pendingPurchase.value.price,
+  });
+});
+
+const confirmationConfirmLabel = computed(() => {
+  if (pendingPurchase.value.action === 'remove_quantity') {
+    return t('BILLING_SETTINGS.LIMITS.CONFIRM_REMOVE_BUTTON');
+  }
+
+  return t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_BUTTON');
+});
 
 const getAddOnDisplayName = addOnType => {
   const names = {
@@ -101,6 +240,48 @@ const purchaseAddOn = async addOnType => {
   }
 };
 
+const removeAddOn = async (addOnType, quantity) => {
+  try {
+    isPurchasing.value = true;
+
+    const currentPurchased =
+      addOnType === 'agent'
+        ? agentLimit.value.purchased
+        : inboxLimit.value.purchased;
+
+    await store.dispatch('accounts/purchaseAddOn', {
+      add_on_type: addOnType,
+      action: 'set',
+      quantity: currentPurchased - quantity,
+    });
+
+    await Promise.all([fetchLimits(), fetchAddOns()]);
+
+    useAlert(
+      t('BILLING_SETTINGS.LIMITS.REMOVE_SUCCESS_QUANTITY', {
+        quantity: quantity,
+        item: getAddOnDisplayName(addOnType),
+      }),
+      { duration: 5000 }
+    );
+
+    // Reset removal quantity and error
+    removalQuantity.value[addOnType] = 1;
+    removalError.value[addOnType] = null;
+  } catch (error) {
+    const errorMessage = error?.response?.data?.error || error?.message;
+    useAlert(
+      t('BILLING_SETTINGS.LIMITS.REMOVE_ERROR', {
+        item: getAddOnDisplayName(addOnType),
+        error: errorMessage || t('BILLING_SETTINGS.LIMITS.GENERIC_ERROR'),
+      }),
+      { duration: 5000 }
+    );
+  } finally {
+    isPurchasing.value = false;
+  }
+};
+
 const confirmPurchase = async addOnType => {
   // Set pending purchase details for confirmation modal
   const addOnInfo = addOns.value[addOnType];
@@ -108,6 +289,9 @@ const confirmPurchase = async addOnType => {
     type: addOnType,
     name: getAddOnDisplayName(addOnType),
     price: addOnInfo?.unit_price_formatted || '',
+    action: 'purchase',
+    quantity: null,
+    estimatedCredit: null,
   };
 
   // Show confirmation modal
@@ -115,6 +299,59 @@ const confirmPurchase = async addOnType => {
 
   if (confirmed) {
     await purchaseAddOn(addOnType);
+  }
+};
+
+const confirmRemove = async addOnType => {
+  // Validate before proceeding
+  if (!validateRemovalQuantity(addOnType)) {
+    return; // Show error via removalError computed property
+  }
+
+  const quantity = removalQuantity.value[addOnType];
+  const addOnInfo = addOns.value[addOnType];
+  const currentPurchased =
+    addOnType === 'agent'
+      ? agentLimit.value.purchased
+      : inboxLimit.value.purchased;
+
+  let estimatedCredit = null;
+  try {
+    const previewResponse = await store.dispatch(
+      'accounts/previewAddOnRemoval',
+      {
+        add_on_type: addOnType,
+        action: 'set',
+        quantity: currentPurchased - quantity,
+      }
+    );
+
+    estimatedCredit = previewResponse?.data?.estimated_credit;
+  } catch (error) {
+    // Ignore preview errors; continue to confirmation
+  }
+
+  const maxRemovable =
+    addOnType === 'agent' ? agentExtrasUnused.value : inboxExtrasUnused.value;
+  const extrasUsed =
+    addOnType === 'agent' ? agentExtrasUsed.value : inboxExtrasUsed.value;
+
+  pendingPurchase.value = {
+    type: addOnType,
+    name: getAddOnDisplayName(addOnType),
+    price: addOnInfo?.unit_price_formatted || '',
+    action: 'remove_quantity',
+    quantity: quantity,
+    maxRemovable: maxRemovable,
+    extrasUsed: extrasUsed,
+    estimatedCredit:
+      estimatedCredit || t('BILLING_SETTINGS.LIMITS.CALCULATING_CREDIT'),
+  };
+
+  const confirmed = await confirmationModal.value.showConfirmation();
+
+  if (confirmed) {
+    await removeAddOn(addOnType, quantity);
   }
 };
 
@@ -171,17 +408,6 @@ const confirmPurchaseConversationPack = async () => {
   // Proceed to show the conversation pack selection modal
   conversationPackModal.value.showModal();
 };
-
-const agentLimit = computed(() => limits.value.agent || {});
-const inboxLimit = computed(() => limits.value.inbox || {});
-const conversationLimit = computed(() => limits.value.conversation || {});
-
-const agentAddOn = computed(() => addOns.value.agent || {});
-const inboxAddOn = computed(() => addOns.value.inbox || {});
-
-const canPurchaseAddOns = computed(() => {
-  return Object.keys(addOns.value).length > 0;
-});
 
 const formatLimit = value => {
   if (value === 'unlimited' || value === -1)
@@ -348,6 +574,87 @@ onMounted(async () => {
               </span>
             </p>
           </div>
+
+          <!-- Extras in use -->
+          <div
+            v-if="agentLimit.purchased > 0"
+            class="bg-n-amber-2 rounded-md p-3 border border-n-amber-7"
+          >
+            <p class="text-xs text-n-amber-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.EXTRAS_IN_USE') }}
+            </p>
+            <p class="text-lg font-semibold text-n-amber-11 tabular-nums">
+              {{ agentExtrasUsed }}
+            </p>
+          </div>
+
+          <!-- Extras unused -->
+          <div
+            v-if="agentLimit.purchased > 0"
+            class="bg-n-teal-2 rounded-md p-3 border border-n-teal-7"
+          >
+            <p class="text-xs text-n-teal-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.EXTRAS_UNUSED') }}
+            </p>
+            <p class="text-lg font-semibold text-n-teal-11 tabular-nums">
+              {{ agentExtrasUnused }}
+              <span class="text-xs text-n-teal-10 ml-1 font-normal">
+                ({{ t('BILLING_SETTINGS.LIMITS.CAN_REMOVE') }})
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Remove Section -->
+        <div
+          v-if="agentLimit.purchased > 0"
+          class="mb-4 p-3 bg-n-solid-1 rounded-md border border-n-weak"
+        >
+          <label class="block text-sm font-medium text-n-slate-12 mb-2">
+            {{ t('BILLING_SETTINGS.LIMITS.REMOVE_EXTRA_AGENTS_LABEL') }}
+          </label>
+          <div class="flex items-start gap-2">
+            <div class="flex-1">
+              <input
+                v-model.number="removalQuantity.agent"
+                type="number"
+                min="1"
+                :max="agentExtrasUnused"
+                :disabled="agentExtrasUnused === 0 || isPurchasing"
+                class="w-full px-3 py-2 text-sm border rounded-md"
+                :class="
+                  removalError.agent
+                    ? 'border-n-ruby-7 bg-n-ruby-2 text-n-ruby-11'
+                    : 'border-n-weak bg-n-solid-2 text-n-slate-12'
+                "
+                @input="validateRemovalQuantity('agent')"
+              />
+              <p v-if="removalError.agent" class="text-xs text-n-ruby-11 mt-1">
+                {{ removalError.agent }}
+              </p>
+              <p v-else class="text-xs text-n-slate-11 mt-1">
+                {{
+                  t('BILLING_SETTINGS.LIMITS.MAX_REMOVABLE', {
+                    max: agentExtrasUnused,
+                  })
+                }}
+              </p>
+            </div>
+            <ButtonV4
+              sm
+              outline
+              red
+              :disabled="
+                isPurchasing ||
+                !canPurchaseAddOns ||
+                agentExtrasUnused === 0 ||
+                removalError.agent !== null
+              "
+              @click="confirmRemove('agent')"
+            >
+              {{ t('BILLING_SETTINGS.LIMITS.REMOVE_BUTTON') }}
+            </ButtonV4>
+          </div>
         </div>
 
         <!-- Purchase Button -->
@@ -485,6 +792,87 @@ onMounted(async () => {
                 {{ t('BILLING_SETTINGS.LIMITS.WARNING_ICON') }}
               </span>
             </p>
+          </div>
+
+          <!-- Extras in use -->
+          <div
+            v-if="inboxLimit.purchased > 0"
+            class="bg-n-amber-2 rounded-md p-3 border border-n-amber-7"
+          >
+            <p class="text-xs text-n-amber-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.EXTRAS_IN_USE') }}
+            </p>
+            <p class="text-lg font-semibold text-n-amber-11 tabular-nums">
+              {{ inboxExtrasUsed }}
+            </p>
+          </div>
+
+          <!-- Extras unused -->
+          <div
+            v-if="inboxLimit.purchased > 0"
+            class="bg-n-teal-2 rounded-md p-3 border border-n-teal-7"
+          >
+            <p class="text-xs text-n-teal-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.EXTRAS_UNUSED') }}
+            </p>
+            <p class="text-lg font-semibold text-n-teal-11 tabular-nums">
+              {{ inboxExtrasUnused }}
+              <span class="text-xs text-n-teal-10 ml-1 font-normal">
+                ({{ t('BILLING_SETTINGS.LIMITS.CAN_REMOVE') }})
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Remove Section -->
+        <div
+          v-if="inboxLimit.purchased > 0"
+          class="mb-4 p-3 bg-n-solid-1 rounded-md border border-n-weak"
+        >
+          <label class="block text-sm font-medium text-n-slate-12 mb-2">
+            {{ t('BILLING_SETTINGS.LIMITS.REMOVE_EXTRA_INBOXES_LABEL') }}
+          </label>
+          <div class="flex items-start gap-2">
+            <div class="flex-1">
+              <input
+                v-model.number="removalQuantity.inbox"
+                type="number"
+                min="1"
+                :max="inboxExtrasUnused"
+                :disabled="inboxExtrasUnused === 0 || isPurchasing"
+                class="w-full px-3 py-2 text-sm border rounded-md"
+                :class="
+                  removalError.inbox
+                    ? 'border-n-ruby-7 bg-n-ruby-2 text-n-ruby-11'
+                    : 'border-n-weak bg-n-solid-2 text-n-slate-12'
+                "
+                @input="validateRemovalQuantity('inbox')"
+              />
+              <p v-if="removalError.inbox" class="text-xs text-n-ruby-11 mt-1">
+                {{ removalError.inbox }}
+              </p>
+              <p v-else class="text-xs text-n-slate-11 mt-1">
+                {{
+                  t('BILLING_SETTINGS.LIMITS.MAX_REMOVABLE', {
+                    max: inboxExtrasUnused,
+                  })
+                }}
+              </p>
+            </div>
+            <ButtonV4
+              sm
+              outline
+              red
+              :disabled="
+                isPurchasing ||
+                !canPurchaseAddOns ||
+                inboxExtrasUnused === 0 ||
+                removalError.inbox !== null
+              "
+              @click="confirmRemove('inbox')"
+            >
+              {{ t('BILLING_SETTINGS.LIMITS.REMOVE_BUTTON') }}
+            </ButtonV4>
           </div>
         </div>
 
@@ -655,15 +1043,10 @@ onMounted(async () => {
   <!-- Confirmation Modal -->
   <ConfirmationModal
     ref="confirmationModal"
-    :title="t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_TITLE')"
-    :description="
-      t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_DESCRIPTION', {
-        item: pendingPurchase.name,
-        price: pendingPurchase.price,
-      })
-    "
-    :confirm-label="t('BILLING_SETTINGS.LIMITS.CONFIRM_PURCHASE_BUTTON')"
-    :cancel-label="t('BILLING_SETTINGS.LIMITS.CANCEL_PURCHASE_BUTTON')"
+    :title="confirmationTitle"
+    :description="confirmationDescription"
+    :confirm-label="confirmationConfirmLabel"
+    :cancel-label="t('BILLING_SETTINGS.LIMITS.CANCEL_BUTTON')"
   />
 
   <!-- Conversation Pack Selection Modal -->

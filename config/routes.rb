@@ -405,6 +405,7 @@ Rails.application.routes.draw do
             resource :add_ons, only: [:index, :update] do
               get :index, on: :collection
               post :update, on: :collection
+              post :preview, on: :collection
               get :limits, on: :collection
               get :breakdown, on: :collection
             end

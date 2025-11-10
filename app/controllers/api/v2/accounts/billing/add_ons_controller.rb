@@ -7,7 +7,7 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
 
   before_action :current_account
   before_action :check_authorization
-  before_action :validate_add_on_type, only: [:update]
+  before_action :validate_add_on_type, only: [:update, :preview]
 
   # GET /api/v2/accounts/:account_id/billing/add_ons
   # Returns current add-on quantities and pricing for all add-on types
@@ -50,12 +50,52 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
     }, status: :internal_server_error
   end
 
+  # POST /api/v2/accounts/:account_id/billing/add_ons/preview
+  # Provides a proration credit estimate before removal
+  def preview
+    add_on_type = params[:add_on_type] || params.dig(:add_on, :add_on_type)
+    raw_action = request.request_parameters['action']
+    action_type = raw_action || params.dig(:add_on, :action) || params[:action_type]
+    quantity = params[:quantity]&.to_i || params.dig(:add_on, :quantity)&.to_i
+
+    service = Billing::PreviewAddOnRemovalService.new(
+      current_account,
+      add_on_type,
+      action_type,
+      quantity
+    )
+
+    result = service.preview_removal
+
+    if result[:success]
+      render json: {
+        success: true,
+        estimated_credit: result[:estimated_credit],
+        details: result[:details]
+      }
+    else
+      render json: {
+        success: false,
+        error: result[:error]
+      }, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    Rails.logger.error "Error previewing add-on removal: #{e.message}"
+    Sentry.capture_exception(e) if defined?(Sentry)
+
+    render json: {
+      success: false,
+      error: 'Failed to preview removal'
+    }, status: :internal_server_error
+  end
+
   # POST /api/v2/accounts/:account_id/billing/add_ons
   # Body: { add_on_type: 'agent', action: 'add' } or { add_on_type: 'agent', action: 'set', quantity: 5 }
   def update
     # Read from add_on params or root params (for backward compatibility)
     add_on_type = params[:add_on_type] || params.dig(:add_on, :add_on_type)
-    action_type = params.dig(:add_on, :action) || params[:action_type] # Use :action_type to avoid conflict with Rails' params[:action]
+    raw_action = request.request_parameters['action']
+    action_type = raw_action || params.dig(:add_on, :action) || params[:action_type]
     quantity = params[:quantity] || params.dig(:add_on, :quantity)
 
     service = Billing::ManageSubscriptionAddOnService.new(current_account, add_on_type)

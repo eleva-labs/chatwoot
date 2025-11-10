@@ -268,6 +268,27 @@ export const actions = {
     }
   },
 
+  previewAddOnRemoval: async (_, { add_on_type, action, quantity = null }) => {
+    try {
+      const response = await BillingAPI.previewAddOnRemoval(
+        add_on_type,
+        action,
+        quantity
+      );
+
+      if (response.data.success) {
+        return response;
+      }
+
+      throw new Error(response.data.error || 'Failed to preview removal');
+    } catch (error) {
+      // Do not show toast for preview failures; log for debugging instead
+      // eslint-disable-next-line no-console
+      console.error('Preview add-on removal failed:', error);
+      throw error;
+    }
+  },
+
   checkPaymentMethod: async () => {
     try {
       const response = await BillingAPI.checkPaymentMethod();

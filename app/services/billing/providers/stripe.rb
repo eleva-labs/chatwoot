@@ -631,6 +631,7 @@ module Billing
         Rails.logger.info 'Step 3: Building new attributes hash'
 
         # Extract current_period_start and current_period_end from subscription
+        # Both fields exist directly on the Subscription object (not on subscription items)
         current_period_start = if subscription.is_a?(Hash)
                                  subscription['current_period_start']
                                else
@@ -638,11 +639,9 @@ module Billing
                                end
 
         current_period_end = if subscription.is_a?(Hash)
-                               # For hash data, get from items.data[0].current_period_end
-                               subscription.dig('items', 'data', 0, 'current_period_end')
+                               subscription['current_period_end']
                              else
-                               # For Stripe objects, get from items.data.first.current_period_end
-                               subscription.items&.data&.first&.current_period_end
+                               subscription.current_period_end
                              end
 
         Rails.logger.info "current_period_start value: #{current_period_start}"

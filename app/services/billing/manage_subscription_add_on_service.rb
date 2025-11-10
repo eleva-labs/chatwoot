@@ -25,6 +25,18 @@ class Billing::ManageSubscriptionAddOnService
   # Remove one unit of the add-on
   def remove_unit
     return failure_response('Cannot remove below 0') if current_quantity.zero?
+    
+    # Validate against unused extras for capacity add-ons
+    unless can_remove_quantity?(1)
+      limit_service = Billing::UnifiedLimitService.new(@account, map_to_resource_type)
+      unused = limit_service.unused_extras
+      extras_used = limit_service.extras_used
+      
+      return failure_response(
+        "Cannot remove - only #{unused} extra #{@add_on_type}(s) are unused (#{extras_used} in use). " \
+        "Remove #{@add_on_type}s from #{settings_section_name} first to free up seats."
+      )
+    end
 
     update_quantity(current_quantity - 1)
   end
@@ -32,6 +44,22 @@ class Billing::ManageSubscriptionAddOnService
   # Set specific quantity
   def set_quantity(quantity)
     raise ArgumentError, 'Quantity must be non-negative' if quantity.negative?
+    
+    # If reducing quantity, validate against unused extras for capacity add-ons
+    if quantity < current_quantity
+      removal_count = current_quantity - quantity
+      
+      unless can_remove_quantity?(removal_count)
+        limit_service = Billing::UnifiedLimitService.new(@account, map_to_resource_type)
+        unused = limit_service.unused_extras
+        extras_used = limit_service.extras_used
+        
+        return failure_response(
+          "Cannot remove #{removal_count} - only #{unused} extra #{@add_on_type}(s) are unused (#{extras_used} in use). " \
+          "Remove #{@add_on_type}s from #{settings_section_name} first to free up seats."
+        )
+      end
+    end
 
     update_quantity(quantity)
   end
@@ -120,6 +148,10 @@ class Billing::ManageSubscriptionAddOnService
     end
 
     bullets
+  end
+
+  def add_on_config
+    @plan_config&.dig('add_ons', @add_on_type.to_s)
   end
 
   def update_quantity(new_quantity)
@@ -249,6 +281,44 @@ class Billing::ManageSubscriptionAddOnService
       error: error,
       add_on_type: @add_on_type
     }
+  end
+
+  # Check if quantity can be removed (validates against unused extras)
+  # @param quantity [Integer] Number of units to remove
+  # @return [Boolean] True if removal is allowed
+  def can_remove_quantity?(quantity)
+    # Training add-ons don't have usage constraints
+    return true if training_add_on?
+    
+    # Capacity add-ons (agent, inbox) need usage validation
+    limit_service = Billing::UnifiedLimitService.new(@account, map_to_resource_type)
+    limit_service.can_remove?(quantity)
+  rescue StandardError => e
+    Rails.logger.error "Error checking removal quantity: #{e.message}"
+    # Fail open - allow removal if check fails
+    true
+  end
+
+  # Map add-on type to resource type for UnifiedLimitService
+  # @return [Symbol] Resource type (:agent or :inbox)
+  def map_to_resource_type
+    case @add_on_type
+    when :agent then :agent
+    when :inbox, :channel then :inbox
+    else
+      raise ArgumentError, "Cannot map add-on type #{@add_on_type} to resource type"
+    end
+  end
+
+  # Get human-readable settings section name for error messages
+  # @return [String] Settings section name
+  def settings_section_name
+    case @add_on_type
+    when :agent then 'Settings > Members'
+    when :inbox, :channel then 'Settings > Channels'
+    else
+      'Settings'
+    end
   end
 end
 

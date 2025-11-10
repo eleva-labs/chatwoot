@@ -66,6 +66,41 @@ class Billing::UnifiedLimitService
     0 # Fail safe - allow base limit
   end
 
+  # Calculate how many extra seats are currently being used
+  # Formula: extras_used = min(E, max(0, U - I))
+  # where E = purchased extras, U = current usage, I = included seats
+  def extras_used
+    return 0 if unlimited?
+    
+    current = current_count
+    included = base_limit
+    purchased = purchased_extra
+    
+    # Calculate raw extras used (usage beyond included seats)
+    raw_extras_used = current - included
+    
+    # Cap at purchased amount and ensure non-negative
+    [0, [raw_extras_used, purchased].min].max
+  end
+
+  # Calculate how many extra seats are unused (available to remove)
+  # Formula: unused_extras = E - extras_used
+  def unused_extras
+    return 0 if unlimited?
+    
+    purchased_extra - extras_used
+  end
+
+  # Check if user can remove specified quantity
+  # @param quantity [Integer] Number of extras to remove
+  # @return [Boolean] True if removal is allowed
+  def can_remove?(quantity)
+    return false if quantity.negative?
+    return false if quantity > purchased_extra
+    
+    quantity <= unused_extras
+  end
+
   # Current usage count
   def current_count
     case @resource_type
@@ -129,7 +164,9 @@ class Billing::UnifiedLimitService
       usage_percentage: unlimited? ? 0 : usage_percentage,
       can_create: can_create?,
       approaching_limit: approaching_limit?,
-      at_limit: !can_create?
+      at_limit: !can_create?,
+      extras_used: unlimited? ? 0 : extras_used,
+      unused_extras: unlimited? ? 0 : unused_extras
     }
   end
 
