@@ -53,7 +53,6 @@ class AccountBuilder
     @account = Account.new(name: account_name, locale: I18n.locale)
     set_initial_trial_plan
     @account.save!
-    add_store_id_to_account
 
     Current.account = @account
     @account
@@ -97,7 +96,7 @@ class AccountBuilder
     plan_details = self.class.plan_details(trial_plan_name)
     return unless plan_details
 
-    expires_in_days = plan_details.dig('trial_expires_in_days') || 7
+    expires_in_days = plan_details['trial_expires_in_days'] || 7
     ends_on = Time.current + expires_in_days.days
     limit_agents = plan_details.dig('limits', 'agents') || 2 # So that in the on boarding we could invite 1 user besides the admin
 
@@ -121,20 +120,6 @@ class AccountBuilder
 
     # Set trial limits in the limits column directly
     @account.limits = plan_limits
-  end
-
-  def add_store_id_to_account
-    store_id = generate_store_id
-    @account.update!(
-      custom_attributes: @account.custom_attributes.merge(store_id: store_id)
-    )
-    Rails.logger.info "Generated store_id: #{store_id} for account: #{@account.id}"
-  end
-
-  def generate_store_id
-    padded_id = @account.id.to_s.rjust(12, '0')
-    store_uuid = "00000000-0000-0000-0000-#{padded_id}"
-    return store_uuid
   end
 
   def dispatch_owner_token_event(user, account)
