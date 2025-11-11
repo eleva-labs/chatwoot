@@ -20,7 +20,7 @@ class ForwardNotificationService
     notification_channels = extract_notification_channels
 
     if notification_channels.empty?
-      Rails.logger.warn "Notification config not found: #{notification_channels}"
+      Rails.logger.warn "Notification not sent: No notification channels found in the configuration"
       return
     end
 
@@ -28,7 +28,7 @@ class ForwardNotificationService
       send_to_channel(channel_config)
     end
   rescue StandardError => e
-    Rails.logger.error "Error in ForwardNotificationService.perform_notification_sending: #{e.message}"
+    Rails.logger.error "Notification Failed: Error in ForwardNotificationService.perform_notification_sending: #{e.message}"
   end
 
   private
@@ -68,15 +68,19 @@ class ForwardNotificationService
     whatsapp_channel = @account.whatsapp_channels.find_by(provider: 'whapi')
 
     if whatsapp_channel.nil?
-      Rails.logger.info "No existing whapi channel found for account #{@account.id}, checking for default API key"
+
+      Rails.logger.info "No existing whapi channel found for account #{@account.id}, fallback to default whapi channel"
       default_api_key = ENV.fetch('DEFAULT_WHAPI_CHANNEL_TOKEN', nil)
       if default_api_key.present?
+
         Rails.logger.info "Creating new whapi channel for account #{@account.id} using default API Token: #{default_api_key[0..8]}..."
         whatsapp_channel = create_whapi_channel(default_api_key)
+
       else
-        Rails.logger.error "Account #{@account.id} with no whapi channel and no default whapi channel token defined"
+        Rails.logger.error "Notification Failed: Account #{@account.id} with no whapi channel and no default whapi channel token defined"
         return
       end
+      
     else
       api_key = whatsapp_channel.provider_config&.dig('api_key')
       Rails.logger.info "Using existing whapi channel for account #{@account.id} with API key: #{api_key&.[](0..8)}..."

@@ -927,38 +927,49 @@ RSpec.describe Message do
       allow(forward_service_double).to receive(:send_notification)
     end
 
-    describe '#notification_format?' do
-      context 'when message matches notification format' do
-        it 'returns true for valid notification format' do
-          message = build(:message, content: '[urgent] This is urgent', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be true
+    describe '#is_notification?' do
+      context 'when message has is_notification flag' do
+        it 'returns true when is_notification is true' do
+          message = build(:message,
+                         content: 'This is a notification',
+                         conversation: conversation,
+                         account: account,
+                         additional_attributes: { 'is_notification' => true })
+          expect(message.send(:is_notification?)).to be true
         end
 
-        it 'returns true for different notification types' do
-          message = build(:message, content: '[alert] System alert', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be true
-        end
-
-        it 'returns true for notification with spaces in type' do
-          message = build(:message, content: '[system alert] Important message', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be true
+        it 'returns true for different message content' do
+          message = build(:message,
+                         content: 'Another notification message',
+                         conversation: conversation,
+                         account: account,
+                         additional_attributes: { 'is_notification' => true })
+          expect(message.send(:is_notification?)).to be true
         end
       end
 
-      context 'when message does not match notification format' do
+      context 'when message does not have is_notification flag' do
         it 'returns false for regular messages' do
           message = build(:message, content: 'This is a regular message', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be false
+          expect(message.send(:is_notification?)).to be false
         end
 
-        it 'returns false for malformed notification format' do
-          message = build(:message, content: '[incomplete notification', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be false
+        it 'returns false when is_notification is false' do
+          message = build(:message,
+                         content: 'This is not a notification',
+                         conversation: conversation,
+                         account: account,
+                         additional_attributes: { 'is_notification' => false })
+          expect(message.send(:is_notification?)).to be false
         end
 
-        it 'returns false for empty brackets' do
-          message = build(:message, content: '[]: Empty brackets', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be false
+        it 'returns false when additional_attributes is nil' do
+          message = build(:message,
+                         content: 'Message without attributes',
+                         conversation: conversation,
+                         account: account,
+                         additional_attributes: nil)
+          expect(message.send(:is_notification?)).to be false
         end
       end
     end
@@ -967,11 +978,12 @@ RSpec.describe Message do
       context 'when all conditions are met' do
         let(:notification_message) do
           create(:message,
-                 content: '[test] This is a test notification',
+                 content: 'This is a test notification',
                  conversation: conversation,
                  account: account,
                  message_type: 'outgoing',
                  private: true,
+                 additional_attributes: { 'is_notification' => true },
                  sender: user)
         end
 
@@ -986,11 +998,12 @@ RSpec.describe Message do
       context 'when message is not private' do
         let(:public_message) do
           create(:message,
-                 content: '[test] This is a test notification',
+                 content: 'This is a test notification',
                  conversation: conversation,
                  account: account,
                  message_type: 'outgoing',
                  private: false,
+                 additional_attributes: { 'is_notification' => true },
                  sender: user)
         end
 
@@ -1002,10 +1015,10 @@ RSpec.describe Message do
         end
       end
 
-      context 'when message is not outgoing' do
+      context 'when message is incoming (without is_notification flag)' do
         let(:incoming_message) do
           create(:message,
-                 content: '[test] This is a test notification',
+                 content: 'This is an incoming message',
                  conversation: conversation,
                  account: account,
                  message_type: 'incoming',
@@ -1020,7 +1033,7 @@ RSpec.describe Message do
         end
       end
 
-      context 'when message does not match notification format' do
+      context 'when message does not have is_notification flag' do
         let(:regular_message) do
           create(:message,
                  content: 'This is a regular private message',
@@ -1047,11 +1060,12 @@ RSpec.describe Message do
 
         let(:error_message) do
           create(:message,
-                 content: '[test] This will cause an error',
+                 content: 'This will cause an error',
                  conversation: conversation,
                  account: account,
                  message_type: 'outgoing',
                  private: true,
+                 additional_attributes: { 'is_notification' => true },
                  sender: user)
         end
 

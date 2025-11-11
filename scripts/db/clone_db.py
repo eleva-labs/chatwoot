@@ -251,7 +251,7 @@ def restore_local_database(dump_file: str, local_db: str = "chatwoot_dev"):
     """
     print(f"[INFO] Restoring to local database '{local_db}'...")
 
-    # Step 1: Drop database if exists
+    # Step 1: Drop database if exists (WITH FORCE to terminate active connections)
     print(f"[INFO] Dropping database '{local_db}' if exists...")
     drop_cmd = [
         "docker",
@@ -263,7 +263,7 @@ def restore_local_database(dump_file: str, local_db: str = "chatwoot_dev"):
         "-U",
         "postgres",
         "-c",
-        f"DROP DATABASE IF EXISTS {local_db};",
+        f"DROP DATABASE IF EXISTS {local_db} WITH (FORCE);",
     ]
     run_command(drop_cmd, f"Drop database '{local_db}'", check=False)
 
