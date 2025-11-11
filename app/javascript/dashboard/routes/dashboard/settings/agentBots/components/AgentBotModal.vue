@@ -118,7 +118,7 @@ const showAccessTokenInput = computed(
 );
 
 const resetForm = () => {
-  const storeId = currentAccount.value.store_id;
+  const storeId = currentAccount.value.id;
   Object.assign(formState, {
     botName: '',
     botDescription: '',

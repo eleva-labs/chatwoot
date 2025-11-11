@@ -5,7 +5,7 @@ require 'rails_helper'
 RSpec.describe ForwardNotificationService do
   subject(:service) { described_class.new(message) }
 
-  let!(:account) { create(:account, custom_attributes: { 'store_id' => 'test_store_123' }) }
+  let!(:account) { create(:account) }
   let!(:conversation) { create(:conversation, account: account) }
   let!(:message) do
     create(:message, conversation: conversation, account: account, content: '[test]: Test notification', message_type: 'outgoing', private: true)
@@ -278,29 +278,16 @@ RSpec.describe ForwardNotificationService do
   end
 
   describe '#find_notification_config' do
-    context 'when store_id is present and configuration service returns data' do
+    context 'when configuration service returns data' do
       it 'returns the configuration from the service' do
         result = service.send(:find_notification_config)
 
         expect(config_service_double).to have_received(:get_configuration).with(
           scope: AiBackendService::Constants::Scope::STORE,
-          resource_id: 'test_store_123',
+          resource_id: account.id,
           config_key: AiBackendService::Constants::ConfigKey::NOTIFICATIONS_CONFIG
         )
         expect(result).to eq(notification_config)
-      end
-    end
-
-    context 'when store_id is not present' do
-      before do
-        account.update!(custom_attributes: {})
-      end
-
-      it 'returns nil without calling the configuration service' do
-        result = service.send(:find_notification_config)
-
-        expect(config_service_double).not_to have_received(:get_configuration)
-        expect(result).to be_nil
       end
     end
 

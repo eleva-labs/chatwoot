@@ -164,6 +164,10 @@ pnpm test:coverage
 - **INBOXES**: Referred to as "Channels" in locales/UI labels
 - **AGENTS**: Referred to as "Members" in locales/UI labels
 
+### Git Branches
+- **Base branch**: `development` (NOT `develop`)
+- **Production branch**: `main` (NOT `master`)
+
 ## Enterprise Edition Notes
 
 - Chatwoot has an Enterprise overlay under `enterprise/` that extends/overrides OSS code.

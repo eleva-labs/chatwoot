@@ -848,6 +848,7 @@ RSpec.describe Message do
       end
     end
   end
+
   describe '#auto_reply_email?' do
     context 'when message is not an incoming email and inbox is not email' do
       let(:conversation) { create(:conversation) }
@@ -914,7 +915,7 @@ RSpec.describe Message do
   end
 
   describe 'notification forwarding' do
-    let!(:account) { create(:account, custom_attributes: { 'store_id' => 'test_store_123' }) }
+    let!(:account) { create(:account) }
     let!(:user) { create(:user, account: account) }
     let!(:inbox) { create(:inbox, account: account) }
     let!(:conversation) { create(:conversation, account: account, inbox: inbox) }

@@ -114,6 +114,15 @@ export default {
     },
     async initializeAccount() {
       await this.$store.dispatch('accounts/get');
+      // Load inboxes early to prevent race condition in onboarding check
+      try {
+        await this.$store.dispatch('inboxes/get');
+      } catch (error) {
+        // Don't block initialization if inboxes fail to load
+        // Sidebar will retry on mount (existing behavior)
+        // eslint-disable-next-line no-console
+        console.error('Failed to load inboxes during initialization:', error);
+      }
       this.$store.dispatch('setActiveAccount', {
         accountId: this.currentAccountId,
       });
