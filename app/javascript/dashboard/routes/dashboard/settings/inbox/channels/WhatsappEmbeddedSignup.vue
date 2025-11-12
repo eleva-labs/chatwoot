@@ -15,6 +15,7 @@ import {
   createMessageHandler,
   isValidBusinessData,
 } from './whatsapp/utils';
+import { useChannelPurchaseManager } from '../composables/useChannelPurchaseManager';
 
 const store = useStore();
 const router = useRouter();
@@ -45,6 +46,20 @@ const benefits = computed(() => [
 ]);
 
 const showLoader = computed(() => isAuthenticating.value || isProcessing.value);
+
+const baseLabel = computed(() =>
+  t('INBOX_MGMT.ADD.WHATSAPP.EMBEDDED_SIGNUP.SUBMIT_BUTTON')
+);
+
+const {
+  primaryButtonLabel,
+  noteMessage,
+  showUsageLoadingMessage,
+  usageErrorMessage,
+  isPurchasingExtraChannel,
+  isChannelInfoLoading,
+  handleChannelCreation,
+} = useChannelPurchaseManager({ store, baseLabel, t });
 
 // Error handling
 const handleSignupError = data => {
@@ -108,9 +123,8 @@ const completeSignupFlow = async businessDataParam => {
       phone_number_id: businessDataParam?.phone_number_id || '',
     };
 
-    const responseData = await store.dispatch(
-      'inboxes/createWhatsAppEmbeddedSignup',
-      params
+    const responseData = await handleChannelCreation(() =>
+      store.dispatch('inboxes/createWhatsAppEmbeddedSignup', params)
     );
 
     authCode.value = null;
@@ -281,16 +295,32 @@ onBeforeUnmount(() => {
         </I18nT>
       </div>
 
-      <div class="flex mt-4">
+      <div class="flex flex-col gap-3 mt-4">
+        <div class="pt-4 border-t border-n-weak text-sm">
+          <p v-if="showUsageLoadingMessage" class="text-n-slate-11">
+            {{ $t('INBOX_MGMT.ADD.USAGE_LOADING') }}
+          </p>
+          <p v-else-if="usageErrorMessage" class="text-n-ruby-11">
+            {{ usageErrorMessage }}
+          </p>
+        </div>
+        <p
+          v-if="!showUsageLoadingMessage && !usageErrorMessage && noteMessage"
+          class="text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
+        >
+          {{ noteMessage }}
+        </p>
         <NextButton
-          :disabled="isAuthenticating"
-          :is-loading="isAuthenticating"
+          :disabled="
+            isAuthenticating || isChannelInfoLoading || isPurchasingExtraChannel
+          "
+          :is-loading="isAuthenticating || isPurchasingExtraChannel"
           faded
           slate
           class="w-full"
           @click="launchEmbeddedSignup"
         >
-          {{ $t('INBOX_MGMT.ADD.WHATSAPP.EMBEDDED_SIGNUP.SUBMIT_BUTTON') }}
+          {{ primaryButtonLabel }}
         </NextButton>
       </div>
     </div>

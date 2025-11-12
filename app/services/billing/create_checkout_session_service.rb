@@ -100,6 +100,16 @@ module Billing
             account_id: @account.id.to_s, # Store as string per Stripe best practice
             plan_name: @plan_name
           },
+          # Enable flexible billing mode for checkout-created subscriptions (Stripe recommended)
+          # Provides more accurate proration calculations, improved trial handling,
+          # and access to new features like mixed-interval subscriptions
+          # See: docs/ignore/ClassicToFlexible.md for details
+          billing_mode: {
+            type: 'flexible',
+            flexible: {
+              proration_discounts: 'itemized' # Show accurate discount amounts on invoices
+            }
+          },
           trial_settings: {
             end_behavior: {
               missing_payment_method: 'cancel' # Cancel subscription if no payment method at trial end

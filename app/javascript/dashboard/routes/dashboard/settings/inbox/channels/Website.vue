@@ -1,12 +1,16 @@
 <script>
+import { computed } from 'vue';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { useStore } from 'dashboard/composables/store';
+import { useI18n } from 'vue-i18n';
 import router from '../../../../index';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import PageHeader from '../../SettingsSubPageHeader.vue';
 import GreetingsEditor from 'shared/components/GreetingsEditor.vue';
 import { WIDGET_BUILDER_EDITOR_MENU_OPTIONS } from 'dashboard/constants/editor';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
+import { useChannelPurchaseManager } from '../composables/useChannelPurchaseManager';
 
 export default {
   components: {
@@ -14,6 +18,33 @@ export default {
     GreetingsEditor,
     NextButton,
     Editor,
+  },
+  setup() {
+    const store = useStore();
+    const { t } = useI18n();
+    const baseLabel = computed(() =>
+      t('INBOX_MGMT.ADD.WEBSITE_CHANNEL.SUBMIT_BUTTON')
+    );
+
+    const {
+      primaryButtonLabel,
+      noteMessage,
+      showUsageLoadingMessage,
+      usageErrorMessage,
+      isPurchasingExtraChannel,
+      isChannelInfoLoading,
+      handleChannelCreation,
+    } = useChannelPurchaseManager({ store, baseLabel, t });
+
+    return {
+      primaryButtonLabel,
+      noteMessage,
+      showUsageLoadingMessage,
+      usageErrorMessage,
+      isPurchasingExtraChannel,
+      isChannelInfoLoading,
+      handleChannelCreation,
+    };
   },
   data() {
     return {
@@ -44,9 +75,8 @@ export default {
   methods: {
     async createChannel() {
       try {
-        const website = await this.$store.dispatch(
-          'inboxes/createWebsiteChannel',
-          {
+        const website = await this.handleChannelCreation(() =>
+          this.$store.dispatch('inboxes/createWebsiteChannel', {
             name: this.inboxName,
             greeting_enabled: this.greetingEnabled,
             greeting_message: this.greetingMessage,
@@ -57,7 +87,7 @@ export default {
               welcome_title: this.channelWelcomeTitle,
               welcome_tagline: this.channelWelcomeTagline,
             },
-          }
+          })
         );
         router.replace({
           name: 'settings_inboxes_invite_team',
@@ -67,10 +97,10 @@ export default {
           },
         });
       } catch (error) {
-        useAlert(
-          error.message ||
-            this.$t('INBOX_MGMT.ADD.WEBSITE_CHANNEL.API.ERROR_MESSAGE')
-        );
+        const errorMessage =
+          error?.message ||
+          this.$t('INBOX_MGMT.ADD.WEBSITE_CHANNEL.API.ERROR_MESSAGE');
+        useAlert(errorMessage);
       }
     },
   },
@@ -191,15 +221,37 @@ export default {
         "
         :richtext="!textAreaChannels"
       />
-      <div class="flex flex-row justify-end w-full gap-2 px-0 py-2 mt-4">
-        <div class="w-full">
+      <div class="flex flex-col w-full gap-3 px-0 py-2 mt-4">
+        <div class="pt-4 border-t border-n-weak text-sm">
+          <p v-if="showUsageLoadingMessage" class="text-n-slate-11">
+            {{ $t('INBOX_MGMT.ADD.USAGE_LOADING') }}
+          </p>
+          <p v-else-if="usageErrorMessage" class="text-n-ruby-11">
+            {{ usageErrorMessage }}
+          </p>
+        </div>
+        <p
+          v-if="
+            !showUsageLoadingMessage && !usageErrorMessage && noteMessage
+          "
+          class="text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
+        >
+          {{ noteMessage }}
+        </p>
+        <div class="flex justify-end w-full">
           <NextButton
             type="submit"
-            :is-loading="uiFlags.isCreating"
-            :disabled="!channelWebsiteUrl || !inboxName"
+            :is-loading="uiFlags.isCreating || isPurchasingExtraChannel"
+            :disabled="
+              !channelWebsiteUrl ||
+              !inboxName ||
+              uiFlags.isCreating ||
+              isPurchasingExtraChannel ||
+              isChannelInfoLoading
+            "
             solid
             blue
-            :label="$t('INBOX_MGMT.ADD.WEBSITE_CHANNEL.SUBMIT_BUTTON')"
+            :label="primaryButtonLabel"
           />
         </div>
       </div>

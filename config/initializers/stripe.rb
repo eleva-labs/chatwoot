@@ -7,7 +7,15 @@ require 'stripe'
 # Runs at Application Boot - This configuration happens when Rails starts up, making Stripe available throughout the application
 
 Stripe.api_key = ENV.fetch('STRIPE_SECRET_KEY', nil)
-Stripe.api_version = '2024-12-18.acacia'
+
+# API version 2025-06-30.basil or later is REQUIRED for flexible billing mode support
+# Flexible billing mode provides:
+# - More accurate proration calculations based on actual debited amounts
+# - Improved trial handling with preserved trial end dates
+# - Better usage-based billing timing
+# - Access to new features like mixed-interval subscriptions
+# See: docs/ignore/ClassicToFlexible.md and docs/ignore/BreakingChanges_Acacia_to_Basil.md
+Stripe.api_version = '2025-06-30.basil'
 
 # Log the version being used
 Rails.logger.info "Stripe API version: #{Stripe.api_version}" if Stripe.api_key.present?

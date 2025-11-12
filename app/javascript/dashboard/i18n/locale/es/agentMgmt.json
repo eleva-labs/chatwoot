@@ -26,6 +26,13 @@
       "DESC": "Puedes añadir personas que podrán manejar el soporte para tus canales.",
       "INVITATION_DESC": "Los miembros del equipo recibirán invitaciones por correo electrónico y deben aceptarlas para unirse a tu cuenta. Siempre puedes invitar más miembros del equipo más tarde desde la sección Miembros.",
       "CANCEL_BUTTON_TEXT": "Cancelar",
+      "USAGE_TITLE": "Uso de miembros incluidos",
+      "USAGE_LOADING": "Cargando uso incluido...",
+      "USAGE_ERROR": "Error al obtener el uso",
+      "EXTRA_TITLE": "Miembros adicionales agregados",
+      "EXTRA_NOTE": "Se le cobrará por un asiento de miembro adicional. El cargo será prorrateado por el resto de su período de facturación.",
+      "PRIMARY_BUY_LABEL": "Comprar Miembro Extra / {price} por mes",
+      "PURCHASE_ERROR": "Error al comprar asiento de miembro adicional. Por favor, inténtelo de nuevo.",
       "FORM": {
         "NAME": {
           "LABEL": "Nombre del miembro",
@@ -58,8 +65,11 @@
         "TITLE": "Confirmar eliminación",
         "MESSAGE": "¿Está seguro de eliminar ",
         "YES": "Sí, eliminar ",
-        "NO": "No, mantenerlo "
-      }
+      "NO": "No, mantenerlo ",
+      "EXTRA_REMOVE_ERROR": "No pudimos eliminar automáticamente un asiento extra de miembro. Puedes ajustar los asientos en Facturación > Uso y límites."
+      },
+      "EXTRA_CONFIRM": "Recibirá aproximadamente {credit} de crédito por el tiempo no utilizado en su próxima factura.",
+      "EXTRA_CONFIRM_FALLBACK": "Recibirá un crédito prorrateado por el tiempo no utilizado en su próxima factura."
     },
     "EDIT": {
       "TITLE": "Editar miembro",
@@ -120,6 +130,9 @@
           "INPUT": "Búsqueda por miembros"
         }
       }
+    },
+    "USAGE_SUMMARY": {
+      "TITLE": "Resumen de uso de miembros"
     }
   }
 }

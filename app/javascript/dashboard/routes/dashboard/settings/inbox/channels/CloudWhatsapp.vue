@@ -1,15 +1,18 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { required } from '@vuelidate/validators';
 import router from '../../../../index';
 import { isPhoneE164OrEmpty, isNumber } from 'shared/helpers/Validators';
+import { useI18n } from 'vue-i18n';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import { useChannelPurchaseManager } from '../composables/useChannelPurchaseManager';
 
 const store = useStore();
+const { t } = useI18n();
 
 // State (replaces data())
 const inboxName = ref('');
@@ -38,6 +41,18 @@ const v$ = useVuelidate(rules, {
   businessAccountId,
 });
 
+const baseLabel = computed(() => t('INBOX_MGMT.ADD.WHATSAPP.SUBMIT_BUTTON'));
+
+const {
+  primaryButtonLabel,
+  noteMessage,
+  showUsageLoadingMessage,
+  usageErrorMessage,
+  isPurchasingExtraChannel,
+  isChannelInfoLoading,
+  handleChannelCreation,
+} = useChannelPurchaseManager({ store, baseLabel, t });
+
 // Methods (converted to functions)
 const createChannel = async () => {
   v$.value.$touch();
@@ -46,19 +61,21 @@ const createChannel = async () => {
   }
 
   try {
-    const whatsappChannel = await store.dispatch('inboxes/createChannel', {
-      name: inboxName.value,
-      channel: {
-        type: 'whatsapp',
-        phone_number: phoneNumber.value,
-        provider: 'whatsapp_cloud',
-        provider_config: {
-          api_key: apiKey.value,
-          phone_number_id: phoneNumberId.value,
-          business_account_id: businessAccountId.value,
+    const whatsappChannel = await handleChannelCreation(() =>
+      store.dispatch('inboxes/createChannel', {
+        name: inboxName.value,
+        channel: {
+          type: 'whatsapp',
+          phone_number: phoneNumber.value,
+          provider: 'whatsapp_cloud',
+          provider_config: {
+            api_key: apiKey.value,
+            phone_number_id: phoneNumberId.value,
+            business_account_id: businessAccountId.value,
+          },
         },
-      },
-    });
+      })
+    );
 
     router.replace({
       name: 'settings_inboxes_invite_team',
@@ -68,7 +85,9 @@ const createChannel = async () => {
       },
     });
   } catch (error) {
-    useAlert(error.message || 'An error occurred while creating the channel');
+    useAlert(
+      error?.message || 'An error occurred while creating the channel'
+    );
   }
 };
 </script>
@@ -161,12 +180,29 @@ const createChannel = async () => {
     </div>
 
     <div class="w-full mt-4">
+      <div class="pt-4 border-t border-n-weak text-sm">
+        <p v-if="showUsageLoadingMessage" class="text-n-slate-11">
+          {{ $t('INBOX_MGMT.ADD.USAGE_LOADING') }}
+        </p>
+        <p v-else-if="usageErrorMessage" class="text-n-ruby-11">
+          {{ usageErrorMessage }}
+        </p>
+      </div>
+      <p
+        v-if="!showUsageLoadingMessage && !usageErrorMessage && noteMessage"
+        class="mt-3 text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
+      >
+        {{ noteMessage }}
+      </p>
       <NextButton
-        :is-loading="uiFlags.isCreating"
+        :is-loading="uiFlags.isCreating || isPurchasingExtraChannel"
+        :disabled="
+          uiFlags.isCreating || isPurchasingExtraChannel || isChannelInfoLoading
+        "
         type="submit"
         solid
         blue
-        :label="$t('INBOX_MGMT.ADD.WHATSAPP.SUBMIT_BUTTON')"
+        :label="primaryButtonLabel"
       />
     </div>
   </form>

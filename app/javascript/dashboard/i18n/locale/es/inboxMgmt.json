@@ -31,6 +31,11 @@
       }
     },
     "ADD": {
+      "USAGE_LOADING": "Verificando el uso de canales…",
+      "USAGE_ERROR": "No pudimos cargar el uso de tus canales. Inténtalo nuevamente en unos momentos.",
+      "EXTRA_NOTE": "Se te cobrará un canal adicional. El cargo se prorrateará por el resto de tu período de facturación.",
+      "PRIMARY_BUY_LABEL": "Comprar canal extra / {price} por mes",
+      "PURCHASE_ERROR": "No pudimos comprar un canal extra. Verifica tu método de pago e inténtalo nuevamente.",
       "CHANNEL_NAME": {
         "LABEL": "Nombre del canal",
         "PLACEHOLDER": "Introduzca el nombre del canal (por ejemplo: Acme Inc)",
@@ -325,7 +330,7 @@
         "QR_HELP_TEXT": "Escanea este código QR con tu aplicación móvil de WhatsApp para conectar tu canal",
         "SUCCESS_TEXT": "¡Tu canal de WhatsApp se ha conectado exitosamente!",
         "SUCCESS_MESSAGE": "¡Canal de WhatsApp conectado exitosamente!",
-        "CONTINUE_BUTTON": "Continuar para Invitar Miembros del Equipo"
+        "CONTINUE_BUTTON": "Continuar"
       },
       "VOICE": {
         "TITLE": "Voice Channel",
@@ -616,6 +621,7 @@
       "API": {
         "SUCCESS_MESSAGE": "Canal eliminado correctamente",
         "ERROR_MESSAGE": "No se pudo eliminar el canal. Inténtalo de nuevo más tarde.",
+        "EXTRA_REMOVE_ERROR": "No pudimos eliminar automáticamente un asiento extra de canal. Puedes ajustar los asientos en Facturación > Uso y límites.",
         "AVATAR_SUCCESS_MESSAGE": "Avatar de canal eliminado correctamente",
         "AVATAR_ERROR_MESSAGE": "No se pudo eliminar el avatar del canal. Inténtalo de nuevo más tarde."
       }

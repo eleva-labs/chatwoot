@@ -1,0 +1,151 @@
+import { ref, computed, unref } from 'vue';
+import { useInboxLimits } from './useInboxLimits';
+
+/**
+ * Shared channel purchase flow helper.
+ *
+ * - Surfaces limit usage details (loading, error, remaining)
+ * - Provides derived CTA label + warning copy when an extra purchase is required
+ * - Executes the add-on purchase synchronously before creating the channel
+ *
+ * @param {Object} options
+ * @param {Object} options.store - Vuex store instance
+ * @param {import('vue').ComputedRef<string> | string} options.baseLabel - Default submit label
+ * @param {Function} options.t - I18n translate function
+ */
+export function useChannelPurchaseManager({ store, baseLabel, t }) {
+  const {
+    isLoading: limitsLoading,
+    hasLoadedData,
+    limitsError,
+    hasAvailableIncludedChannel,
+    channelPriceLabel,
+    fetchLimits,
+  } = useInboxLimits(store);
+
+  const isPurchasingExtraChannel = ref(false);
+  const purchaseError = ref(null);
+
+  const showUsageLoadingMessage = computed(
+    () => !hasLoadedData.value && limitsLoading.value
+  );
+
+  const usageErrorMessage = computed(() => {
+    if (!limitsError.value) {
+      return '';
+    }
+
+    if (limitsError.value === 'UNKNOWN_ERROR') {
+      return t('INBOX_MGMT.ADD.USAGE_ERROR');
+    }
+
+    return limitsError.value;
+  });
+
+  const shouldChargeForChannel = computed(() => {
+    if (!hasLoadedData.value) {
+      return false;
+    }
+    return !hasAvailableIncludedChannel.value;
+  });
+
+  const resolvedBaseLabel = computed(() => {
+    const label = unref(baseLabel);
+    return typeof label === 'string' ? label : '';
+  });
+
+  const noteMessage = computed(() => {
+    if (showUsageLoadingMessage.value || usageErrorMessage.value) {
+      return null;
+    }
+    if (shouldChargeForChannel.value) {
+      return t('INBOX_MGMT.ADD.EXTRA_NOTE');
+    }
+    return null;
+  });
+
+  const primaryButtonLabel = computed(() => {
+    const label = resolvedBaseLabel.value;
+    if (showUsageLoadingMessage.value) {
+      return label;
+    }
+
+    if (shouldChargeForChannel.value && channelPriceLabel.value) {
+      return t('INBOX_MGMT.ADD.PRIMARY_BUY_LABEL', {
+        price: channelPriceLabel.value,
+      });
+    }
+
+    return label;
+  });
+
+  const isChannelInfoLoading = computed(
+    () => limitsLoading.value || showUsageLoadingMessage.value
+  );
+
+  const handleChannelCreation = async creationFn => {
+    if (typeof creationFn !== 'function') {
+      throw new Error('handleChannelCreation expects a function');
+    }
+
+    if (!shouldChargeForChannel.value) {
+      return creationFn();
+    }
+
+    isPurchasingExtraChannel.value = true;
+    purchaseError.value = null;
+
+    try {
+      // Purchase the add-on
+      await store.dispatch('accounts/purchaseAddOn', {
+        add_on_type: 'inbox',
+        action: 'add',
+      });
+
+      // Refresh limits - if this fails, log but don't block channel creation
+      // The user has already been charged, so we must complete their intent
+      try {
+        await fetchLimits(true);
+      } catch (refreshError) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to refresh limits after purchase:', refreshError);
+        // Continue anyway - limits will sync on next page load
+      }
+    } catch (error) {
+      // Only block if the purchase itself failed
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        t('INBOX_MGMT.ADD.PURCHASE_ERROR');
+
+      purchaseError.value = errorMessage;
+      throw new Error(errorMessage);
+    } finally {
+      isPurchasingExtraChannel.value = false;
+    }
+
+    return creationFn();
+  };
+
+  return {
+    // Usage state
+    limitsLoading,
+    hasLoadedData,
+    showUsageLoadingMessage,
+    usageErrorMessage,
+
+    // Purchase state
+    isPurchasingExtraChannel,
+    purchaseError,
+
+    // UI helpers
+    noteMessage,
+    primaryButtonLabel,
+    isChannelInfoLoading,
+    channelPriceLabel,
+
+    // Methods
+    handleChannelCreation,
+  };
+}
+

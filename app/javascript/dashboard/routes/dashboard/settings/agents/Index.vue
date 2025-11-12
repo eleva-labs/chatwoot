@@ -14,6 +14,8 @@ import EditAgent from './EditAgent.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import ConfirmationModal from 'dashboard/components/widgets/modal/ConfirmationModal.vue';
+import { useAgentSeatLimits } from './composables/useAgentSeatLimits';
 
 const getters = useStoreGetters();
 const store = useStore();
@@ -21,10 +23,25 @@ const { t } = useI18n();
 
 const loading = ref({});
 const showAddPopup = ref(false);
-const showDeletePopup = ref(false);
 const showEditPopup = ref(false);
 const agentAPI = ref({ message: '' });
 const currentAgent = ref({});
+const isPreviewingRemoval = ref(false);
+const removalPreview = ref(null);
+const removalError = ref(null);
+const confirmationModal = ref(null);
+
+// Use the shared composable for seat limits
+const {
+  isLoading: seatInfoLoading,
+  includedLimit,
+  includedUsage,
+  extraSeatsUsed,
+  extraSeatsPurchased,
+  hasLoadedData,
+  fetchLimits,
+  fetchAddOns,
+} = useAgentSeatLimits(store);
 
 const deleteConfirmText = computed(
   () => `${t('AGENT_MGMT.DELETE.CONFIRM.YES')} ${currentAgent.value.name}`
@@ -32,10 +49,6 @@ const deleteConfirmText = computed(
 const deleteRejectText = computed(() => {
   return `${t('AGENT_MGMT.DELETE.CONFIRM.NO')} ${currentAgent.value.name}`;
 });
-const deleteMessage = computed(() => {
-  return ` ${currentAgent.value.name}?`;
-});
-
 const agentList = computed(() => getters['agents/getAgents'].value);
 const uiFlags = computed(() => getters['agents/getUIFlags'].value);
 const currentUserId = computed(() => getters.getCurrentUserID.value);
@@ -69,6 +82,18 @@ const verifiedAdministrators = computed(() => {
   return agentList.value.filter(
     agent => agent.role === 'administrator' && agent.confirmed
   );
+});
+
+const seatInfoLoadingState = computed(() => {
+  return !hasLoadedData.value && seatInfoLoading.value;
+});
+
+const includedUsageDisplay = computed(() => {
+  return `${includedUsage.value}/${includedLimit.value}`;
+});
+
+const extraMembersDisplay = computed(() => {
+  return `+${extraSeatsPurchased.value || 0}`;
 });
 
 const showEditAction = agent => {
@@ -112,26 +137,117 @@ const hideEditPopup = () => {
   showEditPopup.value = false;
 };
 
-const openDeletePopup = agent => {
-  showDeletePopup.value = true;
-  currentAgent.value = agent;
-};
-const closeDeletePopup = () => {
-  showDeletePopup.value = false;
+const fetchRemovalPreview = async () => {
+  try {
+    isPreviewingRemoval.value = true;
+    removalError.value = null;
+
+    const response = await store.dispatch('accounts/previewAddOnRemoval', {
+      add_on_type: 'agent',
+      action: 'remove',
+    });
+
+    if (response?.data) {
+      removalPreview.value = {
+        estimated_credit: response.data.estimated_credit || null,
+        details: response.data.details || null,
+      };
+    }
+  } catch (error) {
+    removalError.value = error?.message || 'Preview failed';
+  } finally {
+    isPreviewingRemoval.value = false;
+  }
 };
 
-const deleteAgent = async id => {
+const confirmationTitle = computed(() => {
+  return t('AGENT_MGMT.DELETE.CONFIRM.TITLE');
+});
+
+const confirmationDescription = computed(() => {
+  return `${t('AGENT_MGMT.DELETE.CONFIRM.MESSAGE')} ${
+    currentAgent.value.name || ''
+  }?`;
+});
+
+const confirmationDetails = computed(() => {
+  const details = [];
+
+  if (extraSeatsUsed.value > 0 && removalPreview.value?.estimated_credit) {
+    details.push(
+      t('AGENT_MGMT.DELETE.EXTRA_CONFIRM', {
+        credit: removalPreview.value.estimated_credit,
+      })
+    );
+  } else if (extraSeatsUsed.value > 0 && removalError.value) {
+    details.push(t('AGENT_MGMT.DELETE.EXTRA_CONFIRM_FALLBACK'));
+  }
+
+  return details;
+});
+
+const removeExtraAgentSeat = async () => {
+  try {
+    await store.dispatch('accounts/purchaseAddOn', {
+      add_on_type: 'agent',
+      action: 'remove',
+    });
+    return true;
+  } catch (error) {
+    useAlert(t('AGENT_MGMT.DELETE.CONFIRM.EXTRA_REMOVE_ERROR'));
+    return false;
+  }
+};
+
+const deleteAgent = async (id, hadExtraSeat) => {
   try {
     await store.dispatch('agents/delete', id);
+
+    // If this was an extra seat removal, refresh limits
+    if (hadExtraSeat) {
+      await removeExtraAgentSeat();
+      await Promise.all([fetchLimits(true), fetchAddOns(true)]);
+    }
+
     showAlertMessage(t('AGENT_MGMT.DELETE.API.SUCCESS_MESSAGE'));
   } catch (error) {
     showAlertMessage(t('AGENT_MGMT.DELETE.API.ERROR_MESSAGE'));
+  } finally {
+    // Reset preview state
+    removalPreview.value = null;
+    removalError.value = null;
   }
 };
-const confirmDeletion = () => {
+
+const confirmDeletion = async () => {
   loading.value[currentAgent.value.id] = true;
-  closeDeletePopup();
-  deleteAgent(currentAgent.value.id);
+  const hadExtraSeat = extraSeatsUsed.value > 0;
+  await deleteAgent(currentAgent.value.id, hadExtraSeat);
+  loading.value[currentAgent.value.id] = false;
+  currentAgent.value = {};
+};
+
+const openDeletePopup = async agent => {
+  currentAgent.value = agent;
+  removalPreview.value = null;
+  removalError.value = null;
+
+  // Check if this is an extra seat removal
+  const isExtraSeatRemoval = extraSeatsUsed.value > 0;
+
+  if (isExtraSeatRemoval) {
+    // Fetch preview before showing modal
+    await fetchRemovalPreview();
+  }
+
+  // Show confirmation modal
+  const confirmed = await confirmationModal.value.showConfirmation();
+
+  if (confirmed) {
+    await confirmDeletion();
+  } else {
+    currentAgent.value = {};
+  }
 };
 </script>
 
@@ -157,6 +273,40 @@ const confirmDeletion = () => {
           />
         </template>
       </BaseSettingsHeader>
+    </template>
+    <template #preBody>
+      <section class="mb-6">
+        <div class="rounded-lg border border-n-weak bg-n-solid-2 p-4 shadow-sm">
+          <h3 class="text-base font-semibold text-n-slate-12 mb-3">
+            {{ $t('AGENT_MGMT.USAGE_SUMMARY.TITLE') }}
+          </h3>
+          <p v-if="seatInfoLoadingState" class="text-sm text-n-slate-11">
+            {{ $t('AGENT_MGMT.ADD.USAGE_LOADING') }}
+          </p>
+          <div
+            v-else
+            class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+            data-testid="members-usage-summary"
+          >
+            <div class="bg-n-solid-1 rounded-md border border-n-weak p-3">
+              <p class="text-xs text-n-slate-11 mb-1">
+                {{ $t('AGENT_MGMT.ADD.USAGE_TITLE') }}
+              </p>
+              <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+                {{ includedUsageDisplay }}
+              </p>
+            </div>
+            <div class="bg-n-solid-1 rounded-md border border-n-weak p-3">
+              <p class="text-xs text-n-slate-11 mb-1">
+                {{ $t('AGENT_MGMT.ADD.EXTRA_TITLE') }}
+              </p>
+              <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+                {{ extraMembersDisplay }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </template>
     <template #body>
       <table class="divide-y divide-n-weak">
@@ -269,15 +419,14 @@ const confirmDeletion = () => {
       />
     </woot-modal>
 
-    <woot-delete-modal
-      v-model:show="showDeletePopup"
-      :on-close="closeDeletePopup"
-      :on-confirm="confirmDeletion"
-      :title="$t('AGENT_MGMT.DELETE.CONFIRM.TITLE')"
-      :message="$t('AGENT_MGMT.DELETE.CONFIRM.MESSAGE')"
-      :message-value="deleteMessage"
-      :confirm-text="deleteConfirmText"
-      :reject-text="deleteRejectText"
+    <!-- Confirmation Modal for deletion with preview -->
+    <ConfirmationModal
+      ref="confirmationModal"
+      :title="confirmationTitle"
+      :description="confirmationDescription"
+      :details="confirmationDetails"
+      :confirm-label="deleteConfirmText"
+      :cancel-label="deleteRejectText"
     />
   </SettingsLayout>
 </template>

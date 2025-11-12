@@ -31,6 +31,11 @@
       }
     },
     "ADD": {
+      "USAGE_LOADING": "Checking channel usage…",
+      "USAGE_ERROR": "We couldn't load your channel usage. Please try again in a few moments.",
+      "EXTRA_NOTE": "You'll be charged for an additional channel. The charge will be prorated for the remainder of your billing period.",
+      "PRIMARY_BUY_LABEL": "Buy Extra Channel / {price} per month",
+      "PURCHASE_ERROR": "We couldn't purchase an extra channel. Please verify your payment method and try again.",
       "CHANNEL_NAME": {
         "LABEL": "Channel Name",
         "PLACEHOLDER": "Enter your channel name (eg: Acme Inc)",
@@ -324,7 +329,7 @@
         "QR_HELP_TEXT": "Scan this QR code with your WhatsApp mobile app to connect your channel",
         "SUCCESS_TEXT": "Your WhatsApp channel has been successfully connected!",
         "SUCCESS_MESSAGE": "WhatsApp channel connected successfully!",
-        "CONTINUE_BUTTON": "Continue to Invite Team Members"
+        "CONTINUE_BUTTON": "Continue"
       },
       "VOICE": {
         "TITLE": "Voice Channel",
@@ -615,6 +620,7 @@
       "API": {
         "SUCCESS_MESSAGE": "Channel deleted successfully",
         "ERROR_MESSAGE": "Could not delete channel. Please try again later.",
+        "EXTRA_REMOVE_ERROR": "We couldn't remove an extra inbox seat automatically. You can adjust seats from Billing > Usage & Limits.",
         "AVATAR_SUCCESS_MESSAGE": "Channel avatar deleted successfully",
         "AVATAR_ERROR_MESSAGE": "Could not delete the channel avatar. Please try again later."
       }

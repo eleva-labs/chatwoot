@@ -64,6 +64,9 @@ RSpec.describe Billing::Providers::Stripe do
         expect(params[:expand]).to eq(['latest_invoice.payment_intent'])
         expect(params[:metadata][:plan_id]).to eq('price_123')
         expect(params[:metadata][:quantity]).to eq('1')
+        # Verify flexible billing mode is enabled
+        expect(params[:billing_mode][:type]).to eq('flexible')
+        expect(params[:billing_mode][:flexible][:proration_discounts]).to eq('itemized')
         expect(options[:idempotency_key]).to match(/^subscription_create_cus_123_price_123_/)
       end
       expect(result).to eq(stripe_subscription)

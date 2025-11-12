@@ -14,6 +14,7 @@ import {
 import ChannelName from './components/ChannelName.vue';
 import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import { useInboxLimits } from './composables/useInboxLimits';
 
 const getters = useStoreGetters();
 const store = useStore();
@@ -50,11 +51,31 @@ const confirmPlaceHolderText = computed(
 );
 
 const deleteInbox = async ({ id }) => {
+  const previousPurchasedExtras = extraInboxesPurchased.value;
+  const hadPurchasedExtras = previousPurchasedExtras > 0;
+
   try {
     await store.dispatch('inboxes/delete', id);
     useAlert(t('INBOX_MGMT.DELETE.API.SUCCESS_MESSAGE'));
   } catch (error) {
     useAlert(t('INBOX_MGMT.DELETE.API.ERROR_MESSAGE'));
+    return;
+  }
+
+  if (hadPurchasedExtras) {
+    try {
+      const updatedQuantity = Math.max(previousPurchasedExtras - 1, 0);
+
+      await store.dispatch('accounts/purchaseAddOn', {
+        add_on_type: 'inbox',
+        action: 'set',
+        quantity: updatedQuantity,
+      });
+
+      await fetchLimits(true);
+    } catch (error) {
+      useAlert(t('INBOX_MGMT.DELETE.API.EXTRA_REMOVE_ERROR'));
+    }
   }
 };
 const closeDelete = () => {
@@ -70,6 +91,27 @@ const openDelete = inbox => {
   showDeletePopup.value = true;
   selectedInbox.value = inbox;
 };
+
+const {
+  isLoading: limitsLoading,
+  hasLoadedData,
+  includedLimit,
+  includedUsage,
+  extraInboxesPurchased,
+  fetchLimits,
+} = useInboxLimits(store);
+
+const inboxUsageLoading = computed(() => {
+  return !hasLoadedData.value && limitsLoading.value;
+});
+
+const includedUsageDisplay = computed(
+  () => `${includedUsage.value}/${includedLimit.value}`
+);
+
+const extraInboxesDisplay = computed(
+  () => `+${extraInboxesPurchased.value || 0}`
+);
 </script>
 
 <template>
@@ -94,6 +136,45 @@ const openDelete = inbox => {
           </router-link>
         </template>
       </BaseSettingsHeader>
+    </template>
+    <template #preBody>
+      <section class="mb-6">
+        <div class="rounded-lg border border-n-weak bg-n-solid-2 p-4 shadow-sm">
+          <div class="mb-3">
+            <h3 class="text-base font-semibold text-n-slate-12 mb-1">
+              {{ $t('BILLING_SETTINGS.LIMITS.INBOXES') }}
+            </h3>
+            <p class="text-xs text-n-slate-11">
+              {{ $t('BILLING_SETTINGS.LIMITS.TRACK_CHANNELS') }}
+            </p>
+          </div>
+          <p v-if="inboxUsageLoading" class="text-sm text-n-slate-11">
+            {{ $t('AGENT_MGMT.ADD.USAGE_LOADING') }}
+          </p>
+          <div
+            v-else
+            class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+            data-testid="channels-usage-summary"
+          >
+            <div class="bg-n-solid-1 rounded-md border border-n-weak p-3">
+              <p class="text-xs text-n-slate-11 mb-1">
+                {{ $t('BILLING_SETTINGS.LIMITS.INCLUDED_INBOXES_USAGE') }}
+              </p>
+              <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+                {{ includedUsageDisplay }}
+              </p>
+            </div>
+            <div class="bg-n-solid-1 rounded-md border border-n-weak p-3">
+              <p class="text-xs text-n-slate-11 mb-1">
+                {{ $t('BILLING_SETTINGS.LIMITS.EXTRA_INBOXES') }}
+              </p>
+              <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+                {{ extraInboxesDisplay }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </template>
     <template #body>
       <table class="min-w-full overflow-x-auto">

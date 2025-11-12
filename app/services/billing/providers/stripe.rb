@@ -61,6 +61,16 @@ module Billing
           metadata: {
             plan_id: plan_id,
             quantity: quantity.to_s # Store as string per Stripe best practice
+          },
+          # Enable flexible billing mode (Stripe recommended)
+          # Provides more accurate proration calculations, improved trial handling,
+          # and access to new features like mixed-interval subscriptions
+          # See: docs/ignore/ClassicToFlexible.md for details
+          billing_mode: {
+            type: 'flexible',
+            flexible: {
+              proration_discounts: 'itemized' # Show accurate discount amounts on invoices
+            }
           }
         }
 
@@ -304,6 +314,13 @@ module Billing
 
         update_params[:quantity] = options[:quantity] if options[:quantity]
         update_params[:metadata] = options[:metadata] if options[:metadata]
+
+        # Support explicit proration behavior control (compatible with both classic and flexible modes)
+        # Options: 'create_prorations' (default), 'none', 'always_invoice'
+        # Used by add-on service to control proration on subscription changes
+        if options[:proration_behavior].present?
+          update_params[:proration_behavior] = options[:proration_behavior]
+        end
 
         ::Stripe::Subscription.update(subscription_id, update_params)
       rescue ::Stripe::RateLimitError => e
