@@ -1,6 +1,6 @@
 class Webhooks::Trigger
   include ExternalApiCircuitBreaker
-  
+
   SUPPORTED_ERROR_HANDLE_EVENTS = %w[message_created message_updated].freeze
 
   def initialize(url, payload, webhook_type)
@@ -16,15 +16,29 @@ class Webhooks::Trigger
   def execute
     perform_request
   rescue StandardError => e
+    # Handle specific error scenarios (e.g., update message status)
     handle_error(e)
-    Rails.logger.warn "Exception: Invalid webhook URL #{@url} : #{e.message}"
+
+    # Log at ERROR level with context for debugging
+    Rails.logger.error(
+      "Webhook delivery failed: #{e.message}",
+      url: @url,
+      webhook_type: @webhook_type,
+      conversation_id: @payload[:conversation]&.dig(:id),
+      message_id: @payload[:id],
+      error_class: e.class.name
+    )
+
+    # RE-RAISE exception to trigger job retry mechanism
+    # This is critical - do NOT swallow the exception
+    raise e
   end
 
   private
 
   def perform_request
     # Use circuit breaker for webhook delivery
-    with_circuit_breaker('webhook_delivery') do
+    response = with_circuit_breaker('webhook_delivery') do
       RestClient::Request.execute(
         method: :post,
         url: @url,
@@ -33,6 +47,18 @@ class Webhooks::Trigger
         timeout: 5
       )
     end
+
+    # Log successful delivery
+    Rails.logger.info(
+      'Webhook delivered successfully',
+      url: @url,
+      status: response.code,
+      webhook_type: @webhook_type,
+      conversation_id: @payload[:conversation]&.dig(:id),
+      message_id: @payload[:id]
+    )
+
+    response
   end
 
   def handle_error(error)
