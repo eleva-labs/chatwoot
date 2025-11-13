@@ -21,12 +21,10 @@ class Webhooks::Trigger
 
     # Log at ERROR level with context for debugging
     Rails.logger.error(
-      "Webhook delivery failed: #{e.message}",
-      url: @url,
-      webhook_type: @webhook_type,
-      conversation_id: @payload[:conversation]&.dig(:id),
-      message_id: @payload[:id],
-      error_class: e.class.name
+      "Webhook delivery failed: #{e.message} | " \
+      "url=#{@url} webhook_type=#{@webhook_type} " \
+      "conversation_id=#{@payload[:conversation]&.dig(:id)} " \
+      "message_id=#{@payload[:id]} error_class=#{e.class.name}"
     )
 
     # RE-RAISE exception to trigger job retry mechanism
@@ -50,12 +48,10 @@ class Webhooks::Trigger
 
     # Log successful delivery
     Rails.logger.info(
-      'Webhook delivered successfully',
-      url: @url,
-      status: response.code,
-      webhook_type: @webhook_type,
-      conversation_id: @payload[:conversation]&.dig(:id),
-      message_id: @payload[:id]
+      'Webhook delivered successfully | ' \
+      "url=#{@url} status=#{response&.code} webhook_type=#{@webhook_type} " \
+      "conversation_id=#{@payload[:conversation]&.dig(:id)} " \
+      "message_id=#{@payload[:id]}"
     )
 
     response
