@@ -47,6 +47,7 @@ const defaultPendingPurchase = {
   price: '',
   action: 'purchase',
   estimatedCredit: null,
+  prorationAmount: null,
 };
 
 const pendingPurchase = ref({ ...defaultPendingPurchase });
@@ -201,6 +202,23 @@ const removeTraining = async trainingType => {
  * @param {object} service - The service object containing details
  */
 const confirmPurchaseTraining = async (trainingType, service) => {
+  let prorationAmount = null;
+
+  try {
+    const previewResponse = await store.dispatch(
+      'accounts/previewAddOnPurchase',
+      {
+        add_on_type: trainingType,
+        action: 'add',
+        quantity: 1,
+      }
+    );
+
+    prorationAmount = previewResponse?.data?.estimated_charge || null;
+  } catch (error) {
+    // Ignore preview errors; fallback messaging will handle it
+  }
+
   // Set pending purchase details for confirmation modal
   pendingPurchase.value = {
     type: trainingType,
@@ -208,6 +226,8 @@ const confirmPurchaseTraining = async (trainingType, service) => {
     price: service.unit_price_formatted,
     action: 'purchase',
     estimatedCredit: null,
+    prorationAmount:
+      prorationAmount || t('BILLING_SETTINGS.TRAINING.CALCULATING_PRORATION'),
   };
 
   // Show confirmation modal
@@ -243,6 +263,7 @@ const confirmRemoveTraining = async (trainingType, service) => {
     action: 'remove',
     estimatedCredit:
       estimatedCredit || t('BILLING_SETTINGS.TRAINING.CALCULATING_CREDIT'),
+    prorationAmount: null,
   };
 
   const confirmed = await confirmationModal.value.showConfirmation();
@@ -441,6 +462,7 @@ onMounted(() => {
         : t('BILLING_SETTINGS.TRAINING.CONFIRM_PURCHASE_DESCRIPTION', {
             item: pendingPurchase.name,
             price: pendingPurchase.price,
+            proration: pendingPurchase.prorationAmount,
           })
     "
     :confirm-label="

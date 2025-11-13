@@ -37,7 +37,9 @@ class Billing::PurchaseConversationPackService
     # Create one-time invoice item
     invoice_item = ::Stripe::InvoiceItem.create(
       customer: customer_id,
-      price: price.id,
+      pricing: {
+        price: price.id
+      },
       description: "#{format_number(@pack_config['size'])} Conversation Pack"
     )
 

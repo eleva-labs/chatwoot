@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import { useRouter, useRoute } from 'vue-router';
@@ -21,6 +21,9 @@ const agentEmail = ref('');
 const selectedRoleId = ref('agent');
 const isPurchasingExtraSeat = ref(false);
 const purchaseError = ref(null);
+const prorationAmount = ref(null);
+const isProrationLoading = ref(false);
+const hasFetchedProration = ref(false);
 
 // Use the shared composable for seat limits
 const {
@@ -105,6 +108,57 @@ const primaryButtonLabel = computed(() => {
   return t('AGENT_MGMT.ADD.FORM.SUBMIT');
 });
 
+const prorationAmountDisplay = computed(() => {
+  if (isProrationLoading.value) {
+    return t('AGENT_MGMT.ADD.CALCULATING_PRORATION');
+  }
+
+  if (prorationAmount.value) {
+    return prorationAmount.value;
+  }
+
+  return t('AGENT_MGMT.ADD.CALCULATING_PRORATION');
+});
+
+const fetchProrationPreview = async () => {
+  if (isProrationLoading.value || hasFetchedProration.value) {
+    return;
+  }
+
+  isProrationLoading.value = true;
+
+  try {
+    const response = await store.dispatch('accounts/previewAddOnPurchase', {
+      add_on_type: 'agent',
+      action: 'add',
+    });
+
+    if (response?.data?.estimated_charge) {
+      prorationAmount.value = response.data.estimated_charge;
+      hasFetchedProration.value = true;
+    } else {
+      prorationAmount.value = null;
+    }
+  } catch (error) {
+    prorationAmount.value = null;
+  } finally {
+    isProrationLoading.value = false;
+  }
+};
+
+watch(
+  [hasLoadedData, hasAvailableIncludedSeat],
+  async ([loaded, hasSeat]) => {
+    if (loaded && !hasSeat) {
+      await fetchProrationPreview();
+    } else if (hasSeat) {
+      prorationAmount.value = null;
+      hasFetchedProration.value = false;
+    }
+  },
+  { immediate: true }
+);
+
 // Note message when extra charge applies
 const noteMessage = computed(() => {
   if (!hasLoadedData.value) {
@@ -112,7 +166,8 @@ const noteMessage = computed(() => {
   }
 
   if (!hasAvailableIncludedSeat.value) {
-    return t('AGENT_MGMT.ADD.EXTRA_NOTE');
+    const displayAmount = prorationAmountDisplay.value;
+    return t('AGENT_MGMT.ADD.EXTRA_NOTE', { amount: displayAmount });
   }
   return null;
 });

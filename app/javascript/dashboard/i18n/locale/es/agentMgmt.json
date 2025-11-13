@@ -30,7 +30,8 @@
       "USAGE_LOADING": "Cargando uso incluido...",
       "USAGE_ERROR": "Error al obtener el uso",
       "EXTRA_TITLE": "Miembros adicionales agregados",
-      "EXTRA_NOTE": "Se le cobrará por un asiento de miembro adicional. El cargo será prorrateado por el resto de su período de facturación.",
+      "EXTRA_NOTE": "Se le cobrará por un asiento de miembro adicional. El cargo será prorrateado por el resto de su período de facturación: {amount}.",
+      "CALCULATING_PRORATION": "calculando prorrateo...",
       "PRIMARY_BUY_LABEL": "Comprar Miembro Extra / {price} por mes",
       "PURCHASE_ERROR": "Error al comprar asiento de miembro adicional. Por favor, inténtelo de nuevo.",
       "FORM": {

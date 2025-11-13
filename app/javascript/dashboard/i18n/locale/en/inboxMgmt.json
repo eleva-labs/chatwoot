@@ -33,7 +33,8 @@
     "ADD": {
       "USAGE_LOADING": "Checking channel usage…",
       "USAGE_ERROR": "We couldn't load your channel usage. Please try again in a few moments.",
-      "EXTRA_NOTE": "You'll be charged for an additional channel. The charge will be prorated for the remainder of your billing period.",
+      "EXTRA_NOTE": "You'll be charged for an additional channel. The charge will be prorated for the remainder of your billing period: {amount}.",
+      "CALCULATING_PRORATION": "calculating proration...",
       "PRIMARY_BUY_LABEL": "Buy Extra Channel / {price} per month",
       "PURCHASE_ERROR": "We couldn't purchase an extra channel. Please verify your payment method and try again.",
       "CHANNEL_NAME": {

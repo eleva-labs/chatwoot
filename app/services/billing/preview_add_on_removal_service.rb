@@ -87,35 +87,40 @@ class Billing::PreviewAddOnRemovalService
   end
 
   def preview_invoice_with_removal(subscription_id:, subscription_item_id:, new_quantity:)
-    preview_invoice = if new_quantity.zero?
-                        ::Stripe::Invoice.create_preview(
-                          subscription: subscription_id,
-                          subscription_items: [
-                            { id: subscription_item_id, deleted: true }
-                          ],
-                          subscription_details: {
-                            proration_behavior: 'create_prorations',
-                            proration_date: Time.current.to_i
-                          }
-                        )
-                      else
-                        ::Stripe::Invoice.create_preview(
-                          subscription: subscription_id,
-                          subscription_items: [
-                            {
-                              id: subscription_item_id,
-                              quantity: new_quantity
-                            }
-                          ],
-                          subscription_details: {
-                            proration_behavior: 'create_prorations',
-                            proration_date: Time.current.to_i
-                          }
-                        )
-                      end
+    subscription_details =
+      if new_quantity.zero?
+        {
+          proration_behavior: 'create_prorations',
+          proration_date: Time.current.to_i,
+          items: [
+            {
+              id: subscription_item_id,
+              deleted: true
+            }
+          ]
+        }
+      else
+        {
+          proration_behavior: 'create_prorations',
+          proration_date: Time.current.to_i,
+          items: [
+            {
+              id: subscription_item_id,
+              quantity: new_quantity
+            }
+          ]
+        }
+      end
+
+    preview_invoice = ::Stripe::Invoice.create_preview(
+      subscription: subscription_id,
+      subscription_details: subscription_details,
+      expand: ['lines']
+    )
 
     credit_lines = preview_invoice.lines.data.select do |line|
-      line.proration && line.amount.negative?
+      proration_flag = line.respond_to?(:proration) ? line.proration : line['proration']
+      proration_flag && line.amount.negative?
     end
 
     credit_lines.sum { |line| line.amount.abs }

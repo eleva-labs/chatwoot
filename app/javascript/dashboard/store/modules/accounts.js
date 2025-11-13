@@ -289,6 +289,26 @@ export const actions = {
     }
   },
 
+  previewAddOnPurchase: async (_, { add_on_type, action, quantity = null }) => {
+    try {
+      const response = await BillingAPI.previewAddOnPurchase(
+        add_on_type,
+        action,
+        quantity
+      );
+
+      if (response.data.success) {
+        return response;
+      }
+
+      throw new Error(response.data.error || 'Failed to preview purchase');
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Preview add-on purchase failed:', error);
+      throw error;
+    }
+  },
+
   checkPaymentMethod: async () => {
     try {
       const response = await BillingAPI.checkPaymentMethod();

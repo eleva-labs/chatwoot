@@ -1,4 +1,4 @@
-import { ref, computed, unref } from 'vue';
+import { ref, computed, unref, watch } from 'vue';
 import { useInboxLimits } from './useInboxLimits';
 
 /**
@@ -25,6 +25,9 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
 
   const isPurchasingExtraChannel = ref(false);
   const purchaseError = ref(null);
+  const prorationAmount = ref(null);
+  const isProrationLoading = ref(false);
+  const hasFetchedProration = ref(false);
 
   const showUsageLoadingMessage = computed(
     () => !hasLoadedData.value && limitsLoading.value
@@ -54,14 +57,16 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
     return typeof label === 'string' ? label : '';
   });
 
-  const noteMessage = computed(() => {
-    if (showUsageLoadingMessage.value || usageErrorMessage.value) {
-      return null;
+  const prorationAmountDisplay = computed(() => {
+    if (isProrationLoading.value) {
+      return t('INBOX_MGMT.ADD.CALCULATING_PRORATION');
     }
-    if (shouldChargeForChannel.value) {
-      return t('INBOX_MGMT.ADD.EXTRA_NOTE');
+
+    if (prorationAmount.value) {
+      return prorationAmount.value;
     }
-    return null;
+
+    return t('INBOX_MGMT.ADD.CALCULATING_PRORATION');
   });
 
   const primaryButtonLabel = computed(() => {
@@ -81,6 +86,58 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
 
   const isChannelInfoLoading = computed(
     () => limitsLoading.value || showUsageLoadingMessage.value
+  );
+
+  const noteMessage = computed(() => {
+    if (showUsageLoadingMessage.value || usageErrorMessage.value) {
+      return null;
+    }
+    if (shouldChargeForChannel.value) {
+      return t('INBOX_MGMT.ADD.EXTRA_NOTE', {
+        amount: prorationAmountDisplay.value,
+      });
+    }
+    return null;
+  });
+
+  const fetchProrationPreview = async () => {
+    if (isProrationLoading.value || hasFetchedProration.value) {
+      return;
+    }
+
+    isProrationLoading.value = true;
+
+    try {
+      const response = await store.dispatch('accounts/previewAddOnPurchase', {
+        add_on_type: 'inbox',
+        action: 'add',
+      });
+
+      if (response?.data?.estimated_charge) {
+        prorationAmount.value = response.data.estimated_charge;
+        hasFetchedProration.value = true;
+      } else {
+        prorationAmount.value = null;
+      }
+    } catch (error) {
+      prorationAmount.value = null;
+    } finally {
+      isProrationLoading.value = false;
+    }
+  };
+
+  watch(
+    [hasLoadedData, shouldChargeForChannel],
+    async ([loaded, shouldCharge]) => {
+      if (loaded && shouldCharge) {
+        await fetchProrationPreview();
+      }
+
+      if (!shouldCharge) {
+        prorationAmount.value = null;
+        hasFetchedProration.value = false;
+      }
+    }
   );
 
   const handleChannelCreation = async creationFn => {

@@ -76,9 +76,7 @@ module Billing
         # Update customer info if it has changed
         session_params[:customer_update] = { name: 'auto', address: 'auto' }
       else
-        Rails.logger.info 'No existing customer found, creating new customer during checkout'
-        # Automatically create customer for new checkouts (Stripe best practice)
-        session_params[:customer_creation] = 'always'
+        Rails.logger.info 'No existing customer found for checkout; Stripe will create one after completion'
         session_params[:customer_email] = @account.users.first&.email
       end
 

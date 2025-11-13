@@ -30,7 +30,8 @@
       "USAGE_LOADING": "Loading included usage...",
       "USAGE_ERROR": "Error fetching usage",
       "EXTRA_TITLE": "Extra members added",
-      "EXTRA_NOTE": "You'll be charged for an additional member seat. The charge will be prorated for the remainder of your billing period.",
+      "EXTRA_NOTE": "You'll be charged for an additional member seat. The charge will be prorated for the remainder of your billing period: {amount}.",
+      "CALCULATING_PRORATION": "calculating proration...",
       "PRIMARY_BUY_LABEL": "Buy Extra Member / {price} per month",
       "PURCHASE_ERROR": "Failed to purchase extra member seat. Please try again.",
       "FORM": {

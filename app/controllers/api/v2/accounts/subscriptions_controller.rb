@@ -33,9 +33,10 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
     # Allow inactive subscriptions to create new subscriptions
     if current_account.custom_attributes&.dig('stripe_customer_id').present?
       subscription_status = current_account.custom_attributes&.dig('subscription_status')
+      current_plan = current_account.custom_attributes&.dig('plan_name')
 
-      # Allow subscription creation for inactive subscriptions
-      unless subscription_status == 'inactive'
+      # Allow subscription creation for inactive subscriptions and free trial accounts
+      unless subscription_status == 'inactive' || current_plan == 'free_trial'
         return render json: {
           success: false,
           error: 'Account already has an active Stripe customer'

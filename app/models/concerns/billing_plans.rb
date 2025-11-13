@@ -160,6 +160,9 @@ module BillingPlans
     def limits_from_billing_provider_metadata(metadata)
       return {} if metadata.blank?
 
+      # Coerce Stripe objects or other duck-typed hashes into a Ruby Hash
+      metadata = metadata.to_hash if metadata.respond_to?(:to_hash)
+
       # Defensive check: ensure metadata is a hash
       unless metadata.is_a?(Hash)
         Rails.logger.error "Expected metadata to be a Hash, got #{metadata.class}: #{metadata.inspect}"

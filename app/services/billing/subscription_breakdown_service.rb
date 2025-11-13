@@ -13,16 +13,17 @@ class Billing::SubscriptionBreakdownService
   def breakdown
     # Try to fetch subscription from Stripe first
     subscription = fetch_subscription
+    base_item = base_subscription_item(subscription)
     
     if subscription
       # Active paid subscription - use Stripe data
       {
         plan_name: @plan_name.titleize,
-        base_plan: base_plan_details(subscription),
+        base_plan: base_plan_details(subscription, base_item),
         add_ons: add_on_details(subscription),
         total: calculate_total(subscription),
-        next_billing_date: subscription.current_period_end,
-        currency: subscription.currency&.upcase || 'USD'
+        next_billing_date: next_billing_date(subscription, base_item),
+        currency: subscription_currency(subscription, base_item)
       }
     else
       # No Stripe subscription (free trial, community, etc.) - use plan config
@@ -35,33 +36,18 @@ class Billing::SubscriptionBreakdownService
 
   private
 
-  def base_plan_details(subscription)
-    # Find the base plan subscription item (not an add-on)
-    plan_price_id = self.class.plan_price_id(@plan_name)
-    
-    base_item = if plan_price_id.present?
-                  subscription.items.data.find do |item|
-                    item.price.id == plan_price_id
-                  end
-                else
-                  # If no price_id configured, take the first non-add-on item
-                  # (item that doesn't have a lookup_key matching add-on patterns)
-                  subscription.items.data.find do |item|
-                    lookup_key = item.price.lookup_key
-                    lookup_key.nil? || !lookup_key.match?(/extra_|conversation_pack/)
-                  end
-                end
+  def base_plan_details(subscription, base_item)
+    base_item ||= base_subscription_item(subscription)
 
-    # If we found a base item, use it; otherwise create a basic structure
     if base_item
       price = base_item.price
-      unit_amount = price.unit_amount || 0
+      unit_amount = price&.unit_amount || 0
 
       {
         name: "#{@plan_name.titleize} Plan",
         price_cents: unit_amount,
         price_formatted: format_price(unit_amount),
-        interval: price.recurring&.interval,
+        interval: price&.recurring&.interval,
         inclusions: plan_inclusions
       }
     else
@@ -162,7 +148,7 @@ class Billing::SubscriptionBreakdownService
     total_cents = 0
 
     subscription.items.data.each do |item|
-      unit_price = item.price.unit_amount || 0
+      unit_price = item.price&.unit_amount || 0
       quantity = item.quantity || 0
       total_cents += (unit_price * quantity)
     end
@@ -181,6 +167,42 @@ class Billing::SubscriptionBreakdownService
     subscriptions.data.first
   end
 
+  def base_subscription_item(subscription)
+    return nil unless subscription&.items&.respond_to?(:data)
+
+    items = subscription.items.data
+    return nil if items.empty?
+
+    plan_price_id = self.class.plan_price_id(@plan_name)
+
+    if plan_price_id.present?
+      item = items.find { |subscription_item| subscription_item.price&.id == plan_price_id }
+      return item if item
+    end
+
+    # Prefer a non add-on item if available
+    primary_item = items.find do |subscription_item|
+      lookup_key = subscription_item.price&.lookup_key
+      lookup_key.nil? || !lookup_key.match?(/extra_|conversation_pack/)
+    end
+
+    primary_item
+  end
+
+  def next_billing_date(subscription, base_item)
+    item = base_item || base_subscription_item(subscription)
+    item_end = subscription_item_current_period_end(item)
+    return item_end if item_end
+
+    subscription_current_period_end(subscription)
+  end
+
+  def subscription_currency(subscription, base_item)
+    item = base_item || base_subscription_item(subscription)
+    currency = item&.price&.currency || subscription&.currency
+    currency&.upcase || 'USD'
+  end
+
   def format_price(cents)
     return '$0.00' unless cents
 
@@ -189,6 +211,26 @@ class Billing::SubscriptionBreakdownService
 
   def number_with_delimiter(number)
     number.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
+  end
+
+  def subscription_item_current_period_end(item)
+    return nil unless item
+
+    if item.respond_to?(:current_period_end)
+      item.current_period_end
+    elsif item.is_a?(Hash)
+      item['current_period_end']
+    end
+  end
+
+  def subscription_current_period_end(subscription)
+    return nil unless subscription
+
+    if subscription.respond_to?(:current_period_end)
+      subscription.current_period_end
+    elsif subscription.is_a?(Hash)
+      subscription['current_period_end']
+    end
   end
 
   def build_breakdown_from_plan_config

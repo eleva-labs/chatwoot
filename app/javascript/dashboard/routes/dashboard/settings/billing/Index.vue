@@ -4,7 +4,7 @@ import { useMapGetter, useStore } from 'dashboard/composables/store.js';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 import BillingCard from './components/BillingCard.vue';
 import BillingHeader from './components/BillingHeader.vue';
@@ -27,6 +27,55 @@ const customAttributes = computed(() => {
   return currentAccount.value.custom_attributes || {};
 });
 
+const convertTimestampToDate = value => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) {
+    return null;
+  }
+
+  const milliseconds = numericValue < 1e12 ? numericValue * 1000 : numericValue;
+  const date = new Date(milliseconds);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const convertIsoDate = value => {
+  if (!value) {
+    return null;
+  }
+
+  const date = parseISO(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const billingDate = computed(() => {
+  const { current_period_end: currentPeriodEnd, subscription_ends_on: subscriptionEndsOn } =
+    customAttributes.value;
+
+  const timestampDate = convertTimestampToDate(currentPeriodEnd);
+  if (timestampDate) {
+    return timestampDate;
+  }
+
+  return convertIsoDate(subscriptionEndsOn);
+});
+
+const subscriptionEndDate = computed(() => {
+  const { current_period_end: currentPeriodEnd, subscription_ends_on: subscriptionEndsOn } =
+    customAttributes.value;
+
+  const subscriptionEnd = convertIsoDate(subscriptionEndsOn);
+  if (subscriptionEnd) {
+    return subscriptionEnd;
+  }
+
+  return convertTimestampToDate(currentPeriodEnd);
+});
+
 /**
  * Computed property for plan name with translation
  * @returns {string|undefined}
@@ -45,14 +94,13 @@ const planName = computed(() => {
 const subscriptionRenewsOn = computed(() => {
   // Return '-' if subscription is not active or no end date
   if (
-    customAttributes.value.subscription_status !== 'active' ||
-    !customAttributes.value.subscription_ends_on
+    customAttributes.value.subscription_status !== 'active'
   ) {
     return '-';
   }
 
-  const endDate = new Date(customAttributes.value.subscription_ends_on);
-  return format(endDate, 'dd MMM, yyyy');
+  const date = billingDate.value;
+  return date ? format(date, 'dd MMM, yyyy') : '-';
 });
 
 /**
@@ -77,9 +125,8 @@ const subscriptionStatus = computed(() => {
  * @returns {string}
  */
 const subscriptionEndsOn = computed(() => {
-  if (!customAttributes.value.subscription_ends_on) return '-';
-  const endDate = new Date(customAttributes.value.subscription_ends_on);
-  return format(endDate, 'dd MMM, yyyy');
+  const date = subscriptionEndDate.value;
+  return date ? format(date, 'dd MMM, yyyy') : '-';
 });
 
 /**

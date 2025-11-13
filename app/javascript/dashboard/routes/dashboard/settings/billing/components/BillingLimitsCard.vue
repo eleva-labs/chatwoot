@@ -7,21 +7,29 @@ import { useAlert } from 'dashboard/composables';
 import BillingCard from './BillingCard.vue';
 import ButtonV4 from 'next/button/Button.vue';
 import ConversationPackModal from './ConversationPackModal.vue';
+import { useAgentSeatLimits } from '../../agents/composables/useAgentSeatLimits';
 
 const { t } = useI18n();
 const store = useStore();
 const router = useRouter();
+const {
+  isLoading: agentSeatLimitsLoading,
+  includedLimit: agentIncludedLimit,
+  includedUsage: agentIncludedUsage,
+  extraSeatsPurchased: agentExtraSeatsPurchased,
+  agentLimit: agentSeatLimit,
+} = useAgentSeatLimits(store);
 
 const limits = ref({});
 const addOns = ref({});
 const conversationPacks = ref([]);
-const isLoading = ref(true);
+const isCardLoading = ref(true);
 const isPurchasing = ref(false);
 const conversationPackModal = ref(null);
 
 const fetchLimits = async () => {
   try {
-    isLoading.value = true;
+    isCardLoading.value = true;
     const response = await store.dispatch('accounts/fetchAddOnLimits');
     // Access nested data.data.limits from API response
     if (response?.data?.data) {
@@ -30,7 +38,7 @@ const fetchLimits = async () => {
   } catch (error) {
     // Error handling - silent fail
   } finally {
-    isLoading.value = false;
+    isCardLoading.value = false;
   }
 };
 
@@ -59,7 +67,6 @@ const fetchConversationPacks = async () => {
 };
 
 // Agent limit still needed for display in simplified section
-const agentLimit = computed(() => limits.value.agent || {});
 const inboxLimit = computed(() => limits.value.inbox || {});
 const conversationLimit = computed(() => limits.value.conversation || {});
 
@@ -72,6 +79,59 @@ const toNumber = value => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const formatLimitValue = value => {
+  if (isUnlimitedValue(value)) {
+    return t('BILLING_SETTINGS.LIMITS.UNLIMITED');
+  }
+
+  return toNumber(value).toLocaleString();
+};
+
+const formatUsageCount = value => {
+  return toNumber(value).toLocaleString();
+};
+
+const agentIncludedMembersUsageDisplay = computed(() => {
+  const usage = agentIncludedUsage.value;
+  const limit = agentIncludedLimit.value;
+  const current = agentSeatLimit.value?.current;
+
+  const usageValue = Number.isFinite(usage) ? usage : (current ?? 0);
+
+  const formattedUsage = formatUsageCount(usageValue);
+  const formattedLimit = formatLimitValue(limit);
+
+  return `${formattedUsage}/${formattedLimit}`;
+});
+
+const agentExtraMembersDisplay = computed(() => {
+  const purchased = agentExtraSeatsPurchased.value;
+  return `+${formatUsageCount(purchased)}`;
+});
+
+const inboxIncludedUsageDisplay = computed(() => {
+  const baseLimit = inboxLimit.value.base_limit;
+  const currentUsage = inboxLimit.value.current || 0;
+
+  const includedUsage = isUnlimitedValue(baseLimit)
+    ? toNumber(currentUsage)
+    : Math.min(toNumber(currentUsage), toNumber(baseLimit));
+
+  const formattedUsage = formatUsageCount(includedUsage);
+  const formattedLimit = formatLimitValue(baseLimit || 0);
+
+  return `${formattedUsage}${t('BILLING_SETTINGS.LIMITS.SEPARATOR')}${formattedLimit}`;
+});
+
+const inboxExtraMembersDisplay = computed(() => {
+  const purchased = inboxLimit.value.purchased || 0;
+  return `+${formatUsageCount(purchased)}`;
+});
+
+const isLimitsLoading = computed(() => {
+  return isCardLoading.value || agentSeatLimitsLoading.value;
+});
 
 const formatUsageValue = value => {
   if (isUnlimitedValue(value)) {
@@ -107,6 +167,12 @@ const conversationRemainingValue = computed(() => {
   }
 
   return Math.max(toNumber(remaining), 0);
+});
+
+const conversationIncludedUsageDisplay = computed(() => {
+  const included = formatUsageValue(conversationIncludedUsageValue.value);
+  const limit = formatUsageValue(conversationPlanLimitValue.value);
+  return `${included}${t('BILLING_SETTINGS.LIMITS.SEPARATOR')}${limit}`;
 });
 
 const canPurchaseAddOns = computed(() => {
@@ -180,18 +246,6 @@ const getUsagePercentage = limit => {
   return Math.min(limit.usage_percentage, 100);
 };
 
-const getProgressBarColor = percentage => {
-  if (percentage >= 90) return 'bg-n-ruby-9';
-  if (percentage >= 70) return 'bg-n-amber-9';
-  return 'bg-n-teal-9';
-};
-
-const getUsageTextColor = percentage => {
-  if (percentage >= 90) return 'text-n-ruby-11';
-  if (percentage >= 70) return 'text-n-amber-11';
-  return 'text-n-teal-11';
-};
-
 // eslint-disable-next-line no-unused-vars
 const getAvailableText = limit => {
   const available = (limit.total_allowed || 0) - (limit.current || 0);
@@ -211,7 +265,7 @@ onMounted(async () => {
     :title="t('BILLING_SETTINGS.LIMITS.TITLE')"
     :description="t('BILLING_SETTINGS.LIMITS.DESCRIPTION')"
   >
-    <div v-if="isLoading" class="flex items-center justify-center py-8">
+    <div v-if="isLimitsLoading" class="flex items-center justify-center py-8">
       <span class="text-sm text-n-slate-11">{{
         t('BILLING_SETTINGS.LIMITS.LOADING')
       }}</span>
@@ -241,18 +295,15 @@ onMounted(async () => {
               {{ t('BILLING_SETTINGS.LIMITS.INCLUDED_MEMBERS_USAGE') }}
             </p>
             <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
-              {{ agentLimit.current || 0 }}/{{ agentLimit.base_limit || 0 }}
+              {{ agentIncludedMembersUsageDisplay }}
             </p>
           </div>
-          <div
-            v-if="agentLimit.purchased > 0"
-            class="bg-n-solid-1 rounded-md p-3 border border-n-weak"
-          >
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
             <p class="text-xs text-n-slate-11 mb-1">
               {{ t('BILLING_SETTINGS.LIMITS.EXTRA_MEMBERS') }}
             </p>
             <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
-              +{{ agentLimit.purchased }}
+              {{ agentExtraMembersDisplay }}
             </p>
           </div>
         </div>
@@ -267,14 +318,7 @@ onMounted(async () => {
 
       <!-- Inboxes Usage -->
       <div
-        class="rounded-lg border p-4 shadow-sm transition-all duration-200"
-        :class="
-          getUsagePercentage(inboxLimit) >= 90
-            ? 'border-n-ruby-7 bg-n-ruby-2'
-            : getUsagePercentage(inboxLimit) >= 70
-              ? 'border-n-amber-7 bg-n-amber-2'
-              : 'border-n-weak bg-n-solid-2'
-        "
+        class="rounded-lg border p-4 shadow-sm transition-all duration-200 border-n-weak bg-n-solid-2"
       >
         <!-- Summary Header -->
         <div class="mb-3">
@@ -293,7 +337,7 @@ onMounted(async () => {
               {{ t('BILLING_SETTINGS.LIMITS.INCLUDED_INBOXES_USAGE') }}
             </p>
             <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
-              {{ inboxLimit.current || 0 }}/{{ inboxLimit.base_limit || 0 }}
+              {{ inboxIncludedUsageDisplay }}
             </p>
           </div>
           <div
@@ -304,7 +348,7 @@ onMounted(async () => {
               {{ t('BILLING_SETTINGS.LIMITS.EXTRA_INBOXES') }}
             </p>
             <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
-              +{{ inboxLimit.purchased }}
+              {{ inboxExtraMembersDisplay }}
             </p>
           </div>
         </div>
@@ -347,11 +391,7 @@ onMounted(async () => {
               {{ t('BILLING_SETTINGS.LIMITS.INCLUDED_CONVERSATIONS_USAGE') }}
             </p>
             <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
-              {{ formatUsageValue(conversationIncludedUsageValue)
-              }}{{ t('BILLING_SETTINGS.LIMITS.SEPARATOR')
-              }}{{
-                formatUsageValue(conversationPlanLimitValue)
-              }}
+              {{ conversationIncludedUsageDisplay }}
             </p>
           </div>
           <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">

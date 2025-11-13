@@ -643,30 +643,23 @@ module Billing
         Rails.logger.info 'Step 2: Extracting customer ID'
 
         # Handle both Stripe objects and hashes
-        stripe_customer_id ||= subscription.is_a?(Hash) ? subscription['customer'] : subscription.customer
+        stripe_customer_id ||= subscription_value(subscription, 'customer')
 
         Rails.logger.info 'Step 3: Building new attributes hash'
 
-        # Extract current_period_start and current_period_end from subscription
-        # Both fields exist directly on the Subscription object (not on subscription items)
-        current_period_start = if subscription.is_a?(Hash)
-                                 subscription['current_period_start']
-                               else
-                                 subscription.current_period_start
-                               end
+        # Extract current_period_start and current_period_end from subscription.
+        # On Stripe API versions before basil these were top-level fields; with flexible billing
+        # they moved onto subscription items, so subscription_value falls back to the item data.
+        current_period_start = subscription_value(subscription, 'current_period_start', plan_name: plan_name)
 
-        current_period_end = if subscription.is_a?(Hash)
-                               subscription['current_period_end']
-                             else
-                               subscription.current_period_end
-                             end
+        current_period_end = subscription_value(subscription, 'current_period_end', plan_name: plan_name)
 
         Rails.logger.info "current_period_start value: #{current_period_start}"
         Rails.logger.info "current_period_end value: #{current_period_end}"
         Rails.logger.info "current_period_end class: #{current_period_end.class}"
 
         # Handle both Stripe objects and hashes for status
-        raw_status = subscription.is_a?(Hash) ? subscription['status'] : subscription.status
+        raw_status = subscription_value(subscription, 'status')
 
         # Determine the correct subscription status based on cancellation state
         subscription_status = if extract_cancel_at_period_end(subscription)
@@ -724,6 +717,10 @@ module Billing
           # Dynamically assign all limits from billing provider metadata
           account.limits = plan_limits
           Rails.logger.info "Updated account limits from billing provider metadata: #{plan_limits}"
+        end
+
+        if Billing::SubscriptionStatuses.paid_status?(subscription_status)
+          custom_attrs['billing_status'] = 'completed'
         end
 
         # If subscription is being cancelled (cancel_at_period_end = true),
@@ -886,37 +883,82 @@ module Billing
 
       # Extracts cancel_at_period_end from subscription
       def extract_cancel_at_period_end(subscription)
-        if subscription.is_a?(Hash)
-          subscription['cancel_at_period_end'] || false
-        else
-          subscription.cancel_at_period_end || false
-        end
+        subscription_value(subscription, 'cancel_at_period_end') || false
       end
 
       # Extracts canceled_at timestamp from subscription
       def extract_canceled_at(subscription)
-        if subscription.is_a?(Hash)
-          subscription['canceled_at']
-        else
-          subscription.canceled_at
-        end
+        subscription_value(subscription, 'canceled_at')
       end
 
       # Extracts ended_at timestamp from subscription
       def extract_ended_at(subscription)
-        if subscription.is_a?(Hash)
-          subscription['ended_at']
-        else
-          subscription.ended_at
-        end
+        subscription_value(subscription, 'ended_at')
       end
 
       # Extracts cancel_at timestamp from subscription
       def extract_cancel_at(subscription)
-        if subscription.is_a?(Hash)
-          subscription['cancel_at']
+        subscription_value(subscription, 'cancel_at')
+      end
+
+      def subscription_value(subscription, key, plan_name: nil)
+        return nil unless subscription
+
+        value = case subscription
+                when Hash
+                  subscription[key.to_s]
+                else
+                  subscription.respond_to?(key) ? subscription.public_send(key) : subscription[key.to_s]
+                end
+
+        needs_item_lookup = %w[current_period_start current_period_end].include?(key.to_s)
+        return value if value.present? || !needs_item_lookup
+
+        item = find_base_subscription_item(subscription, plan_name)
+        return nil unless item
+
+        subscription_item_value(item, key)
+      end
+
+      def find_base_subscription_item(subscription, plan_name)
+        items = subscription_items(subscription)
+        return nil if items.blank?
+
+        if plan_name.present?
+          target_price_id = self.class.plan_price_id(plan_name)
+          if target_price_id.present?
+            matched_item = items.find { |item| subscription_item_price_id(item) == target_price_id }
+            return matched_item if matched_item
+          end
+        end
+
+        items.first
+      end
+
+      def subscription_items(subscription)
+        case subscription
+        when Hash
+          Array(subscription.dig('items', 'data'))
         else
-          subscription.cancel_at
+          subscription.items&.data || []
+        end
+      end
+
+      def subscription_item_price_id(item)
+        case item
+        when Hash
+          item.dig('price', 'id')
+        else
+          item.price&.id
+        end
+      end
+
+      def subscription_item_value(item, key)
+        case item
+        when Hash
+          item[key.to_s]
+        else
+          item.respond_to?(key) ? item.public_send(key) : item[key.to_s]
         end
       end
 
@@ -1003,7 +1045,7 @@ module Billing
 
         # Extract limits from metadata using existing BillingPlans infrastructure
         metadata = target_product.metadata || {}
-        limits = new.limits_from_billing_provider_metadata(metadata)
+        limits = limits_from_billing_provider_metadata(metadata)
 
         plan_data = {
           price_id: active_price.id,

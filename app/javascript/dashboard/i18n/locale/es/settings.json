@@ -512,7 +512,7 @@
       "INTERVAL_SEPARATOR": "/",
       "CHECK_MARK": "✓",
       "CONFIRM_PURCHASE_TITLE": "Confirmar compra",
-      "CONFIRM_PURCHASE_DESCRIPTION": "¿Está seguro de que desea comprar {item} por {price}? Esto se agregará a su suscripción inmediatamente.",
+      "CONFIRM_PURCHASE_DESCRIPTION": "¿Está seguro de que desea comprar {item}? Se le cobrará {proration} hoy (prorrateado por el resto de su período de facturación). Las renovaciones futuras son {price}.",
       "CONFIRM_PURCHASE_BUTTON": "Confirmar compra",
       "CANCEL_PURCHASE_BUTTON": "Cancelar",
       "CANCEL_BUTTON": "Cancelar entrenamiento",
@@ -524,7 +524,8 @@
       "CONFIRM_REMOVE_DESCRIPTION": "¿Cancelar {item}? Recibirás aproximadamente {credit} de crédito por el tiempo no utilizado en tu próxima factura. Esta acción no se puede deshacer, pero puedes volver a comprar el servicio más tarde.",
       "CONFIRM_REMOVE_BUTTON": "Sí, Cancelar Capacitación",
       "CANCEL_REMOVE_BUTTON": "Mantener Capacitación",
-      "CALCULATING_CREDIT": "calculando..."
+      "CALCULATING_CREDIT": "calculando...",
+      "CALCULATING_PRORATION": "calculando prorrateo..."
     },
     "PRICING_TABLE": {
       "MONTHLY": "Mensual",

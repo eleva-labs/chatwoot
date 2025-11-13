@@ -32,9 +32,7 @@ module Billing
           Rails.logger.info "Creating Stripe customer for account #{@account.id}"
           customer = @provider.create_customer(@account, @plan_name)
           Rails.logger.info "Customer created successfully: #{customer.id}"
-
-          # Save customer ID immediately to prevent duplicates on retry
-          save_customer_id_only(customer.id)
+          persist_customer_id(customer.id)
         end
 
         price_id = self.class.plan_price_id(@plan_name)
@@ -63,7 +61,14 @@ module Billing
     private
 
     def subscription_exists?
-      @account.custom_attributes&.dig('stripe_customer_id').present?
+      custom_attrs = @account.custom_attributes || {}
+      customer_id = custom_attrs['stripe_customer_id']
+      status = custom_attrs['subscription_status']
+
+      return false if customer_id.blank?
+      return false if status.blank? || status == Billing::SubscriptionStatuses::INACTIVE
+
+      true
     end
 
     def update_account_attributes(customer, subscription)
@@ -171,13 +176,15 @@ module Billing
       Rails.logger.error "Failed to clear creating customer flag: #{e.message}"
     end
 
-    def save_customer_id_only(customer_id)
+    def persist_customer_id(customer_id)
       custom_attrs = @account.custom_attributes || {}
+      return if custom_attrs['stripe_customer_id'] == customer_id
+
       custom_attrs['stripe_customer_id'] = customer_id
       @account.update!(custom_attributes: custom_attrs)
-      Rails.logger.info "Saved customer ID #{customer_id} to account #{@account.id}"
+      Rails.logger.info "Persisted Stripe customer ID #{customer_id} for account #{@account.id}"
     rescue StandardError => e
-      Rails.logger.error "Failed to save customer ID: #{e.message}"
+      Rails.logger.error "Failed to persist Stripe customer ID: #{e.message}"
     end
 
     def determine_trial_period

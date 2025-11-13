@@ -6,6 +6,7 @@ class Billing::ManageSubscriptionAddOnService
   include BillingPlans
 
   ADD_ON_TYPES = %i[agent inbox channel live_training live_1_1_training].freeze
+  ALWAYS_INVOICE_ADD_ONS = %i[agent inbox live_training live_1_1_training].freeze
 
   def initialize(account, add_on_type)
     @account = account
@@ -176,7 +177,7 @@ class Billing::ManageSubscriptionAddOnService
       updated_item = ::Stripe::SubscriptionItem.update(
         item.id,
         quantity: new_quantity,
-        proration_behavior: 'create_prorations'
+        proration_behavior: stripe_proration_behavior
       )
       success_response("#{@add_on_type} quantity updated to #{new_quantity}", quantity: new_quantity, item: updated_item)
     else
@@ -191,7 +192,7 @@ class Billing::ManageSubscriptionAddOnService
         subscription: subscription.id,
         price: price.id,
         quantity: new_quantity,
-        proration_behavior: 'create_prorations'
+        proration_behavior: stripe_proration_behavior
       )
       success_response("#{@add_on_type} add-on added with quantity #{new_quantity}", quantity: new_quantity, item: new_item)
     end
@@ -220,7 +221,7 @@ class Billing::ManageSubscriptionAddOnService
   def remove_subscription_item(item)
     ::Stripe::SubscriptionItem.delete(
       item.id,
-      proration_behavior: 'create_prorations'
+      proration_behavior: stripe_proration_behavior
     )
   end
 
@@ -319,6 +320,10 @@ class Billing::ManageSubscriptionAddOnService
     else
       'Settings'
     end
+  end
+
+  def stripe_proration_behavior
+    ALWAYS_INVOICE_ADD_ONS.include?(@add_on_type) ? 'always_invoice' : 'create_prorations'
   end
 end
 

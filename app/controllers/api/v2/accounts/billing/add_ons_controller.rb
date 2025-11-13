@@ -7,7 +7,7 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
 
   before_action :current_account
   before_action :check_authorization
-  before_action :validate_add_on_type, only: [:update, :preview]
+  before_action :validate_add_on_type, only: [:update, :preview, :preview_purchase]
 
   # GET /api/v2/accounts/:account_id/billing/add_ons
   # Returns current add-on quantities and pricing for all add-on types
@@ -86,6 +86,46 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
     render json: {
       success: false,
       error: 'Failed to preview removal'
+    }, status: :internal_server_error
+  end
+
+  # POST /api/v2/accounts/:account_id/billing/add_ons/preview_purchase
+  # Provides a proration charge estimate before purchasing an add-on
+  def preview_purchase
+    add_on_type = params[:add_on_type] || params.dig(:add_on, :add_on_type)
+    raw_action = request.request_parameters['action']
+    action_type = raw_action || params.dig(:add_on, :action) || params[:action_type] || 'add'
+    quantity = params[:quantity]&.to_i || params.dig(:add_on, :quantity)&.to_i
+
+    service = Billing::PreviewAddOnPurchaseService.new(
+      current_account,
+      add_on_type,
+      action_type,
+      quantity
+    )
+
+    result = service.preview_purchase
+
+    if result[:success]
+      render json: {
+        success: true,
+        estimated_charge: result[:estimated_charge],
+        estimated_charge_cents: result[:estimated_charge_cents],
+        details: result[:details]
+      }
+    else
+      render json: {
+        success: false,
+        error: result[:error]
+      }, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    Rails.logger.error "Error previewing add-on purchase: #{e.message}"
+    Sentry.capture_exception(e) if defined?(Sentry)
+
+    render json: {
+      success: false,
+      error: 'Failed to preview purchase'
     }, status: :internal_server_error
   end
 
