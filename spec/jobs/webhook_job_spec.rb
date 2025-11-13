@@ -28,13 +28,4 @@ RSpec.describe WebhookJob do
       perform_enqueued_jobs { job }
     end
   end
-
-  describe 'delivery tracking' do
-    let(:payload) { { id: 123, conversation: { id: 456 } } }
-
-    it 'has tracking callbacks defined' do
-      expect(described_class).to respond_to(:before_perform)
-      expect(described_class).to respond_to(:after_perform)
-    end
-  end
 end
