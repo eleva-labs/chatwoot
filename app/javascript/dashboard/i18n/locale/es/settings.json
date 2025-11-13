@@ -482,6 +482,8 @@
       "INCLUDES": "Incluye",
       "ADD_ONS_LABEL": "Complementos",
       "TOTAL_LABEL": "Total (próxima facturación)",
+      "TOTAL_BEFORE_CREDITS": "Subtotal",
+      "APPLIED_CREDITS": "Saldo aplicado",
       "NEXT_BILLING": "Próxima fecha de facturación",
       "TRIAL_ENDS": "Finaliza el periodo de prueba"
     },

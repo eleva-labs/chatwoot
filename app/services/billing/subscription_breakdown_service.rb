@@ -17,14 +17,25 @@ class Billing::SubscriptionBreakdownService
     
     if subscription
       # Active paid subscription - use Stripe data
-      {
+      # Try to fetch upcoming invoice to get accurate totals with credits
+      upcoming_invoice = fetch_upcoming_invoice(subscription)
+      
+      breakdown_data = {
         plan_name: @plan_name.titleize,
         base_plan: base_plan_details(subscription, base_item),
         add_ons: add_on_details(subscription),
-        total: calculate_total(subscription),
+        total: calculate_total(subscription, upcoming_invoice),
         next_billing_date: next_billing_date(subscription, base_item),
         currency: subscription_currency(subscription, base_item)
       }
+      
+      # Add credit information if available from upcoming invoice
+      if upcoming_invoice
+        breakdown_data[:total_before_credits] = calculate_total_before_credits(upcoming_invoice)
+        breakdown_data[:credits_applied] = calculate_credits_applied(upcoming_invoice)
+      end
+      
+      breakdown_data
     else
       # No Stripe subscription (free trial, community, etc.) - use plan config
       build_breakdown_from_plan_config
@@ -144,7 +155,17 @@ class Billing::SubscriptionBreakdownService
     end
   end
 
-  def calculate_total(subscription)
+  def calculate_total(subscription, upcoming_invoice = nil)
+    # If we have upcoming invoice data, use amount_due (net amount after credits)
+    if upcoming_invoice
+      amount_due = upcoming_invoice.amount_due || 0
+      return {
+        amount_cents: amount_due,
+        amount_formatted: format_price(amount_due)
+      }
+    end
+
+    # Fallback: calculate from subscription items (before credits)
     total_cents = 0
 
     subscription.items.data.each do |item|
@@ -165,6 +186,67 @@ class Billing::SubscriptionBreakdownService
 
     subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'active', limit: 1)
     subscriptions.data.first
+  end
+
+  def fetch_upcoming_invoice(subscription)
+    return nil unless subscription
+
+    customer_id = @account.custom_attributes&.dig('stripe_customer_id')
+    return nil unless customer_id
+
+    invoice_klass = ::Stripe::Invoice
+
+    # Prefer retrieve_upcoming if available (Stripe Ruby 16+)
+    if invoice_klass.respond_to?(:retrieve_upcoming)
+      return invoice_klass.retrieve_upcoming(customer: customer_id, subscription: subscription.id)
+    end
+
+    # Fallback to legacy upcoming if still available
+    if invoice_klass.respond_to?(:upcoming)
+      return invoice_klass.upcoming(customer: customer_id, subscription: subscription.id)
+    end
+
+    # Finally, attempt to use create_preview if provided by the gem
+    if invoice_klass.respond_to?(:create_preview)
+      return invoice_klass.create_preview(customer: customer_id, subscription: subscription.id)
+    end
+
+    nil
+  rescue ::Stripe::InvalidRequestError => e
+    # Upcoming invoice may not exist (e.g., subscription just started, no next billing cycle)
+    # Log but don't fail - we'll fall back to subscription-based calculation
+    Rails.logger.debug "No upcoming invoice available: #{e.message}"
+    nil
+  rescue ::Stripe::StripeError => e
+    Rails.logger.warn "Error fetching upcoming invoice: #{e.message}"
+    nil
+  end
+
+  def calculate_total_before_credits(upcoming_invoice)
+    # Use subtotal to match Stripe's "Subtotal" display
+    # This represents the total of all line items before credits are applied
+    total_cents = upcoming_invoice.subtotal || 0
+
+    {
+      amount_cents: total_cents,
+      amount_formatted: format_price(total_cents)
+    }
+  end
+
+  def calculate_credits_applied(upcoming_invoice)
+    # Starting balance is negative for credits (customer balance)
+    # When applied to invoice, it reduces amount_due
+    # We want to show the absolute value of credits applied
+    starting_balance = upcoming_invoice.starting_balance || 0
+    
+    # If starting_balance is negative, that's a credit (reduces amount due)
+    # If positive, that's a debit (increases amount due) - we'll show as 0 for credits
+    credits_cents = starting_balance.negative? ? -starting_balance : 0
+
+    {
+      amount_cents: credits_cents,
+      amount_formatted: format_price(credits_cents)
+    }
   end
 
   def base_subscription_item(subscription)

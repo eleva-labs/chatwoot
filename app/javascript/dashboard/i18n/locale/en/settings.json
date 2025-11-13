@@ -479,6 +479,8 @@
       "INCLUDES": "Includes",
       "ADD_ONS_LABEL": "Add-ons",
       "TOTAL_LABEL": "Total (Next billing)",
+      "TOTAL_BEFORE_CREDITS": "Subtotal",
+      "APPLIED_CREDITS": "Applied balance",
       "NEXT_BILLING": "Next billing date",
       "TRIAL_ENDS": "Trial ends"
     },

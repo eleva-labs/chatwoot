@@ -63,6 +63,13 @@ const billingDateLabel = computed(() => {
   return t('BILLING_SETTINGS.SUBSCRIPTION.NEXT_BILLING');
 });
 
+const hasCredits = computed(() => {
+  return (
+    breakdown.value?.credits_applied?.amount_cents > 0 &&
+    breakdown.value?.total_before_credits
+  );
+});
+
 onMounted(() => {
   fetchBreakdown();
 });
@@ -167,6 +174,33 @@ onMounted(() => {
       <div
         class="rounded-lg border-2 border-n-slate-6 bg-n-slate-2 p-4 shadow-sm"
       >
+        <!-- Total before credits (if credits are applied) -->
+        <div
+          v-if="hasCredits"
+          class="flex items-center justify-between pb-2 mb-2 border-b border-n-slate-5"
+        >
+          <span class="text-sm text-n-slate-11">
+            {{ t('BILLING_SETTINGS.SUBSCRIPTION.TOTAL_BEFORE_CREDITS') }}
+          </span>
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ breakdown.total_before_credits.amount_formatted }}
+          </span>
+        </div>
+
+        <!-- Applied credits line (if credits are applied) -->
+        <div
+          v-if="hasCredits"
+          class="flex items-center justify-between pb-2 mb-2 border-b border-n-slate-5"
+        >
+          <span class="text-sm text-n-slate-11">
+            {{ t('BILLING_SETTINGS.SUBSCRIPTION.APPLIED_CREDITS') }}
+          </span>
+          <span class="text-sm font-medium text-n-teal-9">
+            -{{ breakdown.credits_applied.amount_formatted }}
+          </span>
+        </div>
+
+        <!-- Total (Next billing) -->
         <div class="flex items-center justify-between">
           <h4 class="text-base font-semibold text-n-slate-12">
             {{ t('BILLING_SETTINGS.SUBSCRIPTION.TOTAL_LABEL') }}
