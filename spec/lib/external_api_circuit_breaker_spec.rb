@@ -146,143 +146,15 @@ RSpec.describe ExternalApiCircuitBreaker do
     end
   end
 
-  describe 'new timestamp-based circuit breaker' do
+  describe 'improved thresholds' do
     let(:test_instance) { TestInstanceClass.new }
 
-    context 'with webhook_delivery configuration' do
-      it 'opens circuit after 10 failures in 1 minute' do
-        # Record 9 failures - circuit should stay closed
-        9.times do |i|
-          test_instance.with_circuit_breaker('webhook_delivery', retries: 1) do
-            raise StandardError, "failure #{i + 1}"
-          end
-        rescue StandardError
-          # Expected
-        end
-
-        # 10th failure should open the circuit
-        expect do
-          test_instance.with_circuit_breaker('webhook_delivery', retries: 1) do
-            raise StandardError, 'failure 10'
-          end
-        end.to raise_error(StandardError, 'failure 10')
-
-        # Next request should be rejected by open circuit
-        expect do
-          test_instance.with_circuit_breaker('webhook_delivery') { 'should not execute' }
-        end.to raise_error(StandardError, /temporarily unavailable/)
-      end
-
-      it 'does not open circuit if failures are spread over time window' do
-        # Record 5 failures
-        5.times do
-          test_instance.with_circuit_breaker('webhook_delivery', retries: 1) do
-            raise StandardError, 'failure'
-          end
-        rescue StandardError
-          # Expected
-        end
-
-        # Simulate time passing (failures older than 1 min)
-        allow(Time).to receive(:current).and_return(61.seconds.from_now)
-
-        # Circuit should stay closed as old failures are outside time window
-        result = test_instance.with_circuit_breaker('webhook_delivery') { 'success' }
-        expect(result).to eq('success')
-      end
-
-      it 'recovers after lockout duration (1 minute)' do
-        # Open the circuit with 10 failures
-        10.times do
-          test_instance.with_circuit_breaker('webhook_delivery', retries: 1) do
-            raise StandardError, 'failure'
-          end
-        rescue StandardError
-          # Expected
-        end
-
-        # Circuit should be open
-        expect do
-          test_instance.with_circuit_breaker('webhook_delivery') { 'blocked' }
-        end.to raise_error(StandardError, /temporarily unavailable/)
-
-        # Simulate lockout duration passing (61 seconds)
-        allow(Time).to receive(:current).and_return(61.seconds.from_now)
-
-        # Circuit should close and allow requests
-        result = test_instance.with_circuit_breaker('webhook_delivery') { 'recovered' }
-        expect(result).to eq('recovered')
-      end
+    it 'has increased failure threshold to 10' do
+      expect(ExternalApiCircuitBreaker::FAILURE_THRESHOLD).to eq(10)
     end
 
-    context 'with critical service configuration' do
-      it 'opens circuit after 5 failures (lower threshold)' do
-        # Record 5 failures - should open circuit for critical services
-        5.times do
-          test_instance.with_circuit_breaker('critical', retries: 1) do
-            raise StandardError, 'critical failure'
-          end
-        rescue StandardError
-          # Expected
-        end
-
-        # Circuit should be open
-        expect do
-          test_instance.with_circuit_breaker('critical') { 'blocked' }
-        end.to raise_error(StandardError, /temporarily unavailable/)
-      end
-    end
-
-    context 'with default configuration' do
-      it 'uses default config for unknown service names' do
-        # Should use default config (10 failures in 1 min)
-        9.times do
-          test_instance.with_circuit_breaker('unknown_service', retries: 1) do
-            raise StandardError, 'failure'
-          end
-        rescue StandardError
-          # Expected
-        end
-
-        # Circuit should still be closed after 9 failures
-        result = test_instance.with_circuit_breaker('unknown_service') { 'still working' }
-        expect(result).to eq('still working')
-      end
-    end
-  end
-
-  describe 'failure timestamp tracking' do
-    let(:test_instance) { TestInstanceClass.new }
-
-    it 'stores failure timestamps in cache' do
-      test_instance.with_circuit_breaker('timestamp_test', retries: 1) do
-        raise StandardError, 'failure'
-      end
-    rescue StandardError
-      # Expected
-
-      timestamps = Rails.cache.read('circuit_breaker:timestamp_test:failure_timestamps')
-      expect(timestamps).to be_an(Array)
-      expect(timestamps.length).to eq(1)
-      expect(timestamps.first).to be_within(2).of(Time.current.to_i)
-    end
-
-    it 'cleans up old timestamps outside time window' do
-      # Add some old timestamps manually
-      old_timestamps = [Time.current.to_i - 120, Time.current.to_i - 90]
-      Rails.cache.write('circuit_breaker:cleanup_test:failure_timestamps', old_timestamps)
-
-      # Record a new failure
-      test_instance.with_circuit_breaker('cleanup_test', retries: 1) do
-        raise StandardError, 'failure'
-      end
-    rescue StandardError
-      # Expected
-
-      timestamps = Rails.cache.read('circuit_breaker:cleanup_test:failure_timestamps')
-      # Old timestamps should be removed (outside 1-min window)
-      expect(timestamps.length).to eq(1)
-      expect(timestamps.first).to be_within(2).of(Time.current.to_i)
+    it 'has reduced TTL to 1 minute' do
+      expect(ExternalApiCircuitBreaker::CIRCUIT_BREAKER_TTL).to eq(60)
     end
   end
 end

@@ -3,9 +3,9 @@ class WebhookJob < ApplicationJob
 
   # Retry configuration for webhook delivery failures
   # Circuit breaker opens for 1 min, so retries will succeed after recovery
-  # Exponential backoff: 3s, 18s, 83s, 258s, 643s (total ~16 minutes)
+  # Polynomial backoff: 3s, 18s, 83s, 258s, 643s (total ~16 minutes)
   retry_on StandardError,
-           wait: :exponentially_longer,
+           wait: :polynomially_longer,
            attempts: 5,
            jitter: 0.15  # Add randomness to prevent thundering herd
 

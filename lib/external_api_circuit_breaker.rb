@@ -3,39 +3,16 @@
 module ExternalApiCircuitBreaker
   extend ActiveSupport::Concern
 
-  # Circuit breaker configurations per service
-  # More flexible approach: track failures in time window instead of consecutive failures
-  CIRCUIT_BREAKER_CONFIGS = {
-    default: {
-      failure_threshold: 10,        # Open after 10 failures
-      time_window: 60,               # Within 1 minute
-      lockout_duration: 60,          # Lock for 1 minute
-      retry_attempts: 3,
-      retry_intervals: [1, 2, 4]     # Exponential backoff: 1s, 2s, 4s
-    },
-    webhook_delivery: {
-      failure_threshold: 10,         # Open after 10 failures
-      time_window: 60,               # Within 1 minute window
-      lockout_duration: 60,          # Recover after 1 minute
-      retry_attempts: 3,
-      retry_intervals: [1, 2, 4]
-    },
-    critical: {                      # For critical services (e.g., payment gateways)
-      failure_threshold: 5,
-      time_window: 60,
-      lockout_duration: 120,         # 2 minutes for critical services
-      retry_attempts: 5,
-      retry_intervals: [1, 2, 4, 8, 16]
-    }
-  }.freeze
+  # Circuit breaker states: closed (working), open (failing), half_open (testing)
+  # Simplified: Still use failure count but with better thresholds
+  CIRCUIT_BREAKER_TTL = 60 # 1 minute (reduced from 5 minutes)
+  FAILURE_THRESHOLD = 10    # Open circuit after 10 failures (increased from 3)
+  RETRY_INTERVALS = [1, 2, 4].freeze # Exponential backoff: 1s, 2s, 4s
 
   # Class methods for use in class contexts (e.g., ChatwootHub.sync_with_hub)
   # rubocop:disable Metrics/BlockLength
   class_methods do
-    def with_circuit_breaker(service_name, retries: nil)
-      config = CIRCUIT_BREAKER_CONFIGS[service_name.to_sym] || CIRCUIT_BREAKER_CONFIGS[:default]
-      retries ||= config[:retry_attempts]
-
+    def with_circuit_breaker(service_name, retries: 3)
       # Check if circuit is open
       raise StandardError, "#{service_name} service is temporarily unavailable. Please try again in a few minutes." if circuit_open?(service_name)
 
@@ -52,21 +29,21 @@ module ExternalApiCircuitBreaker
         # Don't retry on certain errors (like authentication failures)
         break if non_retryable_error?(e)
 
-        # Record failure with timestamp
-        record_failure(service_name, config)
+        # Record failure
+        record_failure(service_name)
 
-        # Check if we should open the circuit based on failure rate
-        open_circuit_if_threshold_reached(service_name, config)
+        # Check if we should open the circuit
+        open_circuit_if_threshold_reached(service_name)
 
         # Apply exponential backoff (except on last attempt)
         if attempt < retries - 1
-          sleep_time = config[:retry_intervals][attempt] || config[:retry_intervals].last
+          sleep_time = RETRY_INTERVALS[attempt] || RETRY_INTERVALS.last
           sleep(sleep_time)
         end
       end
 
       # All retries failed - open circuit if threshold reached
-      open_circuit_if_threshold_reached(service_name, config)
+      open_circuit_if_threshold_reached(service_name)
       raise last_error
     end
 
@@ -78,43 +55,22 @@ module ExternalApiCircuitBreaker
 
     def reset_circuit_breaker(service_name)
       Rails.cache.delete(circuit_breaker_key(service_name))
-      Rails.cache.delete(failure_timestamps_key(service_name))
+      Rails.cache.delete(failure_count_key(service_name))
     end
 
-    def record_failure(service_name, config)
-      key = failure_timestamps_key(service_name)
-
-      # Store failure timestamps, not just count
-      timestamps = Rails.cache.read(key) || []
-      timestamps << Time.current.to_i
-
-      # Keep only recent failures within time window
-      cutoff_time = Time.current.to_i - config[:time_window]
-      timestamps = timestamps.select { |ts| ts > cutoff_time }
-
-      Rails.cache.write(key, timestamps, expires_in: config[:time_window] * 2)
+    def record_failure(service_name)
+      key = failure_count_key(service_name)
+      current_count = Rails.cache.read(key) || 0
+      Rails.cache.write(key, current_count + 1, expires_in: CIRCUIT_BREAKER_TTL)
     end
 
-    def open_circuit_if_threshold_reached(service_name, config)
-      timestamps = Rails.cache.read(failure_timestamps_key(service_name)) || []
+    def open_circuit_if_threshold_reached(service_name)
+      failure_count = Rails.cache.read(failure_count_key(service_name)) || 0
 
-      # Count failures in current time window
-      cutoff_time = Time.current.to_i - config[:time_window]
-      recent_failures = timestamps.count { |ts| ts > cutoff_time }
+      return unless failure_count >= FAILURE_THRESHOLD
 
-      return unless recent_failures >= config[:failure_threshold]
-
-      Rails.cache.write(
-        circuit_breaker_key(service_name),
-        true,
-        expires_in: config[:lockout_duration]
-      )
-
-      Rails.logger.error(
-        "Circuit breaker opened for #{service_name}: " \
-        "#{recent_failures} failures in #{config[:time_window]}s " \
-        "(threshold: #{config[:failure_threshold]})"
-      )
+      Rails.cache.write(circuit_breaker_key(service_name), true, expires_in: CIRCUIT_BREAKER_TTL)
+      Rails.logger.error "Circuit breaker opened for #{service_name} after #{failure_count} failures"
     end
 
     def non_retryable_error?(error)
@@ -129,14 +85,14 @@ module ExternalApiCircuitBreaker
       "circuit_breaker:#{service_name}:open"
     end
 
-    def failure_timestamps_key(service_name)
-      "circuit_breaker:#{service_name}:failure_timestamps"
+    def failure_count_key(service_name)
+      "circuit_breaker:#{service_name}:failures"
     end
   end
   # rubocop:enable Metrics/BlockLength
 
   # Instance methods for backward compatibility - delegate to class methods
-  def with_circuit_breaker(service_name, retries: nil, &)
+  def with_circuit_breaker(service_name, retries: 3, &)
     self.class.with_circuit_breaker(service_name, retries: retries, &)
   end
 
@@ -151,12 +107,12 @@ module ExternalApiCircuitBreaker
     self.class.send(:reset_circuit_breaker, service_name)
   end
 
-  def record_failure(service_name, config)
-    self.class.send(:record_failure, service_name, config)
+  def record_failure(service_name)
+    self.class.send(:record_failure, service_name)
   end
 
-  def open_circuit_if_threshold_reached(service_name, config)
-    self.class.send(:open_circuit_if_threshold_reached, service_name, config)
+  def open_circuit_if_threshold_reached(service_name)
+    self.class.send(:open_circuit_if_threshold_reached, service_name)
   end
 
   def non_retryable_error?(error)
@@ -167,7 +123,7 @@ module ExternalApiCircuitBreaker
     self.class.send(:circuit_breaker_key, service_name)
   end
 
-  def failure_timestamps_key(service_name)
-    self.class.send(:failure_timestamps_key, service_name)
+  def failure_count_key(service_name)
+    self.class.send(:failure_count_key, service_name)
   end
 end
