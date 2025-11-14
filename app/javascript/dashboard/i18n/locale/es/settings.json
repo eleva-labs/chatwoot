@@ -472,7 +472,25 @@
       "MANAGE_MEMBERS": "Administrar Miembros",
       "REMOVE_SUCCESS_QUANTITY": "Se eliminaron exitosamente {quantity} {item}(s)",
       "CONFIRM_REMOVE_QUANTITY_DESCRIPTION": "¿Eliminar {quantity} {item}(s) extra(s)? Recibirás aproximadamente {credit} de crédito por el tiempo no utilizado en tu próxima factura.",
-      "REMOVE_MORE_GUIDANCE": "Nota: {extrasUsed} asiento(s) extra(s) están actualmente en uso. Para eliminar más, primero elimina {item}s de {section}."
+      "REMOVE_MORE_GUIDANCE": "Nota: {extrasUsed} asiento(s) extra(s) están actualmente en uso. Para eliminar más, primero elimina {item}s de {section}.",
+      "AI_TOKENS": {
+        "TITLE": "Créditos de Tokens de IA",
+        "DESCRIPTION": "Controla los créditos de tokens de IA en este período de facturación",
+        "INCLUDED_USAGE": "Créditos de tokens de IA incluidos",
+        "EXTRA_TOKENS": "Tokens adicionales",
+        "REMAINING_TOKENS": "Tokens de IA restantes",
+        "BUY_BUTTON": "Comprar créditos de tokens de IA",
+        "PURCHASE_SUCCESS": "¡Créditos de tokens de IA comprados exitosamente!",
+        "PURCHASE_ERROR": "No se pudieron comprar los créditos de tokens de IA. {error}",
+        "PRICE_NOT_AVAILABLE": "Precio no disponible",
+        "NOT_AVAILABLE": "No disponible",
+        "MODAL_TITLE": "Seleccionar paquete de créditos de tokens de IA",
+        "MODAL_DESCRIPTION": "Elija el tamaño del paquete de créditos de tokens de IA que desea comprar. Se cobrará inmediatamente y se agregará a su cuenta.",
+        "PACK_SIZE_LABEL": "Tamaño del paquete",
+        "YOU_WILL_RECEIVE": "Recibirás:",
+        "TOKEN_UNIT": "Créditos de tokens de IA",
+        "ONE_TIME_CHARGE": "Cargo único / "
+      }
     },
     "SUBSCRIPTION": {
       "TITLE": "Suscripción y costos actuales",

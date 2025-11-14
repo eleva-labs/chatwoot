@@ -418,6 +418,14 @@ Rails.application.routes.draw do
                 post '/purchase', action: :purchase  # Purchase selected pack
               end
             end
+
+            resources :ai_token_credits, only: [] do
+              collection do
+                get '/', action: :index
+                get '/check_payment_method', action: :check_payment_method
+                post '/purchase', action: :purchase
+              end
+            end
           end
           
           # Pricing table data

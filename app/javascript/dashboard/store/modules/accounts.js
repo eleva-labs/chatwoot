@@ -344,6 +344,42 @@ export const actions = {
     }
   },
 
+  fetchAiTokenCredits: async () => {
+    try {
+      const response = await BillingAPI.getAiTokenPacks();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  checkAiTokenPaymentMethod: async () => {
+    try {
+      const response = await BillingAPI.checkAiTokenPaymentMethod();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  purchaseAiTokenCredits: async (_context, { lookup_key }) => {
+    try {
+      const response = await BillingAPI.purchaseAiTokenCredits(lookup_key);
+      if (response.data.success) {
+        return response;
+      }
+
+      throw new Error(
+        response.data.error || 'Failed to purchase AI token credits'
+      );
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
   getCacheKeys: async () => {
     return AccountAPI.getCacheKeys();
   },

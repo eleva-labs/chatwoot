@@ -288,6 +288,22 @@ module BillingPlans
     def conversation_packs_available_for_plan?(plan_name)
       conversation_pack_eligible_plans.include?(plan_name.to_s)
     end
+
+    # ==========================================
+    # AI TOKEN PACKS CATALOG METHODS
+    # ==========================================
+
+    def ai_token_packs_catalog
+      billing_plans_config.dig('ai_token_packs', 'available_packs') || []
+    end
+
+    def ai_token_pack_eligible_plans
+      billing_plans_config.dig('ai_token_packs', 'eligible_plans') || []
+    end
+
+    def ai_token_packs_available_for_plan?(plan_name)
+      ai_token_pack_eligible_plans.include?(plan_name.to_s)
+    end
   end # module ClassMethods
 
   # Make ClassMethods available directly on the module (enables BillingPlans.method_name)

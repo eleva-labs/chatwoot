@@ -109,6 +109,25 @@ class BillingAPI extends ApiClient {
   getPricingTable() {
     return axios.get(`${this.url}pricing`);
   }
+
+  // GET /api/v2/accounts/:account_id/billing/ai_token_credits
+  getAiTokenPacks() {
+    return axios.get(`${this.url}billing/ai_token_credits`);
+  }
+
+  // GET /api/v2/accounts/:account_id/billing/ai_token_credits/check_payment_method
+  checkAiTokenPaymentMethod() {
+    return axios.get(
+      `${this.url}billing/ai_token_credits/check_payment_method`
+    );
+  }
+
+  // POST /api/v2/accounts/:account_id/billing/ai_token_credits/purchase
+  purchaseAiTokenCredits(lookupKey) {
+    return axios.post(`${this.url}billing/ai_token_credits/purchase`, {
+      lookup_key: lookupKey,
+    });
+  }
 }
 
 export default new BillingAPI();

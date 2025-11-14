@@ -469,7 +469,25 @@
       "MANAGE_MEMBERS": "Manage Members",
       "REMOVE_SUCCESS_QUANTITY": "Successfully removed {quantity} {item}(s)",
       "CONFIRM_REMOVE_QUANTITY_DESCRIPTION": "Remove {quantity} extra {item}(s)? You'll receive approximately {credit} credit for the unused time on your next invoice.",
-      "REMOVE_MORE_GUIDANCE": "Note: {extrasUsed} extra seat(s) are currently in use. To remove more, first remove {item}s from {section}."
+      "REMOVE_MORE_GUIDANCE": "Note: {extrasUsed} extra seat(s) are currently in use. To remove more, first remove {item}s from {section}.",
+      "AI_TOKENS": {
+        "TITLE": "AI Token Credits",
+        "DESCRIPTION": "Track AI token credits this billing period",
+        "INCLUDED_USAGE": "Included AI token credits",
+        "EXTRA_TOKENS": "Extra tokens",
+        "REMAINING_TOKENS": "Remaining AI tokens",
+        "BUY_BUTTON": "Buy AI Token Credits",
+        "PURCHASE_SUCCESS": "AI token credits purchased successfully!",
+        "PURCHASE_ERROR": "Failed to purchase AI token credits. {error}",
+        "PRICE_NOT_AVAILABLE": "Price not available",
+        "NOT_AVAILABLE": "Not available",
+        "MODAL_TITLE": "Select AI Token Credits Pack",
+        "MODAL_DESCRIPTION": "Choose the AI token credits pack size you want to purchase. This will be charged immediately and added to your account.",
+        "PACK_SIZE_LABEL": "Pack Size",
+        "YOU_WILL_RECEIVE": "You will receive:",
+        "TOKEN_UNIT": "AI Token Credits",
+        "ONE_TIME_CHARGE": "One-time charge / "
+      }
     },
     "SUBSCRIPTION": {
       "TITLE": "Current Subscription & Costs",

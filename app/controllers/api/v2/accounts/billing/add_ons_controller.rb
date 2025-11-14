@@ -203,6 +203,8 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
       limits_data[:conversation] = nil
     end
 
+    limits_data[:ai_tokens] = ai_token_status
+
     render json: {
       success: true,
       data: {
@@ -255,6 +257,125 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
     authorize(:account, :billing_access?)
   rescue Pundit::NotAuthorizedError
     render json: { error: 'Access denied' }, status: :forbidden
+  end
+
+  def ai_token_status
+    store_id = current_account.custom_attributes&.dig('store_id')
+    return nil if store_id.blank?
+
+    token_service = AiBackendService::TokenCreditsService.new
+    balance = token_service.balance(store_id)
+    transactions = token_service.transactions(store_id)
+
+    build_ai_token_status(balance, transactions)
+  rescue AiBackendService::TokenCreditsService::TokenCreditsError => e
+    Rails.logger.error "Error fetching AI token status: #{e.message}"
+    nil
+  rescue StandardError => e
+    Rails.logger.error "Unexpected error fetching AI token status: #{e.message}"
+    nil
+  end
+
+  def build_ai_token_status(balance, transactions)
+    balance_data = balance.is_a?(Hash) ? (balance['data'] || balance) : {}
+    transaction_entries = transactions.is_a?(Hash) ? (transactions['data'] || []) : []
+
+    tokens_used = balance_data['tokens_used'].to_i
+    token_limit = balance_data['token_limit'].to_i
+    available_tokens = balance_data['available_tokens'].to_i
+
+    plan_base_limit_value = plan_ai_token_limit
+    unlimited_plan = plan_base_limit_value == -1
+
+    base_limit_numeric =
+      if plan_base_limit_value.nil? || plan_base_limit_value.negative?
+        nil
+      else
+        plan_base_limit_value
+      end
+
+    purchased_from_history = Array(transaction_entries).sum { |entry| entry['tokens_added'].to_i }
+    purchased_total =
+      if base_limit_numeric
+        [token_limit - base_limit_numeric, 0].max
+      else
+        [purchased_from_history, 0].max
+      end
+
+    calculated_base_limit =
+      if unlimited_plan
+        -1
+      elsif base_limit_numeric
+        base_limit_numeric
+      else
+        [token_limit - purchased_total, 0].max
+      end
+
+    total_allowed_value =
+      if unlimited_plan
+        -1
+      elsif base_limit_numeric
+        base_limit_numeric + purchased_total
+      else
+        token_limit
+      end
+
+    included_used =
+      if unlimited_plan
+        tokens_used
+      elsif calculated_base_limit.zero?
+        0
+      else
+        [tokens_used, calculated_base_limit].min
+      end
+
+    usage_denominator =
+      if unlimited_plan || total_allowed_value.to_i <= 0
+        nil
+      elsif total_allowed_value == -1
+        nil
+      else
+        total_allowed_value
+      end
+
+    usage_percentage =
+      if usage_denominator.present?
+        ((tokens_used.to_f / usage_denominator) * 100).round(1)
+      else
+        0
+      end
+
+    remaining_value = unlimited_plan ? -1 : available_tokens
+
+    {
+      current: tokens_used,
+      base_limit: calculated_base_limit,
+      purchased: purchased_total,
+      total_allowed: total_allowed_value,
+      remaining: remaining_value,
+      usage_percentage: usage_percentage,
+      can_create: unlimited_plan ? true : remaining_value.positive?,
+      approaching_limit: usage_denominator.present? ? usage_percentage >= 80 : false,
+      at_limit: unlimited_plan ? false : !remaining_value.positive?,
+      included_used: included_used
+    }
+  end
+
+  def plan_ai_token_limit
+    plan_name = current_account.custom_attributes&.dig('plan_name') || 'free_trial'
+
+    stripe_limits = Billing::Providers::Stripe.get_plan_limits_from_stripe(plan_name)
+    fallback_limits = BillingPlans.plan_details(plan_name)&.dig('limits')
+
+    limits = (stripe_limits.presence || fallback_limits || {}).with_indifferent_access
+    token_limit = limits[:token_credits]
+
+    return nil if token_limit.nil?
+
+    token_limit.to_i
+  rescue StandardError => e
+    Rails.logger.error "Error resolving AI token base limit for plan #{plan_name}: #{e.message}"
+    nil
   end
 end
 

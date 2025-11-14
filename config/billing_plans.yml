@@ -193,5 +193,24 @@ conversation_packs:
     - 'starter'
     - 'professional'
 
+# ==========================================
+# AI TOKEN CREDIT PACKS (One-time purchases)
+# ==========================================
+ai_token_packs:
+  available_packs:
+    - token_credits: 100
+      lookup_key: 'ai_100_token_credits'
+      display_name: 'Extra 100 AI Token Credits'
+      product_id: 'prod_TQ1DrWRPti2WCp'
+      price_id: 'price_1STBAi4TqKLiHbZ8kR1kCCAX'
+    - token_credits: 500
+      lookup_key: 'ai_500_token_credits'
+      display_name: 'Extra 500 AI Token Credits'
+      product_id: 'prod_TQ1QlM2OpPwDEp'
+      price_id: 'price_1STBNS4TqKLiHbZ8w68ymTci'
+  eligible_plans:
+    - 'starter'
+    - 'professional'
+
 # Default plan for new accounts
 default_plan: "free_trial" 

@@ -7,6 +7,7 @@ import { useAlert } from 'dashboard/composables';
 import BillingCard from './BillingCard.vue';
 import ButtonV4 from 'next/button/Button.vue';
 import ConversationPackModal from './ConversationPackModal.vue';
+import AiTokenCreditsModal from './AiTokenCreditsModal.vue';
 import { useAgentSeatLimits } from '../../agents/composables/useAgentSeatLimits';
 
 const { t } = useI18n();
@@ -23,9 +24,12 @@ const {
 const limits = ref({});
 const addOns = ref({});
 const conversationPacks = ref([]);
+const aiTokenPacks = ref([]);
 const isCardLoading = ref(true);
 const isPurchasing = ref(false);
+const isPurchasingAiTokens = ref(false);
 const conversationPackModal = ref(null);
+const aiTokenCreditsModal = ref(null);
 
 const fetchLimits = async () => {
   try {
@@ -36,7 +40,8 @@ const fetchLimits = async () => {
       limits.value = response.data.data.limits || {};
     }
   } catch (error) {
-    // Error handling - silent fail
+    // eslint-disable-next-line no-console
+    console.error('Error fetching add-on limits', error);
   } finally {
     isCardLoading.value = false;
   }
@@ -50,7 +55,8 @@ const fetchAddOns = async () => {
       addOns.value = response.data.data.add_ons || {};
     }
   } catch (error) {
-    // Error handling - silent fail
+    // eslint-disable-next-line no-console
+    console.error('Error fetching add-ons', error);
   }
 };
 
@@ -61,14 +67,29 @@ const fetchConversationPacks = async () => {
       conversationPacks.value = response.data.data.packs;
     }
   } catch (error) {
-    // Silent fail - packs won't be available
+    // eslint-disable-next-line no-console
+    console.error('Error fetching conversation packs', error);
     conversationPacks.value = [];
+  }
+};
+
+const fetchAiTokenPacks = async () => {
+  try {
+    const response = await store.dispatch('accounts/fetchAiTokenCredits');
+    if (response?.data?.data?.packs) {
+      aiTokenPacks.value = response.data.data.packs;
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error fetching AI token packs', error);
+    aiTokenPacks.value = [];
   }
 };
 
 // Agent limit still needed for display in simplified section
 const inboxLimit = computed(() => limits.value.inbox || {});
 const conversationLimit = computed(() => limits.value.conversation || {});
+const aiTokenLimit = computed(() => limits.value.ai_tokens || null);
 
 const isUnlimitedValue = value => value === 'unlimited' || value === -1;
 
@@ -175,6 +196,48 @@ const conversationIncludedUsageDisplay = computed(() => {
   return `${included}${t('BILLING_SETTINGS.LIMITS.SEPARATOR')}${limit}`;
 });
 
+const aiTokenIncludedUsageDisplay = computed(() => {
+  if (!aiTokenLimit.value) {
+    return t('BILLING_SETTINGS.LIMITS.AI_TOKENS.NOT_AVAILABLE');
+  }
+
+  const baseLimit = aiTokenLimit.value.base_limit;
+  if (baseLimit === 'unlimited' || isUnlimitedValue(baseLimit)) {
+    return t('BILLING_SETTINGS.LIMITS.UNLIMITED');
+  }
+
+  const includedUsed = aiTokenLimit.value.included_used || 0;
+  const formattedUsed = formatUsageValue(includedUsed);
+  const formattedLimit = formatUsageValue(baseLimit || 0);
+
+  return `${formattedUsed}${t('BILLING_SETTINGS.LIMITS.SEPARATOR')}${formattedLimit}`;
+});
+
+const aiTokenExtraDisplay = computed(() => {
+  if (!aiTokenLimit.value) {
+    return t('BILLING_SETTINGS.LIMITS.AI_TOKENS.NOT_AVAILABLE');
+  }
+
+  const purchased = aiTokenLimit.value.purchased || 0;
+  return `+${formatUsageCount(purchased)}`;
+});
+
+const aiTokenRemainingDisplay = computed(() => {
+  if (!aiTokenLimit.value) {
+    return t('BILLING_SETTINGS.LIMITS.AI_TOKENS.NOT_AVAILABLE');
+  }
+
+  const remaining = aiTokenLimit.value.remaining;
+
+  if (remaining === 'unlimited' || isUnlimitedValue(remaining)) {
+    return t('BILLING_SETTINGS.LIMITS.UNLIMITED');
+  }
+
+  return formatUsageValue(Math.max(toNumber(remaining), 0));
+});
+
+const aiTokenEligible = computed(() => aiTokenPacks.value.length > 0);
+
 const canPurchaseAddOns = computed(() => {
   return Object.keys(addOns.value).length > 0;
 });
@@ -237,6 +300,51 @@ const confirmPurchaseConversationPack = async () => {
   conversationPackModal.value.showModal();
 };
 
+const purchaseAiTokenCredits = async lookupKey => {
+  try {
+    isPurchasingAiTokens.value = true;
+    await store.dispatch('accounts/purchaseAiTokenCredits', {
+      lookup_key: lookupKey,
+    });
+
+    aiTokenCreditsModal.value?.closeModal();
+
+    await fetchLimits();
+
+    useAlert(t('BILLING_SETTINGS.LIMITS.AI_TOKENS.PURCHASE_SUCCESS'), {
+      duration: 5000,
+    });
+  } catch (error) {
+    const errorMessage = error?.response?.data?.error || error?.message;
+    useAlert(
+      t('BILLING_SETTINGS.LIMITS.AI_TOKENS.PURCHASE_ERROR', {
+        error: errorMessage || t('BILLING_SETTINGS.LIMITS.GENERIC_ERROR'),
+      }),
+      { duration: 5000 }
+    );
+  } finally {
+    isPurchasingAiTokens.value = false;
+  }
+};
+
+const confirmPurchaseAiTokenCredits = async () => {
+  try {
+    const response = await store.dispatch('accounts/checkAiTokenPaymentMethod');
+
+    if (!response?.data?.has_payment_method) {
+      useAlert(t('BILLING_SETTINGS.LIMITS.ADD_PAYMENT_METHOD_FIRST'), {
+        duration: 7000,
+      });
+      return;
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error checking payment method for AI tokens', error);
+  }
+
+  aiTokenCreditsModal.value.showModal();
+};
+
 const navigateToMembers = () => {
   router.push({ name: 'agent_list' });
 };
@@ -256,7 +364,12 @@ const getAvailableText = limit => {
 };
 
 onMounted(async () => {
-  await Promise.all([fetchLimits(), fetchAddOns(), fetchConversationPacks()]);
+  await Promise.all([
+    fetchLimits(),
+    fetchAddOns(),
+    fetchConversationPacks(),
+    fetchAiTokenPacks(),
+  ]);
 });
 </script>
 
@@ -425,6 +538,61 @@ onMounted(async () => {
           </ButtonV4>
         </div>
       </div>
+
+      <!-- AI Token Credits -->
+      <div
+        class="rounded-lg border p-4 shadow-sm transition-all duration-200 border-n-weak bg-n-solid-2"
+      >
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h4 class="text-base font-semibold text-n-slate-12 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.AI_TOKENS.TITLE') }}
+            </h4>
+            <p class="text-xs text-n-slate-11">
+              {{ t('BILLING_SETTINGS.LIMITS.AI_TOKENS.DESCRIPTION') }}
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.AI_TOKENS.INCLUDED_USAGE') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ aiTokenIncludedUsageDisplay }}
+            </p>
+          </div>
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.AI_TOKENS.EXTRA_TOKENS') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ aiTokenExtraDisplay }}
+            </p>
+          </div>
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
+            <p class="text-xs text-n-slate-11 mb-1">
+              {{ t('BILLING_SETTINGS.LIMITS.AI_TOKENS.REMAINING_TOKENS') }}
+            </p>
+            <p class="text-lg font-semibold text-n-slate-12 tabular-nums">
+              {{ aiTokenRemainingDisplay }}
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-2 border-t border-n-weak">
+          <ButtonV4
+            sm
+            solid
+            blue
+            :disabled="isPurchasingAiTokens || !aiTokenEligible"
+            @click="confirmPurchaseAiTokenCredits"
+          >
+            {{ t('BILLING_SETTINGS.LIMITS.AI_TOKENS.BUY_BUTTON') }}
+          </ButtonV4>
+        </div>
+      </div>
     </div>
   </BillingCard>
 
@@ -434,5 +602,12 @@ onMounted(async () => {
     :packs="conversationPacks"
     :is-purchasing="isPurchasing"
     @purchase="purchaseConversationPack"
+  />
+
+  <AiTokenCreditsModal
+    ref="aiTokenCreditsModal"
+    :packs="aiTokenPacks"
+    :is-purchasing="isPurchasingAiTokens"
+    @purchase="purchaseAiTokenCredits"
   />
 </template>

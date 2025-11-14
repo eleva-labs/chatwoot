@@ -50,16 +50,25 @@ class Billing::PreviewAddOnRemovalService
 
   def fetch_subscription
     subscription_id = @account.custom_attributes&.dig('stripe_subscription_id')
-    return nil unless subscription_id.present?
+    if subscription_id.present?
+      begin
+        return ::Stripe::Subscription.retrieve(subscription_id)
+      rescue ::Stripe::StripeError => e
+        Rails.logger.warn(
+          "Unable to retrieve stored Stripe subscription id #{subscription_id} for account #{@account.id}: #{e.message}"
+        )
+        # Fall through to fetch by customer id
+      end
+    end
 
-    ::Stripe::Subscription.retrieve(subscription_id)
-  rescue ::Stripe::InvalidRequestError
-    # If the stored subscription id is invalid, fall back to listing active subscriptions
     customer_id = @account.custom_attributes&.dig('stripe_customer_id')
     return nil unless customer_id.present?
 
     subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'active', limit: 1)
     subscriptions.data.first
+  rescue ::Stripe::StripeError => e
+    Rails.logger.error "Error fetching subscription for preview removal: #{e.message}"
+    nil
   end
 
   def build_add_on_service
@@ -87,11 +96,27 @@ class Billing::PreviewAddOnRemovalService
   end
 
   def preview_invoice_with_removal(subscription_id:, subscription_item_id:, new_quantity:)
-    subscription_details =
-      if new_quantity.zero?
-        {
-          proration_behavior: 'create_prorations',
-          proration_date: Time.current.to_i,
+    subscription_details = build_subscription_details(
+      subscription_item_id: subscription_item_id,
+      new_quantity: new_quantity
+    )
+
+    preview_invoice = ::Stripe::Invoice.create_preview(
+      subscription: subscription_id,
+      subscription_details: subscription_details,
+      expand: ['lines']
+    )
+
+    credit_lines = preview_invoice.lines.data.select { |line| line.amount.negative? }
+
+    credit_lines.sum { |line| line.amount.abs }
+  end
+
+  def build_subscription_details(subscription_item_id:, new_quantity:)
+    behavior = proration_behavior
+    details = if new_quantity.zero?
+                {
+                  proration_behavior: behavior,
           items: [
             {
               id: subscription_item_id,
@@ -101,8 +126,7 @@ class Billing::PreviewAddOnRemovalService
         }
       else
         {
-          proration_behavior: 'create_prorations',
-          proration_date: Time.current.to_i,
+                  proration_behavior: behavior,
           items: [
             {
               id: subscription_item_id,
@@ -112,18 +136,19 @@ class Billing::PreviewAddOnRemovalService
         }
       end
 
-    preview_invoice = ::Stripe::Invoice.create_preview(
-      subscription: subscription_id,
-      subscription_details: subscription_details,
-      expand: ['lines']
-    )
-
-    credit_lines = preview_invoice.lines.data.select do |line|
-      proration_flag = line.respond_to?(:proration) ? line.proration : line['proration']
-      proration_flag && line.amount.negative?
+    if behavior == 'create_prorations'
+      details[:proration_date] = Time.current.to_i
     end
 
-    credit_lines.sum { |line| line.amount.abs }
+    details
+  end
+
+  def proration_behavior
+    if Billing::ManageSubscriptionAddOnService::ALWAYS_INVOICE_ADD_ONS.include?(@add_on_type)
+      'always_invoice'
+    else
+      'create_prorations'
+    end
   end
 
   def format_currency(amount_cents)
