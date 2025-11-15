@@ -139,5 +139,64 @@ RSpec.describe AutomationRules::ActionService do
         described_class.new(rule, account, conversation).perform
       end
     end
+
+    describe '#perform with set_ai_enabled action' do
+      let(:inbox) { create(:inbox, account: account) }
+      let(:contact) { create(:contact, account: account) }
+      let(:conversation) { create(:conversation, inbox: inbox, contact: contact, account: account) }
+
+      context 'when inbox has active agent-bot' do
+        before do
+          agent_bot = create(:agent_bot)
+          create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, status: :active)
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [true] }]
+          rule.save!
+        end
+
+        it 'sets ai_enabled to true' do
+          described_class.new(rule, account, conversation).perform
+          expect(contact.reload.custom_attributes['ai_enabled']).to be true
+        end
+
+        it 'sets ai_enabled to false when action params are false' do
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [false] }]
+          rule.save!
+
+          described_class.new(rule, account, conversation).perform
+          expect(contact.reload.custom_attributes['ai_enabled']).to be false
+        end
+      end
+
+      context 'when inbox has no agent-bot' do
+        before do
+          # Ensure contact starts with no ai_enabled set
+          contact.custom_attributes = {}
+          contact.save!
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [true] }]
+          rule.save!
+        end
+
+        it 'does not set ai_enabled to true' do
+          described_class.new(rule, account, conversation).perform
+          expect(contact.reload.custom_attributes['ai_enabled']).to be_nil
+        end
+
+        it 'logs a warning' do
+          expect(Rails.logger).to receive(:warn).with(
+            /Cannot enable AI for inbox #{inbox.id}/
+          )
+
+          described_class.new(rule, account, conversation).perform
+        end
+
+        it 'allows setting ai_enabled to false without agent-bot' do
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [false] }]
+          rule.save!
+
+          described_class.new(rule, account, conversation).perform
+          expect(contact.reload.custom_attributes['ai_enabled']).to be false
+        end
+      end
+    end
   end
 end

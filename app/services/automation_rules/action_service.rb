@@ -61,4 +61,31 @@ class AutomationRules::ActionService < ActionService
       TeamNotifications::AutomationNotificationMailer.conversation_creation(@conversation, team, params[0][:message])&.deliver_now
     end
   end
+
+  def set_ai_enabled(ai_enabled_value)
+    contact = @conversation.contact
+    inbox = @conversation.inbox
+
+    enabled = ai_enabled_value.first == 'true' || ai_enabled_value.first == true
+    has_agent_bot = inbox.agent_bot_inbox&.active?
+
+    # Safety check: Cannot enable AI without agent-bot
+    if enabled && !has_agent_bot
+      Rails.logger.warn(
+        "[AutomationRule #{@rule.id}] Cannot enable AI for inbox #{inbox.id} " \
+        "(no agent-bot). Conversation: #{@conversation.id}"
+      )
+      return
+    end
+
+    # Set ai_enabled
+    contact.custom_attributes ||= {}
+    contact.custom_attributes['ai_enabled'] = enabled
+    contact.save!
+
+    Rails.logger.info(
+      "[AutomationRule #{@rule.id}] Set ai_enabled=#{enabled} for contact #{contact.id}, " \
+      "conversation #{@conversation.id}"
+    )
+  end
 end
