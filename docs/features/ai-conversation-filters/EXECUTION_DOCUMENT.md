@@ -2,9 +2,18 @@
 
 **Version**: 1.0.0
 **Date**: 2025-11-15
-**Status**: Ready for Execution
+**Status**: In Progress (Day 2 Complete ✓)
 **Estimated Duration**: 8-10 days
 **Based On**: DESIGN_DOCUMENT.md v1.0.0
+
+## Progress Summary
+
+- ✅ **Day 1**: AgentBotEvaluator + RandomPercentageEvaluator (Committed: c264ed4cb, 003554ec1)
+- ✅ **Day 2**: EntryPhraseEvaluator + filter_keys.yml updates (Committed: ff380beed)
+- ⏳ **Day 3**: ConditionsFilterService integration (Next)
+- ⬜ **Day 4-5**: set_ai_enabled action
+- ⬜ **Day 6-7**: Frontend constants and i18n
+- ⬜ **Day 8-10**: Templates and documentation
 
 ---
 
@@ -2019,9 +2028,9 @@ git commit -m "chore: final polish and testing for AI filters
 
 ### Unit Tests
 
-- [ ] AgentBotEvaluator - all cases
-- [ ] RandomPercentageEvaluator - determinism, edge cases
-- [ ] EntryPhraseEvaluator - case sensitivity, message limit
+- [x] AgentBotEvaluator - all cases (Day 1 ✓)
+- [x] RandomPercentageEvaluator - determinism, edge cases (Day 1 ✓)
+- [x] EntryPhraseEvaluator - case sensitivity, message limit (Day 2 ✓)
 - [ ] ConditionsFilterService - caching logic
 - [ ] ActionService - set_ai_enabled, agent-bot safety
 
