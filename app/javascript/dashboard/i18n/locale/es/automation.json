@@ -151,7 +151,8 @@
       "ADD_PRIVATE_NOTE": "Añadir una nota privada",
       "CHANGE_PRIORITY": "Cambiar prioridad",
       "ADD_SLA": "Añadir SLA",
-      "OPEN_CONVERSATION": "Abrir conversación"
+      "OPEN_CONVERSATION": "Abrir conversación",
+      "SET_AI_ENABLED": "Habilitar IA"
     },
     "MESSAGE_TYPES": {
       "INCOMING": "Mensaje entrante",
@@ -178,7 +179,12 @@
       "REFERER_LINK": "Enlace de referencia",
       "ASSIGNEE_NAME": "Asignado a",
       "TEAM_NAME": "Equipo",
-      "PRIORITY": "Prioridad"
+      "PRIORITY": "Prioridad",
+      "HAS_AGENT_BOT": "Bandeja de entrada tiene agente-bot",
+      "ENTRY_PHRASE_MATCH": "Frase de entrada",
+      "RANDOM_PERCENTAGE": "Porcentaje aleatorio",
+      "MESSAGE_LIMIT": "Verificar primeros N mensajes",
+      "CASE_SENSITIVE": "Sensible a mayúsculas"
     }
   }
 }

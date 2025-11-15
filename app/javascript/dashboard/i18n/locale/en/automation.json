@@ -150,7 +150,8 @@
       "ADD_PRIVATE_NOTE": "Add a Private Note",
       "CHANGE_PRIORITY": "Change Priority",
       "ADD_SLA": "Add SLA",
-      "OPEN_CONVERSATION": "Open conversation"
+      "OPEN_CONVERSATION": "Open conversation",
+      "SET_AI_ENABLED": "Set AI enabled"
     },
     "MESSAGE_TYPES": {
       "INCOMING": "Incoming Message",
@@ -177,7 +178,12 @@
       "REFERER_LINK": "Referrer Link",
       "ASSIGNEE_NAME": "Assignee",
       "TEAM_NAME": "Team",
-      "PRIORITY": "Priority"
+      "PRIORITY": "Priority",
+      "HAS_AGENT_BOT": "Inbox has agent-bot",
+      "ENTRY_PHRASE_MATCH": "Entry phrase",
+      "RANDOM_PERCENTAGE": "Random percentage",
+      "MESSAGE_LIMIT": "Check first N messages",
+      "CASE_SENSITIVE": "Case sensitive"
     }
   }
 }
