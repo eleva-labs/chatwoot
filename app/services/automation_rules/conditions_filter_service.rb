@@ -25,12 +25,16 @@ class AutomationRules::ConditionsFilterService < FilterService
   def perform
     return false unless rule_valid?
 
+    @conversation&.reload # Ensure fresh custom_attributes
+
     @attribute_changed_query_filter = []
 
     @rule.conditions.each_with_index do |query_hash, current_index|
       @attribute_changed_query_filter << query_hash and next if query_hash['filter_operator'] == 'attribute_changed'
 
-      apply_filter(query_hash, current_index)
+      # Check if this is a custom condition that needs special handling
+      result = evaluate_condition_with_cache(query_hash, current_index)
+      return false unless result # Early exit if condition fails
     end
 
     records = base_relation.where(@query_string, @filter_values.with_indifferent_access)
@@ -168,5 +172,89 @@ class AutomationRules::ConditionsFilterService < FilterService
     )
     records = records.where(messages: { id: @options[:message].id }) if @options[:message].present?
     records
+  end
+
+  def evaluate_condition_with_cache(query_hash, current_index)
+    case query_hash['attribute_key']
+    when 'has_agent_bot'
+      evaluate_cached_condition(
+        query_hash,
+        'ai_auto_agentbot',
+        -> { AutomationRules::CustomConditions::AgentBotEvaluator.evaluate(@conversation, query_hash) }
+      )
+
+    when 'random_chance'
+      evaluate_cached_condition(
+        query_hash,
+        'ai_auto_random',
+        -> { AutomationRules::CustomConditions::RandomPercentageEvaluator.evaluate(@conversation, query_hash) }
+      )
+
+    when 'entry_phrase'
+      evaluate_phrase_condition(query_hash)
+
+    else
+      # Standard condition evaluation (existing logic)
+      apply_filter(query_hash, current_index)
+      true
+    end
+  end
+
+  def evaluate_cached_condition(_condition, cache_prefix, evaluator)
+    return true unless @conversation # No conversation context
+
+    cache_key = "#{cache_prefix}_checked"
+    result_key = "#{cache_prefix}_passed"
+
+    # Check cache
+    return @conversation.custom_attributes[result_key] if @conversation.custom_attributes&.dig(cache_key)
+
+    # Evaluate
+    result = evaluator.call
+
+    # Store result
+    @conversation.custom_attributes ||= {}
+    @conversation.custom_attributes[cache_key] = true
+    @conversation.custom_attributes[result_key] = result
+    @conversation.save!
+
+    result
+  end
+
+  def evaluate_phrase_condition(condition)
+    return true unless @conversation
+
+    cache_key = 'ai_auto_phrase_checked'
+    result_key = 'ai_auto_phrase_passed'
+
+    # Check cache
+    return @conversation.custom_attributes[result_key] if @conversation.custom_attributes&.dig(cache_key)
+
+    # Check message limit
+    message_limit = condition.dig('custom_filters', 'message_limit')&.to_i || 3
+    incoming_count = @conversation.messages.incoming.count
+
+    if incoming_count > message_limit
+      # Reached limit without finding phrase
+      @conversation.custom_attributes ||= {}
+      @conversation.custom_attributes[cache_key] = true
+      @conversation.custom_attributes[result_key] = false
+      @conversation.save!
+      return false
+    end
+
+    # Evaluate
+    result = AutomationRules::CustomConditions::EntryPhraseEvaluator.evaluate(@conversation, condition)
+
+    # Found phrase! Cache it
+    if result
+      @conversation.custom_attributes ||= {}
+      @conversation.custom_attributes[cache_key] = true
+      @conversation.custom_attributes[result_key] = true
+      @conversation.save!
+    end
+    # Not found yet - DON'T cache (keep checking on next message)
+
+    result
   end
 end
