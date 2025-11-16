@@ -29,15 +29,28 @@ class AutomationRules::ConditionsFilterService < FilterService
     @conversation&.reload # Ensure fresh custom_attributes
 
     @attribute_changed_query_filter = []
+    condition_results = []
 
     @rule.conditions.each_with_index do |query_hash, current_index|
       @attribute_changed_query_filter << query_hash and next if query_hash['filter_operator'] == 'attribute_changed'
 
-      # Check if this is a custom condition that needs special handling
+      # Evaluate condition (custom or standard)
       result = evaluate_condition_with_cache(query_hash, current_index)
-      return false unless result # Early exit if condition fails
+
+      # Store result with operator for boolean evaluation
+      condition_results << {
+        result: result,
+        operator: query_hash['query_operator']
+      }
     end
 
+    # Evaluate boolean expression from collected results
+    return false if condition_results.empty?
+
+    combined_result = evaluate_logical_expression(condition_results)
+    return false unless combined_result
+
+    # Continue with standard SQL-based conditions
     records = base_relation.where(@query_string, @filter_values.with_indifferent_access)
     records = perform_attribute_changed_filter(records) if @attribute_changed_query_filter.any?
 
@@ -173,6 +186,31 @@ class AutomationRules::ConditionsFilterService < FilterService
     )
     records = records.where(messages: { id: @options[:message].id }) if @options[:message].present?
     records
+  end
+
+  def evaluate_logical_expression(condition_results)
+    Rails.logger.debug { "Evaluating #{condition_results.length} conditions with logical operators for rule #{@rule.id}" }
+
+    # Start with first condition result
+    accumulated_result = condition_results.first[:result]
+
+    # Process remaining conditions with their operators
+    condition_results[1..].each_with_index do |condition_data, index|
+      # The operator links the PREVIOUS condition to THIS one
+      operator = condition_results[index][:operator]
+      current_result = condition_data[:result]
+
+      case operator&.downcase
+      when 'or'
+        accumulated_result ||= current_result
+      when 'and', nil
+        accumulated_result &&= current_result
+      else
+        Rails.logger.warn "Unknown operator: #{operator}, defaulting to AND"
+        accumulated_result &&= current_result
+      end
+    end
+    accumulated_result
   end
 
   def evaluate_condition_with_cache(query_hash, current_index)
