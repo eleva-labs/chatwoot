@@ -1,4 +1,5 @@
 require 'json'
+require 'digest'
 
 class AutomationRules::ConditionsFilterService < FilterService
   ATTRIBUTE_MODEL = 'contact_attribute'.freeze
@@ -224,8 +225,13 @@ class AutomationRules::ConditionsFilterService < FilterService
   def evaluate_phrase_condition(condition)
     return true unless @conversation
 
-    cache_key = 'ai_auto_phrase_checked'
-    result_key = 'ai_auto_phrase_passed'
+    # Generate unique cache keys per condition using MD5 hash of condition content
+    # This prevents cache collision when multiple entry_phrase conditions exist
+    condition_hash = Digest::MD5.hexdigest(
+      "#{condition['values'].sort.join('|')}|#{condition['custom_filters']}"
+    )
+    cache_key = "ai_auto_phrase_#{condition_hash}_checked"
+    result_key = "ai_auto_phrase_#{condition_hash}_passed"
 
     # Check cache
     return @conversation.custom_attributes[result_key] if @conversation.custom_attributes&.dig(cache_key)

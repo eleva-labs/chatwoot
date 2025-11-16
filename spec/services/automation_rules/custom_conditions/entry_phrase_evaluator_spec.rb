@@ -128,5 +128,42 @@ RSpec.describe AutomationRules::CustomConditions::EntryPhraseEvaluator do
       result = described_class.evaluate(conversation, condition)
       expect(result).to be true # Matches 'buy'
     end
+
+    context 'with multiple conditions (cache key uniqueness)' do
+      it 'evaluates each condition independently' do
+        create(:message, conversation: conversation, content: 'hello there', message_type: :incoming)
+        create(:message, conversation: conversation, content: 'necesito ayuda', message_type: :incoming)
+
+        # First condition: 'hello'
+        condition1 = {
+          'values' => ['hello'],
+          'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false }
+        }
+        result1 = described_class.evaluate(conversation, condition1)
+        expect(result1).to be true
+
+        # Second condition: 'ayuda'
+        condition2 = {
+          'values' => ['ayuda'],
+          'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false }
+        }
+        result2 = described_class.evaluate(conversation, condition2)
+        expect(result2).to be true
+
+        # Third condition: 'nonexistent'
+        condition3 = {
+          'values' => ['nonexistent'],
+          'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false }
+        }
+        result3 = described_class.evaluate(conversation, condition3)
+        expect(result3).to be false
+
+        # Verify each condition was evaluated independently
+        # (Not testing cache keys directly as that's implementation detail of ConditionsFilterService)
+        expect(result1).to be true
+        expect(result2).to be true
+        expect(result3).to be false
+      end
+    end
   end
 end
