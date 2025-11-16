@@ -1,8 +1,8 @@
 {
   "AUTOMATION": {
-    "HEADER": "Automatización",
-    "DESCRIPTION": "La automatización puede reemplazar y agilizar los procesos existentes que requieren esfuerzo manual, como añadir etiquetas y asignar conversaciones al miembro más adecuado. Esto permite al equipo concentrarse en sus fortalezas, mientras que reduce el tiempo dedicado a las tareas de rutina.",
-    "LEARN_MORE": "Aprende más sobre automatización",
+    "HEADER": "Automatizaciones",
+    "DESCRIPTION": "Las automatizaciones pueden reemplazar y agilizar los procesos existentes que requieren esfuerzo manual, como añadir etiquetas y asignar conversaciones al miembro más adecuado. Esto permite al equipo concentrarse en sus fortalezas, mientras que reduce el tiempo dedicado a las tareas de rutina.",
+    "LEARN_MORE": "Aprende más sobre automatizaciones",
     "HEADER_BTN_TXT": "Añadir regla de automatización",
     "LOADING": "Obteniendo reglas de automatización",
     "ADD": {
@@ -75,7 +75,7 @@
     "CLONE": {
       "TOOLTIP": "Clonar",
       "API": {
-        "SUCCESS_MESSAGE": "Automatización clonada con éxito",
+        "SUCCESS_MESSAGE": "Regla de automatización clonada con éxito",
         "ERROR_MESSAGE": "No se pudo clonar la regla de automatización, por favor inténtalo más tarde"
       }
     },
