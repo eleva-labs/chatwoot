@@ -75,15 +75,16 @@ class AutomationRules::ActionService < ActionService
                 param_value == 'true' || param_value == true
               end
 
-    has_agent_bot = inbox.agent_bot_inbox&.active?
-
-    # Safety check: Cannot enable AI without agent-bot
-    if enabled && !has_agent_bot
-      Rails.logger.warn(
-        "[AutomationRule #{@rule.id}] Cannot enable AI for inbox #{inbox.id} " \
-        "(no agent-bot). Conversation: #{@conversation.id}"
-      )
-      return
+    # Guard check: Cannot enable AI without meeting prerequisites
+    if enabled
+      guard = AutomationRules::AiEnabledGuardService.new(@conversation)
+      unless guard.can_enable_ai?
+        Rails.logger.warn(
+          "[AutomationRule #{@rule.id}] Cannot enable AI for inbox #{inbox.id} " \
+          "(prerequisites not met). Conversation: #{@conversation.id}"
+        )
+        return
+      end
     end
 
     # Set ai_enabled

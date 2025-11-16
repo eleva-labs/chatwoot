@@ -32,6 +32,12 @@ class AutomationRuleListener < BaseListener
                                                                         { message: message, changed_attributes: changed_attributes }).perform
       ::AutomationRules::ActionService.new(rule, account, message.conversation).perform if conditions_match.present?
     end
+
+    # Enforce AI prerequisites (runs ALWAYS, even if no rules matched)
+    enforce_ai_enabled_prerequisites(message.conversation)
+  rescue StandardError => e
+    Rails.logger.error "AutomationRuleListener error in message_created: #{e.message}"
+    Sentry.capture_exception(e) if defined?(Sentry)
   end
 
   private
@@ -54,6 +60,12 @@ class AutomationRuleListener < BaseListener
       conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, conversation, { changed_attributes: changed_attributes }).perform
       AutomationRules::ActionService.new(rule, account, conversation).perform if conditions_match.present?
     end
+
+    # Enforce AI prerequisites (runs ALWAYS, even if no rules matched)
+    enforce_ai_enabled_prerequisites(conversation)
+  rescue StandardError => e
+    Rails.logger.error "AutomationRuleListener error in #{event_name}: #{e.message}"
+    Sentry.capture_exception(e) if defined?(Sentry)
   end
 
   def rule_present?(event_name, account)
@@ -82,5 +94,12 @@ class AutomationRuleListener < BaseListener
   def ignore_message_created_event?(event)
     message = event.data[:message]
     performed_by_automation?(event) || message.activity? || message.auto_reply_email?
+  end
+
+  def enforce_ai_enabled_prerequisites(conversation)
+    AutomationRules::AiEnabledGuardService.new(conversation).enforce!
+  rescue StandardError => e
+    Rails.logger.error "Error enforcing AI prerequisites for conversation #{conversation.id}: #{e.message}"
+    # Don't raise - this is a safety check, shouldn't break the event flow
   end
 end
