@@ -44,7 +44,8 @@ export function useEditableAutomation() {
         return { ...condition, values: condition.values[0] };
       }
       if (inputType === 'comma_separated_plain_text') {
-        return { ...condition, values: condition.values.join(',') };
+        // Keep as array - FilterInput's commaSeparatedValues will handle display
+        return { ...condition };
       }
       return {
         ...condition,
