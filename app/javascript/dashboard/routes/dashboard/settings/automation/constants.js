@@ -765,4 +765,9 @@ export const AUTOMATION_ACTION_TYPES = [
     label: 'ADD_SLA',
     inputType: 'search_select',
   },
+  {
+    key: 'set_ai_enabled',
+    label: 'SET_AI_ENABLED',
+    inputType: 'search_select',
+  },
 ];

@@ -78,6 +78,11 @@ export default function useAutomationValues() {
     }))
   );
 
+  const aiEnabledOptions = computed(() => [
+    { id: true, name: 'Enable' },
+    { id: false, name: 'Disable' },
+  ]);
+
   /**
    * Adds a translated "None" option to the beginning of a list
    * @param {Array} list - The list to add "None" to
@@ -129,6 +134,7 @@ export default function useAutomationValues() {
       type,
       addNoneToListFn: addNoneToList,
       priorityOptions: priorityOptions.value,
+      aiEnabledOptions: aiEnabledOptions.value,
     });
   };
 
