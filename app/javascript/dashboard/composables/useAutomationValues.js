@@ -79,8 +79,8 @@ export default function useAutomationValues() {
   );
 
   const aiEnabledOptions = computed(() => [
-    { id: true, name: 'Enable' },
-    { id: false, name: 'Disable' },
+    { id: true, name: t('AUTOMATION.AI_ENABLED_OPTIONS.ENABLED') },
+    { id: false, name: t('AUTOMATION.AI_ENABLED_OPTIONS.DISABLED') },
   ]);
 
   /**

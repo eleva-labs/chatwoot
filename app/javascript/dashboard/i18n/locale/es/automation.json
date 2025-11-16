@@ -165,6 +165,10 @@
       "HIGH": "Alta",
       "URGENT": "Urgente"
     },
+    "AI_ENABLED_OPTIONS": {
+      "ENABLED": "Activar",
+      "DISABLED": "Desactivar"
+    },
     "ATTRIBUTES": {
       "MESSAGE_TYPE": "Tipo de mensaje",
       "MESSAGE_CONTAINS": "El mensaje contiene",

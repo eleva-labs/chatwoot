@@ -74,10 +74,6 @@ export const AUTOMATIONS = {
         name: 'HAS_AGENT_BOT',
         inputType: 'search_select',
         filterOperators: OPERATOR_TYPES_1,
-        dropdownValues: [
-          { id: true, name: 'Yes' },
-          { id: false, name: 'No' },
-        ],
       },
       {
         key: 'entry_phrase',
@@ -87,7 +83,7 @@ export const AUTOMATIONS = {
         customFilters: {
           message_limit: {
             type: 'number',
-            default: 3,
+            default: 2,
             label: 'MESSAGE_LIMIT',
             min: 1,
             max: 10,
@@ -162,11 +158,6 @@ export const AUTOMATIONS = {
       {
         key: 'set_ai_enabled',
         name: 'SET_AI_ENABLED',
-        inputType: 'search_select',
-        dropdownValues: [
-          { id: true, name: 'Enable' },
-          { id: false, name: 'Disable' },
-        ],
       },
     ],
   },
@@ -237,10 +228,6 @@ export const AUTOMATIONS = {
         name: 'HAS_AGENT_BOT',
         inputType: 'search_select',
         filterOperators: OPERATOR_TYPES_1,
-        dropdownValues: [
-          { id: true, name: 'Yes' },
-          { id: false, name: 'No' },
-        ],
       },
       {
         key: 'entry_phrase',
@@ -250,7 +237,7 @@ export const AUTOMATIONS = {
         customFilters: {
           message_limit: {
             type: 'number',
-            default: 3,
+            default: 2,
             label: 'MESSAGE_LIMIT',
             min: 1,
             max: 10,
@@ -317,11 +304,6 @@ export const AUTOMATIONS = {
       {
         key: 'set_ai_enabled',
         name: 'SET_AI_ENABLED',
-        inputType: 'search_select',
-        dropdownValues: [
-          { id: true, name: 'Enable' },
-          { id: false, name: 'Disable' },
-        ],
       },
     ],
   },

@@ -50,5 +50,24 @@ RSpec.describe AutomationRules::CustomConditions::AgentBotEvaluator do
         expect(result).to be false
       end
     end
+
+    context 'when condition value is a hash (from frontend dropdown)' do
+      before do
+        agent_bot = create(:agent_bot)
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, status: :active)
+      end
+
+      it 'extracts boolean from hash with string key' do
+        condition = { 'values' => [{ 'id' => true, 'name' => 'Yes' }] }
+        result = described_class.evaluate(conversation, condition)
+        expect(result).to be true
+      end
+
+      it 'extracts boolean from hash with symbol key' do
+        condition = { 'values' => [{ id: false, name: 'No' }] }
+        result = described_class.evaluate(conversation, condition)
+        expect(result).to be false
+      end
+    end
   end
 end

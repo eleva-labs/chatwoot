@@ -19,6 +19,7 @@
       "OR": "OR"
     },
     "INPUT_PLACEHOLDER": "Enter value",
+    "COMMA_SEPARATED_PLACEHOLDER": "Enter values separated by commas (e.g., buy, comprar, purchase)",
     "OPERATOR_LABELS": {
       "equal_to": "Equal to",
       "not_equal_to": "Not equal to",

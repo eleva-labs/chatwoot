@@ -164,6 +164,10 @@
       "HIGH": "High",
       "URGENT": "Urgent"
     },
+    "AI_ENABLED_OPTIONS": {
+      "ENABLED": "Enable",
+      "DISABLED": "Disable"
+    },
     "ATTRIBUTES": {
       "MESSAGE_TYPE": "Message Type",
       "MESSAGE_CONTAINS": "Message Contains",

@@ -10,7 +10,7 @@ class AutomationRules::CustomConditions::EntryPhraseEvaluator
     phrases = condition['values'] || []
     return false if phrases.empty?
 
-    message_limit = condition.dig('custom_filters', 'message_limit')&.to_i || 3
+    message_limit = condition.dig('custom_filters', 'message_limit')&.to_i || 2
     case_sensitive = condition.dig('custom_filters', 'case_sensitive') || false
 
     messages = fetch_messages(conversation, message_limit)
@@ -31,7 +31,8 @@ class AutomationRules::CustomConditions::EntryPhraseEvaluator
   private_class_method :message_contains_phrase?
 
   def self.normalize_text(text, case_sensitive)
-    case_sensitive ? text : text.to_s.downcase
+    normalized = text.to_s.strip
+    case_sensitive ? normalized : normalized.downcase
   end
   private_class_method :normalize_text
 end

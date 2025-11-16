@@ -62,11 +62,19 @@ class AutomationRules::ActionService < ActionService
     end
   end
 
-  def set_ai_enabled(ai_enabled_value)
+  def set_ai_enabled(ai_enabled_params)
     contact = @conversation.contact
     inbox = @conversation.inbox
 
-    enabled = ai_enabled_value.first == 'true' || ai_enabled_value.first == true
+    # Extract the boolean value from the params
+    # Frontend sends [{ id: true/false, name: 'Enable'/'Disable' }]
+    param_value = ai_enabled_params[0]
+    enabled = if param_value.is_a?(Hash)
+                param_value['id'] || param_value[:id]
+              else
+                param_value == 'true' || param_value == true
+              end
+
     has_agent_bot = inbox.agent_bot_inbox&.active?
 
     # Safety check: Cannot enable AI without agent-bot

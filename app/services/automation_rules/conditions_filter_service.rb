@@ -231,7 +231,7 @@ class AutomationRules::ConditionsFilterService < FilterService
     return @conversation.custom_attributes[result_key] if @conversation.custom_attributes&.dig(cache_key)
 
     # Check message limit
-    message_limit = condition.dig('custom_filters', 'message_limit')&.to_i || 3
+    message_limit = condition.dig('custom_filters', 'message_limit')&.to_i || 2
     incoming_count = @conversation.messages.incoming.count
 
     if incoming_count > message_limit

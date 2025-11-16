@@ -107,6 +107,20 @@ export default {
         });
       },
     },
+    commaSeparatedValues: {
+      get() {
+        if (!this.values || !Array.isArray(this.values)) return '';
+        return this.values.join(', ');
+      },
+      set(value) {
+        const payload = this.modelValue || {};
+        const valuesArray = value
+          .split(',')
+          .map(v => v.trim())
+          .filter(v => v.length > 0);
+        this.$emit('update:modelValue', { ...payload, values: valuesArray });
+      },
+    },
   },
   watch: {
     customAttributeType: {
@@ -247,6 +261,13 @@ export default {
               class="!mb-0 datepicker"
             />
           </div>
+          <input
+            v-else-if="inputType === 'comma_separated_plain_text'"
+            v-model="commaSeparatedValues"
+            type="text"
+            class="!mb-0"
+            :placeholder="$t('FILTER.COMMA_SEPARATED_PLACEHOLDER')"
+          />
           <input
             v-else
             v-model="values"

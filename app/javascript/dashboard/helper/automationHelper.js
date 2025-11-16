@@ -152,6 +152,7 @@ export const getConditionOptions = ({
     country_code: countries,
     message_type: messageTypeOptions,
     priority: priorityOptions,
+    has_agent_bot: booleanFilterOptions,
   };
 
   return conditionFilterMaps[type];

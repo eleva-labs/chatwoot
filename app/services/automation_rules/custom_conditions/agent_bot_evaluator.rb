@@ -10,7 +10,14 @@ class AutomationRules::CustomConditions::AgentBotEvaluator
     inbox = conversation.inbox
     has_bot = inbox.agent_bot_inbox&.active? || false
 
-    expected = condition['values']&.first
+    # Extract the boolean value from the condition values
+    # Frontend sends [{ id: true/false, name: 'Yes'/'No' }] or just [true/false]
+    value = condition['values']&.first
+    expected = if value.is_a?(Hash)
+                 value['id'] || value[:id]
+               else
+                 value
+               end
 
     case expected
     when true, 'true'

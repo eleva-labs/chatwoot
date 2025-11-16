@@ -197,6 +197,29 @@ RSpec.describe AutomationRules::ActionService do
           expect(contact.reload.custom_attributes['ai_enabled']).to be false
         end
       end
+
+      context 'when action params are in hash format (from frontend dropdown)' do
+        before do
+          agent_bot = create(:agent_bot)
+          create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, status: :active)
+        end
+
+        it 'extracts true from hash with string key' do
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [{ 'id' => true, 'name' => 'Enable' }] }]
+          rule.save!
+
+          described_class.new(rule, account, conversation).perform
+          expect(contact.reload.custom_attributes['ai_enabled']).to be true
+        end
+
+        it 'extracts false from hash with symbol key' do
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [{ id: false, name: 'Disable' }] }]
+          rule.save!
+
+          described_class.new(rule, account, conversation).perform
+          expect(contact.reload.custom_attributes['ai_enabled']).to be false
+        end
+      end
     end
   end
 end

@@ -19,6 +19,7 @@
       "OR": "O"
     },
     "INPUT_PLACEHOLDER": "Introducir valor",
+    "COMMA_SEPARATED_PLACEHOLDER": "Introduzca valores separados por comas (ej: comprar, ayuda, precio)",
     "OPERATOR_LABELS": {
       "equal_to": "Igual a",
       "not_equal_to": "No igual a",
