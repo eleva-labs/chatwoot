@@ -110,13 +110,22 @@ export default {
     commaSeparatedValues: {
       get() {
         if (!this.values || !Array.isArray(this.values)) return '';
-        return this.values.join(', ');
+        // Trim each value when displaying to clean up any stored leading/trailing spaces
+        return this.values.map(v => v.trim()).join(', ');
       },
       set(value) {
         const payload = this.modelValue || {};
-        const valuesArray = value
-          .split(',')
-          .map(v => v.trim())
+        // Split by comma
+        const parts = value.split(',');
+        const valuesArray = parts
+          .map((v, index) => {
+            // Trim all parts EXCEPT the last one (which user might still be typing)
+            // This allows typing spaces in phrases while cleaning up completed parts
+            if (index < parts.length - 1) {
+              return v.trim();
+            }
+            return v; // Keep last part as-is (user is still typing it)
+          })
           .filter(v => v.length > 0);
         this.$emit('update:modelValue', { ...payload, values: valuesArray });
       },
