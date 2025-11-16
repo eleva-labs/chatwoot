@@ -180,7 +180,7 @@
       "ASSIGNEE_NAME": "Asignado a",
       "TEAM_NAME": "Equipo",
       "PRIORITY": "Prioridad",
-      "HAS_AGENT_BOT": "Bandeja de entrada tiene agente-bot",
+      "HAS_AGENT_BOT": "Canal tiene AI Bot",
       "ENTRY_PHRASE_MATCH": "Frase de entrada",
       "RANDOM_PERCENTAGE": "Porcentaje aleatorio",
       "MESSAGE_LIMIT": "Verificar primeros N mensajes",
