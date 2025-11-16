@@ -78,7 +78,7 @@ export const AUTOMATIONS = {
       {
         key: 'entry_phrase',
         name: 'ENTRY_PHRASE_MATCH',
-        inputType: 'comma_separated_plain_text',
+        inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_2,
         customFilters: {
           message_limit: {
@@ -232,7 +232,7 @@ export const AUTOMATIONS = {
       {
         key: 'entry_phrase',
         name: 'ENTRY_PHRASE_MATCH',
-        inputType: 'comma_separated_plain_text',
+        inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_2,
         customFilters: {
           message_limit: {

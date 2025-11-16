@@ -43,10 +43,6 @@ export function useEditableAutomation() {
       if (inputType === 'plain_text' || inputType === 'date') {
         return { ...condition, values: condition.values[0] };
       }
-      if (inputType === 'comma_separated_plain_text') {
-        // Keep as array - FilterInput's commaSeparatedValues will handle display
-        return { ...condition };
-      }
       return {
         ...condition,
         query_operator: condition.query_operator || 'and',
