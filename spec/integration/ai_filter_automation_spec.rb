@@ -59,26 +59,33 @@ RSpec.describe 'AI Filter Automation', type: :integration do
       conversation = create(:conversation, inbox: inbox, contact: contact)
       create(:message, conversation: conversation, content: 'I need help', message_type: :incoming)
 
+      condition = {
+        attribute_key: 'entry_phrase',
+        filter_operator: 'contains',
+        values: ['help'],
+        custom_filters: { 'message_limit' => 3, 'case_sensitive' => false },
+        query_operator: nil
+      }
+
       rule = create(:automation_rule,
                     account: account,
                     event_name: 'message_created',
-                    conditions: [
-                      {
-                        attribute_key: 'entry_phrase',
-                        filter_operator: 'contains',
-                        values: ['help'],
-                        custom_filters: { 'message_limit' => 3, 'case_sensitive' => false },
-                        query_operator: nil
-                      }
-                    ],
+                    conditions: [condition],
                     actions: [])
+
+      # Calculate expected cache key hash (matches implementation)
+      condition_hash = Digest::MD5.hexdigest(
+        "#{condition[:values].sort.join('|')}|#{condition[:custom_filters]}"
+      )
+      cache_key = "ai_auto_phrase_#{condition_hash}_checked"
+      result_key = "ai_auto_phrase_#{condition_hash}_passed"
 
       service = AutomationRules::ConditionsFilterService.new(rule, conversation, message: conversation.messages.first)
       result = service.perform
 
       expect(result).to be true
-      expect(conversation.reload.custom_attributes['ai_auto_phrase_checked']).to be true
-      expect(conversation.custom_attributes['ai_auto_phrase_passed']).to be true
+      expect(conversation.reload.custom_attributes[cache_key]).to be true
+      expect(conversation.custom_attributes[result_key]).to be true
     end
   end
 end

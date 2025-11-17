@@ -2,8 +2,8 @@ import {
   OPERATOR_TYPES_1,
   OPERATOR_TYPES_2,
   OPERATOR_TYPES_3,
-  OPERATOR_TYPES_4,
   OPERATOR_TYPES_6,
+  OPERATOR_TYPES_7,
 } from './operators';
 
 export const AUTOMATIONS = {
@@ -99,7 +99,7 @@ export const AUTOMATIONS = {
         key: 'random_chance',
         name: 'RANDOM_PERCENTAGE',
         inputType: 'number',
-        filterOperators: OPERATOR_TYPES_4,
+        filterOperators: OPERATOR_TYPES_7,
       },
     ],
     actions: [
@@ -253,7 +253,7 @@ export const AUTOMATIONS = {
         key: 'random_chance',
         name: 'RANDOM_PERCENTAGE',
         inputType: 'number',
-        filterOperators: OPERATOR_TYPES_4,
+        filterOperators: OPERATOR_TYPES_7,
       },
     ],
     actions: [

@@ -136,12 +136,16 @@ conversations:
     data_type: "number"
     filter_operators:
       - "is_less_than"
+      - "percentage_is_less_than"
 
   entry_phrase:
     attribute_type: "computed"
     data_type: "text"
     filter_operators:
+      - "equal_to"
+      - "not_equal_to"
       - "contains"
+      - "does_not_contain"
     custom_filters:
       - "message_limit"
       - "case_sensitive"

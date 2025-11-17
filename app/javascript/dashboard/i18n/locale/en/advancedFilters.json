@@ -28,6 +28,7 @@
       "is_not_present": "Is not present",
       "is_greater_than": "Is greater than",
       "is_less_than": "Is lesser than",
+      "percentage_is_less_than": "Is",
       "days_before": "Is x days before",
       "starts_with": "Starts with",
       "equalTo": "Equal to",
