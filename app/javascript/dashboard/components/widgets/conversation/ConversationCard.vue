@@ -74,7 +74,7 @@ const currentContact = computed(() => {
 });
 
 const isAiEnabled = computed(() => {
-  return !!currentContact.value?.custom_attributes?.ai_enabled;
+  return !!props.chat?.custom_attributes?.ai_enabled;
 });
 
 const isActiveChat = computed(() => {

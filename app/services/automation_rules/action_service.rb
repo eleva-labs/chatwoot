@@ -63,38 +63,19 @@ class AutomationRules::ActionService < ActionService
   end
 
   def set_ai_enabled(ai_enabled_params)
-    contact = @conversation.contact
-    inbox = @conversation.inbox
+    enabled = extract_boolean_value(ai_enabled_params)
 
-    # Extract the boolean value from the params
-    # Frontend sends [{ id: true/false, name: 'Enable'/'Disable' }]
-    param_value = ai_enabled_params[0]
-    enabled = if param_value.is_a?(Hash)
-                param_value['id'] || param_value[:id]
-              else
-                param_value == 'true' || param_value == true
-              end
-
-    # Guard check: Cannot enable AI without meeting prerequisites
     if enabled
-      guard = AutomationRules::AiEnabledGuardService.new(@conversation)
-      unless guard.can_enable_ai?
-        Rails.logger.warn(
-          "[AutomationRule #{@rule.id}] Cannot enable AI for inbox #{inbox.id} " \
-          "(prerequisites not met). Conversation: #{@conversation.id}"
-        )
-        return
-      end
+      @conversation.enable_ai!
+    else
+      @conversation.disable_ai!
     end
+  end
 
-    # Set ai_enabled
-    contact.custom_attributes ||= {}
-    contact.custom_attributes['ai_enabled'] = enabled
-    contact.save!
-
-    Rails.logger.info(
-      "[AutomationRule #{@rule.id}] Set ai_enabled=#{enabled} for contact #{contact.id}, " \
-      "conversation #{@conversation.id}"
-    )
+  def extract_boolean_value(params)
+    value = params.is_a?(Array) ? params.first : params
+    # Handle hash format from frontend dropdown: { id: true/false, name: 'Enable'/'Disable' }
+    value = value['id'] || value[:id] if value.is_a?(Hash)
+    [true, 'true', 1, '1'].include?(value)
   end
 end

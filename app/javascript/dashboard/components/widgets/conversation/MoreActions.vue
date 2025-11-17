@@ -33,7 +33,7 @@ const currentContact = computed(() => {
 });
 
 const isAiEnabled = computed(() => {
-  return !!currentContact.value?.custom_attributes?.ai_enabled;
+  return !!currentChat.value?.custom_attributes?.ai_enabled;
 });
 
 const onToggleAi = async () => {

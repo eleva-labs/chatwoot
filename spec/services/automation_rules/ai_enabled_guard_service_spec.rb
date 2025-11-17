@@ -47,9 +47,8 @@ RSpec.describe AutomationRules::AiEnabledGuardService do
         expect(conversation.reload.custom_attributes['ai_enabled']).to be false
       end
 
-      it 'logs warning' do
-        expect(Rails.logger).to receive(:warn).with(/AI force-disabled/)
-        guard.enforce!
+      it 'returns true' do
+        expect(guard.enforce!).to be true
       end
     end
 
@@ -64,9 +63,8 @@ RSpec.describe AutomationRules::AiEnabledGuardService do
         expect(conversation.reload.custom_attributes['ai_enabled']).to be false
       end
 
-      it 'does not log warning' do
-        expect(Rails.logger).not_to receive(:warn)
-        guard.enforce!
+      it 'returns false' do
+        expect(guard.enforce!).to be false
       end
     end
 

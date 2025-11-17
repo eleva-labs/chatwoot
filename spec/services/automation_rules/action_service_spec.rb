@@ -155,7 +155,7 @@ RSpec.describe AutomationRules::ActionService do
 
         it 'sets ai_enabled to true' do
           described_class.new(rule, account, conversation).perform
-          expect(contact.reload.custom_attributes['ai_enabled']).to be true
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be true
         end
 
         it 'sets ai_enabled to false when action params are false' do
@@ -163,30 +163,28 @@ RSpec.describe AutomationRules::ActionService do
           rule.save!
 
           described_class.new(rule, account, conversation).perform
-          expect(contact.reload.custom_attributes['ai_enabled']).to be false
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be false
         end
       end
 
       context 'when inbox has no agent-bot' do
         before do
-          # Ensure contact starts with no ai_enabled set
-          contact.custom_attributes = {}
-          contact.save!
+          # Ensure conversation starts with no ai_enabled set
+          conversation.custom_attributes = {}
+          conversation.save!
           rule.actions = [{ action_name: 'set_ai_enabled', action_params: [true] }]
           rule.save!
         end
 
         it 'does not set ai_enabled to true' do
           described_class.new(rule, account, conversation).perform
-          expect(contact.reload.custom_attributes['ai_enabled']).to be_nil
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be_nil
         end
 
-        it 'logs a warning' do
-          expect(Rails.logger).to receive(:warn).with(
-            /Cannot enable AI for inbox #{inbox.id}/
-          )
-
-          described_class.new(rule, account, conversation).perform
+        it 'returns false from enable_ai!' do
+          result = conversation.enable_ai!
+          expect(result).to be false
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be_nil
         end
 
         it 'allows setting ai_enabled to false without agent-bot' do
@@ -194,7 +192,7 @@ RSpec.describe AutomationRules::ActionService do
           rule.save!
 
           described_class.new(rule, account, conversation).perform
-          expect(contact.reload.custom_attributes['ai_enabled']).to be false
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be false
         end
       end
 
@@ -209,7 +207,7 @@ RSpec.describe AutomationRules::ActionService do
           rule.save!
 
           described_class.new(rule, account, conversation).perform
-          expect(contact.reload.custom_attributes['ai_enabled']).to be true
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be true
         end
 
         it 'extracts false from hash with symbol key' do
@@ -217,7 +215,7 @@ RSpec.describe AutomationRules::ActionService do
           rule.save!
 
           described_class.new(rule, account, conversation).perform
-          expect(contact.reload.custom_attributes['ai_enabled']).to be false
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be false
         end
       end
     end
