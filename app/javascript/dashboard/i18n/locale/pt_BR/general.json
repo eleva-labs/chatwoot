@@ -5,6 +5,7 @@
       "PLACEHOLDER": "Pesquisar",
       "EMPTY_STATE": "Nenhum resultado encontrado"
     },
-    "CLOSE": "Fechar"
+    "CLOSE": "Fechar",
+    "AI_THOUGHTS_TITLE": "Pensamentos..."
   }
 }

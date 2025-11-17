@@ -109,6 +109,15 @@ Rails.application.routes.draw do
           resources :campaigns, only: [:index, :create, :show, :update, :destroy]
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           resources :ai_message_feedbacks, only: [:create, :update, :destroy]
+          resources :ai_chat, only: [:create] do
+            collection do
+              post :stream
+              get :bots
+              get :sessions
+              get 'sessions/:session_id/messages', action: :session_messages, as: :session_messages
+              delete 'sessions/:session_id', action: :delete_session, as: :delete_session
+            end
+          end
           namespace :channels do
             resource :twilio_channel, only: [:create]
           end

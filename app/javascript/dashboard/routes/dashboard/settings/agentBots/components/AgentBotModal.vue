@@ -3,7 +3,7 @@ import { ref, computed, reactive, watch } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
-import { required, helpers, url } from '@vuelidate/validators';
+import { required, helpers } from '@vuelidate/validators';
 import { useVuelidate } from '@vuelidate/core';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useToggle } from '@vueuse/core';
@@ -49,6 +49,17 @@ const formState = reactive({
 const [showAccessToken, toggleAccessToken] = useToggle();
 const accessToken = ref('');
 
+// Custom URL validator that accepts both HTTP and HTTPS (for localhost development)
+const isValidUrl = value => {
+  if (!value) return true; // Let 'required' handle empty values
+  try {
+    const urlObj = new URL(value);
+    return ['http:', 'https:'].includes(urlObj.protocol);
+  } catch {
+    return false;
+  }
+};
+
 const v$ = useVuelidate(
   {
     botName: {
@@ -62,9 +73,9 @@ const v$ = useVuelidate(
         () => t('AGENT_BOTS.FORM.ERRORS.URL'),
         required
       ),
-      url: helpers.withMessage(
+      isValidUrl: helpers.withMessage(
         () => t('AGENT_BOTS.FORM.ERRORS.VALID_URL'),
-        url
+        isValidUrl
       ),
     },
   },
@@ -116,11 +127,13 @@ const showAccessTokenInput = computed(
 );
 
 const resetForm = () => {
-  const storeId = currentAccount.value.id;
+  const storeId = currentAccount.value.store_id;
+  const constructedUrl = `${window.chatwootConfig.aiBackendUrl}/api/webhooks/chatwoot/message?store_id=${storeId}&agent_system_id=pending&id_type=external`;
+
   Object.assign(formState, {
     botName: '',
     botDescription: '',
-    botUrl: `${window.chatwootConfig.aiBackendUrl}/api/webhooks/chatwoot/message?store_id=${storeId}&agent_system_id=pending&id_type=external`,
+    botUrl: constructedUrl,
     botAvatar: null,
     botAvatarUrl: '',
   });
@@ -152,6 +165,18 @@ const handleAvatarDelete = async () => {
 };
 
 const handleSubmit = async () => {
+  /* eslint-disable no-console */
+  console.log('[AgentBotModal] handleSubmit called');
+  console.log('[AgentBotModal] Form state:', formState);
+  console.log('[AgentBotModal] Validation state:', {
+    invalid: v$.value.$invalid,
+    botNameInvalid: v$.value.botName.$invalid,
+    botUrlInvalid: v$.value.botUrl.$invalid,
+    botNameErrors: v$.value.botName.$errors,
+    botUrlErrors: v$.value.botUrl.$errors,
+  });
+  /* eslint-enable no-console */
+
   v$.value.$touch();
   if (v$.value.$invalid) return;
   if (showAccessToken.value) return;
@@ -259,6 +284,30 @@ const onClickClose = () => {
 };
 
 watch(() => props.selectedBot, initializeForm, { immediate: true, deep: true });
+
+// Debug watcher for validation state
+watch(
+  () => v$.value.$invalid,
+  invalid => {
+    /* eslint-disable no-console */
+    console.log(
+      '[AgentBotModal] Validation changed - Button disabled:',
+      invalid
+    );
+    console.log('[AgentBotModal] Current form values:', {
+      botName: formState.botName,
+      botUrl: formState.botUrl,
+    });
+    console.log('[AgentBotModal] Validation errors:', {
+      botNameInvalid: v$.value.botName.$invalid,
+      botUrlInvalid: v$.value.botUrl.$invalid,
+      botNameErrors: v$.value.botName.$errors,
+      botUrlErrors: v$.value.botUrl.$errors,
+    });
+    /* eslint-enable no-console */
+  },
+  { immediate: true }
+);
 
 defineExpose({ dialogRef });
 </script>

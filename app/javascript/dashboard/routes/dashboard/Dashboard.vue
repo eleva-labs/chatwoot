@@ -18,6 +18,7 @@ const CommandBar = defineAsyncComponent(
 
 import CopilotLauncher from 'dashboard/components-next/copilot/CopilotLauncher.vue';
 import CopilotContainer from 'dashboard/components/copilot/CopilotContainer.vue';
+import FloatingAIAssistant from 'dashboard/components/FloatingAIAssistant.vue';
 
 import MobileSidebarLauncher from 'dashboard/components-next/sidebar/MobileSidebarLauncher.vue';
 
@@ -31,6 +32,7 @@ export default {
     CopilotLauncher,
     CopilotContainer,
     MobileSidebarLauncher,
+    FloatingAIAssistant,
   },
   setup() {
     const upgradePageRef = ref(null);
@@ -74,6 +76,18 @@ export default {
         previously_used_conversation_display_type: conversationDisplayType,
       } = this.uiSettings;
       return conversationDisplayType;
+    },
+    previouslyUsedSidebarView() {
+      const { previously_used_sidebar_view: showSecondarySidebar } =
+        this.uiSettings;
+      return showSecondarySidebar;
+    },
+    canUseAI() {
+      // Temporarily always return true for testing
+      return true;
+      // return window.chatwootConfig?.features?.includes('ai_assistant') &&
+      //        window.chatwootConfig?.aiAssistantEnabled &&
+      //        process.env.NODE_ENV !== 'test'; // Don't show in tests
     },
   },
   watch: {
@@ -151,6 +165,7 @@ export default {
           @toggle="toggleMobileSidebar"
         />
         <CopilotContainer />
+        <FloatingAIAssistant v-if="canUseAI" />
       </template>
       <AddAccountModal
         :show="showCreateAccountModal"
