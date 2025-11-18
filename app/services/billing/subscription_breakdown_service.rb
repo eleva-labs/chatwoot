@@ -74,7 +74,8 @@ class Billing::SubscriptionBreakdownService
   end
 
   def plan_inclusions
-    limits = @plan_config&.dig('limits') || {}
+    # Use plan_limits() to get limits from Stripe metadata first, then YAML fallback
+    limits = self.class.plan_limits(@plan_name)
 
     inclusions = []
     inclusions << "#{limits['agents']} agents included" if limits['agents']&.positive?

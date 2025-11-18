@@ -42,7 +42,9 @@ class Billing::UnifiedLimitService
                   'inboxes' # Channels use inbox limits
                 end
 
-    @plan_config&.dig('limits', limit_key) || 0
+    # Use plan_limits() to get limits from Stripe metadata first, then YAML fallback
+    plan_limits = self.class.plan_limits(@plan_name)
+    plan_limits[limit_key] || 0
   end
 
   # Purchased extra units from Stripe subscription items
@@ -180,7 +182,9 @@ class Billing::UnifiedLimitService
                   'inboxes'
                 end
 
-    (@plan_config&.dig('limits', limit_key) || 0) == -1
+    # Use plan_limits() to get limits from Stripe metadata first, then YAML fallback
+    plan_limits = self.class.plan_limits(@plan_name)
+    (plan_limits[limit_key] || 0) == -1
   end
 
   def fetch_subscription

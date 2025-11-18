@@ -28,7 +28,9 @@ class Billing::ConversationLimitService
 
   # Plan's base conversation limit
   def plan_limit
-    @plan_config&.dig('limits', 'conversations_monthly') || 0
+    # Use plan_limits() to get limits from Stripe metadata first, then YAML fallback
+    plan_limits = self.class.plan_limits(@plan_name)
+    plan_limits['conversations_monthly'] || 0
   end
 
   # Extra conversations purchased via one-time packs
@@ -129,7 +131,9 @@ class Billing::ConversationLimitService
   private
 
   def unlimited?
-    (@plan_config&.dig('limits', 'conversations_monthly') || 0) == -1
+    # Use plan_limits() to get limits from Stripe metadata first, then YAML fallback
+    plan_limits = self.class.plan_limits(@plan_name)
+    (plan_limits['conversations_monthly'] || 0) == -1
   end
 
   def billing_period_start
@@ -196,13 +200,13 @@ class Billing::ConversationLimitService
     when 'free_trial'
       {
         plan: 'starter',
-        limit: format_number(BillingPlans.plan_details('starter')&.dig('limits', 'conversations_monthly') || 0),
+        limit: format_number(self.class.plan_limits('starter')['conversations_monthly'] || 0),
         action: 'upgrade'
       }
     when 'starter'
       {
         plan: 'professional',
-        limit: format_number(BillingPlans.plan_details('professional')&.dig('limits', 'conversations_monthly') || 0),
+        limit: format_number(self.class.plan_limits('professional')['conversations_monthly'] || 0),
         action: 'upgrade'
       }
     when 'professional'
