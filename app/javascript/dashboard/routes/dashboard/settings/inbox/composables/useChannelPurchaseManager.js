@@ -127,17 +127,16 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
   };
 
   watch(
-    [hasLoadedData, shouldChargeForChannel],
-    async ([loaded, shouldCharge]) => {
-      if (loaded && shouldCharge) {
+    [hasLoadedData, hasAvailableIncludedChannel],
+    async ([loaded, hasAvailable]) => {
+      if (loaded && !hasAvailable) {
         await fetchProrationPreview();
-      }
-
-      if (!shouldCharge) {
+      } else if (hasAvailable) {
         prorationAmount.value = null;
         hasFetchedProration.value = false;
       }
-    }
+    },
+    { immediate: true }
   );
 
   const handleChannelCreation = async creationFn => {
