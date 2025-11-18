@@ -93,11 +93,12 @@ const confirmationDetails = computed(() => {
   return details;
 });
 
-const removeExtraInboxSeat = async () => {
+const removeExtraInboxSeat = async (skipValidation = false) => {
   try {
     await store.dispatch('accounts/purchaseAddOn', {
       add_on_type: 'inbox',
       action: 'remove',
+      skip_validation: skipValidation,
     });
     return true;
   } catch (error) {
@@ -107,14 +108,26 @@ const removeExtraInboxSeat = async () => {
 };
 
 const deleteInbox = async ({ id }) => {
-  const hadExtraSeat = extraInboxesUsed.value > 0;
+  // Check if we need to remove from Stripe based on preview result
+  // Preview is always fetched when opening delete modal - if it succeeded, there's a subscription item
+  const hadExtraSeat = !!removalPreview.value?.estimated_credit;
 
   try {
+    // If this was an extra seat removal, remove from Stripe FIRST before deleting inbox
+    // This ensures validation works correctly and proration credit is calculated properly
+    if (hadExtraSeat) {
+      const stripeRemovalSuccess = await removeExtraInboxSeat(true);
+      if (!stripeRemovalSuccess) {
+        // If Stripe removal fails, don't proceed with inbox deletion
+        return;
+      }
+    }
+
+    // Now delete the inbox
     await store.dispatch('inboxes/delete', id);
 
-    // If this was an extra seat removal, refresh limits
+    // Refresh limits after deletion
     if (hadExtraSeat) {
-      await removeExtraInboxSeat();
       await Promise.all([fetchLimits(true), fetchAddOns(true)]);
     }
 
@@ -142,13 +155,10 @@ const openDelete = async inbox => {
   removalPreview.value = null;
   removalError.value = null;
 
-  // Check if this is an extra seat removal
-  const isExtraSeatRemoval = extraInboxesUsed.value > 0;
-
-  if (isExtraSeatRemoval) {
-    // Fetch preview before showing modal
-    await fetchRemovalPreview();
-  }
+  // Always try to fetch preview to check if there's a Stripe subscription item to remove
+  // This works even when limits haven't loaded yet
+  // The preview API will check Stripe directly and return success if there's a subscription item
+  await fetchRemovalPreview();
 
   // Show confirmation modal
   showDeletePopup.value = true;

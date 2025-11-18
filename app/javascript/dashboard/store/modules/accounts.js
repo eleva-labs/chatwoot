@@ -251,12 +251,13 @@ export const actions = {
     }
   },
 
-  purchaseAddOn: async (_, { add_on_type, action, quantity = null }) => {
+  purchaseAddOn: async (_, { add_on_type, action, quantity = null, skip_validation = false }) => {
     try {
       const response = await BillingAPI.updateAddOn(
         add_on_type,
         action,
-        quantity
+        quantity,
+        skip_validation
       );
       if (response.data.success) {
         return response;
