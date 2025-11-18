@@ -78,11 +78,17 @@ class Billing::SubscriptionBreakdownService
     limits = self.class.plan_limits(@plan_name)
 
     inclusions = []
-    inclusions << "#{limits['agents']} agents included" if limits['agents']&.positive?
-    inclusions << "#{limits['inboxes']} inboxes included" if limits['inboxes']&.positive?
-
+    # Match pricing table format: "1 members" instead of "1 agents included"
+    inclusions << "#{limits['agents']} members" if limits['agents']&.positive?
+    # Match pricing table format: "1 channels" instead of "1 inboxes included"
+    inclusions << "#{limits['inboxes']} channels" if limits['inboxes']&.positive?
+    # Match pricing table format: "1000 AI token credits"
+    if limits['token_credits']&.positive?
+      inclusions << "#{number_with_delimiter(limits['token_credits'])} AI token credits"
+    end
+    # Match pricing table format: "1 conversations" instead of "1 conversations/month"
     if limits['conversations_monthly']&.positive?
-      inclusions << "#{number_with_delimiter(limits['conversations_monthly'])} conversations/month"
+      inclusions << "#{number_with_delimiter(limits['conversations_monthly'])} conversations"
     end
 
     inclusions

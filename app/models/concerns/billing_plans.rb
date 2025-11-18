@@ -174,25 +174,35 @@ module BillingPlans
       metadata.each do |key, value|
         # Defensive checks for key and value types
         key_str = key.is_a?(Array) ? key.join('_') : key.to_s
-        next unless key_str.end_with?('_limit')
+        
+        # Extract keys ending with '_limit'
+        if key_str.end_with?('_limit')
+          # Handle monthly vs overall limits based on naming convention
+          limit_key = if key_str.end_with?('_monthly_limit')
+                        # Convert 'conversations_monthly_limit' -> 'conversations_monthly'
+                        key_str.gsub('_monthly_limit', '_monthly')
+                      else
+                        # Convert 'agents_limit' -> 'agents', 'inboxes_limit' -> 'inboxes', etc.
+                        key_str.gsub('_limit', '')
+                      end
 
-        # Handle monthly vs overall limits based on naming convention
-        limit_key = if key_str.end_with?('_monthly_limit')
-                      # Convert 'conversations_monthly_limit' -> 'conversations_monthly'
-                      key_str.gsub('_monthly_limit', '_monthly')
-                    else
-                      # Convert 'agents_limit' -> 'agents', 'inboxes_limit' -> 'inboxes', etc.
-                      key_str.gsub('_limit', '')
-                    end
+          # Defensive value conversion
+          value_int = if value.is_a?(Array)
+                        value.first.to_i
+                      else
+                        value.to_i
+                      end
 
-        # Defensive value conversion
-        value_int = if value.is_a?(Array)
-                      value.first.to_i
-                    else
-                      value.to_i
-                    end
-
-        limits[limit_key] = value_int
+          limits[limit_key] = value_int
+        # Also extract token_credits directly (doesn't end with _limit)
+        elsif key_str == 'token_credits'
+          value_int = if value.is_a?(Array)
+                        value.first.to_i
+                      else
+                        value.to_i
+                      end
+          limits['token_credits'] = value_int
+        end
       end
 
       limits
