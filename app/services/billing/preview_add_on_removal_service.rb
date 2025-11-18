@@ -27,6 +27,7 @@ class Billing::PreviewAddOnRemovalService
     credit_cents = preview_invoice_with_removal(
       subscription_id: subscription.id,
       subscription_item_id: subscription_item.id,
+      lookup_key: config['lookup_key'],
       new_quantity: new_quantity
     )
 
@@ -95,7 +96,7 @@ class Billing::PreviewAddOnRemovalService
     end
   end
 
-  def preview_invoice_with_removal(subscription_id:, subscription_item_id:, new_quantity:)
+  def preview_invoice_with_removal(subscription_id:, subscription_item_id:, lookup_key:, new_quantity:)
     subscription_details = build_subscription_details(
       subscription_item_id: subscription_item_id,
       new_quantity: new_quantity
@@ -107,9 +108,26 @@ class Billing::PreviewAddOnRemovalService
       expand: ['lines']
     )
 
-    credit_lines = preview_invoice.lines.data.select { |line| line.amount.negative? }
+    negative_lines = preview_invoice.lines.data.select do |line|
+      line_amount = line['amount'] || line.amount
+      line_amount&.negative?
+    end
 
-    credit_lines.sum { |line| line.amount.abs }
+    positive_lines_total = preview_invoice.lines.data
+                          .select { |line| (line['amount'] || line.amount)&.positive? }
+                          .sum { |line| line['amount'] || line.amount }
+
+    negative_lines_total = negative_lines.sum { |line| (-(line['amount'] || line.amount)) }
+
+    net_credit_cents = [negative_lines_total - positive_lines_total, 0].max
+
+    return net_credit_cents if net_credit_cents.positive?
+
+    negative_lines_total
+  rescue StandardError => e
+    Rails.logger.error "Error calculating credit from preview invoice: #{e.class} - #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+    raise
   end
 
   def build_subscription_details(subscription_item_id:, new_quantity:)
@@ -136,9 +154,8 @@ class Billing::PreviewAddOnRemovalService
         }
       end
 
-    if behavior == 'create_prorations'
-      details[:proration_date] = Time.current.to_i
-    end
+    # Always set proration_date for preview calculations, regardless of behavior
+    details[:proration_date] = Time.current.to_i
 
     details
   end
