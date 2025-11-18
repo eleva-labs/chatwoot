@@ -23,6 +23,9 @@ const { isAdmin } = useAdmin();
 
 const showDeletePopup = ref(false);
 const selectedInbox = ref({});
+const isPreviewingRemoval = ref(false);
+const removalPreview = ref(null);
+const removalError = ref(null);
 
 const inboxes = useMapGetter('inboxes/getInboxes');
 
@@ -43,6 +46,7 @@ const deleteRejectText = computed(
 const confirmDeleteMessage = computed(
   () => `${t('INBOX_MGMT.DELETE.CONFIRM.MESSAGE')} ${selectedInbox.value.name}?`
 );
+
 const confirmPlaceHolderText = computed(
   () =>
     `${t('INBOX_MGMT.DELETE.CONFIRM.PLACE_HOLDER', {
@@ -50,32 +54,77 @@ const confirmPlaceHolderText = computed(
     })}`
 );
 
+const fetchRemovalPreview = async () => {
+  try {
+    isPreviewingRemoval.value = true;
+    removalError.value = null;
+
+    const response = await store.dispatch('accounts/previewAddOnRemoval', {
+      add_on_type: 'inbox',
+      action: 'remove',
+    });
+
+    if (response?.data) {
+      removalPreview.value = {
+        estimated_credit: response.data.estimated_credit || null,
+        details: response.data.details || null,
+      };
+    }
+  } catch (error) {
+    removalError.value = error?.message || 'Preview failed';
+  } finally {
+    isPreviewingRemoval.value = false;
+  }
+};
+
+const confirmationDetails = computed(() => {
+  const details = [];
+
+  if (extraInboxesUsed.value > 0 && removalPreview.value?.estimated_credit) {
+    details.push(
+      t('INBOX_MGMT.DELETE.EXTRA_CONFIRM', {
+        credit: removalPreview.value.estimated_credit,
+      })
+    );
+  } else if (extraInboxesUsed.value > 0 && removalError.value) {
+    details.push(t('INBOX_MGMT.DELETE.EXTRA_CONFIRM_FALLBACK'));
+  }
+
+  return details;
+});
+
+const removeExtraInboxSeat = async () => {
+  try {
+    await store.dispatch('accounts/purchaseAddOn', {
+      add_on_type: 'inbox',
+      action: 'remove',
+    });
+    return true;
+  } catch (error) {
+    useAlert(t('INBOX_MGMT.DELETE.API.EXTRA_REMOVE_ERROR'));
+    return false;
+  }
+};
+
 const deleteInbox = async ({ id }) => {
-  const previousPurchasedExtras = extraInboxesPurchased.value;
-  const hadPurchasedExtras = previousPurchasedExtras > 0;
+  const hadExtraSeat = extraInboxesUsed.value > 0;
 
   try {
     await store.dispatch('inboxes/delete', id);
+
+    // If this was an extra seat removal, refresh limits
+    if (hadExtraSeat) {
+      await removeExtraInboxSeat();
+      await Promise.all([fetchLimits(true), fetchAddOns(true)]);
+    }
+
     useAlert(t('INBOX_MGMT.DELETE.API.SUCCESS_MESSAGE'));
   } catch (error) {
     useAlert(t('INBOX_MGMT.DELETE.API.ERROR_MESSAGE'));
-    return;
-  }
-
-  if (hadPurchasedExtras) {
-    try {
-      const updatedQuantity = Math.max(previousPurchasedExtras - 1, 0);
-
-      await store.dispatch('accounts/purchaseAddOn', {
-        add_on_type: 'inbox',
-        action: 'set',
-        quantity: updatedQuantity,
-      });
-
-      await fetchLimits(true);
-    } catch (error) {
-      useAlert(t('INBOX_MGMT.DELETE.API.EXTRA_REMOVE_ERROR'));
-    }
+  } finally {
+    // Reset preview state
+    removalPreview.value = null;
+    removalError.value = null;
   }
 };
 const closeDelete = () => {
@@ -83,13 +132,26 @@ const closeDelete = () => {
   selectedInbox.value = {};
 };
 
-const confirmDeletion = () => {
-  deleteInbox(selectedInbox.value);
+const confirmDeletion = async () => {
+  await deleteInbox(selectedInbox.value);
   closeDelete();
 };
-const openDelete = inbox => {
-  showDeletePopup.value = true;
+
+const openDelete = async inbox => {
   selectedInbox.value = inbox;
+  removalPreview.value = null;
+  removalError.value = null;
+
+  // Check if this is an extra seat removal
+  const isExtraSeatRemoval = extraInboxesUsed.value > 0;
+
+  if (isExtraSeatRemoval) {
+    // Fetch preview before showing modal
+    await fetchRemovalPreview();
+  }
+
+  // Show confirmation modal
+  showDeletePopup.value = true;
 };
 
 const {
@@ -98,7 +160,9 @@ const {
   includedLimit,
   includedUsage,
   extraInboxesPurchased,
+  extraInboxesUsed,
   fetchLimits,
+  fetchAddOns,
 } = useInboxLimits(store);
 
 const inboxUsageLoading = computed(() => {
@@ -253,6 +317,7 @@ const extraInboxesDisplay = computed(
       :reject-text="deleteRejectText"
       :confirm-value="selectedInbox.name"
       :confirm-place-holder-text="confirmPlaceHolderText"
+      :details="confirmationDetails"
       @on-confirm="confirmDeletion"
       @on-close="closeDelete"
     />

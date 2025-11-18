@@ -624,7 +624,9 @@
         "EXTRA_REMOVE_ERROR": "We couldn't remove an extra inbox seat automatically. You can adjust seats from Billing > Usage & Limits.",
         "AVATAR_SUCCESS_MESSAGE": "Channel avatar deleted successfully",
         "AVATAR_ERROR_MESSAGE": "Could not delete the channel avatar. Please try again later."
-      }
+      },
+      "EXTRA_CONFIRM": "You'll receive approximately {credit} credit for the unused time on your next invoice.",
+      "EXTRA_CONFIRM_FALLBACK": "You'll receive a prorated credit for the unused time on your next invoice."
     },
     "TABS": {
       "SETTINGS": "Settings",

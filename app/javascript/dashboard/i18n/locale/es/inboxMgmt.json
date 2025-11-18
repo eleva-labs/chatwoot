@@ -625,7 +625,9 @@
         "EXTRA_REMOVE_ERROR": "No pudimos eliminar automáticamente un asiento extra de canal. Puedes ajustar los asientos en Facturación > Uso y límites.",
         "AVATAR_SUCCESS_MESSAGE": "Avatar de canal eliminado correctamente",
         "AVATAR_ERROR_MESSAGE": "No se pudo eliminar el avatar del canal. Inténtalo de nuevo más tarde."
-      }
+      },
+      "EXTRA_CONFIRM": "Recibirá aproximadamente {credit} de crédito por el tiempo no utilizado en su próxima factura.",
+      "EXTRA_CONFIRM_FALLBACK": "Recibirá un crédito prorrateado por el tiempo no utilizado en su próxima factura."
     },
     "TABS": {
       "SETTINGS": "Ajustes",

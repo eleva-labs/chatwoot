@@ -150,6 +150,16 @@ export function useInboxLimits(store) {
     return Math.min(current, included);
   });
 
+  // Extra inboxes used (reuses exact formula from useAgentSeatLimits)
+  const extraInboxesUsed = computed(() => {
+    const current = currentUsage.value;
+    const included = includedLimit.value;
+    const purchased = extraInboxesPurchased.value;
+
+    const rawUsed = current - included;
+    return Math.max(0, Math.min(rawUsed, purchased));
+  });
+
   const hasAvailableIncludedChannel = computed(
     () => currentUsage.value < includedLimit.value
   );
@@ -182,6 +192,7 @@ export function useInboxLimits(store) {
     includedLimit,
     includedUsage,
     extraInboxesPurchased,
+    extraInboxesUsed,
     currentUsage,
     totalAllowed,
     remainingChannels,

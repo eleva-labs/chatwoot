@@ -18,6 +18,10 @@ export default {
     rejectText: { type: String, default: '' },
     confirmValue: { type: String, default: '' },
     confirmPlaceHolderText: { type: String, default: '' },
+    details: {
+      type: Array,
+      default: () => [],
+    },
   },
   emits: ['onClose', 'onConfirm', 'update:show'],
   setup() {
@@ -60,7 +64,16 @@ export default {
 
 <template>
   <Modal v-model:show="localShow" :on-close="closeModal">
-    <woot-modal-header :header-title="title" :header-content="message" />
+    <woot-modal-header :header-title="title" :header-content="message">
+      <div v-if="details.length" class="w-full mt-4">
+        <div class="border-t border-n-weak dark:border-n-slate-6" />
+        <div class="mt-4 text-sm leading-5 text-n-slate-11">
+          <div v-for="detail in details" :key="detail" class="mb-2 last:mb-0">
+            {{ detail }}
+          </div>
+        </div>
+      </div>
+    </woot-modal-header>
     <form @submit.prevent="onConfirm">
       <woot-input
         v-model="value"
