@@ -92,7 +92,8 @@ class AiBackendService::TokenCreditsService
 
   def canonical_payload(payload)
     normalized_payload = normalize_payload(payload)
-    JSON.generate(normalized_payload)
+    # Use compact JSON format (no spaces) to match Python's json.dumps(..., separators=(',', ':'))
+    JSON.generate(normalized_payload, space: nil, space_before: nil)
   end
 
   def normalize_payload(obj)
