@@ -173,24 +173,25 @@ const confirmationDescription = computed(() => {
 const confirmationDetails = computed(() => {
   const details = [];
 
-  if (extraSeatsUsed.value > 0 && removalPreview.value?.estimated_credit) {
+  if (removalPreview.value?.estimated_credit) {
     details.push(
       t('AGENT_MGMT.DELETE.EXTRA_CONFIRM', {
         credit: removalPreview.value.estimated_credit,
       })
     );
-  } else if (extraSeatsUsed.value > 0 && removalError.value) {
+  } else if (removalError.value) {
     details.push(t('AGENT_MGMT.DELETE.EXTRA_CONFIRM_FALLBACK'));
   }
 
   return details;
 });
 
-const removeExtraAgentSeat = async () => {
+const removeExtraAgentSeat = async (skipValidation = false) => {
   try {
     await store.dispatch('accounts/purchaseAddOn', {
       add_on_type: 'agent',
       action: 'remove',
+      skip_validation: skipValidation,
     });
     return true;
   } catch (error) {
@@ -199,13 +200,27 @@ const removeExtraAgentSeat = async () => {
   }
 };
 
-const deleteAgent = async (id, hadExtraSeat) => {
+const deleteAgent = async (id) => {
+  // Check if we need to remove from Stripe based on preview result
+  // Preview is always fetched when opening delete modal - if it succeeded, there's a subscription item
+  const hadExtraSeat = !!removalPreview.value?.estimated_credit;
+
   try {
+    // If this was an extra seat removal, remove from Stripe FIRST before deleting agent
+    // This ensures validation works correctly and proration credit is calculated properly
+    if (hadExtraSeat) {
+      const stripeRemovalSuccess = await removeExtraAgentSeat(true);
+      if (!stripeRemovalSuccess) {
+        // If Stripe removal fails, don't proceed with agent deletion
+        return;
+      }
+    }
+
+    // Now delete the agent
     await store.dispatch('agents/delete', id);
 
-    // If this was an extra seat removal, refresh limits
+    // Refresh limits after deletion
     if (hadExtraSeat) {
-      await removeExtraAgentSeat();
       await Promise.all([fetchLimits(true), fetchAddOns(true)]);
     }
 
@@ -221,8 +236,7 @@ const deleteAgent = async (id, hadExtraSeat) => {
 
 const confirmDeletion = async () => {
   loading.value[currentAgent.value.id] = true;
-  const hadExtraSeat = extraSeatsUsed.value > 0;
-  await deleteAgent(currentAgent.value.id, hadExtraSeat);
+  await deleteAgent(currentAgent.value.id);
   loading.value[currentAgent.value.id] = false;
   currentAgent.value = {};
 };
@@ -232,13 +246,10 @@ const openDeletePopup = async agent => {
   removalPreview.value = null;
   removalError.value = null;
 
-  // Check if this is an extra seat removal
-  const isExtraSeatRemoval = extraSeatsUsed.value > 0;
-
-  if (isExtraSeatRemoval) {
-    // Fetch preview before showing modal
-    await fetchRemovalPreview();
-  }
+  // Always try to fetch preview to check if there's a Stripe subscription item to remove
+  // This works even when limits haven't loaded yet
+  // The preview API will check Stripe directly and return success if there's a subscription item
+  await fetchRemovalPreview();
 
   // Show confirmation modal
   const confirmed = await confirmationModal.value.showConfirmation();
