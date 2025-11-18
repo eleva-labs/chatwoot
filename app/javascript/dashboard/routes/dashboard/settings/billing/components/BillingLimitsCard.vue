@@ -453,10 +453,7 @@ onMounted(async () => {
               {{ inboxIncludedUsageDisplay }}
             </p>
           </div>
-          <div
-            v-if="inboxLimit.purchased > 0"
-            class="bg-n-solid-1 rounded-md p-3 border border-n-weak"
-          >
+          <div class="bg-n-solid-1 rounded-md p-3 border border-n-weak">
             <p class="text-xs text-n-slate-11 mb-1">
               {{ t('BILLING_SETTINGS.LIMITS.EXTRA_INBOXES') }}
             </p>
