@@ -25,7 +25,7 @@ class Billing::SubscriptionBreakdownService
         base_plan: base_plan_details(subscription, base_item),
         add_ons: add_on_details(subscription),
         total: calculate_total(subscription, upcoming_invoice),
-        next_billing_date: next_billing_date(subscription, base_item),
+        next_billing_date: next_billing_date(subscription, base_item, upcoming_invoice),
         currency: subscription_currency(subscription, base_item)
       }
       
@@ -235,14 +235,12 @@ class Billing::SubscriptionBreakdownService
   end
 
   def calculate_credits_applied(upcoming_invoice)
-    # Starting balance is negative for credits (customer balance)
-    # When applied to invoice, it reduces amount_due
-    # We want to show the absolute value of credits applied
-    starting_balance = upcoming_invoice.starting_balance || 0
-    
-    # If starting_balance is negative, that's a credit (reduces amount due)
-    # If positive, that's a debit (increases amount due) - we'll show as 0 for credits
-    credits_cents = starting_balance.negative? ? -starting_balance : 0
+    # Credits applied = subtotal - amount_due
+    # This matches what Stripe shows in the dashboard as "Applied balance"
+    # The difference between subtotal and amount_due represents credits/discounts applied
+    subtotal = upcoming_invoice.subtotal || 0
+    amount_due = upcoming_invoice.amount_due || 0
+    credits_cents = [subtotal - amount_due, 0].max
 
     {
       amount_cents: credits_cents,
@@ -272,7 +270,29 @@ class Billing::SubscriptionBreakdownService
     primary_item
   end
 
-  def next_billing_date(subscription, base_item)
+  def next_billing_date(subscription, base_item, upcoming_invoice = nil)
+    # If we have upcoming invoice, use its period_end or due_date (most accurate)
+    if upcoming_invoice
+      # Prefer period_end (when invoice will be generated)
+      # Fallback to due_date (when payment is due)
+      period_end = if upcoming_invoice.respond_to?(:period_end)
+                     upcoming_invoice.period_end
+                   elsif upcoming_invoice.is_a?(Hash)
+                     upcoming_invoice['period_end']
+                   end
+
+      return period_end if period_end
+
+      due_date = if upcoming_invoice.respond_to?(:due_date)
+                   upcoming_invoice.due_date
+                 elsif upcoming_invoice.is_a?(Hash)
+                   upcoming_invoice['due_date']
+                 end
+
+      return due_date if due_date
+    end
+
+    # Fallback to subscription item period end
     item = base_item || base_subscription_item(subscription)
     item_end = subscription_item_current_period_end(item)
     return item_end if item_end
@@ -315,6 +335,7 @@ class Billing::SubscriptionBreakdownService
       subscription['current_period_end']
     end
   end
+
 
   def build_breakdown_from_plan_config
     # Build breakdown from plan configuration (for free trials, community plans, etc.)

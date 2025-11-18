@@ -57,6 +57,12 @@ const isFreeOrTrial = computed(() => {
 });
 
 const billingDateLabel = computed(() => {
+  // Don't show "Trial ends" if there's a valid billing date (active subscription)
+  // Always show "Next billing" when there's a valid billing date
+  if (breakdown.value?.next_billing_date) {
+    return t('BILLING_SETTINGS.SUBSCRIPTION.NEXT_BILLING');
+  }
+  // Only show "Trial ends" if truly in trial with no billing date
   if (isFreeOrTrial.value) {
     return t('BILLING_SETTINGS.SUBSCRIPTION.TRIAL_ENDS');
   }
@@ -207,8 +213,6 @@ onMounted(() => {
           </h4>
           <span class="text-xl font-bold text-n-slate-12">
             {{ breakdown.total.amount_formatted }}
-            <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
-            <span class="text-sm font-normal text-n-slate-11">/month</span>
           </span>
         </div>
 
