@@ -327,6 +327,18 @@ const skipInvitations = () => {
         </div>
       </div>
 
+      <!-- Onboarding mode proration note -->
+      <div
+        v-if="route.name === 'settings_inboxes_invite_team' && noteMessage"
+        class="w-full mt-4"
+      >
+        <p
+          class="text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
+        >
+          {{ noteMessage }}
+        </p>
+      </div>
+
       <!-- Onboarding mode buttons -->
       <div
         v-if="route.name === 'settings_inboxes_invite_team'"
@@ -335,9 +347,14 @@ const skipInvitations = () => {
         <Button faded slate label="Skip for now" @click="skipInvitations" />
         <Button
           type="submit"
-          :label="$t('AGENT_MGMT.ADD.FORM.SUBMIT')"
-          :disabled="v$.$invalid || uiFlags.isCreating"
-          :is-loading="uiFlags.isCreating"
+          :label="primaryButtonLabel"
+          :disabled="
+            v$.$invalid ||
+            uiFlags.isCreating ||
+            isPurchasingExtraSeat ||
+            isSeatInfoLoading
+          "
+          :is-loading="uiFlags.isCreating || isPurchasingExtraSeat"
         />
       </div>
 
