@@ -134,5 +134,224 @@ RSpec.describe AutomationRules::ConditionsFilterService do
         end
       end
     end
+
+    context 'when conditions based on entry_phrase with multiple conditions' do
+      it 'evaluates each entry_phrase condition independently with unique cache keys' do
+        # Create initial messages
+        create(:message, conversation: conversation, content: 'hello there', message_type: :incoming)
+        create(:message, conversation: conversation, content: 'necesito ayuda', message_type: :incoming)
+
+        # Create automation rule with two entry_phrase conditions connected by OR
+        rule.conditions = [
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['hello'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => 'OR'
+          },
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['ayuda'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => nil
+          }
+        ]
+        rule.save
+
+        # Execute the service
+        result = described_class.new(rule, conversation, { changed_attributes: {} }).perform
+
+        # Should match because first condition finds 'hello'
+        expect(result).to be(true)
+
+        # Verify that both conditions created unique cache keys
+        conversation.reload
+        cache_keys = conversation.custom_attributes.keys.select { |k| k.start_with?('ai_auto_phrase_') }
+
+        # Should have cache keys for both conditions (2 keys each: _checked and _passed)
+        expect(cache_keys.length).to be >= 2
+        expect(cache_keys.uniq.length).to eq(cache_keys.length) # All cache keys should be unique
+      end
+
+      it 'creates independent cache entries for each condition' do
+        # Create message that matches both conditions
+        create(:message, conversation: conversation, content: 'hello there, necesito ayuda', message_type: :incoming)
+
+        # Create automation rule with two entry_phrase conditions
+        rule.conditions = [
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['hello'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => 'AND'
+          },
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['ayuda'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => nil
+          }
+        ]
+        rule.save
+
+        # Execute the service
+        result = described_class.new(rule, conversation, { changed_attributes: {} }).perform
+
+        # Should match because both conditions find their phrases
+        expect(result).to be(true)
+
+        # Verify cache stores different entries for each condition
+        conversation.reload
+        cache_entries = conversation.custom_attributes.select { |k, _v| k.start_with?('ai_auto_phrase_') }
+
+        # Should have entries for both conditions (each creates checked + passed keys)
+        expect(cache_entries.keys.length).to be >= 2
+
+        # Verify both results are stored independently
+        passed_keys = cache_entries.keys.select { |k| k.end_with?('_passed') }
+        expect(passed_keys.length).to eq(2)
+        passed_keys.each do |key|
+          expect(cache_entries[key]).to be(true)
+        end
+      end
+    end
+
+    context 'when testing OR logic between conditions' do
+      it 'passes when first condition matches (A OR B, only A true)' do
+        create(:message, conversation: conversation, content: 'hello there', message_type: :incoming)
+
+        rule.conditions = [
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['hello'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => 'OR'
+          },
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['nonexistent'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => nil
+          }
+        ]
+        rule.save
+
+        result = described_class.new(rule, conversation, { changed_attributes: {} }).perform
+        expect(result).to be(true)
+      end
+
+      it 'passes when second condition matches (A OR B, only B true)' do
+        create(:message, conversation: conversation, content: 'necesito ayuda', message_type: :incoming)
+
+        rule.conditions = [
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['hello'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => 'OR'
+          },
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['ayuda'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => nil
+          }
+        ]
+        rule.save
+
+        result = described_class.new(rule, conversation, { changed_attributes: {} }).perform
+        expect(result).to be(true)
+      end
+
+      it 'passes when both conditions match (A OR B, both true)' do
+        create(:message, conversation: conversation, content: 'hello, necesito ayuda', message_type: :incoming)
+
+        rule.conditions = [
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['hello'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => 'OR'
+          },
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['ayuda'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => nil
+          }
+        ]
+        rule.save
+
+        result = described_class.new(rule, conversation, { changed_attributes: {} }).perform
+        expect(result).to be(true)
+      end
+
+      it 'fails when neither condition matches (A OR B, both false)' do
+        create(:message, conversation: conversation, content: 'goodbye', message_type: :incoming)
+
+        rule.conditions = [
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['hello'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => 'OR'
+          },
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['ayuda'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => nil
+          }
+        ]
+        rule.save
+
+        result = described_class.new(rule, conversation, { changed_attributes: {} }).perform
+        expect(result).to be(false)
+      end
+
+      it 'evaluates mixed operators correctly: (false AND false) OR true = true' do
+        create(:message, conversation: conversation, content: 'hello', message_type: :incoming)
+
+        rule.conditions = [
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['goodbye'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => 'AND'
+          },
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['nonexistent'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => 'OR'
+          },
+          {
+            'attribute_key' => 'entry_phrase',
+            'filter_operator' => 'contains',
+            'values' => ['hello'],
+            'custom_filters' => { 'message_limit' => 2, 'case_sensitive' => false },
+            'query_operator' => nil
+          }
+        ]
+        rule.save
+
+        result = described_class.new(rule, conversation, { changed_attributes: {} }).perform
+        expect(result).to be(true)
+      end
+    end
   end
 end

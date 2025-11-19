@@ -377,7 +377,7 @@ es:
       one: '%{count} segundo'
       other: '%{count} segundos'
   automation:
-    system_name: 'Sistema de Automatización'
+    system_name: 'Sistema de Automatizaciones'
   crm:
     no_message: 'No hay mensajes en la conversación'
     attachment: '[Adjunto: %{type}]'

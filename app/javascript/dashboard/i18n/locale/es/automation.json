@@ -1,8 +1,8 @@
 {
   "AUTOMATION": {
-    "HEADER": "Automatización",
-    "DESCRIPTION": "La automatización puede reemplazar y agilizar los procesos existentes que requieren esfuerzo manual, como añadir etiquetas y asignar conversaciones al miembro más adecuado. Esto permite al equipo concentrarse en sus fortalezas, mientras que reduce el tiempo dedicado a las tareas de rutina.",
-    "LEARN_MORE": "Aprende más sobre automatización",
+    "HEADER": "Automatizaciones",
+    "DESCRIPTION": "Las automatizaciones pueden reemplazar y agilizar los procesos existentes que requieren esfuerzo manual, como añadir etiquetas y asignar conversaciones al miembro más adecuado. Esto permite al equipo concentrarse en sus fortalezas, mientras que reduce el tiempo dedicado a las tareas de rutina.",
+    "LEARN_MORE": "Aprende más sobre automatizaciones",
     "HEADER_BTN_TXT": "Añadir regla de automatización",
     "LOADING": "Obteniendo reglas de automatización",
     "ADD": {
@@ -75,7 +75,7 @@
     "CLONE": {
       "TOOLTIP": "Clonar",
       "API": {
-        "SUCCESS_MESSAGE": "Automatización clonada con éxito",
+        "SUCCESS_MESSAGE": "Regla de automatización clonada con éxito",
         "ERROR_MESSAGE": "No se pudo clonar la regla de automatización, por favor inténtalo más tarde"
       }
     },
@@ -151,7 +151,8 @@
       "ADD_PRIVATE_NOTE": "Añadir una nota privada",
       "CHANGE_PRIORITY": "Cambiar prioridad",
       "ADD_SLA": "Añadir SLA",
-      "OPEN_CONVERSATION": "Abrir conversación"
+      "OPEN_CONVERSATION": "Abrir conversación",
+      "SET_AI_ENABLED": "Habilitar IA"
     },
     "MESSAGE_TYPES": {
       "INCOMING": "Mensaje entrante",
@@ -163,6 +164,10 @@
       "MEDIUM": "Media",
       "HIGH": "Alta",
       "URGENT": "Urgente"
+    },
+    "AI_ENABLED_OPTIONS": {
+      "ENABLED": "Activar",
+      "DISABLED": "Desactivar"
     },
     "ATTRIBUTES": {
       "MESSAGE_TYPE": "Tipo de mensaje",
@@ -178,7 +183,12 @@
       "REFERER_LINK": "Enlace de referencia",
       "ASSIGNEE_NAME": "Asignado a",
       "TEAM_NAME": "Equipo",
-      "PRIORITY": "Prioridad"
+      "PRIORITY": "Prioridad",
+      "HAS_AGENT_BOT": "Canal tiene AI Bot",
+      "ENTRY_PHRASE_MATCH": "Frase de entrada",
+      "RANDOM_PERCENTAGE": "Porcentaje aleatorio",
+      "MESSAGE_LIMIT": "Verificar primeros N mensajes",
+      "CASE_SENSITIVE": "Sensible a mayúsculas"
     }
   }
 }
