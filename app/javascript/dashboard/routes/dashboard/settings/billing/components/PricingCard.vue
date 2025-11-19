@@ -24,7 +24,7 @@ const props = defineProps({
   },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const store = useStore();
 
 // Plan hierarchy for comparison
@@ -41,6 +41,15 @@ const buttonConfig = computed(() => {
   const currentPlan = props.currentPlanName;
   const targetPlan = props.plan.plan_name;
   const status = props.subscriptionStatus;
+
+  // Custom plan always shows "Get in Touch" regardless of current plan status
+  if (targetPlan === 'custom') {
+    return {
+      label: t('BILLING_SETTINGS.PRICING_TABLE.GET_IN_TOUCH'),
+      action: 'contact',
+      color: 'blue',
+    };
+  }
 
   // No plan or inactive -> Start trial
   if (!currentPlan || status === 'inactive') {
@@ -143,13 +152,25 @@ const handleButtonClick = async () => {
     // Redirect to billing portal
     await store.dispatch('accounts/checkout');
   } else if (action === 'contact') {
-    // Invalid plan - track warning and do nothing
-    // This prevents errors when target plan name is invalid
-    Sentry.captureMessage('Invalid target plan, contact action triggered', {
-      level: 'warning',
-      tags: { component: 'PricingCard', action: 'handleButtonClick' },
-      extra: { targetPlan: props.plan.plan_name },
-    });
+    // Handle contact action - redirect to form based on plan and locale
+    if (props.plan.plan_name === 'custom') {
+      // Custom plan: redirect to language-specific contact form
+      const formUrls = {
+        en: 'https://forms.clickup.com/9013924102/f/8cmb486-5173/W29DO6NS9VUXETLKYQ',
+        es: 'https://forms.clickup.com/9013924102/f/8cmb486-5193/BCKGPPMB966PE28WH2',
+      };
+      const currentLocale = locale.value || 'en';
+      const formUrl = formUrls[currentLocale] || formUrls.en;
+      window.open(formUrl, '_blank', 'noopener noreferrer');
+    } else {
+      // Invalid plan - track warning and do nothing
+      // This prevents errors when target plan name is invalid
+      Sentry.captureMessage('Invalid target plan, contact action triggered', {
+        level: 'warning',
+        tags: { component: 'PricingCard', action: 'handleButtonClick' },
+        extra: { targetPlan: props.plan.plan_name },
+      });
+    }
   }
 };
 </script>

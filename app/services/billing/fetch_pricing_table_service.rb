@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Billing::FetchPricingTableService
-  PLAN_ORDER = %w[starter professional enterprise].freeze
+  PLAN_ORDER = %w[starter professional enterprise custom].freeze
 
   def fetch
     products = fetch_stripe_products
