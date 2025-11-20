@@ -49,11 +49,39 @@ module Billing
       current_plan = @account.custom_attributes&.dig('plan_name')
       subscription_status = @account.custom_attributes&.dig('subscription_status')
 
-      # Allow checkout if no current plan or if subscription is inactive
-      return false if current_plan.blank? || subscription_status == 'inactive'
+      # Allow checkout if no current plan
+      return false if current_plan.blank?
 
-      # Prevent checkout only if they already have this exact plan and it's active
-      current_plan == @plan_name && subscription_status == 'active'
+      # Allow checkout if subscription status is blank/nil (no subscription exists)
+      return false if subscription_status.blank?
+
+      # Allow checkout if trying to switch to a different plan (upgrade/downgrade)
+      return false if current_plan != @plan_name
+
+      # Allow checkout if subscription is in a failed/ended state
+      # These statuses indicate the subscription is not active and user should be able to reactivate/upgrade
+      failed_or_ended_statuses = [
+        Billing::SubscriptionStatuses::INACTIVE,
+        Billing::SubscriptionStatuses::CANCELED,
+        Billing::SubscriptionStatuses::UNPAID,
+        Billing::SubscriptionStatuses::PAST_DUE,
+        Billing::SubscriptionStatuses::INCOMPLETE_EXPIRED
+      ]
+      return false if failed_or_ended_statuses.include?(subscription_status)
+
+      # Allow checkout if subscription is incomplete (initial payment failed, user can retry)
+      return false if subscription_status == Billing::SubscriptionStatuses::INCOMPLETE
+
+      # Allow checkout if subscription is paused (user can reactivate)
+      return false if subscription_status == Billing::SubscriptionStatuses::PAUSED
+
+      # Prevent checkout only if they already have this exact plan and it's in an active state
+      # Active states: active, trialing (both indicate subscription is currently active)
+      active_statuses = [
+        Billing::SubscriptionStatuses::ACTIVE,
+        Billing::SubscriptionStatuses::TRIALING
+      ]
+      active_statuses.include?(subscription_status)
     end
 
     def create_checkout_session

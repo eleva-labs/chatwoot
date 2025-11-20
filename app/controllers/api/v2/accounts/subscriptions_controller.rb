@@ -28,22 +28,8 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
   def create
     plan_name = subscription_params[:plan_name] || 'free_trial'
 
-    # Check if customer already exists (only reject if they have an active Stripe customer)
-    # Allow trial accounts (those with plan_name but no stripe_customer_id) to proceed
-    # Allow inactive subscriptions to create new subscriptions
-    if current_account.custom_attributes&.dig('stripe_customer_id').present?
-      subscription_status = current_account.custom_attributes&.dig('subscription_status')
-      current_plan = current_account.custom_attributes&.dig('plan_name')
-
-      # Allow subscription creation for inactive subscriptions and free trial accounts
-      unless subscription_status == 'inactive' || current_plan == 'free_trial'
-        return render json: {
-          success: false,
-          error: 'Account already has an active Stripe customer'
-        }, status: :conflict
-      end
-    end
-
+    # Validation for plan changes is handled by CreateCheckoutSessionService
+    # which prevents duplicate subscriptions for the same plan while allowing upgrades/downgrades
     # Use Stripe Checkout Session for all plans
     # This ensures payment methods are always collected before charging
     service = Billing::CreateCheckoutSessionService.new(current_account, plan_name)

@@ -30,8 +30,6 @@ const store = useStore();
 // Plan hierarchy for comparison
 const PLAN_HIERARCHY = {
   starter: 1,
-  professional: 2,
-  enterprise: 3,
 };
 
 /**
