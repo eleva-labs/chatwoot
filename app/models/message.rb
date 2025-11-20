@@ -472,7 +472,7 @@ class Message < ApplicationRecord
 
   # Notification forward helper methods
   def trigger_notification_forwarding
-    return unless private? && outgoing? && notification_format?
+    return unless private? && is_notification?
 
     begin
       service = ::ForwardNotificationService.new(self)
@@ -482,9 +482,7 @@ class Message < ApplicationRecord
     end
   end
 
-  def notification_format?
-    content.match?(/^\[[^\]]+\]\s+.+/)
+  def is_notification?
+    additional_attributes&.dig('is_notification') == true
   end
 end
-
-Message.prepend_mod_with('Message')
