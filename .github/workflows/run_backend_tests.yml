@@ -93,14 +93,8 @@ jobs:
           rm -rf enterprise
           rm -rf spec/enterprise
 
-      - name: Create database
-        run: bundle exec rake db:create
-
-      - name: Load upstream schema
-        run: bundle exec rake db:schema:load
-
-      - name: Load custom schema
-        run: bundle exec rake db:schema:load:custom
+      - name: Prepare database
+        run: bundle exec rake db:chatwoot_prepare
 
       - name: Run backend tests
         run: |
