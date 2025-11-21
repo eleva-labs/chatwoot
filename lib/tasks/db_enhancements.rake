@@ -16,6 +16,11 @@ Rake::Task['db:schema:dump'].enhance do
   Rake::Task['db:schema:dump:custom'].invoke
 end
 
+# Auto-load custom schema after standard schema load
+Rake::Task['db:schema:load'].enhance do
+  Rake::Task['db:schema:load:custom'].invoke
+end
+
 # we are creating a custom database prepare task
 # the default rake db:prepare task isn't ideal for environments like heroku
 # In heroku the database is already created before the first run of db:prepare
