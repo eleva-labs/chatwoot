@@ -95,16 +95,13 @@ describe Webhooks::Trigger do
           ).and_raise(RestClient::ExceptionWithResponse.new('error', 500)).at_least(:once)
 
         expect do
-          perform_enqueued_jobs do
-            trigger.execute(url, payload, webhook_type)
-          end
+          trigger.execute(url, payload, webhook_type)
+        rescue StandardError
+          # Exception is re-raised after handling
         end.not_to(change { message.reload.status })
 
         expect(conversation.reload.status).to eq('open')
-
-        activity_message = conversation.reload.messages.order(:created_at).last
-        expect(activity_message.message_type).to eq('activity')
-        expect(activity_message.content).to eq(agent_bot_error_content)
+        expect(Conversations::ActivityMessageJob).to have_been_enqueued.with(conversation, hash_including(content: agent_bot_error_content))
       end
 
       it 'does not change message status or enqueue activity when conversation is not pending' do
@@ -121,10 +118,11 @@ describe Webhooks::Trigger do
 
         expect do
           trigger.execute(url, payload, webhook_type)
+        rescue StandardError
+          # Exception is re-raised, but no activity job should be enqueued
         end.not_to(change { message.reload.status })
 
         expect(Conversations::ActivityMessageJob).not_to have_been_enqueued
-
         expect(conversation.reload.status).to eq('open')
       end
     end
