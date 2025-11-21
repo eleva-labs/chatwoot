@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
+ActiveRecord::Schema[7.1].define(version: 2025_11_19_161025) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -577,14 +577,16 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.bigint "account_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["domain", "account_id"], name: "index_companies_on_domain_and_account_id"
+    t.integer "contacts_count"
+    t.index ["account_id", "domain"], name: "index_companies_on_account_and_domain", unique: true, where: "(domain IS NOT NULL)"
+    t.index ["account_id"], name: "index_companies_on_account_id"
     t.index ["name", "account_id"], name: "index_companies_on_name_and_account_id"
   end
 
   create_table "contact_inboxes", force: :cascade do |t|
     t.bigint "contact_id"
     t.bigint "inbox_id"
-    t.string "source_id", null: false
+    t.text "source_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "hmac_verified", default: false
@@ -621,6 +623,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.index ["account_id"], name: "index_contacts_on_account_id"
     t.index ["account_id"], name: "index_resolved_contact_account_id", where: "(((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))"
     t.index ["blocked"], name: "index_contacts_on_blocked"
+    t.index ["company_id"], name: "index_contacts_on_company_id"
     t.index ["email", "account_id"], name: "uniq_email_per_account_contact", unique: true
     t.index ["identifier", "account_id"], name: "uniq_identifier_per_account_contact", unique: true
     t.index ["name", "email", "phone_number", "identifier"], name: "index_contacts_on_name_email_phone_number_identifier", opclass: :gin_trgm_ops, using: :gin
@@ -665,6 +668,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.bigint "sla_policy_id"
     t.datetime "waiting_since"
     t.text "cached_label_list"
+    t.bigint "assignee_agent_bot_id"
     t.index ["account_id", "display_id"], name: "index_conversations_on_account_id_and_display_id", unique: true
     t.index ["account_id", "id"], name: "index_conversations_on_id_and_account_id"
     t.index ["account_id", "inbox_id", "status", "assignee_id"], name: "conv_acid_inbid_stat_asgnid_idx"
@@ -950,7 +954,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.datetime "updated_at", precision: nil, null: false
     t.boolean "private", default: false, null: false
     t.integer "status", default: 0
-    t.string "source_id"
+    t.text "source_id"
     t.integer "content_type", default: 0, null: false
     t.json "content_attributes", default: {}
     t.string "sender_type"
@@ -1210,7 +1214,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.text "message_signature"
     t.string "otp_secret"
     t.integer "consumed_timestep"
-    t.boolean "otp_required_for_login", default: false, null: false
+    t.boolean "otp_required_for_login", default: false
     t.text "otp_backup_codes"
     t.index ["email"], name: "index_users_on_email"
     t.index ["otp_required_for_login"], name: "index_users_on_otp_required_for_login"
@@ -1228,6 +1232,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_10_22_152158) do
     t.datetime "updated_at", null: false
     t.integer "webhook_type", default: 0
     t.jsonb "subscriptions", default: ["conversation_status_changed", "conversation_updated", "conversation_created", "contact_created", "contact_updated", "message_created", "message_updated", "webwidget_triggered"]
+    t.string "name"
     t.index ["account_id", "url"], name: "index_webhooks_on_account_id_and_url", unique: true
   end
 
