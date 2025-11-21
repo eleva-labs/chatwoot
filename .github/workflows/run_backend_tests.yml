@@ -93,8 +93,11 @@ jobs:
           rm -rf enterprise
           rm -rf spec/enterprise
 
-      - name: Setup database
-        run: bundle exec rake db:setup
+      - name: Create database
+        run: bundle exec rake db:create
+
+      - name: Run migrations
+        run: bundle exec rake db:migrate
 
       - name: Run backend tests
         run: |
