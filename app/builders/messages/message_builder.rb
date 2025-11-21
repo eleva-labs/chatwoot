@@ -144,6 +144,24 @@ class Messages::MessageBuilder
     @params[:template_params].present? ? { additional_attributes: { template_params: JSON.parse(@params[:template_params].to_json) } } : {}
   end
 
+  def is_notification
+    @params[:is_notification].present? ? { additional_attributes: { is_notification: @params[:is_notification] } } : {}
+  end
+
+  def additional_attributes
+    return {} unless @params[:additional_attributes].present?
+
+    attrs = @params[:additional_attributes]
+    # Parse if it's a JSON string
+    attrs = JSON.parse(attrs) if attrs.is_a?(String)
+    # Convert ActionController::Parameters to hash if needed
+    attrs = attrs.to_unsafe_h if attrs.instance_of?(ActionController::Parameters)
+
+    { additional_attributes: attrs }
+  rescue JSON::ParserError
+    {}
+  end
+
   def message_sender
     return if @params[:sender_type] != 'AgentBot'
 
@@ -163,7 +181,7 @@ class Messages::MessageBuilder
       in_reply_to: @in_reply_to,
       echo_id: @params[:echo_id],
       source_id: @params[:source_id]
-    }.merge(external_created_at).merge(automation_rule_id).merge(campaign_id).merge(template_params)
+    }.merge(external_created_at).merge(automation_rule_id).merge(campaign_id).merge(template_params).merge(is_notification).merge(additional_attributes)
   end
 
   def email_inbox?

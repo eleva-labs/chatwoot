@@ -866,7 +866,8 @@ RSpec.describe 'Inboxes API', type: :request do
 
   describe 'POST /api/v1/accounts/{account.id}/inboxes/:id/set_agent_bot' do
     let(:inbox) { create(:inbox, account: account) }
-    let(:agent_bot) { create(:agent_bot) }
+    let(:agent_bot) { create(:agent_bot, account: account) }
+    let(:agent_bot_2) { create(:agent_bot, account: account) }
 
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do
@@ -900,6 +901,8 @@ RSpec.describe 'Inboxes API', type: :request do
       end
 
       it 'disconnects the agent bot' do
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, account: account)
+
         post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
              headers: admin.create_new_auth_token,
              params: { agent_bot: nil },
@@ -918,6 +921,266 @@ RSpec.describe 'Inboxes API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unauthorized)
+      end
+
+      context 'when assigning a bot to an inbox without a bot' do
+        it 'creates a new AgentBotInbox record' do
+          expect do
+            post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+                 headers: admin.create_new_auth_token,
+                 params: valid_params,
+                 as: :json
+          end.to change(AgentBotInbox, :count).by(1)
+
+          expect(inbox.reload.agent_bot).to eq(agent_bot)
+        end
+
+        it 'dispatches AGENT_BOT_INBOX_CREATED event' do
+          # Allow other events that fire during test setup
+          allow(Rails.configuration.dispatcher).to receive(:dispatch).and_call_original
+
+          expect(Rails.configuration.dispatcher).to receive(:dispatch)
+            .with(Events::Types::AGENT_BOT_INBOX_CREATED, anything, hash_including(agent_bot_inbox: instance_of(AgentBotInbox)))
+            .and_call_original
+
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: valid_params,
+               as: :json
+        end
+
+        it 'logs bot assignment' do
+          # Allow other log messages during test
+          allow(Rails.logger).to receive(:info).and_call_original
+
+          expect(Rails.logger).to receive(:info)
+            .with(/Bot assignment: Channel #{inbox.id} assigned to Bot #{agent_bot.id}/)
+            .and_call_original
+
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: valid_params,
+               as: :json
+        end
+
+        it 'sets account_id correctly' do
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: valid_params,
+               as: :json
+
+          agent_bot_inbox = inbox.reload.agent_bot_inbox
+          expect(agent_bot_inbox.account_id).to eq(account.id)
+        end
+      end
+
+      context 'when reassigning a bot from Bot A to Bot B' do
+        let!(:existing_assignment) { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, account: account) }
+
+        it 'destroys the old AgentBotInbox and creates a new one' do
+          old_id = existing_assignment.id
+
+          expect do
+            post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+                 headers: admin.create_new_auth_token,
+                 params: { agent_bot: agent_bot_2.id },
+                 as: :json
+          end.not_to change(AgentBotInbox, :count) # Net zero: -1 destroy, +1 create
+
+          expect(AgentBotInbox).not_to exist(old_id)
+          expect(inbox.reload.agent_bot).to eq(agent_bot_2)
+        end
+
+        it 'dispatches both DELETED and CREATED events' do
+          # Allow other events that fire during test setup
+          allow(Rails.configuration.dispatcher).to receive(:dispatch).and_call_original
+
+          expect(Rails.configuration.dispatcher).to receive(:dispatch)
+            .with(Events::Types::AGENT_BOT_INBOX_DELETED, anything, anything).ordered
+            .and_call_original
+
+          expect(Rails.configuration.dispatcher).to receive(:dispatch)
+            .with(Events::Types::AGENT_BOT_INBOX_CREATED, anything, anything).ordered
+            .and_call_original
+
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: { agent_bot: agent_bot_2.id },
+               as: :json
+        end
+
+        it 'logs bot reassignment' do
+          # Allow other log messages during test
+          allow(Rails.logger).to receive(:info).and_call_original
+
+          expect(Rails.logger).to receive(:info)
+            .with(/Bot reassignment: Channel #{inbox.id} changed from Bot #{agent_bot.id} to Bot #{agent_bot_2.id}/)
+            .and_call_original
+
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: { agent_bot: agent_bot_2.id },
+               as: :json
+        end
+
+        it 'creates new record with correct attributes' do
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: { agent_bot: agent_bot_2.id },
+               as: :json
+
+          agent_bot_inbox = inbox.reload.agent_bot_inbox
+          expect(agent_bot_inbox.agent_bot_id).to eq(agent_bot_2.id)
+          expect(agent_bot_inbox.inbox_id).to eq(inbox.id)
+          expect(agent_bot_inbox.account_id).to eq(account.id)
+        end
+      end
+
+      context 'when unassigning a bot' do
+        let!(:existing_assignment) { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, account: account) }
+
+        it 'destroys the AgentBotInbox record' do
+          expect do
+            post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+                 headers: admin.create_new_auth_token,
+                 params: { agent_bot: nil },
+                 as: :json
+          end.to change(AgentBotInbox, :count).by(-1)
+
+          expect(inbox.reload.agent_bot_inbox).to be_nil
+        end
+
+        it 'dispatches AGENT_BOT_INBOX_DELETED event' do
+          # Allow other events that fire during test setup
+          allow(Rails.configuration.dispatcher).to receive(:dispatch).and_call_original
+
+          expect(Rails.configuration.dispatcher).to receive(:dispatch)
+            .with(Events::Types::AGENT_BOT_INBOX_DELETED, anything, anything)
+            .and_call_original
+
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: { agent_bot: nil },
+               as: :json
+        end
+
+        it 'logs bot unassignment' do
+          # Allow other log messages during test
+          allow(Rails.logger).to receive(:info).and_call_original
+
+          expect(Rails.logger).to receive(:info)
+            .with(/Bot unassignment: Channel #{inbox.id} unassigned from Bot #{agent_bot.id}/)
+            .and_call_original
+
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: { agent_bot: nil },
+               as: :json
+        end
+      end
+
+      context 'when assigning the same bot twice (idempotency)' do
+        let!(:existing_assignment) { create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, account: account) }
+
+        it 'destroys and recreates the assignment' do
+          old_id = existing_assignment.id
+
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: { agent_bot: agent_bot.id },
+               as: :json
+
+          expect(AgentBotInbox).not_to exist(old_id)
+          expect(inbox.reload.agent_bot).to eq(agent_bot)
+        end
+
+        it 'still dispatches events' do
+          # Allow other events that fire during test setup
+          allow(Rails.configuration.dispatcher).to receive(:dispatch).and_call_original
+
+          expect(Rails.configuration.dispatcher).to receive(:dispatch)
+            .with(Events::Types::AGENT_BOT_INBOX_DELETED, anything, anything)
+            .and_call_original
+
+          expect(Rails.configuration.dispatcher).to receive(:dispatch)
+            .with(Events::Types::AGENT_BOT_INBOX_CREATED, anything, anything)
+            .and_call_original
+
+          post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+               headers: admin.create_new_auth_token,
+               params: { agent_bot: agent_bot.id },
+               as: :json
+        end
+      end
+
+      context 'when create fails within transaction' do
+        it 'rolls back the entire transaction including destroy' do
+          # Create existing assignment that will be destroyed in transaction
+          existing = create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, account: account)
+
+          # Mock create! to fail, simulating validation error
+          allow(AgentBotInbox).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AgentBotInbox.new))
+
+          expect do
+            post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+                 headers: admin.create_new_auth_token,
+                 params: { agent_bot: agent_bot_2.id },
+                 as: :json
+          end.not_to change(AgentBotInbox, :count)
+
+          expect(response).to have_http_status(:unprocessable_entity)
+
+          # Verify the existing assignment was NOT destroyed (transaction rolled back)
+          expect(AgentBotInbox).to exist(existing.id)
+          expect(inbox.reload.agent_bot).to eq(agent_bot)
+        end
+      end
+
+      context 'when enqueuing AI Backend jobs' do
+        it 'enqueues AI Backend assignment job when assigning bot' do
+          expect do
+            post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+                 headers: admin.create_new_auth_token,
+                 params: valid_params,
+                 as: :json
+          end.to have_enqueued_job(EventDispatcherJob)
+            .with(Events::Types::AGENT_BOT_INBOX_CREATED, anything, hash_including(agent_bot_inbox: instance_of(AgentBotInbox)))
+
+          expect(response).to have_http_status(:success)
+          expect(inbox.reload.agent_bot).to eq(agent_bot)
+        end
+
+        it 'enqueues both unassignment and assignment jobs when reassigning bot' do
+          create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, account: account)
+
+          expect do
+            post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+                 headers: admin.create_new_auth_token,
+                 params: { agent_bot: agent_bot_2.id },
+                 as: :json
+          end.to have_enqueued_job(EventDispatcherJob)
+            .with(Events::Types::AGENT_BOT_INBOX_DELETED, anything, anything)
+            .and have_enqueued_job(EventDispatcherJob)
+            .with(Events::Types::AGENT_BOT_INBOX_CREATED, anything, anything)
+
+          expect(response).to have_http_status(:success)
+          expect(inbox.reload.agent_bot).to eq(agent_bot_2)
+        end
+
+        it 'enqueues AI Backend unassignment job when unassigning bot' do
+          create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, account: account)
+
+          expect do
+            post "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/set_agent_bot",
+                 headers: admin.create_new_auth_token,
+                 params: { agent_bot: nil },
+                 as: :json
+          end.to have_enqueued_job(EventDispatcherJob)
+            .with(Events::Types::AGENT_BOT_INBOX_DELETED, anything, anything)
+
+          expect(response).to have_http_status(:success)
+          expect(inbox.reload.agent_bot_inbox).to be_nil
+        end
       end
     end
   end

@@ -102,7 +102,8 @@ RSpec.describe 'Public Inbox Contact Conversations API', type: :request do
       expect(response).to have_http_status(:success)
       data = response.parsed_body
       conversation = api_channel.inbox.conversations.find_by(display_id: data['id'])
-      expect(conversation.custom_attributes).to eq('test' => 'test')
+      expect(conversation.custom_attributes).to include('test' => 'test')
+      expect(conversation.custom_attributes).to have_key('ai_enabled')
       expect(conversation.additional_attributes).to be_empty
     end
   end

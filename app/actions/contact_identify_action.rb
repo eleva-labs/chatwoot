@@ -126,13 +126,9 @@ class ContactIdentifyAction
   end
 
   def custom_attributes
-    base = (@contact.custom_attributes || {})
-    # Ensure default when attribute missing
-    base['ai_enabled'] = ENV.fetch('CW_DEFAULT_AI_BOT_ENABLED', 'false') == 'true' unless base.key?('ai_enabled')
+    return @contact.custom_attributes if params[:custom_attributes].blank?
 
-    return base if params[:custom_attributes].blank?
-
-    base.deep_merge(params[:custom_attributes].stringify_keys)
+    (@contact.custom_attributes || {}).deep_merge(params[:custom_attributes].stringify_keys)
   end
 
   def additional_attributes

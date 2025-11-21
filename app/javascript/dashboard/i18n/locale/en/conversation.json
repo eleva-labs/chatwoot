@@ -296,6 +296,8 @@
     "EXTERNAL": "External",
     "SEND_FAILED": "Couldn't send message! Try again",
     "TRY_AGAIN": "retry",
+    "AI_TOGGLE_SUCCESS": "AI toggle updated successfully",
+    "AI_TOGGLE_ERROR": "Couldn't update AI toggle! Try again",
     "ASSIGNMENT": {
       "SELECT_AGENT": "Select Member",
       "REMOVE": "Remove",

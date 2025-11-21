@@ -145,4 +145,16 @@ RSpec.describe ExternalApiCircuitBreaker do
       expect(ChatwootHub).to respond_to(:with_circuit_breaker)
     end
   end
+
+  describe 'improved thresholds' do
+    let(:test_instance) { TestInstanceClass.new }
+
+    it 'has increased failure threshold to 10' do
+      expect(ExternalApiCircuitBreaker::FAILURE_THRESHOLD).to eq(10)
+    end
+
+    it 'has reduced TTL to 1 minute' do
+      expect(ExternalApiCircuitBreaker::CIRCUIT_BREAKER_TTL).to eq(60)
+    end
+  end
 end

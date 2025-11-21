@@ -3,6 +3,7 @@ import {
   OPERATOR_TYPES_2,
   OPERATOR_TYPES_3,
   OPERATOR_TYPES_6,
+  OPERATOR_TYPES_7,
 } from './operators';
 
 export const AUTOMATIONS = {
@@ -74,6 +75,38 @@ export const AUTOMATIONS = {
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_3,
       },
+      {
+        key: 'has_agent_bot',
+        name: 'HAS_AGENT_BOT',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'entry_phrase',
+        name: 'ENTRY_PHRASE_MATCH',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+        customFilters: {
+          message_limit: {
+            type: 'number',
+            default: 2,
+            label: 'MESSAGE_LIMIT',
+            min: 1,
+            max: 10,
+          },
+          case_sensitive: {
+            type: 'boolean',
+            default: false,
+            label: 'CASE_SENSITIVE',
+          },
+        },
+      },
+      {
+        key: 'random_chance',
+        name: 'RANDOM_PERCENTAGE',
+        inputType: 'number',
+        filterOperators: OPERATOR_TYPES_7,
+      },
     ],
     actions: [
       {
@@ -127,6 +160,10 @@ export const AUTOMATIONS = {
       {
         key: 'send_attachment',
         name: 'SEND_ATTACHMENT',
+      },
+      {
+        key: 'set_ai_enabled',
+        name: 'SET_AI_ENABLED',
       },
     ],
   },
@@ -198,6 +235,38 @@ export const AUTOMATIONS = {
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_3,
       },
+      {
+        key: 'has_agent_bot',
+        name: 'HAS_AGENT_BOT',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'entry_phrase',
+        name: 'ENTRY_PHRASE_MATCH',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+        customFilters: {
+          message_limit: {
+            type: 'number',
+            default: 2,
+            label: 'MESSAGE_LIMIT',
+            min: 1,
+            max: 10,
+          },
+          case_sensitive: {
+            type: 'boolean',
+            default: false,
+            label: 'CASE_SENSITIVE',
+          },
+        },
+      },
+      {
+        key: 'random_chance',
+        name: 'RANDOM_PERCENTAGE',
+        inputType: 'number',
+        filterOperators: OPERATOR_TYPES_7,
+      },
     ],
     actions: [
       {
@@ -243,6 +312,10 @@ export const AUTOMATIONS = {
       {
         key: 'send_attachment',
         name: 'SEND_ATTACHMENT',
+      },
+      {
+        key: 'set_ai_enabled',
+        name: 'SET_AI_ENABLED',
       },
     ],
   },
@@ -696,6 +769,11 @@ export const AUTOMATION_ACTION_TYPES = [
   {
     key: 'add_sla',
     label: 'ADD_SLA',
+    inputType: 'search_select',
+  },
+  {
+    key: 'set_ai_enabled',
+    label: 'SET_AI_ENABLED',
     inputType: 'search_select',
   },
 ];

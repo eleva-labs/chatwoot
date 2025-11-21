@@ -42,6 +42,10 @@ class ConversationPolicy < ApplicationPolicy
   def participant?
     record.conversation_participants.exists?(user_id: user.id)
   end
+
+  def toggle_ai?
+    true
+  end
 end
 
 ConversationPolicy.prepend_mod_with('ConversationPolicy')

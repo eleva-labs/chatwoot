@@ -1,4 +1,5 @@
 require 'json'
+require 'digest'
 
 class AutomationRules::ConditionsFilterService < FilterService
   ATTRIBUTE_MODEL = 'contact_attribute'.freeze
@@ -25,14 +26,31 @@ class AutomationRules::ConditionsFilterService < FilterService
   def perform
     return false unless rule_valid?
 
+    @conversation&.reload # Ensure fresh custom_attributes
+
     @attribute_changed_query_filter = []
+    condition_results = []
 
     @rule.conditions.each_with_index do |query_hash, current_index|
       @attribute_changed_query_filter << query_hash and next if query_hash['filter_operator'] == 'attribute_changed'
 
-      apply_filter(query_hash, current_index)
+      # Evaluate condition (custom or standard)
+      result = evaluate_condition_with_cache(query_hash, current_index)
+
+      # Store result with operator for boolean evaluation
+      condition_results << {
+        result: result,
+        operator: query_hash['query_operator']
+      }
     end
 
+    # Evaluate boolean expression from collected results
+    return false if condition_results.empty?
+
+    combined_result = evaluate_logical_expression(condition_results)
+    return false unless combined_result
+
+    # Continue with standard SQL-based conditions
     records = base_relation.where(@query_string, @filter_values.with_indifferent_access)
     records = perform_attribute_changed_filter(records) if @attribute_changed_query_filter.any?
 
@@ -205,5 +223,119 @@ class AutomationRules::ConditionsFilterService < FilterService
 
   def label_conditions?
     @rule.conditions.any? { |condition| condition['attribute_key'] == 'labels' }
+  end
+
+  def evaluate_logical_expression(condition_results)
+    Rails.logger.debug { "Evaluating #{condition_results.length} conditions with logical operators for rule #{@rule.id}" }
+
+    # Start with first condition result
+    accumulated_result = condition_results.first[:result]
+
+    # Process remaining conditions with their operators
+    condition_results[1..].each_with_index do |condition_data, index|
+      # The operator links the PREVIOUS condition to THIS one
+      operator = condition_results[index][:operator]
+      current_result = condition_data[:result]
+
+      case operator&.downcase
+      when 'or'
+        accumulated_result ||= current_result
+      when 'and', nil
+        accumulated_result &&= current_result
+      else
+        Rails.logger.warn "Unknown operator: #{operator}, defaulting to AND"
+        accumulated_result &&= current_result
+      end
+    end
+    accumulated_result
+  end
+
+  def evaluate_condition_with_cache(query_hash, current_index)
+    case query_hash['attribute_key']
+    when 'has_agent_bot'
+      evaluate_cached_condition(
+        query_hash,
+        'ai_auto_agentbot',
+        -> { AutomationRules::CustomConditions::AgentBotEvaluator.evaluate(@conversation, query_hash) }
+      )
+
+    when 'random_chance'
+      evaluate_cached_condition(
+        query_hash,
+        'ai_auto_random',
+        -> { AutomationRules::CustomConditions::RandomPercentageEvaluator.evaluate(@conversation, query_hash) }
+      )
+
+    when 'entry_phrase'
+      evaluate_phrase_condition(query_hash)
+
+    else
+      # Standard condition evaluation (existing logic)
+      apply_filter(query_hash, current_index)
+      true
+    end
+  end
+
+  def evaluate_cached_condition(_condition, cache_prefix, evaluator)
+    return true unless @conversation # No conversation context
+
+    cache_key = "#{cache_prefix}_checked"
+    result_key = "#{cache_prefix}_passed"
+
+    # Check cache
+    return @conversation.custom_attributes[result_key] if @conversation.custom_attributes&.dig(cache_key)
+
+    # Evaluate
+    result = evaluator.call
+
+    # Store result
+    @conversation.custom_attributes ||= {}
+    @conversation.custom_attributes[cache_key] = true
+    @conversation.custom_attributes[result_key] = result
+    @conversation.save!
+
+    result
+  end
+
+  def evaluate_phrase_condition(condition)
+    return true unless @conversation
+
+    # Generate unique cache keys per condition using MD5 hash of condition content
+    # This prevents cache collision when multiple entry_phrase conditions exist
+    condition_hash = Digest::MD5.hexdigest(
+      "#{condition['values'].sort.join('|')}|#{condition['custom_filters']}"
+    )
+    cache_key = "ai_auto_phrase_#{condition_hash}_checked"
+    result_key = "ai_auto_phrase_#{condition_hash}_passed"
+
+    # Check cache
+    return @conversation.custom_attributes[result_key] if @conversation.custom_attributes&.dig(cache_key)
+
+    # Check message limit
+    message_limit = condition.dig('custom_filters', 'message_limit')&.to_i || 2
+    incoming_count = @conversation.messages.incoming.count
+
+    if incoming_count > message_limit
+      # Reached limit without finding phrase
+      @conversation.custom_attributes ||= {}
+      @conversation.custom_attributes[cache_key] = true
+      @conversation.custom_attributes[result_key] = false
+      @conversation.save!
+      return false
+    end
+
+    # Evaluate
+    result = AutomationRules::CustomConditions::EntryPhraseEvaluator.evaluate(@conversation, condition)
+
+    # Found phrase! Cache it
+    if result
+      @conversation.custom_attributes ||= {}
+      @conversation.custom_attributes[cache_key] = true
+      @conversation.custom_attributes[result_key] = true
+      @conversation.save!
+    end
+    # Not found yet - DON'T cache (keep checking on next message)
+
+    result
   end
 end

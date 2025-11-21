@@ -4,8 +4,9 @@ module ExternalApiCircuitBreaker
   extend ActiveSupport::Concern
 
   # Circuit breaker states: closed (working), open (failing), half_open (testing)
-  CIRCUIT_BREAKER_TTL = 300 # 5 minutes
-  FAILURE_THRESHOLD = 3     # Open circuit after 3 consecutive failures
+  # Simplified: Still use failure count but with better thresholds
+  CIRCUIT_BREAKER_TTL = 60 # 1 minute (reduced from 5 minutes)
+  FAILURE_THRESHOLD = 10    # Open circuit after 10 failures (increased from 3)
   RETRY_INTERVALS = [1, 2, 4].freeze # Exponential backoff: 1s, 2s, 4s
 
   # Class methods for use in class contexts (e.g., ChatwootHub.sync_with_hub)
@@ -69,7 +70,7 @@ module ExternalApiCircuitBreaker
       return unless failure_count >= FAILURE_THRESHOLD
 
       Rails.cache.write(circuit_breaker_key(service_name), true, expires_in: CIRCUIT_BREAKER_TTL)
-      Rails.logger.warn "Circuit breaker opened for #{service_name} after #{failure_count} failures"
+      Rails.logger.error "Circuit breaker opened for #{service_name} after #{failure_count} failures"
     end
 
     def non_retryable_error?(error)

@@ -65,13 +65,23 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def set_agent_bot
-    if @agent_bot
-      agent_bot_inbox = @inbox.agent_bot_inbox || AgentBotInbox.new(inbox: @inbox)
-      agent_bot_inbox.agent_bot = @agent_bot
-      agent_bot_inbox.save!
-    elsif @inbox.agent_bot_inbox.present?
-      @inbox.agent_bot_inbox.destroy!
+    old_bot_id = @inbox.agent_bot_inbox&.agent_bot_id
+
+    ActiveRecord::Base.transaction do
+      # Destroy triggers after_destroy_commit → AI Backend unassignment
+      @inbox.agent_bot_inbox&.destroy!
+
+      # Create triggers after_create_commit → AI Backend assignment
+      if @agent_bot
+        AgentBotInbox.create!(
+          inbox: @inbox,
+          agent_bot: @agent_bot,
+          account_id: @inbox.account_id
+        )
+      end
     end
+
+    log_bot_assignment_change(old_bot_id, @agent_bot&.id)
     head :ok
   end
 
@@ -224,6 +234,16 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
       Channels::Whatsapp::TemplatesSyncJob.perform_later(@inbox.channel)
     elsif @inbox.twilio? && @inbox.channel.whatsapp?
       Channels::Twilio::TemplatesSyncJob.perform_later(@inbox.channel)
+    end
+  end
+
+  def log_bot_assignment_change(old_bot_id, new_bot_id)
+    if old_bot_id.present? && new_bot_id.present?
+      Rails.logger.info("Bot reassignment: Channel #{@inbox.id} changed from Bot #{old_bot_id} to Bot #{new_bot_id}")
+    elsif new_bot_id.present?
+      Rails.logger.info("Bot assignment: Channel #{@inbox.id} assigned to Bot #{new_bot_id}")
+    elsif old_bot_id.present?
+      Rails.logger.info("Bot unassignment: Channel #{@inbox.id} unassigned from Bot #{old_bot_id}")
     end
   end
 end

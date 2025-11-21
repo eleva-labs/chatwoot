@@ -228,10 +228,6 @@ class Contact < ApplicationRecord
   def prepare_jsonb_attributes
     self.additional_attributes = {} if additional_attributes.blank?
     self.custom_attributes = {} if custom_attributes.blank?
-    # Set default AI flag only when the record is being created and the key is missing
-    return unless new_record? && !custom_attributes.key?('ai_enabled')
-
-    custom_attributes['ai_enabled'] = ENV.fetch('CW_DEFAULT_AI_BOT_ENABLED', 'false') == 'true'
   end
 
   def sync_contact_attributes

@@ -138,6 +138,7 @@ Rails.application.routes.draw do
               post :transcript
               post :toggle_status
               post :toggle_priority
+              post :toggle_ai
               post :toggle_typing_status
               post :update_last_seen
               post :unread
@@ -169,7 +170,6 @@ Rails.application.routes.draw do
               get :contactable_inboxes
               post :destroy_custom_attributes
               delete :avatar
-              patch :toggle_ai
             end
             scope module: :contacts do
               resources :conversations, only: [:index]
