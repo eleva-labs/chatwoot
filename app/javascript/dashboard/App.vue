@@ -6,6 +6,7 @@ import NetworkNotification from './components/NetworkNotification.vue';
 import UpdateBanner from './components/app/UpdateBanner.vue';
 import PaymentPendingBanner from './components/app/PaymentPendingBanner.vue';
 import PendingEmailVerificationBanner from './components/app/PendingEmailVerificationBanner.vue';
+import AiTokenBalanceBanner from './components/app/AiTokenBalanceBanner.vue';
 import vueActionCable from './helper/actionCable';
 import { useRouter } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
@@ -30,6 +31,7 @@ export default {
     NetworkNotification,
     UpdateBanner,
     PaymentPendingBanner,
+    AiTokenBalanceBanner,
     WootSnackbarBox,
     PendingEmailVerificationBanner,
   },
@@ -150,6 +152,7 @@ export default {
     <template v-if="currentAccountId">
       <PendingEmailVerificationBanner v-if="hideOnOnboardingView" />
       <PaymentPendingBanner v-if="hideOnOnboardingView" />
+      <AiTokenBalanceBanner v-if="hideOnOnboardingView" />
     </template>
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">

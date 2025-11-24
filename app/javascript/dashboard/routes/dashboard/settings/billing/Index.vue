@@ -228,7 +228,6 @@ onMounted(() => {
       <BaseSettingsHeader
         :title="$t('BILLING_SETTINGS.TITLE')"
         :description="$t('BILLING_SETTINGS.DESCRIPTION')"
-        :link-text="$t('BILLING_SETTINGS.VIEW_PRICING')"
         feature-name="billing"
       />
     </template>

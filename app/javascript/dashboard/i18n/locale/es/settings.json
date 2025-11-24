@@ -476,6 +476,9 @@
       "AI_TOKENS": {
         "TITLE": "Créditos de Tokens de IA",
         "DESCRIPTION": "Controla los créditos de tokens de IA en este período de facturación",
+        "LOW_BALANCE_BANNER": "Los créditos de IA están bajos. Considera comprar más.",
+        "INSUFFICIENT_TOKEN_BANNER": "Créditos de IA insuficientes. Algunas operaciones estarán bloqueadas hasta que agregues más.",
+        "INSUFFICIENT_TOKEN_BANNER_WITH_COUNT": "Créditos de IA insuficientes. {count} conversación(es) han sido afectada(s). Algunas operaciones estarán bloqueadas hasta que agregues más.",
         "INCLUDED_USAGE": "Créditos de tokens de IA incluidos",
         "EXTRA_TOKENS": "Tokens adicionales",
         "REMAINING_TOKENS": "Tokens de IA restantes",

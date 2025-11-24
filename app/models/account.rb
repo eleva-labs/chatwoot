@@ -210,7 +210,54 @@ class Account < ApplicationRecord
     save
   end
 
+  def ai_token_balance_status
+    custom_attributes&.dig('ai_token_balance_status')
+  end
+
+  def ai_token_balance_status_updated_at
+    custom_attributes&.dig('ai_token_balance_status_updated_at')
+  end
+
+  def has_low_balance_warning?
+    ai_token_balance_status == 'low_balance'
+  end
+
+  def has_insufficient_tokens?
+    ai_token_balance_status == 'insufficient_tokens'
+  end
+
+  def set_ai_token_balance_status!(status, impacted_count: nil)
+    update_ai_token_balance_attributes(
+      status: status,
+      timestamp: Time.current.iso8601,
+      impacted_count: impacted_count
+    )
+  end
+
+  def clear_ai_token_balance_status!
+    update_ai_token_balance_attributes(status: nil, timestamp: nil, impacted_count: nil)
+  end
+
+  def update_ai_token_impacted_count!(count)
+    attrs = custom_attributes || {}
+    attrs['ai_token_impacted_conversations_count'] = count
+    update!(custom_attributes: attrs)
+  end
+
+  def ai_token_impacted_conversations_count
+    custom_attributes&.dig('ai_token_impacted_conversations_count')&.to_i || 0
+  end
+
   private
+
+  def update_ai_token_balance_attributes(status:, timestamp:, impacted_count: :not_provided)
+    attrs = custom_attributes || {}
+    attrs['ai_token_balance_status'] = status
+    attrs['ai_token_balance_status_updated_at'] = timestamp
+    # Only update impacted_count if explicitly provided (nil clears it, numeric value sets it)
+    attrs['ai_token_impacted_conversations_count'] = impacted_count unless impacted_count == :not_provided
+    update!(custom_attributes: attrs)
+  end
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)

@@ -473,6 +473,9 @@
       "AI_TOKENS": {
         "TITLE": "AI Token Credits",
         "DESCRIPTION": "Track AI token credits this billing period",
+        "LOW_BALANCE_BANNER": "AI token credits are running low. Consider purchasing more.",
+        "INSUFFICIENT_TOKEN_BANNER": "Insufficient AI tokens. Some operations may be blocked until you add credits.",
+        "INSUFFICIENT_TOKEN_BANNER_WITH_COUNT": "Insufficient AI tokens. {count} conversation(s) have been impacted. Some operations may be blocked until you add credits.",
         "INCLUDED_USAGE": "Included AI token credits",
         "EXTRA_TOKENS": "Extra tokens",
         "REMAINING_TOKENS": "Remaining AI tokens",

@@ -37,6 +37,10 @@ Rails.application.routes.draw do
   get '/api', to: 'api#index'
   namespace :api, defaults: { format: 'json' } do
     namespace :v1 do
+      namespace :webhooks do
+        post 'ai-backend/token-balance-status', to: 'ai_backend#token_balance_status'
+      end
+
       # ----------------------------------
       # start of account scoped api routes
       resources :accounts, only: [:create, :show, :update] do

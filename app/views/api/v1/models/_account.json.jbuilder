@@ -16,6 +16,11 @@ if resource.custom_attributes.present?
     if resource.custom_attributes['marked_for_deletion_reason'].present?
       json.marked_for_deletion_reason resource.custom_attributes['marked_for_deletion_reason']
     end
+    json.ai_token_balance_status resource.custom_attributes['ai_token_balance_status'] if resource.custom_attributes['ai_token_balance_status'].present?
+    json.ai_token_balance_status_updated_at resource.custom_attributes['ai_token_balance_status_updated_at'] if resource.custom_attributes['ai_token_balance_status_updated_at'].present?
+    if resource.custom_attributes['ai_token_impacted_conversations_count'].present?
+      json.ai_token_impacted_conversations_count resource.custom_attributes['ai_token_impacted_conversations_count'].to_i
+    end
   end
 end
 json.domain @account.domain
