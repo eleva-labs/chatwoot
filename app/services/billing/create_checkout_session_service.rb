@@ -7,9 +7,10 @@ module Billing
   class CreateCheckoutSessionService
     include BillingPlans
 
-    def initialize(account, plan_name = nil)
+    def initialize(account, plan_name = nil, billing_interval = 'monthly')
       @account = account
       @plan_name = plan_name || self.class.default_plan_name
+      @billing_interval = billing_interval
       @provider = ProviderFactory.get_provider
     end
 
@@ -20,9 +21,9 @@ module Billing
 
       # For paid plans, validate that we have a valid price ID
       if @plan_name != 'free_trial'
-        price_id = self.class.plan_price_id(@plan_name)
+        price_id = plan_price_id_for_interval(@plan_name, @billing_interval)
         if price_id.blank? || (price_id.start_with?('price_') && !price_id.start_with?('price_1'))
-          return failure_response("Price ID not configured for plan '#{@plan_name}'. Please configure a valid Stripe price ID.")
+          return failure_response("Price ID not configured for plan '#{@plan_name}' with interval '#{@billing_interval}'. Please configure a valid Stripe price ID.")
         end
       end
 
@@ -113,7 +114,7 @@ module Billing
         session_params[:mode] = 'setup'
       else
         # For paid plans, create a subscription checkout
-        price_id = self.class.plan_price_id(@plan_name)
+        price_id = plan_price_id_for_interval(@plan_name, @billing_interval)
         session_params[:mode] = 'subscription'
         session_params[:line_items] = [{
           price: price_id,
@@ -167,6 +168,36 @@ module Billing
         success: false,
         error: message
       }
+    end
+
+    # Get price ID for a plan with a specific billing interval
+    def plan_price_id_for_interval(plan_name, billing_interval)
+      # Map frontend interval names to Stripe interval values
+      stripe_interval = billing_interval == 'yearly' ? 'year' : 'month'
+
+      # Try to get price from Stripe product metadata first
+      plan_data = Billing::Providers::Stripe.get_plan_data_from_stripe(plan_name)
+      if plan_data && plan_data[:product_id]
+        # Fetch prices for this product and find the one matching the interval
+        prices = ::Stripe::Price.list(
+          product: plan_data[:product_id],
+          active: true,
+          limit: 10
+        )
+
+        matching_price = prices.data.find do |price|
+          price.recurring&.interval == stripe_interval
+        end
+
+        if matching_price
+          Rails.logger.info "Found price ID for plan '#{plan_name}' with interval '#{billing_interval}': #{matching_price.id}"
+          return matching_price.id
+        end
+      end
+
+      # Fallback to default plan_price_id if interval-specific lookup fails
+      Rails.logger.warn "Could not find price for interval '#{billing_interval}', falling back to default price for plan '#{plan_name}'"
+      self.class.plan_price_id(plan_name)
     end
   end
 end

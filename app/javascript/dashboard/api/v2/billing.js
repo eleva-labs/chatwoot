@@ -12,9 +12,9 @@ class BillingAPI extends ApiClient {
   }
 
   // POST /api/v2/accounts/:account_id/subscription
-  createSubscription(planName = 'free') {
+  createSubscription(planName = 'free', billingInterval = 'monthly') {
     return axios.post(`${this.url}subscription`, {
-      subscription: { plan_name: planName },
+      subscription: { plan_name: planName, billing_interval: billingInterval },
     });
   }
 

@@ -173,11 +173,11 @@ export const actions = {
 
   createSubscription: async (
     { commit, getters: storeGetters },
-    { planName = 'free_trial' } = {}
+    { planName = 'free_trial', billingInterval = 'monthly' } = {}
   ) => {
     commit(types.default.SET_ACCOUNT_UI_FLAG, { isCheckoutInProcess: true });
     try {
-      const response = await BillingAPI.createSubscription(planName);
+      const response = await BillingAPI.createSubscription(planName, billingInterval);
 
       if (response.data.success) {
         // If the backend sends a checkout URL, redirect the user immediately

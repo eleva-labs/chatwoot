@@ -145,6 +145,7 @@ const handleButtonClick = async () => {
     // Create checkout session
     await store.dispatch('accounts/createSubscription', {
       planName: props.plan.plan_name,
+      billingInterval: props.billingInterval,
     });
   } else if (action === 'downgrade' || action === 'cancel') {
     // Redirect to billing portal

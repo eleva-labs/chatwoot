@@ -27,12 +27,13 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
   # POST /api/v2/accounts/:account_id/subscription
   def create
     plan_name = subscription_params[:plan_name] || 'free_trial'
+    billing_interval = subscription_params[:billing_interval] || 'monthly'
 
     # Validation for plan changes is handled by CreateCheckoutSessionService
     # which prevents duplicate subscriptions for the same plan while allowing upgrades/downgrades
     # Use Stripe Checkout Session for all plans
     # This ensures payment methods are always collected before charging
-    service = Billing::CreateCheckoutSessionService.new(current_account, plan_name)
+    service = Billing::CreateCheckoutSessionService.new(current_account, plan_name, billing_interval)
     result = service.perform
 
     if result[:success]
@@ -116,7 +117,7 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
   private
 
   def subscription_params
-    params.require(:subscription).permit(:plan_name)
+    params.require(:subscription).permit(:plan_name, :billing_interval)
   rescue ActionController::ParameterMissing
     {}
   end
