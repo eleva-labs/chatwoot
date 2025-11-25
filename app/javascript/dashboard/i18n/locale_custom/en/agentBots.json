@@ -1,0 +1,103 @@
+{
+  "AGENT_BOTS": {
+    "HEADER": "AI Employees",
+    "LOADING_EDITOR": "Loading editor...",
+    "DESCRIPTION": "AI Employees are like the most fabulous members of your team. They can handle the small stuff, so you can focus on the stuff that matters. Give them a try.",
+    "LEARN_MORE": "Learn about AI Employees",
+    "GLOBAL_BOT": "System AI Employee",
+    "GLOBAL_BOT_BADGE": "System",
+    "AVATAR": {
+      "SUCCESS_DELETE": "AI Employee avatar deleted successfully",
+      "ERROR_DELETE": "Error deleting AI Employee avatar, please try again"
+    },
+    "BOT_CONFIGURATION": {
+      "TITLE": "Select an AI Employee",
+      "DESC": "Assign an AI Employee to your channel. They can handle initial conversations and transfer them to a live member when necessary.",
+      "SUBMIT": "Update",
+      "DISCONNECT": "Disconnect AI Employee",
+      "SUCCESS_MESSAGE": "Successfully updated the AI Employee.",
+      "DISCONNECTED_SUCCESS_MESSAGE": "Successfully disconnected the AI Employee.",
+      "ERROR_MESSAGE": "Could not update the AI Employee. Please try again.",
+      "DISCONNECTED_ERROR_MESSAGE": "Could not disconnect the AI Employee. Please try again.",
+      "SELECT_PLACEHOLDER": "Select AI Employee"
+    },
+    "ADD": {
+      "TITLE": "Add AI Employee",
+      "CANCEL_BUTTON_TEXT": "Cancel",
+      "API": {
+        "SUCCESS_MESSAGE": "AI Employee added successfully.",
+        "ERROR_MESSAGE": "Could not add AI Employee. Please try again later."
+      }
+    },
+    "LIST": {
+      "404": "No AI Employees found. You can create a AI Employee by clicking the 'Add AI Employee' button.",
+      "LOADING": "Fetching AI Employees...",
+      "TABLE_HEADER": {
+        "DETAILS": "AI Employee Details",
+        "URL": "Webhook URL"
+      }
+    },
+    "DELETE": {
+      "BUTTON_TEXT": "Delete",
+      "TITLE": "Delete AI Employee",
+      "CONFIRM": {
+        "TITLE": "Confirm Deletion",
+        "MESSAGE": "Are you sure you want to delete {name}?",
+        "YES": "Yes, Delete",
+        "NO": "No, Keep"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "AI Employee deleted successfully.",
+        "ERROR_MESSAGE": "Could not delete AI Employee. Please try again."
+      }
+    },
+    "EDIT": {
+      "BUTTON_TEXT": "Edit",
+      "TITLE": "Edit AI Employee",
+      "API": {
+        "SUCCESS_MESSAGE": "AI Employee updated successfully.",
+        "ERROR_MESSAGE": "Could not update AI Employee. Please try again."
+      }
+    },
+    "ACCESS_TOKEN": {
+      "TITLE": "Access Token",
+      "DESCRIPTION": "Copy the access token and save it securely",
+      "COPY_SUCCESSFUL": "Access token copied to clipboard",
+      "RESET_SUCCESS": "Access token regenerated successfully",
+      "RESET_ERROR": "Unable to regenerate access token. Please try again"
+    },
+    "FORM": {
+      "AVATAR": {
+        "LABEL": "AI Employee avatar"
+      },
+      "NAME": {
+        "LABEL": "AI Employee name",
+        "PLACEHOLDER": "Enter AI Employee name",
+        "REQUIRED": "AI Employee name is required"
+      },
+      "DESCRIPTION": {
+        "LABEL": "Description",
+        "PLACEHOLDER": "What does this AI Employee do?"
+      },
+      "WEBHOOK_URL": {
+        "LABEL": "Webhook URL",
+        "PLACEHOLDER": "https://example.com/webhook",
+        "REQUIRED": "Webhook URL is required"
+      },
+      "ERRORS": {
+        "NAME": "AI Employee name is required",
+        "URL": "Webhook URL is required",
+        "VALID_URL": "Please enter a valid URL starting with http:// or https://"
+      },
+      "CANCEL": "Cancel",
+      "CREATE": "Create AI Employee",
+      "UPDATE": "Update AI Employee"
+    },
+    "WEBHOOK": {
+      "DESCRIPTION": "Configure a webhook AI Employee to integrate with your custom services. The AI Employee will receive and process events from conversations and can respond to them."
+    },
+    "TYPES": {
+      "WEBHOOK": "Webhook AI Employee"
+    }
+  }
+}

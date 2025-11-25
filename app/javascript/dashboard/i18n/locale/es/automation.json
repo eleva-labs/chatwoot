@@ -136,7 +136,6 @@
     },
     "ACTIONS": {
       "ASSIGN_AGENT": "Asignar al agente",
-      "ASSIGN_MEMBER": "Asignar a Miembro",
       "ASSIGN_TEAM": "Asignar equipo",
       "ADD_LABEL": "Añadir etiqueta",
       "REMOVE_LABEL": "Eliminar etiqueta",
@@ -184,6 +183,7 @@
       "ASSIGNEE_NAME": "Asignado a",
       "TEAM_NAME": "Equipo",
       "PRIORITY": "Prioridad",
+      "LABELS": "Etiquetas",
       "HAS_AGENT_BOT": "Canal tiene AI Bot",
       "ENTRY_PHRASE_MATCH": "Frase de entrada",
       "RANDOM_PERCENTAGE": "Porcentaje aleatorio",

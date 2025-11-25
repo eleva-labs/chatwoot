@@ -1,7 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
 import { useVoiceCallStatus } from 'dashboard/composables/useVoiceCallStatus';
@@ -47,7 +46,6 @@ const emit = defineEmits([
 
 const router = useRouter();
 const store = useStore();
-const { t } = useI18n();
 
 const hovered = ref(false);
 const showContextMenu = ref(false);
@@ -73,10 +71,6 @@ const currentContact = computed(() => {
     : {};
 });
 
-const isAiEnabled = computed(() => {
-  return !!props.chat?.custom_attributes?.ai_enabled;
-});
-
 const isActiveChat = computed(() => {
   return currentChat.value.id === props.chat.id;
 });
@@ -98,11 +92,6 @@ const callDirection = computed(
 
 const { labelKey: voiceLabelKey, listIconColor: voiceIconColor } =
   useVoiceCallStatus(callStatus, callDirection);
-
-const voiceCallLabel = computed(() => {
-  if (!callStatus.value) return '';
-  return voiceLabelKey.value;
-});
 
 const inboxId = computed(() => props.chat.inbox_id);
 
@@ -137,8 +126,6 @@ const messagePreviewClass = computed(() => {
     hasUnread.value ? 'font-medium text-n-slate-12' : 'text-n-slate-11',
     !props.compact && hasUnread.value ? 'ltr:pr-4 rtl:pl-4' : '',
     props.compact && hasUnread.value ? 'ltr:pr-6 rtl:pl-6' : '',
-    // Add extra padding when AI is enabled to prevent overlap with AI icon
-    isAiEnabled.value ? 'ltr:pr-8 rtl:pl-8' : '',
   ];
 });
 
@@ -264,7 +251,7 @@ const deleteConversation = () => {
     @contextmenu="openContextMenu($event)"
   >
     <div
-      class="relative flex-shrink-0 flex items-start py-3"
+      class="relative"
       @mouseenter="onThumbnailHover"
       @mouseleave="onThumbnailLeave"
     >
@@ -301,7 +288,11 @@ const deleteConversation = () => {
     >
       <div
         v-if="showMetaSection"
-        class="flex items-center min-w-0 gap-1 ltr:ml-2 rtl:mr-2"
+        class="flex items-center min-w-0 gap-1"
+        :class="{
+          'ltr:ml-2 rtl:mr-2': !compact,
+          'mx-2': compact,
+        }"
       >
         <InboxName v-if="showInboxName" :inbox="inbox" class="flex-1 min-w-0" />
         <div
@@ -337,7 +328,7 @@ const deleteConversation = () => {
           :class="[voiceIconColor]"
         />
         <span class="mx-1">
-          {{ t(voiceCallLabel) }}
+          {{ $t(voiceLabelKey) }}
         </span>
       </div>
       <MessagePreview
@@ -359,7 +350,7 @@ const deleteConversation = () => {
           icon="info"
         />
         <span class="mx-0.5">
-          {{ t(`CHAT_LIST.NO_MESSAGES`) }}
+          {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
         </span>
       </p>
       <div
@@ -372,22 +363,12 @@ const deleteConversation = () => {
             :created-at-timestamp="chat.created_at"
           />
         </span>
-        <div class="flex items-center gap-1 ltr:ml-auto rtl:mr-auto mt-1">
-          <!-- AI Icon - only show when AI is enabled -->
-          <img
-            v-if="isAiEnabled"
-            src="~dashboard/assets/images/eleva_ai/icon-ai-on.svg"
-            alt="AI Enabled"
-            class="w-4 h-4 flex-shrink-0"
-          />
-          <!-- Unread count -->
-          <span
-            class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
-            :class="hasUnread ? 'block' : 'hidden'"
-          >
-            {{ unreadCount > 9 ? '9+' : unreadCount }}
-          </span>
-        </div>
+        <span
+          class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 ltr:ml-auto rtl:mr-auto mt-1 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
+          :class="hasUnread ? 'block' : 'hidden'"
+        >
+          {{ unreadCount > 9 ? '9+' : unreadCount }}
+        </span>
       </div>
       <CardLabels
         v-if="showLabelsSection"

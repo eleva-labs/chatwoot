@@ -69,6 +69,7 @@ Rails.application.routes.draw do
             resources :copilot_threads, only: [:index, :create] do
               resources :copilot_messages, only: [:index, :create]
             end
+            resources :custom_tools
             resources :documents, only: [:index, :show, :create, :destroy]
           end
           resource :saml_settings, only: [:show, :create, :update, :destroy]
@@ -156,6 +157,7 @@ Rails.application.routes.draw do
             end
           end
 
+          resources :companies, only: [:index, :show, :create, :update, :destroy]
           resources :contacts, only: [:index, :show, :update, :create, :destroy] do
             collection do
               get :active
@@ -198,12 +200,7 @@ Rails.application.routes.draw do
             post :set_agent_bot, on: :member
             delete :avatar, on: :member
             post :sync_templates, on: :member
-          end
-          resources :whapi_channels, only: [:create] do
-            member do
-              get :qr_code
-              post :retry_webhook
-            end
+            get :health, on: :member
           end
           resources :whapi_channels, only: [:create] do
             member do
@@ -344,6 +341,9 @@ Rails.application.routes.draw do
         resources :webhooks, only: [:create]
       end
 
+      # Frontend API endpoint to trigger SAML authentication flow
+      post 'auth/saml_login', to: 'auth#saml_login'
+
       resource :profile, only: [:show, :update] do
         delete :avatar, on: :collection
         member do
@@ -352,6 +352,14 @@ Rails.application.routes.draw do
           put :set_active_account
           post :resend_confirmation
           post :reset_access_token
+        end
+
+        # MFA routes
+        scope module: 'profile' do
+          resource :mfa, controller: 'mfa', only: [:show, :create, :destroy] do
+            post :verify
+            post :backup_codes
+          end
         end
       end
 

@@ -69,6 +69,28 @@ module Chatwoot
     config.ai_backend_api_url = ENV.fetch('AI_BACKEND_URL', nil)
     # Disable PDF/video preview generation as we don't use them
     config.active_storage.previewers = []
+
+    # Exclude custom fork-specific tables from standard schema dump
+    # These tables are documented in db/schema_custom.rb instead
+    ActiveRecord::SchemaDumper.ignore_tables = %w[
+      account_prompts
+      knowledge_bases
+      custom_schema_migrations
+    ]
+
+    # Active Record Encryption configuration
+    # Required for MFA/2FA features - skip if not using encryption
+    if ENV['ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY'].present?
+      config.active_record.encryption.primary_key = ENV['ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY']
+      config.active_record.encryption.deterministic_key = ENV.fetch('ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY', nil)
+      config.active_record.encryption.key_derivation_salt = ENV.fetch('ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT', nil)
+      # TODO: Remove once encryption is mandatory and legacy plaintext is migrated.
+      config.active_record.encryption.support_unencrypted_data = true
+      # Extend deterministic queries so they match both encrypted and plaintext rows
+      config.active_record.encryption.extend_queries = true
+      # Store a per-row key reference to support future key rotation
+      config.active_record.encryption.store_key_references = true
+    end
   end
 
   def self.config
@@ -82,5 +104,19 @@ module Chatwoot
     # unless the redis verify mode is explicitly specified as none, we will fall back to the default 'verify peer'
     # ref: https://www.rubydoc.info/stdlib/openssl/OpenSSL/SSL/SSLContext#DEFAULT_PARAMS-constant
     ENV['REDIS_OPENSSL_VERIFY_MODE'] == 'none' ? OpenSSL::SSL::VERIFY_NONE : OpenSSL::SSL::VERIFY_PEER
+  end
+
+  def self.encryption_configured?
+    # TODO: Once Active Record encryption keys are mandatory (target 3-4 releases out),
+    # remove this guard and assume encryption is always enabled.
+    # Check if proper encryption keys are configured
+    # MFA/2FA features should only be enabled when proper keys are set
+    ENV['ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY'].present? &&
+      ENV['ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY'].present? &&
+      ENV['ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT'].present?
+  end
+
+  def self.mfa_enabled?
+    encryption_configured?
   end
 end

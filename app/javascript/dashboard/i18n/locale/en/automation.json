@@ -183,6 +183,7 @@
       "ASSIGNEE_NAME": "Assignee",
       "TEAM_NAME": "Team",
       "PRIORITY": "Priority",
+      "LABELS": "Labels",
       "HAS_AGENT_BOT": "Channel has AI Bot",
       "ENTRY_PHRASE_MATCH": "Entry phrase",
       "RANDOM_PERCENTAGE": "Random percentage",

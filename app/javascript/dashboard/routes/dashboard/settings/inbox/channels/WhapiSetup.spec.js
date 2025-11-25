@@ -67,7 +67,7 @@ describe('Whapi.vue', () => {
         mocks: {
           $t: k => k,
         },
-        stubs: ['NextButton'],
+        stubs: ['NextButton', 'DotLottieVue', 'Spinner'],
       },
     });
 
@@ -89,7 +89,7 @@ describe('Whapi.vue', () => {
         mocks: {
           $t: k => k,
         },
-        stubs: ['NextButton'],
+        stubs: ['NextButton', 'DotLottieVue', 'Spinner'],
       },
     });
 

@@ -13,16 +13,14 @@ import ConversationAction from './ConversationAction.vue';
 import ConversationParticipant from './ConversationParticipant.vue';
 import ContactInfo from './contact/ContactInfo.vue';
 import ContactNotes from './contact/ContactNotes.vue';
-// Hidden imports - uncomment when re-enabling sections
-// import ConversationInfo from './ConversationInfo.vue';
-// import CustomAttributes from './customAttributes/CustomAttributes.vue';
+import ConversationInfo from './ConversationInfo.vue';
+import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import Draggable from 'vuedraggable';
-// import MacrosList from './Macros/List.vue';
+import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
-import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const props = defineProps({
   conversationId: {
@@ -45,12 +43,6 @@ const {
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
 
-const currentAccountId = useMapGetter('getCurrentAccountId');
-
-const isFeatureEnabledonAccount = useMapGetter(
-  'accounts/isFeatureEnabledonAccount'
-);
-
 const shopifyIntegration = useFunctionGetter(
   'integrations/getIntegration',
   'shopify'
@@ -69,34 +61,27 @@ const isLinearIntegrationEnabled = computed(
   () => linearIntegration.value?.enabled || false
 );
 
-const isLinearFeatureEnabled = isFeatureEnabledonAccount.value(
-  currentAccountId.value,
-  FEATURE_FLAGS.LINEAR
-);
-
 const store = useStore();
 const currentChat = useMapGetter('getSelectedChat');
 const conversationId = computed(() => props.conversationId);
-// Hidden metadata - uncomment when re-enabling sections
-// const conversationMetadataGetter = useMapGetter(
-//   'conversationMetadata/getConversationMetadata'
-// );
-// const currentConversationMetaData = computed(() =>
-//   conversationMetadataGetter.value(conversationId.value)
-// );
-// Hidden computed properties - uncomment when re-enabling sections
-// const conversationAdditionalAttributes = computed(
-//   () => currentConversationMetaData.value.additional_attributes || {}
-// );
+const conversationMetadataGetter = useMapGetter(
+  'conversationMetadata/getConversationMetadata'
+);
+const currentConversationMetaData = computed(() =>
+  conversationMetadataGetter.value(conversationId.value)
+);
+const conversationAdditionalAttributes = computed(
+  () => currentConversationMetaData.value.additional_attributes || {}
+);
 
 const channelType = computed(() => currentChat.value.meta?.channel);
 
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
 const contact = computed(() => contactGetter.value(contactId.value));
-// const contactAdditionalAttributes = computed(
-//   () => contact.value.additional_attributes || {}
-// );
+const contactAdditionalAttributes = computed(
+  () => contact.value.additional_attributes || {}
+);
 
 const getContactDetails = () => {
   if (contactId.value) {
@@ -140,7 +125,7 @@ onMounted(() => {
       @close="closeContactPanel"
     />
     <ContactInfo :contact="contact" :channel-type="channelType" />
-    <div class="pb-8 list-group px-2">
+    <div class="px-2 pb-8 list-group">
       <Draggable
         :list="conversationSidebarItems"
         animation="200"
@@ -187,8 +172,7 @@ onMounted(() => {
               />
             </AccordionItem>
           </div>
-          <!-- Hidden: Conversation Information -->
-          <!-- <div v-else-if="element.name === 'conversation_info'">
+          <div v-else-if="element.name === 'conversation_info'">
             <AccordionItem
               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_INFO')"
               :is-open="isContactSidebarItemOpen('is_conv_details_open')"
@@ -202,9 +186,8 @@ onMounted(() => {
                 :contact-attributes="contactAdditionalAttributes"
               />
             </AccordionItem>
-          </div> -->
-          <!-- Hidden: Contact Attributes -->
-          <!-- <div v-else-if="element.name === 'contact_attributes'">
+          </div>
+          <div v-else-if="element.name === 'contact_attributes'">
             <AccordionItem
               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONTACT_ATTRIBUTES')"
               :is-open="isContactSidebarItemOpen('is_contact_attributes_open')"
@@ -223,7 +206,7 @@ onMounted(() => {
                 "
               />
             </AccordionItem>
-          </div> -->
+          </div>
           <div v-else-if="element.name === 'previous_conversation'">
             <AccordionItem
               v-if="contact.id"
@@ -242,8 +225,7 @@ onMounted(() => {
               />
             </AccordionItem>
           </div>
-          <!-- Hidden: Macros -->
-          <!-- <woot-feature-toggle
+          <woot-feature-toggle
             v-else-if="element.name === 'macros'"
             feature-key="macros"
           >
@@ -255,12 +237,8 @@ onMounted(() => {
             >
               <MacrosList :conversation-id="conversationId" />
             </AccordionItem>
-          </woot-feature-toggle> -->
-          <div
-            v-else-if="
-              element.name === 'linear_issues' && isLinearFeatureEnabled
-            "
-          >
+          </woot-feature-toggle>
+          <div v-else-if="element.name === 'linear_issues'">
             <AccordionItem
               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.LINEAR_ISSUES')"
               :is-open="isContactSidebarItemOpen('is_linear_issues_open')"

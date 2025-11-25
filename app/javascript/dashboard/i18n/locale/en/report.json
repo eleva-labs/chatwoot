@@ -3,7 +3,7 @@
     "HEADER": "Conversations",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
-    "DOWNLOAD_AGENT_REPORTS": "Download conversation reports",
+    "DOWNLOAD_AGENT_REPORTS": "Download agent reports",
     "DATA_FETCHING_FAILED": "Failed to fetch data, please try again later.",
     "SUMMARY_FETCHING_FAILED": "Failed to fetch summary, please try again later.",
     "METRICS": {
@@ -51,6 +51,7 @@
     },
     "DATE_RANGE_OPTIONS": {
       "LAST_7_DAYS": "Last 7 days",
+      "LAST_14_DAYS": "Last 14 days",
       "LAST_30_DAYS": "Last 30 days",
       "LAST_3_MONTHS": "Last 3 months",
       "LAST_6_MONTHS": "Last 6 months",
@@ -124,12 +125,12 @@
     }
   },
   "AGENT_REPORTS": {
-    "HEADER": "Members Overview",
-    "DESCRIPTION": "Easily track member performance with key metrics such as conversations, response times, resolution times, and resolved cases. Click a member's name to learn more.",
+    "HEADER": "Agents Overview",
+    "DESCRIPTION": "Easily track agent performance with key metrics such as conversations, response times, resolution times, and resolved cases. Click an agent’s name to learn more.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
-    "DOWNLOAD_AGENT_REPORTS": "Download member reports",
-    "FILTER_DROPDOWN_LABEL": "Select Member",
+    "DOWNLOAD_AGENT_REPORTS": "Download agent reports",
+    "FILTER_DROPDOWN_LABEL": "Select Agent",
     "METRICS": {
       "CONVERSATIONS": {
         "NAME": "Conversations",
@@ -260,12 +261,14 @@
     }
   },
   "INBOX_REPORTS": {
-    "HEADER": "Channel Overview",
-    "DESCRIPTION": "Quickly view your channel performance with key metrics like conversations, response times, resolution times, and resolved cases—all in one place. Click a channel name for more details.",
+    "HEADER": "Inbox Overview",
+    "DESCRIPTION": "Quickly view your inbox performance with key metrics like conversations, response times, resolution times, and resolved cases—all in one place. Click an inbox name for more details.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
-    "DOWNLOAD_INBOX_REPORTS": "Download channel reports",
-    "FILTER_DROPDOWN_LABEL": "Select Channel",
+    "DOWNLOAD_INBOX_REPORTS": "Download inbox reports",
+    "FILTER_DROPDOWN_LABEL": "Select Inbox",
+    "ALL_INBOXES": "All Inboxes",
+    "SEARCH_INBOX": "Search Inbox",
     "METRICS": {
       "CONVERSATIONS": {
         "NAME": "Conversations",
@@ -402,13 +405,13 @@
     "DOWNLOAD_FAILED": "Failed to download CSAT Reports",
     "FILTERS": {
       "AGENTS": {
-        "PLACEHOLDER": "Choose Members"
+        "PLACEHOLDER": "Choose Agents"
       }
     },
     "TABLE": {
       "HEADER": {
         "CONTACT_NAME": "Contact",
-        "AGENT_NAME": "Assigned member",
+        "AGENT_NAME": "Assigned agent",
         "RATING": "Rating",
         "FEEDBACK_TEXT": "Feedback comment"
       }
@@ -429,7 +432,7 @@
     }
   },
   "BOT_REPORTS": {
-    "HEADER": "AI Bot Reports",
+    "HEADER": "Bot Reports",
     "METRIC": {
       "TOTAL_CONVERSATIONS": {
         "LABEL": "No. of Conversations",
@@ -445,7 +448,7 @@
       },
       "HANDOFF_RATE": {
         "LABEL": "Handoff Rate",
-        "TOOLTIP": "Total number of conversations handed off to members / Total number of conversations handled by the bot * 100"
+        "TOOLTIP": "Total number of conversations handed off to agents / Total number of conversations handled by the bot * 100"
       }
     }
   },
@@ -467,12 +470,19 @@
       "CONVERSATIONS": "{count} conversations",
       "DOWNLOAD_REPORT": "Download report"
     },
+    "RESOLUTION_HEATMAP": {
+      "HEADER": "Resolutions",
+      "NO_CONVERSATIONS": "No conversations",
+      "CONVERSATION": "{count} conversation",
+      "CONVERSATIONS": "{count} conversations",
+      "DOWNLOAD_REPORT": "Download report"
+    },
     "AGENT_CONVERSATIONS": {
-      "HEADER": "Conversations by members",
-      "LOADING_MESSAGE": "Loading member metrics...",
-      "NO_AGENTS": "There are no conversations by members",
+      "HEADER": "Conversations by agents",
+      "LOADING_MESSAGE": "Loading agent metrics...",
+      "NO_AGENTS": "There are no conversations by agents",
       "TABLE_HEADER": {
-        "AGENT": "Member",
+        "AGENT": "Agent",
         "OPEN": "Open",
         "UNATTENDED": "Unattended",
         "STATUS": "Status"
@@ -491,7 +501,7 @@
       }
     },
     "AGENT_STATUS": {
-      "HEADER": "Member status",
+      "HEADER": "Agent status",
       "ONLINE": "Online",
       "BUSY": "Busy",
       "OFFLINE": "Offline"
@@ -521,14 +531,14 @@
       "SEARCH": "Search filter",
       "INPUT_PLACEHOLDER": {
         "SLA": "SLA name",
-        "AGENTS": "Member name",
-        "INBOXES": "Channel name",
+        "AGENTS": "Agent name",
+        "INBOXES": "Inbox name",
         "LABELS": "Label name",
         "TEAMS": "Team name"
       },
       "SLA": "SLA Policy",
-      "INBOXES": "Channel",
-      "AGENTS": "Member",
+      "INBOXES": "Inbox",
+      "AGENTS": "Agent",
       "LABELS": "Label",
       "TEAMS": "Team"
     },
@@ -551,14 +561,14 @@
       "HEADER": {
         "POLICY": "Policy",
         "CONVERSATION": "Conversation",
-        "AGENT": "Member"
+        "AGENT": "Agent"
       },
       "VIEW_DETAILS": "View Details"
     }
   },
   "SUMMARY_REPORTS": {
-    "INBOX": "Channel",
-    "AGENT": "Member",
+    "INBOX": "Inbox",
+    "AGENT": "Agent",
     "TEAM": "Team",
     "LABEL": "Label",
     "AVG_RESOLUTION_TIME": "Avg. Resolution Time",

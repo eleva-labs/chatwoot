@@ -37,6 +37,7 @@ class Captain::Document < ApplicationRecord
   validate :validate_file_attachment, if: -> { pdf_file.attached? }
   before_validation :ensure_account_id
   before_validation :set_external_link_for_pdf
+  before_validation :normalize_external_link
 
   enum status: {
     in_progress: 0,
@@ -94,15 +95,18 @@ class Captain::Document < ApplicationRecord
   end
 
   def enqueue_response_builder_job
-    return if status != 'available'
+    return unless should_enqueue_response_builder?
 
     Captain::Documents::ResponseBuilderJob.perform_later(self)
   end
 
   def should_enqueue_response_builder?
-    # Only enqueue when status changes to available
-    # Avoid re-enqueueing when metadata is updated by the job itself
-    saved_change_to_status? && status == 'available'
+    return false if destroyed?
+    return false unless available?
+
+    return saved_change_to_status? if pdf_document?
+
+    (saved_change_to_status? || saved_change_to_content?) && content.present?
   end
 
   def update_document_usage
@@ -139,5 +143,12 @@ class Captain::Document < ApplicationRecord
     # Format: PDF: filename_timestamp (without extension)
     timestamp = Time.current.strftime('%Y%m%d%H%M%S')
     self.external_link = "PDF: #{pdf_file.filename.base}_#{timestamp}"
+  end
+
+  def normalize_external_link
+    return if external_link.blank?
+    return if pdf_document?
+
+    self.external_link = external_link.delete_suffix('/')
   end
 end

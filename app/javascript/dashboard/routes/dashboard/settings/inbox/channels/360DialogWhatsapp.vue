@@ -1,62 +1,71 @@
-<script setup>
-import { ref } from 'vue';
+<script>
+import { mapGetters } from 'vuex';
 import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
-import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { required } from '@vuelidate/validators';
 import router from '../../../../index';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 import { isPhoneE164OrEmpty } from 'shared/helpers/Validators';
 
-const store = useStore();
+export default {
+  components: {
+    NextButton,
+  },
+  setup() {
+    return { v$: useVuelidate() };
+  },
+  data() {
+    return {
+      inboxName: '',
+      phoneNumber: '',
+      apiKey: '',
+    };
+  },
+  computed: {
+    ...mapGetters({ uiFlags: 'inboxes/getUIFlags' }),
+  },
+  validations: {
+    inboxName: { required },
+    phoneNumber: { required, isPhoneE164OrEmpty },
+    apiKey: { required },
+  },
+  methods: {
+    async createChannel() {
+      this.v$.$touch();
+      if (this.v$.$invalid) {
+        return;
+      }
 
-// State (replaces data())
-const inboxName = ref('');
-const phoneNumber = ref('');
-const apiKey = ref('');
+      try {
+        const whatsappChannel = await this.$store.dispatch(
+          'inboxes/createChannel',
+          {
+            name: this.inboxName?.trim(),
+            channel: {
+              type: 'whatsapp',
+              phone_number: this.phoneNumber,
+              provider_config: {
+                api_key: this.apiKey,
+              },
+            },
+          }
+        );
 
-// Store access (replaces mapGetters)
-const uiFlags = useMapGetter('inboxes/getUIFlags');
-
-// Validation setup
-const rules = {
-  inboxName: { required },
-  phoneNumber: { required, isPhoneE164OrEmpty },
-  apiKey: { required },
-};
-
-const v$ = useVuelidate(rules, { inboxName, phoneNumber, apiKey });
-
-// Methods (converted to functions)
-const createChannel = async () => {
-  v$.value.$touch();
-  if (v$.value.$invalid) {
-    return;
-  }
-
-  try {
-    const whatsappChannel = await store.dispatch('inboxes/createChannel', {
-      name: inboxName.value,
-      channel: {
-        type: 'whatsapp',
-        phone_number: phoneNumber.value,
-        provider_config: {
-          api_key: apiKey.value,
-        },
-      },
-    });
-
-    router.replace({
-      name: 'settings_inboxes_invite_team',
-      params: {
-        page: 'new',
-        inbox_id: whatsappChannel.id,
-      },
-    });
-  } catch (error) {
-    useAlert(error.message || 'An error occurred while creating the channel');
-  }
+        router.replace({
+          name: 'settings_inboxes_add_agents',
+          params: {
+            page: 'new',
+            inbox_id: whatsappChannel.id,
+          },
+        });
+      } catch (error) {
+        useAlert(
+          error.message || this.$t('INBOX_MGMT.ADD.WHATSAPP.API.ERROR_MESSAGE')
+        );
+      }
+    },
+  },
 };
 </script>
 

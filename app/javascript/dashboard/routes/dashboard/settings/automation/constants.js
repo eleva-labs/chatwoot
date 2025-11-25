@@ -70,6 +70,12 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_6,
       },
       {
+        key: 'labels',
+        name: 'LABELS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
         key: 'has_agent_bot',
         name: 'HAS_AGENT_BOT',
         inputType: 'search_select',
@@ -222,6 +228,12 @@ export const AUTOMATIONS = {
         name: 'PRIORITY',
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'labels',
+        name: 'LABELS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_3,
       },
       {
         key: 'has_agent_bot',
@@ -381,6 +393,12 @@ export const AUTOMATIONS = {
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
       },
+      {
+        key: 'labels',
+        name: 'LABELS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
     ],
     actions: [
       {
@@ -496,6 +514,12 @@ export const AUTOMATIONS = {
         name: 'PRIORITY',
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'labels',
+        name: 'LABELS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_3,
       },
     ],
     actions: [
