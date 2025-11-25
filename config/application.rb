@@ -40,6 +40,9 @@ module Chatwoot
 
     config.eager_load_paths << Rails.root.join('lib')
     config.eager_load_paths << Rails.root.join('enterprise/lib')
+
+    # Exclude generators from Zeitwerk autoloading - they use Rails' generator infrastructure
+    Rails.autoloaders.main.ignore(Rails.root.join('lib/generators'))
     config.eager_load_paths << Rails.root.join('enterprise/listeners')
     # rubocop:disable Rails/FilePath
     config.eager_load_paths += Dir["#{Rails.root}/enterprise/app/**"]
