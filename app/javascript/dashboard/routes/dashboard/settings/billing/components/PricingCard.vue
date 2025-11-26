@@ -58,8 +58,11 @@ const buttonConfig = computed(() => {
     };
   }
 
+  const isKnownTrialPlan =
+    currentPlan === 'free_trial' && status && status !== 'inactive';
+
   // On trial -> Upgrade (start subscription)
-  if (status === 'trialing') {
+  if (status === 'trialing' || isKnownTrialPlan) {
     return {
       label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
       action: 'upgrade',
