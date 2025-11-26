@@ -475,7 +475,7 @@
       "REMOVE_MORE_GUIDANCE": "Nota: {extrasUsed} asiento(s) extra(s) están actualmente en uso. Para eliminar más, primero elimina {item}s de {section}.",
       "AI_TOKENS": {
         "TITLE": "Créditos de Tokens de IA",
-        "DESCRIPTION": "Controla los créditos de tokens de IA en este período de facturación",
+        "DESCRIPTION": "Controla los créditos de tokens de IA en este período de facturación (se reinician mensualmente)",
         "LOW_BALANCE_BANNER": "Los créditos de IA están bajos. Considera comprar más.",
         "INSUFFICIENT_TOKEN_BANNER": "Créditos de IA insuficientes. Algunas operaciones estarán bloqueadas hasta que agregues más.",
         "INSUFFICIENT_TOKEN_BANNER_WITH_COUNT": "Créditos de IA insuficientes. {count} conversación(es) han sido afectada(s). Algunas operaciones estarán bloqueadas hasta que agregues más.",

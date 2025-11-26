@@ -472,7 +472,7 @@
       "REMOVE_MORE_GUIDANCE": "Note: {extrasUsed} extra seat(s) are currently in use. To remove more, first remove {item}s from {section}.",
       "AI_TOKENS": {
         "TITLE": "AI Token Credits",
-        "DESCRIPTION": "Track AI token credits this billing period",
+        "DESCRIPTION": "Track AI token credits this billing period (resets monthly)",
         "LOW_BALANCE_BANNER": "AI token credits are running low. Consider purchasing more.",
         "INSUFFICIENT_TOKEN_BANNER": "Insufficient AI tokens. Some operations may be blocked until you add credits.",
         "INSUFFICIENT_TOKEN_BANNER_WITH_COUNT": "Insufficient AI tokens. {count} conversation(s) have been impacted. Some operations may be blocked until you add credits.",
