@@ -129,6 +129,28 @@ const subscriptionEndsOn = computed(() => {
   return date ? format(date, 'dd MMM, yyyy') : '-';
 });
 
+const scheduledCancellationDate = computed(() => {
+  const cancelAtValue = customAttributes.value.cancel_at;
+  return convertTimestampToDate(cancelAtValue);
+});
+
+const cancelAtPeriodEnd = computed(() => {
+  const flag = customAttributes.value.cancel_at_period_end;
+  const normalizedFlag =
+    typeof flag === 'string' ? flag.toLowerCase() : flag;
+
+  return (
+    normalizedFlag === true ||
+    normalizedFlag === 'true' ||
+    scheduledCancellationDate.value
+  );
+});
+
+const scheduledCancellationLabel = computed(() => {
+  const date = scheduledCancellationDate.value;
+  return date ? format(date, 'dd MMM, yyyy') : null;
+});
+
 /**
  * Computed property indicating if user has a billing plan
  * @returns {boolean}
@@ -238,6 +260,8 @@ onMounted(() => {
           <PricingTable
             :current-plan-name="customAttributes.plan_name"
             :subscription-status="customAttributes.subscription_status"
+            :cancel-at-period-end="cancelAtPeriodEnd"
+            :subscription-ends-on="scheduledCancellationLabel"
             :has-stripe-customer="hasStripeCustomer"
           />
         </div>

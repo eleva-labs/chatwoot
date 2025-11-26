@@ -693,12 +693,14 @@ module Billing
         cancel_at_period_end = extract_cancel_at_period_end(subscription)
         canceled_at = extract_canceled_at(subscription)
         ended_at = extract_ended_at(subscription)
+        cancel_at = extract_cancel_at(subscription)
 
         # Log extracted values for debugging
         Rails.logger.info 'Extracted values:'
         Rails.logger.info "  - cancel_at_period_end: #{cancel_at_period_end} (class: #{cancel_at_period_end.class})"
         Rails.logger.info "  - canceled_at: #{canceled_at} (class: #{canceled_at.class})"
         Rails.logger.info "  - ended_at: #{ended_at} (class: #{ended_at.class})"
+        Rails.logger.info "  - cancel_at: #{cancel_at} (class: #{cancel_at.class})"
 
         custom_attrs.merge!(
           'plan_name' => plan_name,
@@ -711,6 +713,7 @@ module Billing
           'canceled_at' => canceled_at,
           'ended_at' => ended_at
         )
+        custom_attrs['cancel_at'] = cancel_at
 
         # Update account limits directly from billing provider metadata (dynamic)
         if plan_limits.present?
@@ -725,15 +728,13 @@ module Billing
 
         # If subscription is being cancelled (cancel_at_period_end = true),
         # update subscription_ends_on to the actual cancellation date
-        if cancel_at_period_end && extract_cancel_at(subscription)
-          cancel_at = extract_cancel_at(subscription)
+        if cancel_at.present? && cancel_at.respond_to?(:to_i)
+          cancel_date = Time.at(cancel_at.to_i)
           Rails.logger.info "Cancellation data - cancel_at: #{cancel_at} (class: #{cancel_at.class})"
-
-          if cancel_at.present? && cancel_at.respond_to?(:to_i)
-            cancel_date = Time.at(cancel_at.to_i)
-            custom_attrs['subscription_ends_on'] = cancel_date.strftime('%Y-%m-%d')
-            Rails.logger.info "Subscription cancellation detected - ends on: #{custom_attrs['subscription_ends_on']}"
-          end
+          custom_attrs['subscription_ends_on'] = cancel_date.strftime('%Y-%m-%d')
+          Rails.logger.info "Subscription cancellation detected - ends on: #{custom_attrs['subscription_ends_on']}"
+        elsif cancel_at_period_end && current_period_end
+          custom_attrs['subscription_ends_on'] = Time.at(current_period_end).strftime('%Y-%m-%d')
         end
 
         Rails.logger.info 'Step 4: Updating account with custom attributes'
@@ -771,6 +772,7 @@ module Billing
             'canceled_at' => extract_canceled_at(subscription),
             'ended_at' => extract_ended_at(subscription)
           )
+          custom_attrs['cancel_at'] = extract_cancel_at(subscription)
         end
 
         Rails.logger.info "Updated custom_attributes: #{custom_attrs}"

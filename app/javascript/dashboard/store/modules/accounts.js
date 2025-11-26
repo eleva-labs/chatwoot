@@ -155,6 +155,7 @@ export const actions = {
             plan_name: response.data.data.plan_name,
             subscription_status: response.data.data.subscription_status,
             subscription_ends_on: response.data.data.subscription_ends_on,
+            cancel_at: response.data.data.cancel_at,
             stripe_customer_id: response.data.data.customer_id,
             plan_limits: response.data.data.plan_limits,
             cancel_at_period_end: response.data.data.cancel_at_period_end,

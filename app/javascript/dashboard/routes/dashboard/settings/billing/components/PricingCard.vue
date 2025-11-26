@@ -22,9 +22,27 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  cancelAtPeriodEnd: {
+    type: Boolean,
+    default: false,
+  },
+  subscriptionEndsOn: {
+    type: String,
+    default: null,
+  },
 });
 
 const { t, locale } = useI18n();
+
+const cancelButtonLabel = computed(() => {
+  if (props.cancelAtPeriodEnd && props.subscriptionEndsOn) {
+    return t('BILLING_SETTINGS.PRICING_TABLE.CANCELS_ON_DATE', {
+      date: props.subscriptionEndsOn,
+    });
+  }
+
+  return t('BILLING_SETTINGS.PRICING_TABLE.CANCEL');
+});
 const store = useStore();
 
 // Plan hierarchy for comparison
@@ -108,7 +126,7 @@ const buttonConfig = computed(() => {
   if (currentTier === targetTier) {
     // Same plan -> Cancel
     return {
-      label: t('BILLING_SETTINGS.PRICING_TABLE.CANCEL'),
+      label: cancelButtonLabel.value,
       action: 'cancel',
       color: 'slate',
     };

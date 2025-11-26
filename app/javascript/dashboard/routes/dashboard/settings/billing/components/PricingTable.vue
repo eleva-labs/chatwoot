@@ -5,7 +5,7 @@ import * as Sentry from '@sentry/vue';
 import BillingAPI from 'dashboard/api/v2/billing.js';
 import PricingCard from './PricingCard.vue';
 
-defineProps({
+const props = defineProps({
   currentPlanName: {
     type: String,
     default: null,
@@ -14,7 +14,16 @@ defineProps({
     type: String,
     default: null,
   },
+  cancelAtPeriodEnd: {
+    type: Boolean,
+    default: false,
+  },
+  subscriptionEndsOn: {
+    type: String,
+    default: null,
+  },
 });
+
 
 const { t } = useI18n();
 const plans = ref([]);
@@ -205,6 +214,8 @@ onUnmounted(() => {
             :billing-interval="billingInterval"
             :current-plan-name="currentPlanName"
             :subscription-status="subscriptionStatus"
+            :cancel-at-period-end="cancelAtPeriodEnd"
+            :subscription-ends-on="subscriptionEndsOn"
           />
         </div>
       </div>

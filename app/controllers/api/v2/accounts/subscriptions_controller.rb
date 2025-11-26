@@ -141,6 +141,7 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
       customer_id: custom_attrs['stripe_customer_id'],
       current_period_end: custom_attrs['current_period_end'],
       subscription_ends_on: custom_attrs['subscription_ends_on'],
+      cancel_at: custom_attrs['cancel_at'],
       last_payment_status: custom_attrs['last_payment_status'],
       last_payment_date: custom_attrs['last_payment_date'],
       plan_limits: custom_attrs['plan_limits'],
