@@ -49,6 +49,7 @@ const formattedNextBillingDate = computed(() => {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'UTC',
   });
 });
 

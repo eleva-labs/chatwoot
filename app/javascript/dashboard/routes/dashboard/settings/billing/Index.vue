@@ -129,21 +129,25 @@ const subscriptionEndsOn = computed(() => {
   return date ? format(date, 'dd MMM, yyyy') : '-';
 });
 
-const scheduledCancellationDate = computed(() => {
-  const cancelAtValue = customAttributes.value.cancel_at;
-  return convertTimestampToDate(cancelAtValue);
-});
-
 const cancelAtPeriodEnd = computed(() => {
   const flag = customAttributes.value.cancel_at_period_end;
   const normalizedFlag =
     typeof flag === 'string' ? flag.toLowerCase() : flag;
 
-  return (
-    normalizedFlag === true ||
-    normalizedFlag === 'true' ||
-    scheduledCancellationDate.value
-  );
+  return normalizedFlag === true || normalizedFlag === 'true';
+});
+
+const scheduledCancellationDate = computed(() => {
+  // When cancel_at_period_end is true, use the same date source as subscriptionEndDate
+  // (current_period_end or subscription_ends_on) to match Stripe's display
+  // This ensures consistency across all date displays
+  if (cancelAtPeriodEnd.value) {
+    return subscriptionEndDate.value;
+  }
+  
+  // Fallback to cancel_at for immediate cancellations
+  const cancelAtValue = customAttributes.value.cancel_at;
+  return convertTimestampToDate(cancelAtValue);
 });
 
 const scheduledCancellationLabel = computed(() => {

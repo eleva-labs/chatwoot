@@ -277,6 +277,23 @@ class Billing::SubscriptionBreakdownService
   end
 
   def next_billing_date(subscription, base_item, upcoming_invoice = nil)
+    # Check if subscription is scheduled to cancel at period end
+    # When cancel_at_period_end is true, use current_period_end to match Stripe's display
+    cancel_at_period_end = if subscription.respond_to?(:cancel_at_period_end)
+                             subscription.cancel_at_period_end
+                           elsif subscription.is_a?(Hash)
+                             subscription['cancel_at_period_end']
+                           else
+                             false
+                           end
+
+    # If subscription is scheduled to cancel, prioritize current_period_end
+    # This ensures consistency with Stripe's display (shows period end, not cancel_at)
+    if cancel_at_period_end
+      period_end = subscription_current_period_end(subscription)
+      return period_end if period_end
+    end
+
     # If we have upcoming invoice, use its period_end or due_date (most accurate)
     if upcoming_invoice
       # Prefer period_end (when invoice will be generated)
