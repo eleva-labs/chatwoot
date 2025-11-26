@@ -136,6 +136,7 @@
     },
     "ACTIONS": {
       "ASSIGN_MEMBER": "Assign to Member",
+      "ASSIGN_AGENT": "Assign to AI Employee",
       "ASSIGN_TEAM": "Assign a Team",
       "ADD_LABEL": "Add a Label",
       "REMOVE_LABEL": "Remove a Label",

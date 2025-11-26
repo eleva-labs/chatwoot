@@ -71,6 +71,10 @@ const currentContact = computed(() => {
     : {};
 });
 
+const isAiEnabled = computed(() => {
+  return !!props.chat?.custom_attributes?.ai_enabled;
+});
+
 const isActiveChat = computed(() => {
   return currentChat.value.id === props.chat.id;
 });
@@ -126,6 +130,8 @@ const messagePreviewClass = computed(() => {
     hasUnread.value ? 'font-medium text-n-slate-12' : 'text-n-slate-11',
     !props.compact && hasUnread.value ? 'ltr:pr-4 rtl:pl-4' : '',
     props.compact && hasUnread.value ? 'ltr:pr-6 rtl:pl-6' : '',
+    // Add extra padding when AI is enabled to prevent overlap with AI icon
+    isAiEnabled.value ? 'ltr:pr-8 rtl:pl-8' : '',
   ];
 });
 
@@ -363,12 +369,22 @@ const deleteConversation = () => {
             :created-at-timestamp="chat.created_at"
           />
         </span>
-        <span
-          class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 ltr:ml-auto rtl:mr-auto mt-1 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
-          :class="hasUnread ? 'block' : 'hidden'"
-        >
-          {{ unreadCount > 9 ? '9+' : unreadCount }}
-        </span>
+        <div class="flex items-center gap-1 ltr:ml-auto rtl:mr-auto mt-1">
+          <!-- AI Icon - only show when AI is enabled -->
+          <img
+            v-if="isAiEnabled"
+            src="~dashboard/assets/images/eleva_ai/icon-ai-on.svg"
+            alt="AI Enabled"
+            class="w-4 h-4 flex-shrink-0"
+          />
+          <!-- Unread count -->
+          <span
+            class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
+            :class="hasUnread ? 'block' : 'hidden'"
+          >
+            {{ unreadCount > 9 ? '9+' : unreadCount }}
+          </span>
+        </div>
       </div>
       <CardLabels
         v-if="showLabelsSection"

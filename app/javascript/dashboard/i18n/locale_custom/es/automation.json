@@ -136,6 +136,7 @@
     },
     "ACTIONS": {
       "ASSIGN_AGENT": "Asignar al agente",
+      "ASSIGN_MEMBER": "Asignar al Empleado IA",
       "ASSIGN_TEAM": "Asignar equipo",
       "ADD_LABEL": "Añadir etiqueta",
       "REMOVE_LABEL": "Eliminar etiqueta",
@@ -150,7 +151,8 @@
       "ADD_PRIVATE_NOTE": "Añadir una nota privada",
       "CHANGE_PRIORITY": "Cambiar prioridad",
       "ADD_SLA": "Añadir SLA",
-      "OPEN_CONVERSATION": "Abrir conversación"
+      "OPEN_CONVERSATION": "Abrir conversación",
+      "SET_AI_ENABLED": "Estado de Empleado IA"
     },
     "MESSAGE_TYPES": {
       "INCOMING": "Mensaje entrante",
@@ -162,6 +164,10 @@
       "MEDIUM": "Media",
       "HIGH": "Alta",
       "URGENT": "Urgente"
+    },
+    "AI_ENABLED_OPTIONS": {
+      "ENABLED": "Activar",
+      "DISABLED": "Desactivar"
     },
     "ATTRIBUTES": {
       "MESSAGE_TYPE": "Tipo de mensaje",
@@ -178,7 +184,12 @@
       "ASSIGNEE_NAME": "Asignado a",
       "TEAM_NAME": "Equipo",
       "PRIORITY": "Prioridad",
-      "LABELS": "Etiquetas"
+      "LABELS": "Etiquetas",
+      "HAS_AGENT_BOT": "Canal tiene AI Bot",
+      "ENTRY_PHRASE_MATCH": "Frase de entrada",
+      "RANDOM_PERCENTAGE": "Porcentaje aleatorio",
+      "MESSAGE_LIMIT": "Verificar primeros N mensajes",
+      "CASE_SENSITIVE": "Sensible a mayúsculas"
     }
   }
 }

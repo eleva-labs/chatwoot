@@ -296,6 +296,8 @@
     "EXTERNAL": "Externo",
     "SEND_FAILED": "¡No se pudo enviar el mensaje! Inténtalo de nuevo",
     "TRY_AGAIN": "reintentar",
+    "AI_TOGGLE_SUCCESS": "AI actualizado exitosamente",
+    "AI_TOGGLE_ERROR": "¡No se pudo actualizar AI! Inténtalo de nuevo",
     "ASSIGNMENT": {
       "SELECT_AGENT": "Seleccionar miembro",
       "REMOVE": "Eliminar",
