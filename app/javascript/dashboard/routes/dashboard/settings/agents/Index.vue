@@ -173,13 +173,13 @@ const confirmationDescription = computed(() => {
 const confirmationDetails = computed(() => {
   const details = [];
 
-  if (removalPreview.value?.estimated_credit) {
+  if (extraSeatsUsed.value > 0 && removalPreview.value?.estimated_credit) {
     details.push(
       t('AGENT_MGMT.DELETE.EXTRA_CONFIRM', {
         credit: removalPreview.value.estimated_credit,
       })
     );
-  } else if (removalError.value) {
+  } else if (extraSeatsUsed.value > 0 && removalError.value) {
     details.push(t('AGENT_MGMT.DELETE.EXTRA_CONFIRM_FALLBACK'));
   }
 
