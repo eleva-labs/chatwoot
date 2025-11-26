@@ -11,6 +11,7 @@ class AiBackendService::TokenCreditsService
   BALANCE_PATH = '/api/token-credits/balance'
   TRANSACTIONS_PATH = '/api/token-credits/transactions'
   ADD_CREDITS_PATH = '/api/token-credits/add'
+  RESET_CREDITS_PATH = '/api/token-credits/reset'
   DEFAULT_TRANSACTION_LIMIT = 100
 
   def initialize
@@ -61,6 +62,23 @@ class AiBackendService::TokenCreditsService
 
     response = self.class.post(
       ADD_CREDITS_PATH,
+      headers: headers(payload, timestamp),
+      body: payload.to_json
+    )
+
+    handle_response(response)
+  end
+
+  def reset_credits(store_id:, base_limit:)
+    payload = {
+      store_id: store_id.to_s,
+      base_limit: base_limit
+    }
+
+    timestamp = current_timestamp
+
+    response = self.class.post(
+      RESET_CREDITS_PATH,
       headers: headers(payload, timestamp),
       body: payload.to_json
     )

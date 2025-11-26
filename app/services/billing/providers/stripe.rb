@@ -488,6 +488,9 @@ module Billing
 
         update_payment_status(account, 'succeeded')
 
+        # Reset AI token credits on subscription renewal
+        reset_ai_token_credits(account, invoice)
+
         success_response('Payment succeeded, account updated')
       end
 
@@ -590,6 +593,10 @@ module Billing
       end
 
       # Extracts account ID from invoice metadata (line items or subscription details)
+      def reset_ai_token_credits(account, invoice)
+        Billing::ResetAiTokenCreditsService.new(account, invoice).perform
+      end
+
       def extract_account_id_from_invoice(invoice)
         # First try to get from line items metadata
         line_items = invoice.dig('lines', 'data') || []
