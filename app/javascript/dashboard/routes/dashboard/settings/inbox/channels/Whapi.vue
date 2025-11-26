@@ -57,6 +57,7 @@ const {
   usageErrorMessage,
   isPurchasingExtraChannel,
   isChannelInfoLoading,
+  isTrialLimitReached,
   handleChannelCreation,
 } = useChannelPurchaseManager({ store, baseLabel, t });
 
@@ -121,6 +122,8 @@ const isContinueButtonDisabled = computed(() => {
     uiFlags.value.isCreating ||
     isPurchasingExtraChannel.value ||
     isChannelInfoLoading.value
+    ||
+    isTrialLimitReached.value
   );
 });
 

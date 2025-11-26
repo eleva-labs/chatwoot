@@ -36,6 +36,7 @@
       "EXTRA_NOTE": "Se te cobrará un canal adicional. El cargo se prorrateará por el resto de tu período de facturación: {amount}.",
       "CALCULATING_PRORATION": "calculando prorrateo...",
       "PRIMARY_BUY_LABEL": "Comprar canal extra / {price} por mes",
+      "TRIAL_LIMIT_NOTE": "No se pueden comprar complementos adicionales durante la prueba gratuita.",
       "PURCHASE_ERROR": "No pudimos comprar un canal extra. Verifica tu método de pago e inténtalo nuevamente.",
       "CHANNEL_NAME": {
         "LABEL": "Nombre del canal",

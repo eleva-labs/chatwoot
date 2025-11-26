@@ -43,6 +43,7 @@ export default {
       usageErrorMessage,
       isPurchasingExtraChannel,
       isChannelInfoLoading,
+      isTrialLimitReached,
       handleChannelCreation,
     } = useChannelPurchaseManager({ store, baseLabel, t });
 
@@ -56,6 +57,7 @@ export default {
       usageErrorMessage,
       isPurchasingExtraChannel,
       isChannelInfoLoading,
+      isTrialLimitReached,
       handleChannelCreation,
     };
   },
@@ -338,7 +340,8 @@ export default {
                 isCreating ||
                 isPurchasingExtraChannel ||
                 isChannelInfoLoading ||
-                v$.$error
+                v$.$error ||
+                isTrialLimitReached
               "
             />
           </div>

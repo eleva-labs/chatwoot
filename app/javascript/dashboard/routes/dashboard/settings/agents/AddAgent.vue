@@ -8,6 +8,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, email } from '@vuelidate/validators';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { useAgentSeatLimits } from './composables/useAgentSeatLimits';
+import { useAccount } from 'dashboard/composables/useAccount';
 
 const emit = defineEmits(['close']);
 
@@ -34,6 +35,23 @@ const {
   hasLoadedData,
   fetchLimits,
 } = useAgentSeatLimits(store);
+
+const { currentAccount } = useAccount();
+const planName = computed(
+  () => currentAccount.value?.custom_attributes?.plan_name || 'free_trial'
+);
+const isTrialPlan = computed(() => planName.value === 'free_trial');
+const trialRestrictionMessage = computed(() => {
+  if (!isTrialPlan.value) {
+    return null;
+  }
+
+  if (hasAvailableIncludedSeat.value) {
+    return null;
+  }
+
+  return t('AGENT_MGMT.ADD.TRIAL_LIMIT_NOTE');
+});
 
 const showUsageLoadingMessage = computed(() => {
   return !hasLoadedData.value && isLoading.value;
@@ -161,7 +179,10 @@ watch(
 
 // Note message when extra charge applies
 const noteMessage = computed(() => {
-  if (!hasLoadedData.value) {
+  if (
+    !hasLoadedData.value ||
+    trialRestrictionMessage.value !== null
+  ) {
     return null;
   }
 
@@ -329,13 +350,23 @@ const skipInvitations = () => {
 
       <!-- Onboarding mode proration note -->
       <div
-        v-if="route.name === 'settings_inboxes_invite_team' && noteMessage"
+        v-if="
+          route.name === 'settings_inboxes_invite_team' &&
+          (noteMessage || trialRestrictionMessage)
+        "
         class="w-full mt-4"
       >
         <p
+          v-if="noteMessage"
           class="text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
         >
           {{ noteMessage }}
+        </p>
+        <p
+          v-if="trialRestrictionMessage"
+          class="text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2 mt-2"
+        >
+          {{ trialRestrictionMessage }}
         </p>
       </div>
 
@@ -352,7 +383,8 @@ const skipInvitations = () => {
             v$.$invalid ||
             uiFlags.isCreating ||
             isPurchasingExtraSeat ||
-            isSeatInfoLoading
+            isSeatInfoLoading ||
+            trialRestrictionMessage
           "
           :is-loading="uiFlags.isCreating || isPurchasingExtraSeat"
         />
@@ -378,6 +410,12 @@ const skipInvitations = () => {
         >
           {{ noteMessage }}
         </p>
+        <p
+          v-if="trialRestrictionMessage"
+          class="mt-3 text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
+        >
+          {{ trialRestrictionMessage }}
+        </p>
 
         <div class="flex flex-row justify-end w-full gap-2">
           <Button
@@ -394,7 +432,8 @@ const skipInvitations = () => {
               v$.$invalid ||
               uiFlags.isCreating ||
               isPurchasingExtraSeat ||
-              isSeatInfoLoading
+              isSeatInfoLoading ||
+              trialRestrictionMessage
             "
             :is-loading="uiFlags.isCreating || isPurchasingExtraSeat"
           />

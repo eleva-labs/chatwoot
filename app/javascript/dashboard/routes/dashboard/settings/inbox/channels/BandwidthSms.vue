@@ -31,6 +31,7 @@ export default {
       usageErrorMessage,
       isPurchasingExtraChannel,
       isChannelInfoLoading,
+      isTrialLimitReached,
       handleChannelCreation,
     } = useChannelPurchaseManager({ store, baseLabel, t });
 
@@ -42,6 +43,7 @@ export default {
       usageErrorMessage,
       isPurchasingExtraChannel,
       isChannelInfoLoading,
+      isTrialLimitReached,
       handleChannelCreation,
     };
   },
@@ -229,7 +231,10 @@ export default {
       <NextButton
         :is-loading="uiFlags.isCreating || isPurchasingExtraChannel"
         :disabled="
-          uiFlags.isCreating || isPurchasingExtraChannel || isChannelInfoLoading
+          uiFlags.isCreating ||
+          isPurchasingExtraChannel ||
+          isChannelInfoLoading ||
+          isTrialLimitReached
         "
         type="submit"
         solid

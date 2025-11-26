@@ -58,6 +58,7 @@ const {
   usageErrorMessage,
   isPurchasingExtraChannel,
   isChannelInfoLoading,
+  isTrialLimitReached,
   handleChannelCreation,
 } = useChannelPurchaseManager({ store, baseLabel, t });
 
@@ -312,7 +313,10 @@ onBeforeUnmount(() => {
         </p>
         <NextButton
           :disabled="
-            isAuthenticating || isChannelInfoLoading || isPurchasingExtraChannel
+            isAuthenticating ||
+            isChannelInfoLoading ||
+            isPurchasingExtraChannel ||
+            isTrialLimitReached
           "
           :is-loading="isAuthenticating || isPurchasingExtraChannel"
           faded

@@ -33,6 +33,7 @@
       "EXTRA_NOTE": "Se le cobrará por un asiento de miembro adicional. El cargo será prorrateado por el resto de su período de facturación: {amount}.",
       "CALCULATING_PRORATION": "calculando prorrateo...",
       "PRIMARY_BUY_LABEL": "Comprar Miembro Extra / {price} por mes",
+      "TRIAL_LIMIT_NOTE": "No se pueden comprar complementos adicionales durante la prueba gratuita.",
       "PURCHASE_ERROR": "Error al comprar asiento de miembro adicional. Por favor, inténtelo de nuevo.",
       "FORM": {
         "NAME": {

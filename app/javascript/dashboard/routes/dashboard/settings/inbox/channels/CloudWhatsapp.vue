@@ -50,6 +50,7 @@ const {
   usageErrorMessage,
   isPurchasingExtraChannel,
   isChannelInfoLoading,
+  isTrialLimitReached,
   handleChannelCreation,
 } = useChannelPurchaseManager({ store, baseLabel, t });
 
@@ -197,7 +198,10 @@ const createChannel = async () => {
       <NextButton
         :is-loading="uiFlags.isCreating || isPurchasingExtraChannel"
         :disabled="
-          uiFlags.isCreating || isPurchasingExtraChannel || isChannelInfoLoading
+          uiFlags.isCreating ||
+          isPurchasingExtraChannel ||
+          isChannelInfoLoading ||
+          isTrialLimitReached
         "
         type="submit"
         solid

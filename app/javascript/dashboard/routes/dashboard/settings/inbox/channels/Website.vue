@@ -33,6 +33,7 @@ export default {
       usageErrorMessage,
       isPurchasingExtraChannel,
       isChannelInfoLoading,
+      isTrialLimitReached,
       handleChannelCreation,
     } = useChannelPurchaseManager({ store, baseLabel, t });
 
@@ -43,6 +44,7 @@ export default {
       usageErrorMessage,
       isPurchasingExtraChannel,
       isChannelInfoLoading,
+      isTrialLimitReached,
       handleChannelCreation,
     };
   },
@@ -248,6 +250,7 @@ export default {
               uiFlags.isCreating ||
               isPurchasingExtraChannel ||
               isChannelInfoLoading
+              || isTrialLimitReached
             "
             solid
             blue

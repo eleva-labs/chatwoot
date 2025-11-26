@@ -1,5 +1,6 @@
 import { ref, computed, unref, watch } from 'vue';
 import { useInboxLimits } from './useInboxLimits';
+import { useAccount } from 'dashboard/composables/useAccount';
 
 /**
  * Shared channel purchase flow helper.
@@ -88,7 +89,33 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
     () => limitsLoading.value || showUsageLoadingMessage.value
   );
 
+  const { currentAccount } = useAccount();
+  const planName = computed(
+    () => currentAccount.value?.custom_attributes?.plan_name || 'free_trial'
+  );
+  const isTrialPlan = computed(() => planName.value === 'free_trial');
+  const trialRestrictionMessage = computed(() => {
+    if (!isTrialPlan.value) {
+      return '';
+    }
+
+    if (showUsageLoadingMessage.value || usageErrorMessage.value) {
+      return '';
+    }
+
+    if (!shouldChargeForChannel.value) {
+      return '';
+    }
+
+    return t('INBOX_MGMT.ADD.TRIAL_LIMIT_NOTE');
+  });
+  const isTrialLimitReached = computed(() => !!trialRestrictionMessage.value);
+
   const noteMessage = computed(() => {
+    if (trialRestrictionMessage.value) {
+      return trialRestrictionMessage.value;
+    }
+
     if (showUsageLoadingMessage.value || usageErrorMessage.value) {
       return null;
     }
@@ -144,6 +171,10 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
       throw new Error('handleChannelCreation expects a function');
     }
 
+    if (isTrialLimitReached.value) {
+      throw new Error(trialRestrictionMessage.value);
+    }
+
     if (!shouldChargeForChannel.value) {
       return creationFn();
     }
@@ -196,6 +227,8 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
 
     // UI helpers
     noteMessage,
+    trialRestrictionMessage,
+    isTrialLimitReached,
     primaryButtonLabel,
     isChannelInfoLoading,
     channelPriceLabel,
