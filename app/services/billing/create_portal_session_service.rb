@@ -37,12 +37,11 @@ module Billing
     end
 
     def default_return_url
-      # This should be configured based on your application's URL structure
-      # For now, returning a placeholder that should be configured in production
-
-      Rails.application.routes.url_helpers.root_url
-    rescue StandardError
-      'https://app.chatwoot.com/app/accounts'
+      # Use FRONTEND_URL environment variable (same pattern as checkout session)
+      # Return to billing settings page
+      # Ensure the URL is properly formatted with trailing slash removed and valid format
+      base_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3000').to_s.chomp('/')
+      "#{base_url}/app/accounts/#{@account.id}/settings/billing"
     end
 
     def success_response(session)

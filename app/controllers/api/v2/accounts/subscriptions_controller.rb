@@ -127,8 +127,9 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
   end
 
   def default_return_url
-    # Use the frontend billing URL as default return
-    "#{request.base_url}/app/accounts/#{current_account.id}/settings/billing"
+    # Use FRONTEND_URL environment variable (same pattern as checkout session)
+    # This ensures consistency across all billing redirects
+    "#{ENV.fetch('FRONTEND_URL', request.base_url)}/app/accounts/#{current_account.id}/settings/billing"
   end
 
   def extract_subscription_data
