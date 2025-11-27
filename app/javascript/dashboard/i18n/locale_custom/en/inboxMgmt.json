@@ -314,7 +314,15 @@
         "LOADING_QR": "Loading QR code...",
         "GENERATING_QR": "Generating QR code...",
         "QR_HELP_TEXT": "Scan this QR code with your WhatsApp mobile app to connect your phone number",
-        "SUCCESS_MESSAGE": "WhatsApp channel created successfully!"
+        "SUCCESS_MESSAGE": "WhatsApp channel created successfully!",
+        "QR_BEING_GENERATED": "QR code is being generated, please wait...",
+        "QR_TIMEOUT": "QR code generation timed out. Please try again.",
+        "QR_FAILED": "QR code generation failed. Please try again.",
+        "SERVICE_UNAVAILABLE": "Service temporarily unavailable. Retrying...",
+        "QR_PREPARING": "QR code is being prepared. Retrying...",
+        "QR_PLEASE_WAIT": "Generating QR code. Please wait...",
+        "QR_EXPIRED": "QR code expired or retry limit reached",
+        "CHANNEL_CREATE_ERROR": "An error occurred while creating the channel"
       },
       "VOICE": {
         "TITLE": "Voice Channel",

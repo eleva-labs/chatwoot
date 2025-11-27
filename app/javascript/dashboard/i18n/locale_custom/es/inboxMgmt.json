@@ -314,7 +314,15 @@
         "LOADING_QR": "Cargando código QR...",
         "GENERATING_QR": "Generando código QR...",
         "QR_HELP_TEXT": "Escanea este código QR con tu aplicación móvil de WhatsApp para conectar tu número de teléfono",
-        "SUCCESS_MESSAGE": "¡Canal de WhatsApp creado exitosamente!"
+        "SUCCESS_MESSAGE": "¡Canal de WhatsApp creado exitosamente!",
+        "QR_BEING_GENERATED": "El código QR se está generando, por favor espera...",
+        "QR_TIMEOUT": "La generación del código QR expiró. Por favor, inténtalo de nuevo.",
+        "QR_FAILED": "La generación del código QR falló. Por favor, inténtalo de nuevo.",
+        "SERVICE_UNAVAILABLE": "Servicio temporalmente no disponible. Reintentando...",
+        "QR_PREPARING": "El código QR se está preparando. Reintentando...",
+        "QR_PLEASE_WAIT": "Generando código QR. Por favor espera...",
+        "QR_EXPIRED": "Código QR expirado o límite de reintentos alcanzado",
+        "CHANNEL_CREATE_ERROR": "Ocurrió un error al crear el canal"
       },
       "VOICE": {
         "TITLE": "Voice Channel",
