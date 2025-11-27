@@ -58,6 +58,7 @@ plans:
     name: "Starter"
     description: "Perfect for growing teams"
     price_id: "price_1RdbcC4TqKLiHbZ87crta9vQ"
+    lookup_key: "starter_tier_monthly"  # Primary source for monthly price lookup
     feature_tiers:
       - "starter"
     # IMPORTANT: These limits are FALLBACK values only.

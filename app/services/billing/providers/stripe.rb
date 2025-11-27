@@ -1039,26 +1039,62 @@ module Billing
 
         Rails.logger.info "Found Stripe product: #{target_product.id} for plan: #{plan_name}"
 
-        # Get the active prices for this product
-        prices = ::Stripe::Price.list(
-          product: target_product.id,
-          active: true,
-          limit: 10
-        )
-
-        unless prices.data.any?
-          Rails.logger.warn "No active price found for product: #{target_product.id}"
-          return nil
+        # Try to get price using lookup_key first (most reliable method)
+        plan_config = BillingPlans.plan_details(plan_name)
+        lookup_key = plan_config&.dig('lookup_key')
+        
+        active_price = nil
+        if lookup_key.present?
+          Rails.logger.info "Attempting to fetch price using lookup_key: #{lookup_key}"
+          begin
+            prices_by_lookup = ::Stripe::Price.list(
+              lookup_keys: [lookup_key],
+              active: true,
+              limit: 1
+            )
+            
+            if prices_by_lookup.data.any?
+              active_price = prices_by_lookup.data.first
+              Rails.logger.info "✅ Found price using lookup_key #{lookup_key}: #{active_price.id}"
+            else
+              Rails.logger.warn "⚠️  No price found with lookup_key #{lookup_key}, falling back to interval-based selection"
+            end
+          rescue ::Stripe::StripeError => e
+            Rails.logger.error "Error fetching price using lookup_key #{lookup_key}: #{e.message}, falling back to interval-based selection"
+            active_price = nil
+          end
         end
 
-        # Prefer monthly prices over yearly prices when multiple prices exist
-        # This ensures consistent behavior when interval is not explicitly specified
-        active_price = if prices.data.length > 1
-                        # Find monthly price first, fallback to first price if no monthly found
-                        prices.data.find { |p| p.recurring&.interval == 'month' } || prices.data.first
-                      else
-                        prices.data.first
-                      end
+        # Fallback to interval-based selection if lookup_key didn't work
+        unless active_price
+          # Get the active prices for this product
+          prices = ::Stripe::Price.list(
+            product: target_product.id,
+            active: true,
+            limit: 10
+          )
+
+          unless prices.data.any?
+            Rails.logger.warn "No active price found for product: #{target_product.id}"
+            return nil
+          end
+
+          # Prefer monthly prices over yearly prices when multiple prices exist
+          # This ensures consistent behavior when interval is not explicitly specified
+          active_price = if prices.data.length > 1
+                          # Find monthly price first, fallback to first price if no monthly found
+                          monthly_price = prices.data.find { |p| p.recurring&.interval == 'month' }
+                          if monthly_price
+                            Rails.logger.info "✅ Found monthly price via interval matching: #{monthly_price.id}"
+                            monthly_price
+                          else
+                            Rails.logger.warn "⚠️  No monthly price found, using first available price: #{prices.data.first.id}"
+                            prices.data.first
+                          end
+                        else
+                          prices.data.first
+                        end
+        end
 
         # Extract limits from metadata using existing BillingPlans infrastructure
         metadata = target_product.metadata || {}
