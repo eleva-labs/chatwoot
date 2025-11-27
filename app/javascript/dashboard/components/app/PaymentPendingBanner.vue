@@ -49,6 +49,9 @@ export default {
 
       return this.hasSubscriptionIssue();
     },
+    isOnBillingPage() {
+      return this.$route.name === 'billing_settings_index';
+    },
   },
 
   methods: {
@@ -104,7 +107,7 @@ export default {
     color-scheme="alert"
     :banner-message="bannerMessage"
     :action-button-label="actionButtonMessage"
-    has-action-button
+    :has-action-button="!isOnBillingPage"
     @primary-action="routeToBilling"
   />
 </template>
