@@ -6,20 +6,36 @@ module Billing
   class ResetAiTokenCreditsService
     include BillingPlans
 
-    def initialize(account, invoice)
+    def initialize(account, invoice, subscription)
       @account = account
       @invoice = invoice
+      @subscription = subscription
     end
 
     def perform
-      return unless should_reset?
+      Rails.logger.info "🔍 [TOKEN RESET] Starting token reset check for account #{@account.id}"
+      
+      unless should_reset?
+        Rails.logger.info "🔍 [TOKEN RESET] Skipping reset: should_reset? returned false"
+        return
+      end
 
       base_limit = compute_base_token_limit
-      return if base_limit.nil? || base_limit.zero?
+      if base_limit.nil? || base_limit.zero?
+        Rails.logger.info "🔍 [TOKEN RESET] Skipping reset: base_limit is #{base_limit.inspect} (nil or zero)"
+        return
+      end
 
       period_end = extract_period_end
-      return if period_end.nil? # Skip reset if period_end is unavailable (incomplete invoice data)
-      return if already_reset_for_period?(period_end)
+      if period_end.nil?
+        Rails.logger.info "🔍 [TOKEN RESET] Skipping reset: period_end is nil (incomplete invoice data)"
+        return
+      end
+      
+      if already_reset_for_period?(period_end)
+        Rails.logger.info "🔍 [TOKEN RESET] Skipping reset: already reset for period_end #{period_end}"
+        return
+      end
 
       reset_tokens(base_limit, period_end)
     rescue AiBackendService::TokenCreditsService::TokenCreditsError => e
@@ -34,25 +50,46 @@ module Billing
 
     def should_reset?
       # Only reset for subscription renewals, not one-time purchases
-      return false unless subscription_invoice?
+      unless subscription_invoice?
+        Rails.logger.debug "🔍 [TOKEN RESET] Not a subscription invoice"
+        return false
+      end
 
-      # Only reset for active subscriptions
-      subscription_status = @account.custom_attributes&.dig('subscription_status')
-      return false unless Billing::SubscriptionStatuses.paid_status?(subscription_status)
+      # Only reset for active subscriptions, using the fresh subscription object
+      unless @subscription && Billing::SubscriptionStatuses.paid_status?(@subscription.status)
+        status = @subscription ? @subscription.status : 'nil'
+        Rails.logger.debug "🔍 [TOKEN RESET] Subscription status '#{status}' is not a paid status"
+        return false
+      end
 
       true
     end
 
     def subscription_invoice?
-      # Subscription invoices have a subscription field
-      # One-time purchases (conversation packs, token packs) don't
-      subscription_id = if @invoice.is_a?(Hash)
-                          @invoice['subscription']
-                        else
-                          @invoice.subscription
-                        end
+      get_subscription_id_from_invoice.present?
+    end
 
-      subscription_id.present?
+    def get_subscription_id_from_invoice
+      return @invoice.subscription if @invoice.respond_to?(:subscription)
+
+      if @invoice.is_a?(Hash)
+        # Modern Stripe API versions (flexible billing) - subscription ID is in parent details
+        subscription_id = @invoice.dig('parent', 'subscription_details', 'subscription')
+        return subscription_id if subscription_id.present?
+
+        # Fallback for older API versions or different invoice types
+        subscription_id = @invoice['subscription']
+        return subscription_id if subscription_id.present?
+
+        # Final fallback - check line items for subscription details
+        line_items = @invoice.dig('lines', 'data') || []
+        line_items.each do |item|
+          sub_id = item.dig('parent', 'subscription_item_details', 'subscription')
+          return sub_id if sub_id.present?
+        end
+      end
+
+      nil
     end
 
     def compute_base_token_limit
