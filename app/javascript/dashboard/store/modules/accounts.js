@@ -10,7 +10,10 @@ import { getLanguageDirection } from 'dashboard/components/widgets/conversation/
 const findRecordById = ($state, id) =>
   $state.records.find(record => record.id === Number(id)) || {};
 
-const TRIAL_PERIOD_DAYS = 15;
+const DEFAULT_TRIAL_PERIOD_DAYS = 7;
+
+const trialPeriodDaysForAccount = account =>
+  account?.custom_attributes?.trial_expires_in_days ?? DEFAULT_TRIAL_PERIOD_DAYS;
 
 const state = {
   records: [],
@@ -44,8 +47,9 @@ export const getters = {
     const account = findRecordById($state, id);
     const createdAt = new Date(account.created_at);
     const diffDays = differenceInDays(new Date(), createdAt);
+    const trialDays = trialPeriodDaysForAccount(account);
 
-    return diffDays <= TRIAL_PERIOD_DAYS;
+    return diffDays <= trialDays;
   },
   isFeatureEnabledonAccount: $state => (id, featureName) => {
     const { features = {} } = findRecordById($state, id);

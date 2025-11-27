@@ -5,6 +5,7 @@ if resource.custom_attributes.present?
     json.plan_name resource.custom_attributes['plan_name']
     json.subscription_status resource.custom_attributes['subscription_status']
     json.subscription_ends_on resource.custom_attributes['subscription_ends_on']
+    json.trial_expires_in_days resource.custom_attributes['trial_expires_in_days'] if resource.custom_attributes['trial_expires_in_days'].present?
     json.store_id resource.custom_attributes['store_id'] if resource.custom_attributes['store_id'].present?
     json.industry resource.custom_attributes['industry'] if resource.custom_attributes['industry'].present?
     json.company_size resource.custom_attributes['company_size'] if resource.custom_attributes['company_size'].present?

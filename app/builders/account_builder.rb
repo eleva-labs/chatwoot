@@ -116,7 +116,8 @@ class AccountBuilder
                                         'plan_name' => trial_plan_name,
                                         'subscription_status' => 'active',
                                         'subscription_ends_on' => ends_on.iso8601,
-                                        'billing_status' => 'provisioning_pending'
+                                        'billing_status' => 'provisioning_pending',
+                                        'trial_expires_in_days' => expires_in_days
                                       })
 
     # Set trial limits in the limits column directly
