@@ -13,6 +13,19 @@ class Api::V2::Accounts::Billing::ConversationPacksController < Api::BaseControl
   # Returns available conversation packs with pricing
   def index
     plan_name = current_account.custom_attributes&.dig('plan_name')
+    subscription_status = current_account.custom_attributes&.dig('subscription_status')
+
+    # Block conversation packs during trial period
+    if subscription_status == Billing::SubscriptionStatuses::TRIALING
+      return render json: {
+        success: true,
+        data: {
+          packs: [],
+          eligible: false,
+          message: 'Conversation packs not available during trial period'
+        }
+      }
+    end
 
     # Check if conversation packs are available for this plan
     eligible = BillingPlans.conversation_packs_available_for_plan?(plan_name)

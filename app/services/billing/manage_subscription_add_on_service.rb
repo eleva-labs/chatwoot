@@ -253,6 +253,10 @@ class Billing::ManageSubscriptionAddOnService
   end
 
   def add_ons_available?
+    # Block add-ons during trial period
+    subscription_status = @account.custom_attributes&.dig('subscription_status')
+    return false if subscription_status == Billing::SubscriptionStatuses::TRIALING
+
     # Free trial and community plans don't support add-ons
     return false if %w[free_trial community].include?(@plan_name)
 

@@ -40,7 +40,15 @@ const { currentAccount } = useAccount();
 const planName = computed(
   () => currentAccount.value?.custom_attributes?.plan_name || 'free_trial'
 );
-const isTrialPlan = computed(() => planName.value === 'free_trial');
+const subscriptionStatus = computed(
+  () => currentAccount.value?.custom_attributes?.subscription_status || ''
+);
+const isTrialing = computed(() =>
+  subscriptionStatus.value === 'trialing'
+);
+const isTrialPlan = computed(
+  () => planName.value === 'free_trial' || isTrialing.value
+);
 const trialRestrictionMessage = computed(() => {
   if (!isTrialPlan.value) {
     return null;
@@ -164,11 +172,16 @@ const fetchProrationPreview = async () => {
   }
 };
 
-watch(
-  [hasLoadedData, hasAvailableIncludedSeat],
-  async ([loaded, hasSeat]) => {
+  watch(
+    [hasLoadedData, hasAvailableIncludedSeat, isTrialPlan],
+    async ([loaded, hasSeat, isTrial]) => {
     if (loaded && !hasSeat) {
-      await fetchProrationPreview();
+      if (!isTrial) {
+        await fetchProrationPreview();
+      } else {
+        prorationAmount.value = null;
+        hasFetchedProration.value = false;
+      }
     } else if (hasSeat) {
       prorationAmount.value = null;
       hasFetchedProration.value = false;

@@ -10,6 +10,19 @@ class Api::V2::Accounts::Billing::AiTokenCreditsController < Api::BaseController
 
   def index
     plan_name = current_account.custom_attributes&.dig('plan_name')
+    subscription_status = current_account.custom_attributes&.dig('subscription_status')
+
+    # Block AI token packs during trial period
+    if subscription_status == Billing::SubscriptionStatuses::TRIALING
+      return render json: {
+        success: true,
+        data: {
+          packs: [],
+          eligible: false,
+          message: 'AI token packs not available during trial period'
+        }
+      }
+    end
 
     unless BillingPlans.ai_token_packs_available_for_plan?(plan_name)
       return render json: {

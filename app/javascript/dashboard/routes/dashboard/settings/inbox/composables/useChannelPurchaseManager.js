@@ -93,7 +93,13 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
   const planName = computed(
     () => currentAccount.value?.custom_attributes?.plan_name || 'free_trial'
   );
-  const isTrialPlan = computed(() => planName.value === 'free_trial');
+  const subscriptionStatus = computed(
+    () => currentAccount.value?.custom_attributes?.subscription_status || ''
+  );
+  const isTrialing = computed(() => subscriptionStatus.value === 'trialing');
+  const isTrialPlan = computed(
+    () => planName.value === 'free_trial' || isTrialing.value
+  );
   const trialRestrictionMessage = computed(() => {
     if (!isTrialPlan.value) {
       return '';
@@ -154,10 +160,15 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
   };
 
   watch(
-    [hasLoadedData, hasAvailableIncludedChannel],
-    async ([loaded, hasAvailable]) => {
+    [hasLoadedData, hasAvailableIncludedChannel, isTrialPlan],
+    async ([loaded, hasAvailable, isTrial]) => {
       if (loaded && !hasAvailable) {
-        await fetchProrationPreview();
+        if (!isTrial) {
+          await fetchProrationPreview();
+        } else {
+          prorationAmount.value = null;
+          hasFetchedProration.value = false;
+        }
       } else if (hasAvailable) {
         prorationAmount.value = null;
         hasFetchedProration.value = false;
