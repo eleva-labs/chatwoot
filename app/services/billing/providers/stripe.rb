@@ -9,7 +9,7 @@ module Billing
       # Creates a customer in Stripe
       def create_customer(account, plan_name)
         # Generate idempotency key based on account ID to prevent duplicate customers
-        idempotency_key = "customer_create_#{account.id}_#{plan_name}"
+        # idempotency_key = "customer_create_#{account.id}_#{plan_name}"
 
         ::Stripe::Customer.create(
           {
@@ -19,8 +19,8 @@ module Billing
               account_id: account.id.to_s, # Store as string per Stripe best practice
               plan: plan_name
             }
-          },
-          idempotency_key: idempotency_key
+          }
+          # idempotency_key: idempotency_key
         )
       rescue ::Stripe::RateLimitError => e
         # Handle rate limiting - should retry with backoff
@@ -1039,18 +1039,26 @@ module Billing
 
         Rails.logger.info "Found Stripe product: #{target_product.id} for plan: #{plan_name}"
 
-        # Get the active price for this product
+        # Get the active prices for this product
         prices = ::Stripe::Price.list(
           product: target_product.id,
           active: true,
           limit: 10
         )
 
-        active_price = prices.data.first
-        unless active_price
+        unless prices.data.any?
           Rails.logger.warn "No active price found for product: #{target_product.id}"
           return nil
         end
+
+        # Prefer monthly prices over yearly prices when multiple prices exist
+        # This ensures consistent behavior when interval is not explicitly specified
+        active_price = if prices.data.length > 1
+                        # Find monthly price first, fallback to first price if no monthly found
+                        prices.data.find { |p| p.recurring&.interval == 'month' } || prices.data.first
+                      else
+                        prices.data.first
+                      end
 
         # Extract limits from metadata using existing BillingPlans infrastructure
         metadata = target_product.metadata || {}
