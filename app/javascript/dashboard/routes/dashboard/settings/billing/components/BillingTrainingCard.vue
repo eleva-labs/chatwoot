@@ -7,10 +7,20 @@ import * as Sentry from '@sentry/vue';
 import Icon from 'next/icon/Icon.vue';
 import ButtonV4 from 'next/button/Button.vue';
 import ConfirmationModal from 'dashboard/components/widgets/modal/ConfirmationModal.vue';
+import { useAccount } from 'dashboard/composables/useAccount';
 
 const { t } = useI18n();
 const store = useStore();
+const { currentAccount } = useAccount();
 
+const isSubscriptionPastDue = computed(
+  () =>
+    currentAccount.value?.custom_attributes?.subscription_status === 'past_due'
+);
+
+const isTrialPlan = computed(
+  () => currentAccount.value?.custom_attributes?.plan_name === 'free_trial'
+);
 // ============================================================================
 // STATE MANAGEMENT
 // ============================================================================
@@ -436,6 +446,7 @@ onMounted(() => {
             solid
             blue
             :loading="isTrainingPurchasing(service.type)"
+            :disabled="isSubscriptionPastDue || isTrialPlan"
             @click="confirmPurchaseTraining(service.type, service)"
           >
             {{ t('BILLING_SETTINGS.TRAINING.PURCHASE_BUTTON') }}

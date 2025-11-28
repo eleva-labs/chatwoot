@@ -96,6 +96,9 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
   const subscriptionStatus = computed(
     () => currentAccount.value?.custom_attributes?.subscription_status || ''
   );
+  const isSubscriptionPastDue = computed(
+    () => subscriptionStatus.value === 'past_due'
+  );
   const isTrialing = computed(() => subscriptionStatus.value === 'trialing');
   const isTrialPlan = computed(
     () => planName.value === 'free_trial' || isTrialing.value
@@ -117,9 +120,17 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
   });
   const isTrialLimitReached = computed(() => !!trialRestrictionMessage.value);
 
+  const shouldBeDisabled = computed(
+    () => isTrialLimitReached.value || isSubscriptionPastDue.value
+  );
+
   const noteMessage = computed(() => {
     if (trialRestrictionMessage.value) {
       return trialRestrictionMessage.value;
+    }
+
+    if (isSubscriptionPastDue.value) {
+      return t('INBOX_MGMT.ADD.PAST_DUE_NOTE');
     }
 
     if (showUsageLoadingMessage.value || usageErrorMessage.value) {
@@ -182,8 +193,10 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
       throw new Error('handleChannelCreation expects a function');
     }
 
-    if (isTrialLimitReached.value) {
-      throw new Error(trialRestrictionMessage.value);
+    if (shouldBeDisabled.value) {
+      throw new Error(
+        trialRestrictionMessage.value || t('INBOX_MGMT.ADD.PAST_DUE_NOTE')
+      );
     }
 
     if (!shouldChargeForChannel.value) {
@@ -243,6 +256,7 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
     primaryButtonLabel,
     isChannelInfoLoading,
     channelPriceLabel,
+    shouldBeDisabled,
 
     // Methods
     handleChannelCreation,

@@ -20,6 +20,9 @@ class Billing::ManageSubscriptionAddOnService
 
   # Add one unit of the add-on
   def add_unit
+    if @account.custom_attributes&.dig('subscription_status') == 'past_due'
+      return failure_response('Your subscription payment is past due. Please update your payment method before purchasing add-ons.')
+    end
     update_quantity(current_quantity + 1)
   end
 
@@ -45,6 +48,9 @@ class Billing::ManageSubscriptionAddOnService
 
   # Set specific quantity
   def set_quantity(quantity)
+    if @account.custom_attributes&.dig('subscription_status') == 'past_due'
+      return failure_response('Your subscription payment is past due. Please update your payment method before purchasing add-ons.')
+    end
     raise ArgumentError, 'Quantity must be non-negative' if quantity.negative?
     
     # If reducing quantity, validate against unused extras for capacity add-ons

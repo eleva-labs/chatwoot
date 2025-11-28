@@ -37,6 +37,7 @@
       "CALCULATING_PRORATION": "calculating proration...",
       "PRIMARY_BUY_LABEL": "Buy Extra Channel / {price} per month",
       "TRIAL_LIMIT_NOTE": "Extra add-ons can't be purchased during the free trial.",
+      "PAST_DUE_NOTE": "Your subscription is past due. Please update your payment method to add new channels.",
       "PURCHASE_ERROR": "We couldn't purchase an extra channel. Please verify your payment method and try again.",
       "CHANNEL_NAME": {
         "LABEL": "Channel Name",

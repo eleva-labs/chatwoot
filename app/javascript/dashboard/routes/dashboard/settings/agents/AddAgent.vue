@@ -43,6 +43,9 @@ const planName = computed(
 const subscriptionStatus = computed(
   () => currentAccount.value?.custom_attributes?.subscription_status || ''
 );
+const isSubscriptionPastDue = computed(
+  () => subscriptionStatus.value === 'past_due'
+);
 const isTrialing = computed(() =>
   subscriptionStatus.value === 'trialing'
 );
@@ -397,7 +400,8 @@ const skipInvitations = () => {
             uiFlags.isCreating ||
             isPurchasingExtraSeat ||
             isSeatInfoLoading ||
-            trialRestrictionMessage
+            trialRestrictionMessage ||
+            isSubscriptionPastDue
           "
           :is-loading="uiFlags.isCreating || isPurchasingExtraSeat"
         />
@@ -446,7 +450,8 @@ const skipInvitations = () => {
               uiFlags.isCreating ||
               isPurchasingExtraSeat ||
               isSeatInfoLoading ||
-              trialRestrictionMessage
+              trialRestrictionMessage ||
+              isSubscriptionPastDue
             "
             :is-loading="uiFlags.isCreating || isPurchasingExtraSeat"
           />

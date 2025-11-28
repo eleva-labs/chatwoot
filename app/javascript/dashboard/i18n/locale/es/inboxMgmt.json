@@ -37,6 +37,7 @@
       "CALCULATING_PRORATION": "calculando prorrateo...",
       "PRIMARY_BUY_LABEL": "Comprar canal extra / {price} por mes",
       "TRIAL_LIMIT_NOTE": "No se pueden comprar complementos adicionales durante la prueba gratuita.",
+      "PAST_DUE_NOTE": "Su suscripción está vencida. Por favor, actualice su método de pago para agregar nuevos canales.",
       "PURCHASE_ERROR": "No pudimos comprar un canal extra. Verifica tu método de pago e inténtalo nuevamente.",
       "CHANNEL_NAME": {
         "LABEL": "Nombre del canal",

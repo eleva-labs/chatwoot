@@ -15,6 +15,10 @@ class Billing::PurchaseAiTokenCreditsService
     return failure_response('AI token credit packs are not available for this plan') unless packs_available_for_plan?
     return failure_response('Token pack configuration not found') unless @pack_config
 
+    if @account.custom_attributes['subscription_status'] == 'past_due'
+      return failure_response('Your subscription payment is past due. Please update your payment method before purchasing add-ons.')
+    end
+
     store_id = @account.custom_attributes&.dig('store_id')
     return failure_response('AI store ID not found for account') if store_id.blank?
 

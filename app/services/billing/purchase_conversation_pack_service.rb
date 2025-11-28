@@ -16,6 +16,10 @@ class Billing::PurchaseConversationPackService
     # Validate pack is available for this plan
     return failure_response('Conversation packs not available for this plan') unless pack_available?
 
+    if @account.custom_attributes&.dig('subscription_status') == 'past_due'
+      return failure_response('Your subscription payment is past due. Please update your payment method before purchasing add-ons.')
+    end
+
     # Get pack configuration
     return failure_response('Pack configuration not found') unless @pack_config
 

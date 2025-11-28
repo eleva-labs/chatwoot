@@ -9,6 +9,7 @@ import ButtonV4 from 'next/button/Button.vue';
 import ConversationPackModal from './ConversationPackModal.vue';
 import AiTokenCreditsModal from './AiTokenCreditsModal.vue';
 import { useAgentSeatLimits } from '../../agents/composables/useAgentSeatLimits';
+import { useAccount } from 'dashboard/composables/useAccount';
 
 const { t } = useI18n();
 const store = useStore();
@@ -30,6 +31,12 @@ const isPurchasing = ref(false);
 const isPurchasingAiTokens = ref(false);
 const conversationPackModal = ref(null);
 const aiTokenCreditsModal = ref(null);
+
+const { accountId, currentAccount } = useAccount();
+const isSubscriptionPastDue = computed(
+  () =>
+    currentAccount.value?.custom_attributes?.subscription_status === 'past_due'
+);
 
 const fetchLimits = async () => {
   try {
@@ -528,7 +535,7 @@ onMounted(async () => {
             sm
             solid
             blue
-            :disabled="isPurchasing || !canPurchaseAddOns"
+            :disabled="isPurchasing || !canPurchaseAddOns || isSubscriptionPastDue"
             @click="confirmPurchaseConversationPack"
           >
             {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_CONVERSATION_PACKS') }}
@@ -583,7 +590,9 @@ onMounted(async () => {
             sm
             solid
             blue
-            :disabled="isPurchasingAiTokens || !aiTokenEligible"
+            :disabled="
+              isPurchasingAiTokens || !aiTokenEligible || isSubscriptionPastDue
+            "
             @click="confirmPurchaseAiTokenCredits"
           >
             {{ t('BILLING_SETTINGS.LIMITS.AI_TOKENS.BUY_BUTTON') }}
