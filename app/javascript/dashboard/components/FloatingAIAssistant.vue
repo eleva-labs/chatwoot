@@ -81,7 +81,7 @@ const {
   error,
   currentToolCall,
   activeAssistantMessageId,
-  streamTranscript,
+  currentReasoning,
   sendMessage: sendStreamingMessage,
   setMessages,
   clear: clearChat,
@@ -139,22 +139,22 @@ const thoughtsExpanded = ref(false);
 
 const thoughtsTitle = computed(() => $t('GENERAL.AI_THOUGHTS_TITLE'));
 
-const hasStreamTranscript = computed(
-  () => streamTranscript.value && streamTranscript.value.trim().length > 0
+const hasReasoning = computed(
+  () => currentReasoning.value && currentReasoning.value.trim().length > 0
 );
 
 const shouldShowThoughtsPanel = computed(() => {
-  const show = hasStreamTranscript.value;
+  const show = hasReasoning.value;
   // eslint-disable-next-line no-console
   console.log(
     '[Thoughts Panel] shouldShow:',
     show,
     'isStreaming:',
     isStreaming.value,
-    'hasTranscript:',
-    hasStreamTranscript.value,
-    'transcript length:',
-    streamTranscript.value?.length
+    'hasReasoning:',
+    hasReasoning.value,
+    'reasoning length:',
+    currentReasoning.value?.length
   );
   return show;
 });
@@ -808,7 +808,7 @@ watch(isStreaming, (newVal, oldVal) => {
 });
 
 watch(
-  () => hasStreamTranscript.value,
+  () => hasReasoning.value,
   newVal => {
     if (newVal) {
       thoughtsExpanded.value = true;
@@ -821,7 +821,7 @@ watch(
   }
 );
 
-watch(streamTranscript, newVal => {
+watch(currentReasoning, newVal => {
   if (!newVal && !isStreaming.value) {
     thoughtsExpanded.value = false;
     return;
@@ -1281,7 +1281,7 @@ onUnmounted(() => {
                     : 'border-gray-200 bg-gray-50 text-gray-700',
                 ]"
               >
-                {{ streamTranscript }}
+                {{ currentReasoning }}
               </div>
             </transition>
           </div>

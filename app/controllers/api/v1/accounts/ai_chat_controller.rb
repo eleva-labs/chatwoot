@@ -49,7 +49,7 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
     }
 
     # Proxy streaming request to Python backend using Net::HTTP
-    uri = URI("#{ENV['AI_BACKEND_URL']}/api/messaging/agent-systems/message/stream")
+    uri = URI("#{ENV.fetch('AI_BACKEND_URL', nil)}/api/messaging/agent-systems/message/stream")
     uri.query = URI.encode_www_form(query_params)
 
     Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
@@ -69,17 +69,17 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
         chunk_count = 0
         backend_response.read_body do |chunk|
           chunk_count += 1
-          
+
           # Log received chunk (truncate if too long)
           chunk_preview = chunk.length > 200 ? "#{chunk[0..200]}..." : chunk
           Rails.logger.info("[AI Streaming Proxy] Chunk ##{chunk_count} received (#{chunk.bytesize} bytes): #{chunk_preview}")
-          
+
           # Parse and log event type if it's SSE format
           if chunk.include?('event:')
             event_match = chunk.match(/event:\s*(\S+)/)
             Rails.logger.info("[AI Streaming Proxy] Event type detected: #{event_match[1]}") if event_match
           end
-          
+
           # Forward chunk to frontend
           response.stream.write chunk
           Rails.logger.info("[AI Streaming Proxy] Chunk ##{chunk_count} forwarded to frontend")
@@ -88,17 +88,31 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
           Rails.logger.info("[AI Streaming Proxy] Client disconnected during streaming: #{e.message}")
           break
         end
-        
+
         Rails.logger.info("[AI Streaming Proxy] Stream completed. Total chunks: #{chunk_count}")
       end
     end
   rescue StandardError => e
     Rails.logger.error("Streaming error: #{e.message}")
-    # Send error event in SSE format
-    error_event = "event: error\ndata: {\"error\":\"#{e.message}\"}\n\n"
-    response.stream.write error_event rescue nil # Ignore if stream already closed
+    # Send error event in standardized SSE format (Vercel AI SDK compatible)
+    # No event: field, type is inside JSON payload
+    error_data = {
+      type: 'error',
+      errorText: e.message,
+      errorCode: 'STREAM_ERROR'
+    }
+    error_event = "data: #{error_data.to_json}\n\n"
+    begin
+      response.stream.write error_event
+    rescue StandardError
+      nil
+    end # Ignore if stream already closed
   ensure
-    response.stream.close rescue nil # Ensure stream is closed
+    begin
+      response.stream.close
+    rescue StandardError
+      nil
+    end # Ensure stream is closed
   end
 
   def create

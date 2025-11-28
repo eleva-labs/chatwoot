@@ -1,47 +1,35 @@
 import { ref } from 'vue';
+import {
+  STREAM_EVENTS,
+  STREAM_HEADERS,
+  STREAM_PROTOCOL_VERSION,
+} from 'shared/constants/streamEnums';
 
 /**
- * Composable for AI streaming functionality
+ * Composable for AI streaming functionality (Vercel AI SDK compatible format)
  *
  * Provides a reusable interface for streaming AI responses using Server-Sent Events (SSE).
- * Handles backend SSE parsing, state management, and streaming indicators.
+ * Implements the standardized streaming protocol compatible with Vercel AI SDK.
+ *
+ * Event Types Supported:
+ * - start: Stream initialization with messageId
+ * - text_start/text_delta/text_end: Text content lifecycle
+ * - reasoning_start/reasoning_delta/reasoning_end: Reasoning lifecycle
+ * - tool-call/tool-result: Tool invocation and results
+ * - finish: Stream completion with usage stats
+ * - error: Error events
+ * - [DONE]: Stream end marker
  *
  * @param {Object} options - Configuration options
  * @param {Function} options.getAuthHeaders - Function that returns auth headers
  * @param {Function} options.onSessionIdExtracted - Callback when session ID is extracted from headers
  * @param {Function} options.onError - Optional error handler callback
+ * @param {Function} options.onStreamStart - Callback when stream starts
+ * @param {Function} options.onToken - Callback for each token received
+ * @param {Function} options.onStreamComplete - Callback when stream completes
+ * @param {Function} options.onReasoningToken - Callback for reasoning tokens (optional)
  *
  * @returns {Object} Streaming interface
- * @returns {Ref<Array>} messages - Array of chat messages
- * @returns {Ref<Boolean>} isLoading - Loading state
- * @returns {Ref<Boolean>} isStreaming - Active streaming state
- * @returns {Ref<String|null>} error - Error message if any
- * @returns {Ref<Object|null>} currentToolCall - Current tool being called
- * @returns {Ref<String|null>} currentProgress - Current progress message
- * @returns {Function} sendMessage - Send a message with streaming
- * @returns {Function} setMessages - Replace current messages
- * @returns {Function} clearError - Clear error state
- *
- * @example
- * ```js
- * import { useAIStreaming } from 'dashboard/composables/useAIStreaming';
- *
- * const {
- *   messages,
- *   isLoading,
- *   isStreaming,
- *   sendMessage,
- * } = useAIStreaming({
- *   getAuthHeaders: () => ({ 'Authorization': 'Bearer token' }),
- *   onSessionIdExtracted: (sessionId) => { console.log('Session:', sessionId) },
- * });
- *
- * // Send a streaming message
- * await sendMessage({
- *   url: '/api/v1/accounts/123/ai_chat/stream',
- *   body: { messages: [{ role: 'user', content: 'Hello' }], agent_bot_id: 1 },
- * });
- * ```
  */
 export function useAIStreaming(options = {}) {
   const {
@@ -51,7 +39,14 @@ export function useAIStreaming(options = {}) {
     onStreamStart = () => {},
     onToken = () => {},
     onStreamComplete = () => {},
+    onReasoningToken = () => {},
   } = options;
+
+  // Required protocol headers
+  const REQUIRED_HEADERS = {
+    [STREAM_HEADERS.VERCEL_AI_UI_MESSAGE_STREAM]: STREAM_PROTOCOL_VERSION,
+    [STREAM_HEADERS.AI_STREAMING_PROTOCOL]: STREAM_PROTOCOL_VERSION,
+  };
 
   // Reactive state
   const messages = ref([]);
@@ -64,6 +59,16 @@ export function useAIStreaming(options = {}) {
   const streamBuffer = ref('');
   const streamTranscript = ref('');
 
+  // New state for enhanced features
+  const backendMessageId = ref(null);
+  const currentReasoning = ref('');
+  const isReasoning = ref(false);
+  const usage = ref(null);
+
+  /**
+   * Sanitize stream text by removing debug markers
+   * @private
+   */
   const sanitizeStreamText = text => {
     if (!text) return '';
     let cleaned = text;
@@ -82,6 +87,10 @@ export function useAIStreaming(options = {}) {
     return cleaned.trimStart();
   };
 
+  /**
+   * Sanitize assistant raw response
+   * @private
+   */
   const sanitizeAssistantRaw = raw => {
     if (!raw) return '';
     if (typeof raw !== 'string') return '';
@@ -89,177 +98,116 @@ export function useAIStreaming(options = {}) {
     return sanitizeStreamText(withoutPrefix);
   };
 
-  const upsertAssistantMessage = (messageId, content) => {
+  /**
+   * Upsert assistant message in messages array
+   * @private
+   */
+  const upsertAssistantMessage = (
+    messageId,
+    content,
+    reasoningContent = null
+  ) => {
     const msgIndex = messages.value.findIndex(m => m.id === messageId);
+    const messageData = {
+      id: messageId,
+      role: 'assistant',
+      content,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Include reasoning if present
+    if (reasoningContent) {
+      messageData.reasoning = reasoningContent;
+    }
+
     if (msgIndex === -1) {
-      messages.value.push({
-        id: messageId,
-        role: 'assistant',
-        content,
-        timestamp: new Date().toISOString(),
-      });
+      messages.value.push(messageData);
     } else {
       messages.value[msgIndex] = {
         ...messages.value[msgIndex],
-        content,
+        ...messageData,
       };
     }
   };
 
   /**
-   * Parse SSE event format (event: type\ndata: {...})
+   * Parse SSE event in standard format (Vercel AI SDK compatible)
+   *
+   * Standard format uses data: only with type inside JSON payload.
+   * No event: field is used.
+   *
    * @private
+   * @param {string} eventText - Raw SSE event text
+   * @returns {Object|null} Parsed event with type and data
    */
   const parseSSEEvent = eventText => {
-    let eventType = null;
-    let data = null;
-
-    // Handle both \r\n and \n line endings
     const lines = eventText.split(/\r?\n/);
-    // eslint-disable-next-line no-restricted-syntax
-    for (const line of lines) {
-      if (line.startsWith('event: ')) {
-        eventType = line.slice(7).trim();
-      } else if (line.startsWith('data: ')) {
-        const dataStr = line.slice(6);
+    let result = null;
+
+    lines.some(line => {
+      if (line.startsWith('data: ')) {
+        const dataStr = line.slice(6).trim();
+
+        // Handle [DONE] marker - explicit stream end signal
+        if (dataStr === '[DONE]') {
+          result = { type: STREAM_EVENTS.DONE, data: null };
+          return true;
+        }
+
         try {
-          data = JSON.parse(dataStr);
+          const data = JSON.parse(dataStr);
+          // Type is inside the JSON payload
+          if (data && data.type) {
+            result = { type: data.type, data };
+            return true;
+          }
+          // If no type, return raw data for potential handling
+          result = { type: 'unknown', data };
+          return true;
         } catch (e) {
           // eslint-disable-next-line no-console
           console.warn(
             '[AI Streaming] Failed to parse data:',
             dataStr.substring(0, 100)
           );
+          result = null;
+          return true;
         }
       }
-    }
+      return false;
+    });
 
-    return eventType && data ? { eventType, data } : null;
+    return result;
   };
 
   /**
-   * Process individual stream event
+   * Validate streaming protocol headers
    * @private
-   * @returns {String|null} Updated accumulated text or null
+   * @param {Response} response - Fetch response object
+   * @throws {Error} If headers are invalid
    */
-  const processStreamEvent = (parsed, messageId, accumulatedText) => {
-    const { eventType, data } = parsed;
+  const validateStreamingHeaders = response => {
+    const vercelHeader = response.headers.get(
+      STREAM_HEADERS.VERCEL_AI_UI_MESSAGE_STREAM
+    );
+    const protocolHeader = response.headers.get(
+      STREAM_HEADERS.AI_STREAMING_PROTOCOL
+    );
 
-    // Handle token events - update message content incrementally
-    if (eventType === 'token' && data.delta) {
-      const rawDelta = data.delta;
-      const isDebugDelta =
-        typeof rawDelta === 'string' &&
-        (rawDelta.includes('Agent started with input') ||
-          rawDelta.includes('ChatMessage('));
-      if (isDebugDelta) {
-        return accumulatedText;
-      }
-
-      const newText = accumulatedText + rawDelta;
-      streamBuffer.value = newText;
-      streamTranscript.value = sanitizeStreamText(newText);
-      onToken({
-        delta: rawDelta,
-        accumulatedText: newText,
-        messageId,
-      });
-
-      return newText;
-    }
-
-    // Handle tool call events
-    if (eventType === 'tool_call') {
-      currentToolCall.value = {
-        name: data.tool_name,
-        arguments: data.arguments,
-      };
-    }
-
-    // Handle tool result events
-    if (eventType === 'tool_result') {
-      currentToolCall.value = null;
-    }
-
-    // Handle progress events
-    if (eventType === 'progress') {
-      const progressMessage = data.message || data.status;
-      // Ignore verbose diagnostic progress messages
-      if (
-        progressMessage &&
-        progressMessage.includes('Agent started with input')
-      ) {
-        return accumulatedText;
-      }
-      currentProgress.value = progressMessage;
-    }
-
-    // Handle error events
-    if (eventType === 'error') {
-      error.value = data.error_message || 'An error occurred during streaming';
-      if (onError) {
-        onError(new Error(error.value));
-      }
-    }
-
-    // Handle complete events
-    if (eventType === 'complete') {
-      // Extract final text from various possible locations
-      const finalTextCandidate =
-        data.text_response ||
-        data.result?.text_response ||
-        data.final_output?.text ||
-        data.final_state?.agent_response ||
-        data.step_results?.[0]?.result?.text_response ||
-        null;
-      const sanitizedFinalCandidate = sanitizeAssistantRaw(finalTextCandidate);
-      const sanitizedRawResponse = sanitizeAssistantRaw(
-        data.metadata?.raw_response
-      );
-      const bufferFallback = sanitizeAssistantRaw(streamBuffer.value);
-      const finalText =
-        sanitizedFinalCandidate || sanitizedRawResponse || bufferFallback;
-
-      // eslint-disable-next-line no-console
-      console.log('[AI Streaming] Complete - candidates:', {
-        sanitizedFinalCandidate: sanitizedFinalCandidate?.substring(0, 50),
-        sanitizedRawResponse: sanitizedRawResponse?.substring(0, 50),
-        bufferFallback: bufferFallback?.substring(0, 50),
-        finalText: finalText?.substring(0, 50),
-      });
-
-      if (finalText) {
-        // eslint-disable-next-line no-console
-        console.log(
-          '[AI Streaming] Complete event - extracted text:',
-          finalText.substring(0, 100)
-        );
-
-        upsertAssistantMessage(messageId, finalText);
-        streamBuffer.value = finalTextCandidate || finalText;
-        if (!streamTranscript.value.trim()) {
-          streamTranscript.value = finalText;
-        }
-        activeAssistantMessageId.value = null;
-        // eslint-disable-next-line no-console
-        console.log(
-          '[AI Streaming] streamTranscript set to:',
-          streamTranscript.value?.substring(0, 100)
-        );
-        return finalText;
-      }
-      // eslint-disable-next-line no-console
-      console.log(
-        '[AI Streaming] Complete event but no text found in data:',
-        data
+    if (
+      vercelHeader !==
+        REQUIRED_HEADERS[STREAM_HEADERS.VERCEL_AI_UI_MESSAGE_STREAM] ||
+      protocolHeader !== REQUIRED_HEADERS[STREAM_HEADERS.AI_STREAMING_PROTOCOL]
+    ) {
+      throw new Error(
+        `Invalid streaming protocol headers. Expected ${STREAM_PROTOCOL_VERSION}, got: vercel=${vercelHeader}, protocol=${protocolHeader}`
       );
     }
-
-    return null;
   };
 
   /**
    * Process streaming response from backend
+   * Handles the standard Vercel AI SDK compatible format
    * @private
    */
   const processStreamingResponse = async (response, messageId) => {
@@ -271,11 +219,12 @@ export function useAIStreaming(options = {}) {
     const decoder = new TextDecoder();
     let chunkBuffer = '';
     let accumulatedText = '';
+    let accumulatedReasoning = '';
+    let currentTextBlockId = null;
+    let currentReasoningBlockId = null;
 
     try {
       isStreaming.value = true;
-      // eslint-disable-next-line no-console
-      console.log('[AI Streaming] isStreaming set to true');
 
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -283,79 +232,38 @@ export function useAIStreaming(options = {}) {
         const { done, value } = await reader.read();
 
         if (done) {
-          // eslint-disable-next-line no-console
-          console.log(
-            '[AI Streaming] Stream complete. Final buffer length:',
-            chunkBuffer.length
-          );
-          // eslint-disable-next-line no-console
-          console.log('[AI Streaming] Final buffer content:', chunkBuffer);
-
           // Process any remaining data in buffer
           if (chunkBuffer.trim()) {
-            // Split by SSE event separator (handle both \r\n\r\n and \n\n)
-            // Backend sends \r\n\r\n (Windows-style line endings)
             const events = chunkBuffer
               .split(/\r?\n\r?\n/)
               .filter(e => e.trim().length > 0);
 
-            // eslint-disable-next-line no-console
-            console.log(
-              '[AI Streaming] Processing',
-              events.length,
-              'events from final buffer'
-            );
-            // eslint-disable-next-line no-console
-            console.log(
-              '[AI Streaming] Event lengths:',
-              events.map(e => e.length)
-            );
-
-            // Process ALL events (not just the last one)
-            for (let index = 0; index < events.length; index += 1) {
-              const event = events[index];
-              if (!event.trim()) {
-                // Skip empty events
-                // eslint-disable-next-line no-continue
-                continue;
-              }
-
-              // eslint-disable-next-line no-console
-              console.log(
-                `[AI Streaming] Parsing event ${index + 1}/${events.length}, length: ${event.length}`
-              );
+            // eslint-disable-next-line no-restricted-syntax
+            for (let i = 0; i < events.length; i += 1) {
+              const event = events[i];
+              // eslint-disable-next-line no-continue
+              if (!event.trim()) continue;
 
               const parsed = parseSSEEvent(event);
               if (parsed) {
-                // eslint-disable-next-line no-console
-                console.log(
-                  '[AI Streaming] Final buffer event:',
-                  parsed.eventType,
-                  'Has data:',
-                  !!parsed.data
-                );
-
-                const newText = processStreamEvent(
+                // eslint-disable-next-line no-use-before-define
+                const eventResult = processStreamEvent(
                   parsed,
                   messageId,
-                  accumulatedText
+                  accumulatedText,
+                  accumulatedReasoning,
+                  currentTextBlockId,
+                  currentReasoningBlockId
                 );
-                if (newText !== null) {
-                  accumulatedText = newText;
-                  // eslint-disable-next-line no-console
-                  console.log(
-                    '[AI Streaming] Final accumulated text length:',
-                    newText.length,
-                    'Text preview:',
-                    newText.substring(0, 50)
-                  );
-                }
-              } else {
-                // eslint-disable-next-line no-console
-                console.warn(
-                  '[AI Streaming] Failed to parse event:',
-                  event.substring(0, 200)
-                );
+                if (eventResult.text !== null)
+                  accumulatedText = eventResult.text;
+                if (eventResult.reasoning !== null)
+                  accumulatedReasoning = eventResult.reasoning;
+                if (eventResult.textBlockId !== undefined)
+                  currentTextBlockId = eventResult.textBlockId;
+                if (eventResult.reasoningBlockId !== undefined)
+                  currentReasoningBlockId = eventResult.reasoningBlockId;
+                if (eventResult.done) break;
               }
             }
           }
@@ -371,46 +279,263 @@ export function useAIStreaming(options = {}) {
         // Keep the last incomplete event in buffer
         chunkBuffer = events.pop() || '';
 
-        for (let eventIndex = 0; eventIndex < events.length; eventIndex += 1) {
-          const event = events[eventIndex];
-          if (!event.trim()) {
-            // eslint-disable-next-line no-continue
-            continue;
-          }
+        // eslint-disable-next-line no-restricted-syntax
+        for (let i = 0; i < events.length; i += 1) {
+          const event = events[i];
+          // eslint-disable-next-line no-continue
+          if (!event.trim()) continue;
 
           const parsed = parseSSEEvent(event);
           if (parsed) {
-            // eslint-disable-next-line no-console
-            console.log(
-              '[AI Streaming] Event:',
-              parsed.eventType,
-              'Data:',
-              parsed.data
-            );
-
-            const newText = processStreamEvent(
+            // eslint-disable-next-line no-use-before-define
+            const eventResult = processStreamEvent(
               parsed,
               messageId,
-              accumulatedText
+              accumulatedText,
+              accumulatedReasoning,
+              currentTextBlockId,
+              currentReasoningBlockId
             );
-            if (newText !== null) {
-              accumulatedText = newText;
-              // eslint-disable-next-line no-console
-              console.log(
-                '[AI Streaming] Accumulated text length:',
-                newText.length
-              );
-            }
+            if (eventResult.text !== null) accumulatedText = eventResult.text;
+            if (eventResult.reasoning !== null)
+              accumulatedReasoning = eventResult.reasoning;
+            if (eventResult.textBlockId !== undefined)
+              currentTextBlockId = eventResult.textBlockId;
+            if (eventResult.reasoningBlockId !== undefined)
+              currentReasoningBlockId = eventResult.reasoningBlockId;
+            if (eventResult.done) break;
           }
         }
       }
     } finally {
       isStreaming.value = false;
+      isReasoning.value = false;
       currentToolCall.value = null;
       currentProgress.value = null;
       activeAssistantMessageId.value = null;
       streamBuffer.value = '';
     }
+  };
+
+  /**
+   * Process individual stream event (new standardized format)
+   * @private
+   * @returns {Object} Updated state
+   */
+  const processStreamEvent = (
+    parsed,
+    messageId,
+    accumulatedText,
+    accumulatedReasoning,
+    currentTextBlockId,
+    currentReasoningBlockId
+  ) => {
+    const { type, data: eventData } = parsed;
+    const result = {
+      text: null,
+      reasoning: null,
+      textBlockId: undefined,
+      reasoningBlockId: undefined,
+      done: false,
+    };
+
+    // Handle [DONE] marker - explicit stream end
+    if (type === STREAM_EVENTS.DONE) {
+      result.done = true;
+      return result;
+    }
+
+    // Handle start event - extract messageId
+    if (type === STREAM_EVENTS.START) {
+      backendMessageId.value = eventData.messageId || null;
+      onStreamStart(messageId, eventData.messageId);
+      return result;
+    }
+
+    // Handle text lifecycle events
+    if (type === STREAM_EVENTS.TEXT_START) {
+      result.textBlockId = eventData.id;
+      result.text = '';
+      return result;
+    }
+
+    if (type === STREAM_EVENTS.TEXT_DELTA) {
+      // Only process if we have an active text block and IDs match
+      if (currentTextBlockId && eventData.id !== currentTextBlockId) {
+        return result;
+      }
+
+      const delta = eventData.delta || '';
+
+      // Skip debug deltas
+      if (
+        delta.includes('Agent started with input') ||
+        delta.includes('ChatMessage(')
+      ) {
+        return result;
+      }
+
+      const newText = accumulatedText + delta;
+      streamBuffer.value = newText;
+      streamTranscript.value = sanitizeStreamText(newText);
+
+      onToken({
+        delta,
+        accumulatedText: newText,
+        messageId,
+      });
+
+      result.text = newText;
+      return result;
+    }
+
+    if (type === STREAM_EVENTS.TEXT_END) {
+      // Finalize text block
+      if (accumulatedText) {
+        upsertAssistantMessage(
+          messageId,
+          sanitizeStreamText(accumulatedText),
+          accumulatedReasoning || null
+        );
+      }
+      result.textBlockId = null;
+      return result;
+    }
+
+    // Handle reasoning lifecycle events
+    if (type === STREAM_EVENTS.REASONING_START) {
+      isReasoning.value = true;
+      result.reasoningBlockId = eventData.id;
+      result.reasoning = '';
+      return result;
+    }
+
+    if (type === STREAM_EVENTS.REASONING_DELTA) {
+      // Only process if we have an active reasoning block and IDs match
+      if (currentReasoningBlockId && eventData.id !== currentReasoningBlockId) {
+        return result;
+      }
+
+      const delta = eventData.delta || '';
+      const newReasoning = accumulatedReasoning + delta;
+      currentReasoning.value = newReasoning;
+
+      onReasoningToken({
+        delta,
+        accumulatedReasoning: newReasoning,
+        messageId,
+      });
+
+      result.reasoning = newReasoning;
+      return result;
+    }
+
+    if (type === STREAM_EVENTS.REASONING_END) {
+      isReasoning.value = false;
+      result.reasoningBlockId = null;
+      return result;
+    }
+
+    // Handle tool events (standardized format)
+    if (type === STREAM_EVENTS.TOOL_CALL) {
+      currentToolCall.value = {
+        name: eventData.toolName,
+        arguments: eventData.args,
+        toolCallId: eventData.toolCallId || null,
+      };
+      return result;
+    }
+
+    if (type === STREAM_EVENTS.TOOL_RESULT) {
+      // Store result if needed for display
+      const toolResult = {
+        name: eventData.toolName,
+        result: eventData.result,
+        isError: eventData.isError || false,
+        toolCallId: eventData.toolCallId || null,
+      };
+
+      // Handle tool error
+      if (toolResult.isError && onError) {
+        onError(new Error(`Tool error: ${eventData.result}`));
+      }
+
+      currentToolCall.value = null;
+      return result;
+    }
+
+    // Handle step events (for progress indicators)
+    if (type === STREAM_EVENTS.START_STEP) {
+      currentProgress.value = eventData.messageId || 'Processing...';
+      return result;
+    }
+
+    if (type === STREAM_EVENTS.FINISH_STEP) {
+      currentProgress.value = null;
+      return result;
+    }
+
+    // Handle finish event - extract usage stats
+    if (type === STREAM_EVENTS.FINISH) {
+      // Extract usage statistics
+      if (eventData.usage) {
+        usage.value = {
+          promptTokens: eventData.usage.promptTokens || 0,
+          completionTokens: eventData.usage.completionTokens || 0,
+          totalTokens:
+            (eventData.usage.promptTokens || 0) +
+            (eventData.usage.completionTokens || 0),
+        };
+      }
+
+      // Finalize message if not already done
+      const finalText =
+        sanitizeStreamText(accumulatedText) ||
+        sanitizeAssistantRaw(streamBuffer.value);
+      if (finalText) {
+        upsertAssistantMessage(
+          messageId,
+          finalText,
+          accumulatedReasoning || null
+        );
+        streamTranscript.value = finalText;
+      }
+
+      onStreamComplete({
+        messageId,
+        backendMessageId: backendMessageId.value,
+        finalText,
+        reasoning: accumulatedReasoning || null,
+        usage: usage.value,
+        finishReason: eventData.finishReason || 'stop',
+      });
+
+      activeAssistantMessageId.value = null;
+      return result;
+    }
+
+    // Handle error event (standardized format)
+    if (type === STREAM_EVENTS.ERROR) {
+      const errorMessage =
+        eventData.errorText ||
+        eventData.error ||
+        'An error occurred during streaming';
+      const errorCode = eventData.errorCode || null;
+      const retryAfter = eventData.retryAfter || null;
+
+      error.value = errorMessage;
+
+      if (onError) {
+        const err = new Error(errorMessage);
+        err.code = errorCode;
+        err.retryAfter = retryAfter;
+        onError(err);
+      }
+
+      return result;
+    }
+
+    return result;
   };
 
   /**
@@ -423,9 +548,6 @@ export function useAIStreaming(options = {}) {
    * @returns {Promise<Object>} Result with success status and session ID
    */
   const sendMessage = async ({ url, body, fallbackToNonStreaming = true }) => {
-    // eslint-disable-next-line no-console
-    console.log('[AI Streaming] sendMessage called', { url, body });
-
     const userMessage = body.messages?.[0]?.content || body.messages?.[0];
 
     // Add user message to UI immediately
@@ -440,17 +562,19 @@ export function useAIStreaming(options = {}) {
 
     const assistantMessageId = Date.now() + 1;
 
+    // Reset state
     isLoading.value = true;
     error.value = null;
     activeAssistantMessageId.value = assistantMessageId;
     streamBuffer.value = '';
     streamTranscript.value = '';
-
-    // eslint-disable-next-line no-console
-    console.log('[AI Streaming] Starting stream request to:', url);
+    backendMessageId.value = null;
+    currentReasoning.value = '';
+    isReasoning.value = false;
+    usage.value = null;
 
     try {
-      // Attempt streaming first
+      // Attempt streaming
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -460,45 +584,29 @@ export function useAIStreaming(options = {}) {
         body: JSON.stringify(body),
       });
 
-      // eslint-disable-next-line no-console
-      console.log(
-        '[AI Streaming] Response status:',
-        response.status,
-        response.statusText
-      );
-
       if (!response.ok) {
         throw new Error(`Stream request failed: ${response.statusText}`);
       }
 
+      // Validate streaming protocol headers
+      validateStreamingHeaders(response);
+
       // Extract session ID from headers
-      const sessionId = response.headers.get('X-Chat-Session-Id');
+      const sessionId = response.headers.get(STREAM_HEADERS.CHAT_SESSION_ID);
       if (sessionId) {
-        // eslint-disable-next-line no-console
-        console.log('[AI Streaming] Session ID extracted:', sessionId);
         onSessionIdExtracted(sessionId);
       }
-
-      // eslint-disable-next-line no-console
-      console.log('[AI Streaming] Starting stream processing...');
-
-      onStreamStart(assistantMessageId);
 
       // Process the stream
       await processStreamingResponse(response, assistantMessageId);
 
-      const finalOutput = sanitizeStreamText(
-        streamTranscript.value || streamBuffer.value
-      );
-      onStreamComplete({
-        messageId: assistantMessageId,
-        finalText: finalOutput,
-      });
       streamBuffer.value = '';
 
       return {
         success: true,
         sessionId,
+        backendMessageId: backendMessageId.value,
+        usage: usage.value,
       };
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -618,6 +726,10 @@ export function useAIStreaming(options = {}) {
     activeAssistantMessageId.value = null;
     streamBuffer.value = '';
     streamTranscript.value = '';
+    backendMessageId.value = null;
+    currentReasoning.value = '';
+    isReasoning.value = false;
+    usage.value = null;
   };
 
   return {
@@ -631,6 +743,12 @@ export function useAIStreaming(options = {}) {
     activeAssistantMessageId,
     streamBuffer,
     streamTranscript,
+
+    // New enhanced state
+    backendMessageId,
+    currentReasoning,
+    isReasoning,
+    usage,
 
     // Methods
     sendMessage,

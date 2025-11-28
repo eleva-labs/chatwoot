@@ -83,8 +83,9 @@ export default {
       return showSecondarySidebar;
     },
     canUseAI() {
-      // Temporarily always return true for testing
+      // // We will let all users use the AI assistant for now
       return true;
+      // Uncomment this if you want to restrict AI assistant to only certain users
       // return window.chatwootConfig?.features?.includes('ai_assistant') &&
       //        window.chatwootConfig?.aiAssistantEnabled &&
       //        process.env.NODE_ENV !== 'test'; // Don't show in tests

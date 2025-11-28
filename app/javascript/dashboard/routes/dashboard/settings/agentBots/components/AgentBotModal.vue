@@ -165,18 +165,6 @@ const handleAvatarDelete = async () => {
 };
 
 const handleSubmit = async () => {
-  /* eslint-disable no-console */
-  console.log('[AgentBotModal] handleSubmit called');
-  console.log('[AgentBotModal] Form state:', formState);
-  console.log('[AgentBotModal] Validation state:', {
-    invalid: v$.value.$invalid,
-    botNameInvalid: v$.value.botName.$invalid,
-    botUrlInvalid: v$.value.botUrl.$invalid,
-    botNameErrors: v$.value.botName.$errors,
-    botUrlErrors: v$.value.botUrl.$errors,
-  });
-  /* eslint-enable no-console */
-
   v$.value.$touch();
   if (v$.value.$invalid) return;
   if (showAccessToken.value) return;
@@ -284,30 +272,6 @@ const onClickClose = () => {
 };
 
 watch(() => props.selectedBot, initializeForm, { immediate: true, deep: true });
-
-// Debug watcher for validation state
-watch(
-  () => v$.value.$invalid,
-  invalid => {
-    /* eslint-disable no-console */
-    console.log(
-      '[AgentBotModal] Validation changed - Button disabled:',
-      invalid
-    );
-    console.log('[AgentBotModal] Current form values:', {
-      botName: formState.botName,
-      botUrl: formState.botUrl,
-    });
-    console.log('[AgentBotModal] Validation errors:', {
-      botNameInvalid: v$.value.botName.$invalid,
-      botUrlInvalid: v$.value.botUrl.$invalid,
-      botNameErrors: v$.value.botName.$errors,
-      botUrlErrors: v$.value.botUrl.$errors,
-    });
-    /* eslint-enable no-console */
-  },
-  { immediate: true }
-);
 
 defineExpose({ dialogRef });
 </script>
