@@ -40,7 +40,6 @@ import labels from './modules/labels';
 import macros from './modules/macros';
 import notifications from './modules/notifications';
 import portals from './modules/helpCenterPortals';
-import prompts from './modules/prompts';
 import reports from './modules/reports';
 import sla from './modules/sla';
 import slaReports from './modules/SLAReports';
@@ -58,6 +57,7 @@ import copilotThreads from './captain/copilotThreads';
 import copilotMessages from './captain/copilotMessages';
 import captainScenarios from './captain/scenarios';
 import captainTools from './captain/tools';
+import captainCustomTools from './captain/customTools';
 
 const plugins = [];
 
@@ -103,7 +103,6 @@ export default createStore({
     macros,
     notifications,
     portals,
-    prompts,
     reports,
     sla,
     slaReports,
@@ -121,6 +120,7 @@ export default createStore({
     copilotMessages,
     captainScenarios,
     captainTools,
+    captainCustomTools,
   },
   plugins,
 });

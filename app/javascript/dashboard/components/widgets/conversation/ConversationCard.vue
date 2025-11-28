@@ -1,7 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
 import { useVoiceCallStatus } from 'dashboard/composables/useVoiceCallStatus';
@@ -47,7 +46,6 @@ const emit = defineEmits([
 
 const router = useRouter();
 const store = useStore();
-const { t } = useI18n();
 
 const hovered = ref(false);
 const showContextMenu = ref(false);
@@ -74,7 +72,7 @@ const currentContact = computed(() => {
 });
 
 const isAiEnabled = computed(() => {
-  return !!currentContact.value?.custom_attributes?.ai_enabled;
+  return !!props.chat?.custom_attributes?.ai_enabled;
 });
 
 const isActiveChat = computed(() => {
@@ -98,11 +96,6 @@ const callDirection = computed(
 
 const { labelKey: voiceLabelKey, listIconColor: voiceIconColor } =
   useVoiceCallStatus(callStatus, callDirection);
-
-const voiceCallLabel = computed(() => {
-  if (!callStatus.value) return '';
-  return voiceLabelKey.value;
-});
 
 const inboxId = computed(() => props.chat.inbox_id);
 
@@ -264,7 +257,7 @@ const deleteConversation = () => {
     @contextmenu="openContextMenu($event)"
   >
     <div
-      class="relative flex-shrink-0 flex items-start py-3"
+      class="relative"
       @mouseenter="onThumbnailHover"
       @mouseleave="onThumbnailLeave"
     >
@@ -301,7 +294,11 @@ const deleteConversation = () => {
     >
       <div
         v-if="showMetaSection"
-        class="flex items-center min-w-0 gap-1 ltr:ml-2 rtl:mr-2"
+        class="flex items-center min-w-0 gap-1"
+        :class="{
+          'ltr:ml-2 rtl:mr-2': !compact,
+          'mx-2': compact,
+        }"
       >
         <InboxName v-if="showInboxName" :inbox="inbox" class="flex-1 min-w-0" />
         <div
@@ -337,7 +334,7 @@ const deleteConversation = () => {
           :class="[voiceIconColor]"
         />
         <span class="mx-1">
-          {{ t(voiceCallLabel) }}
+          {{ $t(voiceLabelKey) }}
         </span>
       </div>
       <MessagePreview
@@ -359,7 +356,7 @@ const deleteConversation = () => {
           icon="info"
         />
         <span class="mx-0.5">
-          {{ t(`CHAT_LIST.NO_MESSAGES`) }}
+          {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
         </span>
       </p>
       <div

@@ -6,6 +6,7 @@
       "EMPTY_STATE": "Nenhum resultado encontrado"
     },
     "CLOSE": "Fechar",
-    "AI_THOUGHTS_TITLE": "Pensamentos..."
+    "BETA": "Beta",
+    "BETA_DESCRIPTION": "Este recurso está em fase BETA e deve sofre alterações assim que Nós melhorarmos ele."
   }
 }

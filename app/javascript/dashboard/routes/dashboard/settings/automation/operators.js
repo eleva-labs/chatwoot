@@ -111,3 +111,10 @@ export const OPERATOR_TYPES_6 = [
     label: 'Starts With',
   },
 ];
+
+export const OPERATOR_TYPES_7 = [
+  {
+    value: 'percentage_is_less_than',
+    label: 'percentage_is_less_than',
+  },
+];

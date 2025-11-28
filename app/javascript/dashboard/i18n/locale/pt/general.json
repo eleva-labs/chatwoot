@@ -6,6 +6,7 @@
       "EMPTY_STATE": "Nenhum resultado encontrado"
     },
     "CLOSE": "Fechar",
-    "AI_THOUGHTS_TITLE": "Pensamentos..."
+    "BETA": "Beta",
+    "BETA_DESCRIPTION": "This feature is in beta and may change as we improve it."
   }
 }

@@ -1,0 +1,125 @@
+{
+  "AGENT_MGMT": {
+    "HEADER": "Members",
+    "HEADER_BTN_TXT": "Add Member",
+    "LOADING": "Fetching Member List",
+    "DESCRIPTION": "A member of your team who can view and respond to user messages. The list below shows all the members in your account.",
+    "LEARN_MORE": "Learn about user roles",
+    "AGENT_TYPES": {
+      "ADMINISTRATOR": "Administrator",
+      "AGENT": "Member"
+    },
+    "LIST": {
+      "404": "There are no members associated to this account",
+      "TITLE": "Manage members in your team",
+      "DESC": "You can add/remove members to/in your team.",
+      "NAME": "Name",
+      "EMAIL": "EMAIL",
+      "STATUS": "Status",
+      "ACTIONS": "Actions",
+      "VERIFIED": "Verified",
+      "VERIFICATION_PENDING": "Verification Pending",
+      "AVAILABLE_CUSTOM_ROLE": "Available custom role permissions"
+    },
+    "ADD": {
+      "TITLE": "Add member to your team",
+      "DESC": "You can add people who will be able to handle support for your channels.",
+      "INVITATION_DESC": "Team members will receive email invitations and must accept them to join your account. You can always invite more team members later from the Members section.",
+      "CANCEL_BUTTON_TEXT": "Cancel",
+      "FORM": {
+        "NAME": {
+          "LABEL": "Member Name",
+          "PLACEHOLDER": "Please enter a name of the member"
+        },
+        "AGENT_TYPE": {
+          "LABEL": "Role",
+          "PLACEHOLDER": "Please select a role",
+          "ERROR": "Role is required"
+        },
+        "EMAIL": {
+          "LABEL": "Email Address",
+          "PLACEHOLDER": "Enter the email address of the member"
+        },
+        "SUBMIT": "Add Member"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Member added successfully",
+        "EXIST_MESSAGE": "Member email already in use, Please try another email address",
+        "ERROR_MESSAGE": "Could not connect to Woot Server, Please try again later"
+      }
+    },
+    "DELETE": {
+      "BUTTON_TEXT": "Delete",
+      "API": {
+        "SUCCESS_MESSAGE": "Member deleted successfully",
+        "ERROR_MESSAGE": "Could not connect to Woot Server, Please try again later"
+      },
+      "CONFIRM": {
+        "TITLE": "Confirm Deletion",
+        "MESSAGE": "Are you sure to delete ",
+        "YES": "Yes, Delete ",
+        "NO": "No, Keep "
+      }
+    },
+    "EDIT": {
+      "TITLE": "Edit member",
+      "FORM": {
+        "NAME": {
+          "LABEL": "Member Name",
+          "PLACEHOLDER": "Please enter a name of the member"
+        },
+        "AGENT_TYPE": {
+          "LABEL": "Role",
+          "PLACEHOLDER": "Please select a role",
+          "ERROR": "Role is required"
+        },
+        "EMAIL": {
+          "LABEL": "Email Address",
+          "PLACEHOLDER": "Please enter an email address of the member"
+        },
+        "AGENT_AVAILABILITY": {
+          "LABEL": "Availability",
+          "PLACEHOLDER": "Please select an availability status",
+          "ERROR": "Availability is required"
+        },
+        "SUBMIT": "Edit Member"
+      },
+      "BUTTON_TEXT": "Edit",
+      "CANCEL_BUTTON_TEXT": "Cancel",
+      "API": {
+        "SUCCESS_MESSAGE": "Member updated successfully",
+        "ERROR_MESSAGE": "Could not connect to Woot Server, Please try again later"
+      },
+      "PASSWORD_RESET": {
+        "ADMIN_RESET_BUTTON": "Reset Password",
+        "ADMIN_SUCCESS_MESSAGE": "An email with reset password instructions has been sent to the member",
+        "SUCCESS_MESSAGE": "Member password reset successfully",
+        "ERROR_MESSAGE": "Could not connect to Woot Server, Please try again later"
+      }
+    },
+    "SEARCH": {
+      "NO_RESULTS": "No results found."
+    },
+    "MULTI_SELECTOR": {
+      "PLACEHOLDER": "None",
+      "TITLE": {
+        "AGENT": "Select member",
+        "TEAM": "Select team"
+      },
+      "LIST": {
+        "NONE": "None"
+      },
+      "SEARCH": {
+        "NO_RESULTS": {
+          "AGENT": "No members found",
+          "TEAM": "No teams found"
+        },
+        "PLACEHOLDER": {
+          "AGENT": "Search members",
+          "TEAM": "Search teams",
+          "INPUT": "Search for members"
+        }
+      }
+    }
+  }
+}

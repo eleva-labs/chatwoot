@@ -7,15 +7,12 @@ import {
   onBeforeUnmount,
   nextTick,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { required, minLength } from '@vuelidate/validators';
 import router from '../../../../index';
-
-import NextButton from 'dashboard/components-next/button/Button.vue';
-import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
-import { DotLottieVue } from '@lottiefiles/dotlottie-vue';
 
 const props = defineProps({
   disabledAutoRoute: {
@@ -25,6 +22,12 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['stepChanged']);
+
+const { t } = useI18n();
+
+import NextButton from 'dashboard/components-next/button/Button.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import { DotLottieVue } from '@lottiefiles/dotlottie-vue';
 
 const store = useStore();
 
@@ -135,7 +138,7 @@ const fetchQrAndStartPolling = async () => {
       qrImageB64.value = `data:image/png;base64,${imageBase64}`;
       isLoadingQr.value = false;
     } else {
-      qrError.value = 'QR code is being generated, please wait...';
+      qrError.value = t('INBOX_MGMT.ADD.WHAPI.QR_BEING_GENERATED');
     }
 
     clearQrTimer();
@@ -143,8 +146,8 @@ const fetchQrAndStartPolling = async () => {
     qrRetryCount.value += 1;
     if (qrRetryCount.value > qrMaxRetries.value) {
       isLoadingQr.value = false;
-      qrError.value = 'QR code generation timed out. Please try again.';
-      useAlert('QR code expired or retry limit reached');
+      qrError.value = t('INBOX_MGMT.ADD.WHAPI.QR_TIMEOUT');
+      useAlert(t('INBOX_MGMT.ADD.WHAPI.QR_EXPIRED'));
       return;
     }
     qrPollTimer.value = setTimeout(fetchQrAndStartPolling, intervalMs);
@@ -154,8 +157,8 @@ const fetchQrAndStartPolling = async () => {
 
     qrRetryCount.value += 1;
     if (qrRetryCount.value > qrMaxRetries.value) {
-      qrError.value = 'QR code generation failed. Please try again.';
-      useAlert('QR code expired or retry limit reached');
+      qrError.value = t('INBOX_MGMT.ADD.WHAPI.QR_FAILED');
+      useAlert(t('INBOX_MGMT.ADD.WHAPI.QR_EXPIRED'));
       return;
     }
 
@@ -164,14 +167,14 @@ const fetchQrAndStartPolling = async () => {
       clearQrTimer();
       step.value = 'success';
     } else if (e.message && e.message.includes('503')) {
-      qrError.value = 'Service temporarily unavailable. Retrying...';
+      qrError.value = t('INBOX_MGMT.ADD.WHAPI.SERVICE_UNAVAILABLE');
       qrPollTimer.value = setTimeout(fetchQrAndStartPolling, 30000);
     } else if (e.message && e.message.includes('unexpected response format')) {
-      qrError.value = 'QR code is being prepared. Retrying...';
+      qrError.value = t('INBOX_MGMT.ADD.WHAPI.QR_PREPARING');
       qrPollTimer.value = setTimeout(fetchQrAndStartPolling, 15000);
     } else {
       // Default retry interval
-      qrError.value = 'Generating QR code. Please wait...';
+      qrError.value = t('INBOX_MGMT.ADD.WHAPI.QR_PLEASE_WAIT');
       qrPollTimer.value = setTimeout(fetchQrAndStartPolling, 20000);
     }
   }
@@ -189,7 +192,7 @@ const createChannel = async () => {
     step.value = 'qr';
     fetchQrAndStartPolling();
   } catch (error) {
-    useAlert(error.message || 'An error occurred while creating the channel');
+    useAlert(error.message || t('INBOX_MGMT.ADD.WHAPI.CHANNEL_CREATE_ERROR'));
   }
 };
 
@@ -271,7 +274,7 @@ onBeforeUnmount(() => {
           type="submit"
           solid
           blue
-          label="Continue"
+          :label="$t('INBOX_MGMT.ADD.WHAPI.CONTINUE_BUTTON')"
           :disabled="isContinueButtonDisabled"
           :class="{ 'opacity-50 cursor-not-allowed': isContinueButtonDisabled }"
         />
