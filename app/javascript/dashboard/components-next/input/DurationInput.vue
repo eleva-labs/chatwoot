@@ -59,27 +59,29 @@ watch(unit, () => {
 </script>
 
 <template>
-  <Input
-    v-model="transformedValue"
-    type="number"
-    autocomplete="off"
-    :disabled="disabled"
-    :placeholder="t('DURATION_INPUT.PLACEHOLDER')"
-    class="flex-grow w-full disabled:"
-  />
-  <select
-    v-model="unit"
-    :disabled="disabled"
-    class="mb-0 text-sm disabled:outline-n-weak disabled:opacity-40"
-  >
-    <option :value="DURATION_UNITS.MINUTES">
-      {{ t('DURATION_INPUT.MINUTES') }}
-    </option>
-    <option :value="DURATION_UNITS.HOURS">
-      {{ t('DURATION_INPUT.HOURS') }}
-    </option>
-    <option :value="DURATION_UNITS.DAYS">
-      {{ t('DURATION_INPUT.DAYS') }}
-    </option>
-  </select>
+  <div class="flex gap-2 w-full">
+    <Input
+      v-model="transformedValue"
+      type="number"
+      autocomplete="off"
+      :disabled="disabled"
+      :placeholder="t('DURATION_INPUT.PLACEHOLDER')"
+      class="flex-grow w-full"
+    />
+    <select
+      v-model="unit"
+      :disabled="disabled"
+      class="mb-0 text-sm disabled:outline-n-weak disabled:opacity-40"
+    >
+      <option :value="DURATION_UNITS.MINUTES">
+        {{ t('DURATION_INPUT.MINUTES') }}
+      </option>
+      <option :value="DURATION_UNITS.HOURS">
+        {{ t('DURATION_INPUT.HOURS') }}
+      </option>
+      <option :value="DURATION_UNITS.DAYS">
+        {{ t('DURATION_INPUT.DAYS') }}
+      </option>
+    </select>
+  </div>
 </template>
