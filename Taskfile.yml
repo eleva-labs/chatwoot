@@ -288,9 +288,17 @@ tasks:
   # -------------------------
 
   docker-up:
-    desc: 'Start all Docker containers'
+    desc: 'Start Docker containers (usage: task docker-up or task docker-up -- db)'
     cmds:
-      - docker compose up -d
+      - |
+        if [ "{{.CLI_ARGS}}" = "db" ]; then
+          echo "🚀 Starting database containers only (postgres, redis)..."
+          docker compose up -d postgres redis
+        else
+          echo "🚀 Starting all containers..."
+          docker compose up -d
+        fi
+      - echo "✅ Containers started"
 
   docker-stop:
     desc: 'Stop Docker containers (without removing them)'

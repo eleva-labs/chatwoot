@@ -31,6 +31,7 @@
     }
   ],
   "dependencies": {
+    "@ai-sdk/vue": "^2.0.104",
     "@breezystack/lamejs": "^1.2.7",
     "@chatwoot/ninja-keys": "1.2.3",
     "@chatwoot/prosemirror-schema": "1.2.1",
@@ -105,7 +106,8 @@
     "vuedraggable": "^4.1.0",
     "vuex": "~4.1.0",
     "vuex-router-sync": "6.0.0-rc.1",
-    "wavesurfer.js": "7.8.6"
+    "wavesurfer.js": "7.8.6",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@egoist/tailwindcss-icons": "^1.8.1",
