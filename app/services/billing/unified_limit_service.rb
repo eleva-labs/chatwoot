@@ -10,7 +10,7 @@ class Billing::UnifiedLimitService
   def initialize(account, resource_type)
     @account = account
     @resource_type = resource_type.to_sym
-    @plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
+    @plan_name = account.custom_attributes&.dig('plan_name') || 'starter'
     @plan_config = self.class.plan_details(@plan_name)
 
     raise ArgumentError, "Invalid resource type: #{resource_type}. Must be one of: #{RESOURCE_TYPES.join(', ')}" unless RESOURCE_TYPES.include?(@resource_type)
@@ -49,8 +49,9 @@ class Billing::UnifiedLimitService
 
   # Purchased extra units from Stripe subscription items
   def purchased_extra
-    # Free trial and community plans don't support add-ons
-    return 0 if %w[free_trial community].include?(@plan_name)
+    # Use unified service to check if account can have purchased add-ons
+    purchase_check = Billing::CanPurchaseAddOnsService.new(@account)
+    return 0 if purchase_check.blocked?
 
     # Enterprise has unlimited
     return 0 if unlimited?
@@ -199,7 +200,10 @@ class Billing::UnifiedLimitService
   end
 
   def get_add_on_pricing
-    return nil if %w[free_trial community enterprise].include?(@plan_name)
+    # Use unified service to check if account can purchase add-ons
+    purchase_check = Billing::CanPurchaseAddOnsService.new(@account)
+    return nil if purchase_check.blocked?
+    return nil if @plan_name == 'enterprise'
 
     add_on_config = @plan_config&.dig('add_ons', @resource_type.to_s)
     return nil unless add_on_config
@@ -234,7 +238,7 @@ class Billing::UnifiedLimitService
 
   def next_tier_option
     case @plan_name
-    when 'free_trial'
+    when 'community'
       { plan: 'starter', action: 'upgrade_plan', endpoint: "/api/v2/accounts/#{@account.id}/subscription" }
     when 'starter'
       { plan: 'professional', action: 'upgrade_plan', endpoint: "/api/v2/accounts/#{@account.id}/subscription" }

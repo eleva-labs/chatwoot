@@ -8,7 +8,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, email } from '@vuelidate/validators';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { useAgentSeatLimits } from './composables/useAgentSeatLimits';
-import { useAccount } from 'dashboard/composables/useAccount';
+import { useCanPurchaseAddOns } from 'dashboard/composables/useCanPurchaseAddOns';
 
 const emit = defineEmits(['close']);
 
@@ -36,32 +36,20 @@ const {
   fetchLimits,
 } = useAgentSeatLimits(store);
 
-const { currentAccount } = useAccount();
-const planName = computed(
-  () => currentAccount.value?.custom_attributes?.plan_name || 'free_trial'
-);
-const subscriptionStatus = computed(
-  () => currentAccount.value?.custom_attributes?.subscription_status || ''
-);
-const isSubscriptionPastDue = computed(
-  () => subscriptionStatus.value === 'past_due'
-);
-const isTrialing = computed(() =>
-  subscriptionStatus.value === 'trialing'
-);
-const isTrialPlan = computed(
-  () => planName.value === 'free_trial' || isTrialing.value
-);
-const trialRestrictionMessage = computed(() => {
-  if (!isTrialPlan.value) {
-    return null;
-  }
+// Use unified composable for add-on purchase eligibility
+const { canPurchaseAddOns, isPastDue, blockMessage, planName } = useCanPurchaseAddOns();
 
+const trialRestrictionMessage = computed(() => {
+  // Only show message if user needs to pay for an extra seat but can't
   if (hasAvailableIncludedSeat.value) {
     return null;
   }
 
-  return t('AGENT_MGMT.ADD.TRIAL_LIMIT_NOTE');
+  if (!canPurchaseAddOns.value) {
+    return blockMessage.value || t('AGENT_MGMT.ADD.TRIAL_LIMIT_NOTE');
+  }
+
+  return null;
 });
 
 const showUsageLoadingMessage = computed(() => {
@@ -176,10 +164,14 @@ const fetchProrationPreview = async () => {
 };
 
   watch(
-    [hasLoadedData, hasAvailableIncludedSeat, isTrialPlan],
-    async ([loaded, hasSeat, isTrial]) => {
+    [hasLoadedData, hasAvailableIncludedSeat, canPurchaseAddOns, planName],
+    async ([loaded, hasSeat, canPurchase, plan]) => {
     if (loaded && !hasSeat) {
-      if (!isTrial) {
+      if (canPurchase) {
+        // Reset proration cache when plan changes to recalculate with new plan's pricing
+        if (hasFetchedProration.value) {
+          hasFetchedProration.value = false;
+        }
         await fetchProrationPreview();
       } else {
         prorationAmount.value = null;
@@ -401,7 +393,7 @@ const skipInvitations = () => {
             isPurchasingExtraSeat ||
             isSeatInfoLoading ||
             trialRestrictionMessage ||
-            isSubscriptionPastDue
+            isPastDue
           "
           :is-loading="uiFlags.isCreating || isPurchasingExtraSeat"
         />
@@ -451,7 +443,7 @@ const skipInvitations = () => {
               isPurchasingExtraSeat ||
               isSeatInfoLoading ||
               trialRestrictionMessage ||
-              isSubscriptionPastDue
+              isPastDue
             "
             :is-loading="uiFlags.isCreating || isPurchasingExtraSeat"
           />

@@ -18,9 +18,11 @@ RSpec.describe AccountBuilder do
     )
   end
 
-  # Mock the email validation service
+  # Mock the email validation service and Stripe subscription creation
   before do
     allow(Account::SignUpEmailValidationService).to receive(:new).with(email).and_return(validation_service)
+    # Mock Stripe subscription creation to avoid actual API calls in tests
+    allow_any_instance_of(Billing::CreateCustomerService).to receive(:perform).and_return({ success: true })
   end
 
   describe '#perform' do
@@ -68,33 +70,27 @@ RSpec.describe AccountBuilder do
         expect(account.custom_attributes['store_id']).to eq(expected_store_id)
       end
 
-      it 'sets initial free trial plan with billing status provisioning_pending' do
+      it 'sets initial starter plan with trialing status and billing status provisioning_pending' do
         _user, account = account_builder.perform
 
-        expect(account.custom_attributes['plan_name']).to eq('free_trial')
-        expect(account.custom_attributes['subscription_status']).to eq('active')
+        expect(account.custom_attributes['plan_name']).to eq('starter')
+        expect(account.custom_attributes['subscription_status']).to eq('trialing')
         expect(account.custom_attributes['billing_status']).to eq('provisioning_pending')
-        expect(account.custom_attributes['subscription_ends_on']).to be_present
       end
 
-      it 'sets trial plan limits correctly' do
+      it 'sets starter plan limits correctly' do
         _user, account = account_builder.perform
 
         expect(account.limits).to include(
-          'agents' => 2,
-          'inboxes' => be_present,
-          'conversations_monthly' => be_present
+          'agents' => 5,
+          'inboxes' => 2,
+          'conversations_monthly' => 4000
         )
       end
 
-      it 'sets subscription_ends_on to future date based on trial period' do
-        _user, account = account_builder.perform
-
-        ends_on = Time.parse(account.custom_attributes['subscription_ends_on'])
-        expected_end_date = 7.days.from_now
-
-        # Allow for small time differences during test execution
-        expect(ends_on).to be_within(5.seconds).of(expected_end_date)
+      it 'calls CreateCustomerService to create Stripe subscription' do
+        expect_any_instance_of(Billing::CreateCustomerService).to receive(:perform).and_return({ success: true })
+        account_builder.perform
       end
 
       it 'dispatches owner_token_updated event after user is linked to account' do

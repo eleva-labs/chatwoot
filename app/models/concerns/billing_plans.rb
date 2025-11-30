@@ -249,11 +249,12 @@ module BillingPlans
       limit_key.to_s.gsub('_monthly', '')
     end
 
-    def validate_plan_limits_for_free_trial(plan_limits, plan_name)
-      return unless plan_limits.blank? || plan_limits['conversations_monthly'].blank?
+    def validate_plan_limits_for_community_plan(plan_limits, plan_name)
+      # Community plan has 0 limits - no validation needed for this plan
+      # Just log and return if limits are blank
+      return unless plan_limits.blank?
 
-      Rails.logger.error "Missing required plan limits for free trial plan: #{plan_name}. Plan limits: #{plan_limits}"
-      raise StandardError, "Plan configuration error: Missing conversations_monthly limit for plan '#{plan_name}'"
+      Rails.logger.warn "No plan limits configured for plan: #{plan_name}. Using defaults."
     end
 
     def validate_plan_limits_for_paid_plan(plan_limits, plan_name)

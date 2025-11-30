@@ -178,7 +178,7 @@ export const actions = {
 
   createSubscription: async (
     { commit, getters: storeGetters },
-    { planName = 'free_trial', billingInterval = 'monthly' } = {}
+    { planName = 'starter', billingInterval = 'monthly' } = {}
   ) => {
     commit(types.default.SET_ACCOUNT_UI_FLAG, { isCheckoutInProcess: true });
     try {

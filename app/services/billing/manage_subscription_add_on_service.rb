@@ -11,7 +11,7 @@ class Billing::ManageSubscriptionAddOnService
   def initialize(account, add_on_type)
     @account = account
     @add_on_type = add_on_type.to_sym
-    @plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
+    @plan_name = account.custom_attributes&.dig('plan_name') || 'starter'
     @plan_config = self.class.plan_details(@plan_name)
 
     raise ArgumentError, "Invalid add-on type: #{add_on_type}. Must be one of: #{ADD_ON_TYPES.join(', ')}" unless ADD_ON_TYPES.include?(@add_on_type)
@@ -20,9 +20,9 @@ class Billing::ManageSubscriptionAddOnService
 
   # Add one unit of the add-on
   def add_unit
-    if @account.custom_attributes&.dig('subscription_status') == 'past_due'
-      return failure_response('Your subscription payment is past due. Please update your payment method before purchasing add-ons.')
-    end
+    purchase_check = Billing::CanPurchaseAddOnsService.new(@account)
+    return failure_response(purchase_check.error_message) if purchase_check.blocked?
+
     update_quantity(current_quantity + 1)
   end
 
@@ -48,8 +48,10 @@ class Billing::ManageSubscriptionAddOnService
 
   # Set specific quantity
   def set_quantity(quantity)
-    if @account.custom_attributes&.dig('subscription_status') == 'past_due'
-      return failure_response('Your subscription payment is past due. Please update your payment method before purchasing add-ons.')
+    # Only check purchase eligibility when increasing quantity
+    if quantity > current_quantity
+      purchase_check = Billing::CanPurchaseAddOnsService.new(@account)
+      return failure_response(purchase_check.error_message) if purchase_check.blocked?
     end
     raise ArgumentError, 'Quantity must be non-negative' if quantity.negative?
     
@@ -259,12 +261,9 @@ class Billing::ManageSubscriptionAddOnService
   end
 
   def add_ons_available?
-    # Block add-ons during trial period
-    subscription_status = @account.custom_attributes&.dig('subscription_status')
-    return false if subscription_status == Billing::SubscriptionStatuses::TRIALING
-
-    # Free trial and community plans don't support add-ons
-    return false if %w[free_trial community].include?(@plan_name)
+    # Use unified service to check if add-ons can be purchased
+    purchase_check = Billing::CanPurchaseAddOnsService.new(@account)
+    return false if purchase_check.blocked?
 
     # Enterprise has unlimited, no need for add-ons
     return false if @plan_name == 'enterprise'

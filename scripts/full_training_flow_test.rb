@@ -26,16 +26,20 @@ account = Account.joins(:users).first
 if account
   puts "      ✅ Account found: #{account.name} (ID: #{account.id})"
   
-  # Upgrade to starter plan if needed for testing
-  plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
-  if plan_name == 'free_trial'
-    puts "      ⚠️  Account on free_trial, upgrading to starter for testing..."
+  # Check account plan and subscription status for testing
+  plan_name = account.custom_attributes&.dig('plan_name') || 'starter'
+  subscription_status = account.custom_attributes&.dig('subscription_status')
+  
+  # If on community plan or trialing, set to active starter for testing
+  if plan_name == 'community' || subscription_status == Billing::SubscriptionStatuses::TRIALING
+    puts "      ⚠️  Account on #{plan_name}/#{subscription_status}, configuring for testing..."
     account.custom_attributes ||= {}
     account.custom_attributes['plan_name'] = 'starter'
+    account.custom_attributes['subscription_status'] = Billing::SubscriptionStatuses::ACTIVE
     account.save!
-    puts "      ✅ Account upgraded to starter plan"
+    puts "      ✅ Account configured as active starter for testing"
   else
-    puts "      ℹ️  Account plan: #{plan_name}"
+    puts "      ℹ️  Account plan: #{plan_name}, status: #{subscription_status}"
   end
 else
   puts "      ❌ No account found"

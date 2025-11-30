@@ -204,7 +204,7 @@ const onClickBillingPortal = async () => {
   await store.dispatch('accounts/checkout');
 };
 
-const onCreateSubscription = async (planNameParam = 'free_trial') => {
+const onCreateSubscription = async (planNameParam = 'starter') => {
   try {
     await store.dispatch('accounts/createSubscription', {
       planName: planNameParam,

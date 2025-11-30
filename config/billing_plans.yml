@@ -40,25 +40,18 @@ plans:
       agents: 0
       inboxes: 0
       conversations_monthly: 0
-  free_trial:
-    name: "Free Trial"
-    description: "Basic features for small teams on a trial basis"
-    price_id: null  # No external price ID for free trial plan
-    trial_expires_in_days: 7
-    feature_tiers:
-      - "starter" # Starter tier features are available to free trial plans for trial_expires_in_days
-    limits: # This are the limits that are used directly since there's no payment provider for free trial plan
-      agents: 2 # We need to set this to 2 since we want to be able
-      #to have have the 1 agent (admin) and 1 agent (user)
-      inboxes: 2 # We need to set this to 2 since we want to be able
-      #to create inboxes for 1 channel in Instagram and 1 channel in WhatsApp
-      conversations_monthly: 1000
+
+  # NOTE: free_trial plan has been removed. Trial is now handled via Stripe's native
+  # trial mechanism. New accounts are created with plan_name: 'starter' and
+  # subscription_status: 'trialing'. The trial_expires_in_days config on 'starter'
+  # determines trial duration when creating subscriptions via CreateCustomerService.
 
   starter:
     name: "Starter"
     description: "Perfect for growing teams"
     price_id: "price_1RdbcC4TqKLiHbZ87crta9vQ"
     lookup_key: "starter_tier_monthly"  # Primary source for monthly price lookup
+    trial_expires_in_days: 7  # Trial duration when creating Stripe-managed trials
     feature_tiers:
       - "starter"
     # IMPORTANT: These limits are FALLBACK values only.
@@ -214,4 +207,5 @@ ai_token_packs:
     - 'professional'
 
 # Default plan for new accounts
-default_plan: "free_trial" 
+# Note: New accounts start with 'starter' plan and 'trialing' status via Stripe
+default_plan: "starter"

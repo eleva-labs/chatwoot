@@ -15,10 +15,10 @@ class Billing::PreviewAddOnPurchaseService
   def preview_purchase
     return failure('Invalid add-on type') unless valid_add_on_type?
     return failure('Unsupported action') unless SUPPORTED_ACTIONS.include?(@action_type)
-    subscription_status = @account.custom_attributes&.dig('subscription_status')
-    if subscription_status == Billing::SubscriptionStatuses::TRIALING
-      return failure('Add-on previews are unavailable during the trial period')
-    end
+
+    # Use unified service to check if add-ons can be purchased
+    purchase_check = Billing::CanPurchaseAddOnsService.new(@account)
+    return failure(purchase_check.error_message) if purchase_check.blocked?
 
     subscription = fetch_subscription
     return failure('No active subscription found') unless subscription
@@ -68,7 +68,7 @@ class Billing::PreviewAddOnPurchaseService
   end
 
   def plan_name
-    @plan_name ||= @account.custom_attributes&.dig('plan_name') || 'free_trial'
+    @plan_name ||= @account.custom_attributes&.dig('plan_name') || 'starter'
   end
 
   def plan_config

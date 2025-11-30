@@ -363,7 +363,7 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
   end
 
   def plan_ai_token_limit
-    plan_name = current_account.custom_attributes&.dig('plan_name') || 'free_trial'
+    plan_name = current_account.custom_attributes&.dig('plan_name') || 'starter'
 
     stripe_limits = Billing::Providers::Stripe.get_plan_limits_from_stripe(plan_name)
     fallback_limits = BillingPlans.plan_details(plan_name)&.dig('limits')

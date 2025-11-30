@@ -76,11 +76,8 @@ const buttonConfig = computed(() => {
     };
   }
 
-  const isKnownTrialPlan =
-    currentPlan === 'free_trial' && status && status !== 'inactive';
-
-  // On trial -> Upgrade (start subscription)
-  if (status === 'trialing' || isKnownTrialPlan) {
+  // On trial (subscription_status: 'trialing') -> Upgrade (start subscription)
+  if (status === 'trialing') {
     return {
       label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
       action: 'upgrade',
@@ -88,7 +85,16 @@ const buttonConfig = computed(() => {
     };
   }
 
-  // Current plan (active, past_due, canceled, etc.)
+  // Past due -> Update Payment (redirect to billing portal)
+  if (status === 'past_due') {
+    return {
+      label: t('BILLING_SETTINGS.PRICING_TABLE.UPDATE_PAYMENT'),
+      action: 'update_payment',
+      color: 'blue',
+    };
+  }
+
+  // Current plan (active, canceled, etc.)
   const currentTier = PLAN_HIERARCHY[currentPlan];
   const targetTier = PLAN_HIERARCHY[targetPlan];
 
@@ -168,8 +174,8 @@ const handleButtonClick = async () => {
       planName: props.plan.plan_name,
       billingInterval: props.billingInterval,
     });
-  } else if (action === 'downgrade' || action === 'cancel') {
-    // Redirect to billing portal
+  } else if (action === 'downgrade' || action === 'cancel' || action === 'update_payment') {
+    // Redirect to billing portal (handles cancel, downgrade, and payment updates)
     await store.dispatch('accounts/checkout');
   } else if (action === 'contact') {
     // Handle contact action - redirect to form based on plan and locale

@@ -560,11 +560,17 @@
       "DOWNGRADE": "Bajar de categoría",
       "CANCEL": "Cancelar",
       "CANCELS_ON_DATE": "Se cancela el {date}",
+      "UPDATE_PAYMENT": "Actualizar pago",
       "CONTACT_SALES": "Contactar ventas",
       "GET_IN_TOUCH": "Ponerse en contacto",
       "PER_MONTHLY": "por mes",
       "PER_YEARLY": "por año",
       "THIS_INCLUDES": "Esto incluye:"
+    },
+    "ADD_ONS": {
+      "TRIAL_BLOCK_MESSAGE": "Los complementos no se pueden comprar durante el período de prueba.",
+      "PAST_DUE_BLOCK_MESSAGE": "El pago de tu suscripción está vencido. Por favor, actualiza tu método de pago.",
+      "COMMUNITY_BLOCK_MESSAGE": "Los complementos no están disponibles para el plan comunitario. Por favor, actualiza a un plan de pago."
     },
     "NO_BILLING_USER": "Tu cuenta de facturación está siendo configurada. Por favor, actualiza la página e inténtalo de nuevo.",
     "PLANS": {

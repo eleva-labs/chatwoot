@@ -560,11 +560,17 @@
       "DOWNGRADE": "Downgrade",
       "CANCEL": "Cancel",
       "CANCELS_ON_DATE": "Cancels on {date}",
+      "UPDATE_PAYMENT": "Update Payment",
       "CONTACT_SALES": "Contact sales",
       "GET_IN_TOUCH": "Get in Touch",
       "PER_MONTHLY": "per month",
       "PER_YEARLY": "per year",
       "THIS_INCLUDES": "This includes:"
+    },
+    "ADD_ONS": {
+      "TRIAL_BLOCK_MESSAGE": "Add-ons cannot be purchased during the trial period.",
+      "PAST_DUE_BLOCK_MESSAGE": "Your subscription payment is past due. Please update your payment method.",
+      "COMMUNITY_BLOCK_MESSAGE": "Add-ons are not available for the community plan. Please upgrade to a paid plan."
     },
     "NO_BILLING_USER": "Your billing account is being configured. Please refresh the page and try again.",
     "PLANS": {

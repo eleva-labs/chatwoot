@@ -1,6 +1,6 @@
 import { ref, computed, unref, watch } from 'vue';
 import { useInboxLimits } from './useInboxLimits';
-import { useAccount } from 'dashboard/composables/useAccount';
+import { useCanPurchaseAddOns } from 'dashboard/composables/useCanPurchaseAddOns';
 
 /**
  * Shared channel purchase flow helper.
@@ -89,22 +89,14 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
     () => limitsLoading.value || showUsageLoadingMessage.value
   );
 
-  const { currentAccount } = useAccount();
-  const planName = computed(
-    () => currentAccount.value?.custom_attributes?.plan_name || 'free_trial'
-  );
-  const subscriptionStatus = computed(
-    () => currentAccount.value?.custom_attributes?.subscription_status || ''
-  );
-  const isSubscriptionPastDue = computed(
-    () => subscriptionStatus.value === 'past_due'
-  );
-  const isTrialing = computed(() => subscriptionStatus.value === 'trialing');
-  const isTrialPlan = computed(
-    () => planName.value === 'free_trial' || isTrialing.value
-  );
+  // Use unified composable for add-on purchase eligibility
+  const { canPurchaseAddOns, isTrialing, isPastDue, blockMessage, planName } =
+    useCanPurchaseAddOns();
+
+  // Check if user is blocked from purchasing when they need an extra channel
   const trialRestrictionMessage = computed(() => {
-    if (!isTrialPlan.value) {
+    // Only show message if user needs to pay for an extra channel but can't
+    if (!shouldChargeForChannel.value) {
       return '';
     }
 
@@ -112,16 +104,16 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
       return '';
     }
 
-    if (!shouldChargeForChannel.value) {
-      return '';
+    if (!canPurchaseAddOns.value) {
+      return blockMessage.value || t('INBOX_MGMT.ADD.TRIAL_LIMIT_NOTE');
     }
 
-    return t('INBOX_MGMT.ADD.TRIAL_LIMIT_NOTE');
+    return '';
   });
   const isTrialLimitReached = computed(() => !!trialRestrictionMessage.value);
 
   const shouldBeDisabled = computed(
-    () => isTrialLimitReached.value || isSubscriptionPastDue.value
+    () => !canPurchaseAddOns.value && shouldChargeForChannel.value
   );
 
   const noteMessage = computed(() => {
@@ -129,7 +121,7 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
       return trialRestrictionMessage.value;
     }
 
-    if (isSubscriptionPastDue.value) {
+    if (isPastDue.value) {
       return t('INBOX_MGMT.ADD.PAST_DUE_NOTE');
     }
 
@@ -171,10 +163,14 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
   };
 
   watch(
-    [hasLoadedData, hasAvailableIncludedChannel, isTrialPlan],
-    async ([loaded, hasAvailable, isTrial]) => {
+    [hasLoadedData, hasAvailableIncludedChannel, canPurchaseAddOns, planName],
+    async ([loaded, hasAvailable, canPurchase, plan]) => {
       if (loaded && !hasAvailable) {
-        if (!isTrial) {
+        if (canPurchase) {
+          // Reset proration cache when plan changes to recalculate with new plan's pricing
+          if (hasFetchedProration.value) {
+            hasFetchedProration.value = false;
+          }
           await fetchProrationPreview();
         } else {
           prorationAmount.value = null;

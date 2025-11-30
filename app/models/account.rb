@@ -109,7 +109,9 @@ class Account < ApplicationRecord
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
-  after_create_commit :enqueue_stripe_provisioning_job
+  # Note: Stripe subscription is now created synchronously in AccountBuilder
+  # No longer using after_create_commit callback to avoid duplicate creation
+  # after_create_commit :enqueue_stripe_provisioning_job
   after_destroy :remove_account_sequences
   after_destroy_commit :dispatch_destroy_event
 

@@ -7,7 +7,7 @@ class Billing::ConversationLimitService
 
   def initialize(account)
     @account = account
-    @plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
+    @plan_name = account.custom_attributes&.dig('plan_name') || 'starter'
     @plan_config = self.class.plan_details(@plan_name)
   end
 
@@ -110,7 +110,10 @@ class Billing::ConversationLimitService
 
   # Get conversation pack pricing info
   def conversation_pack_info
-    return nil if %w[free_trial community enterprise].include?(@plan_name)
+    # Use unified service to check if add-ons can be purchased
+    purchase_check = Billing::CanPurchaseAddOnsService.new(@account)
+    return nil if purchase_check.blocked?
+    return nil if @plan_name == 'enterprise'
 
     pack_config = @plan_config&.dig('conversation_packs')
     return nil unless pack_config
@@ -197,7 +200,7 @@ class Billing::ConversationLimitService
 
   def next_tier_option
     case @plan_name
-    when 'free_trial'
+    when 'community'
       {
         plan: 'starter',
         limit: format_number(self.class.plan_limits('starter')['conversations_monthly'] || 0),

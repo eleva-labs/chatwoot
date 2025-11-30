@@ -56,11 +56,10 @@ module Billing
     end
 
     def get_trial_period_for_plan(_plan_name)
-      # For new Stripe-managed trials, we always use the trial period from billing config
-      # regardless of the target plan (starter, professional, etc.)
+      # For new Stripe-managed trials, we use the trial period from starter plan config
       billing_plans_class = Class.new { include BillingPlans }.new
-      trial_plan_details = billing_plans_class.class.plan_details('free_trial')
-      trial_plan_details&.dig('trial_expires_in_days') || 7
+      starter_plan_details = billing_plans_class.class.plan_details('starter')
+      starter_plan_details&.dig('trial_expires_in_days') || 7
     end
   end
 end

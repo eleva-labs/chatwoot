@@ -7,20 +7,13 @@ import * as Sentry from '@sentry/vue';
 import Icon from 'next/icon/Icon.vue';
 import ButtonV4 from 'next/button/Button.vue';
 import ConfirmationModal from 'dashboard/components/widgets/modal/ConfirmationModal.vue';
-import { useAccount } from 'dashboard/composables/useAccount';
+import { useCanPurchaseAddOns } from 'dashboard/composables/useCanPurchaseAddOns';
 
 const { t } = useI18n();
 const store = useStore();
-const { currentAccount } = useAccount();
 
-const isSubscriptionPastDue = computed(
-  () =>
-    currentAccount.value?.custom_attributes?.subscription_status === 'past_due'
-);
-
-const isTrialPlan = computed(
-  () => currentAccount.value?.custom_attributes?.plan_name === 'free_trial'
-);
+// Use unified composable for add-on purchase eligibility
+const { canPurchaseAddOns } = useCanPurchaseAddOns();
 // ============================================================================
 // STATE MANAGEMENT
 // ============================================================================
@@ -446,7 +439,7 @@ onMounted(() => {
             solid
             blue
             :loading="isTrainingPurchasing(service.type)"
-            :disabled="isSubscriptionPastDue || isTrialPlan"
+            :disabled="!canPurchaseAddOns"
             @click="confirmPurchaseTraining(service.type, service)"
           >
             {{ t('BILLING_SETTINGS.TRAINING.PURCHASE_BUTTON') }}

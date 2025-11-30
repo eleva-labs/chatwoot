@@ -6,7 +6,7 @@ class Billing::SubscriptionBreakdownService
 
   def initialize(account)
     @account = account
-    @plan_name = account.custom_attributes&.dig('plan_name') || 'free_trial'
+    @plan_name = account.custom_attributes&.dig('plan_name') || 'starter'
     @plan_config = self.class.plan_details(@plan_name)
   end
 

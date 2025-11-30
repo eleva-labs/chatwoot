@@ -68,6 +68,29 @@ module Billing
       return false if customer_id.blank?
       return false if status.blank? || status == Billing::SubscriptionStatuses::INACTIVE
 
+      # Double-check with Stripe to prevent duplicates from race conditions
+      # This ensures we don't create duplicate subscriptions if the callback fires
+      # before the account attributes are updated
+      begin
+        customer = @provider.get_customer(customer_id)
+        subscriptions = ::Stripe::Subscription.list(customer: customer_id, limit: 10)
+        active_subscriptions = subscriptions.data.select { |sub| %w[trialing active past_due].include?(sub.status) }
+        
+        # If Stripe confirms active subscriptions exist, return true
+        return true if active_subscriptions.any?
+        
+        # If Stripe check succeeded but found no active subscriptions, return false
+        # This allows creating a new subscription even if local status is stale
+        # (e.g., subscription was cancelled in Stripe but local status wasn't updated)
+        return false
+      rescue ::Stripe::StripeError => e
+        Rails.logger.warn "Error checking Stripe subscriptions: #{e.message}. Proceeding with local check."
+        # If Stripe check fails, fall back to local check based on account status
+      end
+
+      # Fallback: If we have a customer_id and status is set (and not inactive),
+      # assume subscription exists (for cases where Stripe check failed)
+      # This is a conservative approach to prevent duplicates when Stripe API is unavailable
       true
     end
 
@@ -192,16 +215,14 @@ module Billing
       return @trial_period_days if @trial_period_days.present?
 
       # Get trial period from billing plans configuration
-      # Look for trial_expires_in_days in the free_trial plan as the default
-      trial_plan_details = self.class.plan_details('free_trial')
-      trial_days = trial_plan_details&.dig('trial_expires_in_days') || 7
+      # Look for trial_expires_in_days in the starter plan config
+      starter_plan_details = self.class.plan_details('starter')
+      trial_days = starter_plan_details&.dig('trial_expires_in_days') || 7
 
-      # For new signups transitioning to Stripe-managed trials,
-      # we create trialing subscriptions on paid plans (like starter)
-      # but use the trial period from the free_trial configuration
+      # For paid plans, use trial period for Stripe-managed trials
       return trial_days if price_id_has_value?
 
-      # If no price_id (free plan), don't use trial period in Stripe
+      # If no price_id (community plan), don't use trial period in Stripe
       nil
     end
 

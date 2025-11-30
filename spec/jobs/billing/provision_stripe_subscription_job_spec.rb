@@ -114,12 +114,12 @@ RSpec.describe Billing::ProvisionStripeSubscriptionJob, type: :job do
   describe '#get_trial_period_for_plan' do
     let(:job) { described_class.new }
 
-    it 'returns trial period from billing config' do
+    it 'returns trial period from starter plan config' do
       # Mock the BillingPlans module directly
       billing_class = Class.new { include BillingPlans }
-      allow(billing_class).to receive(:plan_details).with('free_trial').and_return({
-                                                                                     'trial_expires_in_days' => 14
-                                                                                   })
+      allow(billing_class).to receive(:plan_details).with('starter').and_return({
+                                                                                  'trial_expires_in_days' => 14
+                                                                                })
       allow(Class).to receive(:new).and_return(billing_class)
 
       result = job.send(:get_trial_period_for_plan, 'starter')
@@ -127,10 +127,10 @@ RSpec.describe Billing::ProvisionStripeSubscriptionJob, type: :job do
       expect(result).to eq(14)
     end
 
-    it 'returns default of 7 days when trial plan details are not found' do
+    it 'returns default of 7 days when starter plan details are not found' do
       # Mock the BillingPlans module to return nil
       billing_class = Class.new { include BillingPlans }
-      allow(billing_class).to receive(:plan_details).with('free_trial').and_return(nil)
+      allow(billing_class).to receive(:plan_details).with('starter').and_return(nil)
       allow(Class).to receive(:new).and_return(billing_class)
 
       result = job.send(:get_trial_period_for_plan, 'starter')

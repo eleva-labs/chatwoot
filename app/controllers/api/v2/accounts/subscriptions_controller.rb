@@ -26,7 +26,7 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
 
   # POST /api/v2/accounts/:account_id/subscription
   def create
-    plan_name = subscription_params[:plan_name] || 'free_trial'
+    plan_name = subscription_params[:plan_name] || 'starter'
     billing_interval = subscription_params[:billing_interval] || 'monthly'
 
     # Validation for plan changes is handled by CreateCheckoutSessionService
@@ -137,8 +137,8 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
 
     {
       account_id: current_account.id,
-      plan_name: custom_attrs['plan_name'] || 'free_trial',
-      subscription_status: custom_attrs['subscription_status'] || 'free_trial',
+      plan_name: custom_attrs['plan_name'] || 'starter',
+      subscription_status: custom_attrs['subscription_status'] || Billing::SubscriptionStatuses::TRIALING,
       customer_id: custom_attrs['stripe_customer_id'],
       current_period_end: custom_attrs['current_period_end'],
       subscription_ends_on: custom_attrs['subscription_ends_on'],
@@ -153,34 +153,34 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
   end
 
   def calculate_account_limits
-    plan_name = current_account.custom_attributes&.dig('plan_name') || 'free_trial'
+    plan_name = current_account.custom_attributes&.dig('plan_name') || 'starter'
     # Call the class method directly to avoid creating an instance that might trigger sync
     plan_limits = Billing::SyncAccountFeaturesService.plan_limits(plan_name)
 
-    # If it's a free trial plan, show specific limits
-    if plan_name == 'free_trial' || plan_limits.blank?
-      # For free trial, validate required properties (agents and inboxes have fallbacks)
-      self.class.validate_plan_limits_for_free_trial(plan_limits, plan_name)
+    # If community plan or no limits configured, show specific limits
+    if plan_name == 'community' || plan_limits.blank?
+      # Validate required properties (agents and inboxes have fallbacks)
+      self.class.validate_plan_limits_for_community_plan(plan_limits, plan_name)
 
       {
         'agents' => {
-          'allowed' => plan_limits['agents'],
+          'allowed' => plan_limits['agents'] || 0,
           'consumed' => current_account.users.count
         },
         'inboxes' => {
-          'allowed' => plan_limits['inboxes'],
+          'allowed' => plan_limits['inboxes'] || 0,
           'consumed' => current_account.inboxes.count
         },
         'conversations' => {
-          'allowed' => plan_limits['conversations_monthly'],
+          'allowed' => plan_limits['conversations_monthly'] || 0,
           'consumed' => conversations_this_month
         }
       }
     else
-      # For paid plans, validate all required properties
+      # For paid plans (including trialing), validate all required properties
       self.class.validate_plan_limits_for_paid_plan(plan_limits, plan_name)
 
-      # For paid plans, show unlimited or plan-specific limits
+      # Show unlimited or plan-specific limits
       {
         'agents' => calculate_limit_data(plan_limits['agents'], current_account.users.count),
         'inboxes' => calculate_limit_data(plan_limits['inboxes'], current_account.inboxes.count),
