@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useStore } from 'dashboard/composables/store.js';
 import { useI18n } from 'vue-i18n';
+import { format } from 'date-fns';
 import BillingCard from './BillingCard.vue';
 
 const { t } = useI18n();
@@ -41,16 +42,22 @@ const hasAddOns = computed(() => {
   return breakdown.value?.add_ons?.length > 0;
 });
 
+const isScheduledToCancel = computed(() => {
+  return breakdown.value?.is_scheduled_to_cancel === true;
+});
+
 const formattedNextBillingDate = computed(() => {
   if (!breakdown.value?.next_billing_date) return null;
 
   const date = new Date(breakdown.value.next_billing_date * 1000);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
+  return format(date, 'dd MMM, yyyy');
+});
+
+const formattedCancellationDate = computed(() => {
+  if (!breakdown.value?.cancellation_date) return null;
+
+  const date = new Date(breakdown.value.cancellation_date * 1000);
+  return format(date, 'dd MMM, yyyy');
 });
 
 const isFreeOrTrial = computed(() => {
@@ -58,10 +65,19 @@ const isFreeOrTrial = computed(() => {
 });
 
 const billingDateLabel = computed(() => {
+  // If subscription is scheduled to cancel, use the same format as PricingCard
+  // This reuses the existing CANCELS_ON_DATE translation key
+  if (isScheduledToCancel.value && formattedCancellationDate.value) {
+    return t('BILLING_SETTINGS.PRICING_TABLE.CANCELS_ON_DATE', {
+      date: formattedCancellationDate.value,
+    });
+  }
   // Don't show "Trial ends" if there's a valid billing date (active subscription)
-  // Always show "Next billing" when there's a valid billing date
-  if (breakdown.value?.next_billing_date) {
-    return t('BILLING_SETTINGS.SUBSCRIPTION.NEXT_BILLING');
+  // Use NEXT_BILLING_DATE translation key that includes the date placeholder
+  if (breakdown.value?.next_billing_date && formattedNextBillingDate.value) {
+    return t('BILLING_SETTINGS.SUBSCRIPTION.NEXT_BILLING_DATE', {
+      date: formattedNextBillingDate.value,
+    });
   }
   // Only show "Trial ends" if truly in trial with no billing date
   if (isFreeOrTrial.value) {
@@ -210,22 +226,23 @@ onMounted(() => {
         <!-- Total (Next billing) -->
         <div class="flex items-center justify-between">
           <h4 class="text-base font-semibold text-n-slate-12">
-            {{ t('BILLING_SETTINGS.SUBSCRIPTION.TOTAL_LABEL') }}
+            {{ isScheduledToCancel
+                ? t('BILLING_SETTINGS.SUBSCRIPTION.TOTAL_LABEL_CANCELLED')
+                : t('BILLING_SETTINGS.SUBSCRIPTION.TOTAL_LABEL') }}
           </h4>
           <span class="text-xl font-bold text-n-slate-12">
             {{ breakdown.total.amount_formatted }}
           </span>
         </div>
 
-        <!-- Next Billing Date / Trial End Date -->
+        <!-- Next Billing Date / Cancellation Date / Trial End Date -->
         <div
-          v-if="formattedNextBillingDate"
+          v-if="billingDateLabel && (formattedNextBillingDate || formattedCancellationDate || isFreeOrTrial)"
           class="text-center text-sm text-n-slate-11 pt-3 mt-3 border-t border-n-slate-5"
         >
           <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
-          {{ billingDateLabel }}:
           <span class="font-medium text-n-slate-12">
-            {{ formattedNextBillingDate }}
+            {{ billingDateLabel }}
           </span>
         </div>
       </div>

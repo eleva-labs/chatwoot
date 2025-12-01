@@ -17,17 +17,28 @@ class Billing::SubscriptionBreakdownService
     
     if subscription
       # Active paid subscription - use Stripe data
+      # Check if subscription is scheduled to cancel
+      is_scheduled_to_cancel = scheduled_to_cancel?(subscription)
+      
       # Try to fetch upcoming invoice to get accurate totals with credits
-      upcoming_invoice = fetch_upcoming_invoice(subscription)
+      # Note: Stripe doesn't generate upcoming invoices for cancelled subscriptions
+      upcoming_invoice = fetch_upcoming_invoice(subscription) unless is_scheduled_to_cancel
       
       breakdown_data = {
         plan_name: @plan_name.titleize,
         base_plan: base_plan_details(subscription, base_item),
         add_ons: add_on_details(subscription),
-        total: calculate_total(subscription, upcoming_invoice),
-        next_billing_date: next_billing_date(subscription, base_item, upcoming_invoice),
+        total: calculate_total(subscription, upcoming_invoice, is_scheduled_to_cancel),
+        next_billing_date: next_billing_date(subscription, base_item, upcoming_invoice, is_scheduled_to_cancel),
         currency: subscription_currency(subscription, base_item)
       }
+      
+      # Add cancellation date if subscription is scheduled to cancel
+      if is_scheduled_to_cancel
+        cancellation_date = get_cancellation_date(subscription)
+        breakdown_data[:cancellation_date] = cancellation_date if cancellation_date
+        breakdown_data[:is_scheduled_to_cancel] = true
+      end
       
       # Add credit information if available from upcoming invoice
       if upcoming_invoice
@@ -162,7 +173,16 @@ class Billing::SubscriptionBreakdownService
     end
   end
 
-  def calculate_total(subscription, upcoming_invoice = nil)
+  def calculate_total(subscription, upcoming_invoice = nil, is_scheduled_to_cancel = false)
+    # If subscription is scheduled to cancel, there's no upcoming invoice
+    # Return $0.00 to match Stripe's behavior
+    if is_scheduled_to_cancel
+      return {
+        amount_cents: 0,
+        amount_formatted: format_price(0)
+      }
+    end
+
     # If we have upcoming invoice data, use amount_due (net amount after credits)
     if upcoming_invoice
       amount_due = upcoming_invoice.amount_due || 0
@@ -276,23 +296,10 @@ class Billing::SubscriptionBreakdownService
     primary_item
   end
 
-  def next_billing_date(subscription, base_item, upcoming_invoice = nil)
-    # Check if subscription is scheduled to cancel at period end
-    # When cancel_at_period_end is true, use current_period_end to match Stripe's display
-    cancel_at_period_end = if subscription.respond_to?(:cancel_at_period_end)
-                             subscription.cancel_at_period_end
-                           elsif subscription.is_a?(Hash)
-                             subscription['cancel_at_period_end']
-                           else
-                             false
-                           end
-
-    # If subscription is scheduled to cancel, prioritize current_period_end
-    # This ensures consistency with Stripe's display (shows period end, not cancel_at)
-    if cancel_at_period_end
-      period_end = subscription_current_period_end(subscription)
-      return period_end if period_end
-    end
+  def next_billing_date(subscription, base_item, upcoming_invoice = nil, is_scheduled_to_cancel = false)
+    # If subscription is scheduled to cancel, there's no next billing date
+    # Stripe doesn't generate upcoming invoices for cancelled subscriptions
+    return nil if is_scheduled_to_cancel
 
     # If we have upcoming invoice, use its period_end or due_date (most accurate)
     if upcoming_invoice
@@ -357,6 +364,71 @@ class Billing::SubscriptionBreakdownService
     elsif subscription.is_a?(Hash)
       subscription['current_period_end']
     end
+  end
+
+  # Check if subscription is scheduled to cancel
+  # Handles both cancel_at_period_end and cancel_at
+  def scheduled_to_cancel?(subscription)
+    return false unless subscription
+
+    # Check cancel_at_period_end
+    cancel_at_period_end = if subscription.respond_to?(:cancel_at_period_end)
+                             subscription.cancel_at_period_end
+                           elsif subscription.is_a?(Hash)
+                             subscription['cancel_at_period_end']
+                           else
+                             false
+                           end
+
+    return true if cancel_at_period_end
+
+    # Check cancel_at (custom cancellation date)
+    cancel_at = if subscription.respond_to?(:cancel_at)
+                  subscription.cancel_at
+                elsif subscription.is_a?(Hash)
+                  subscription['cancel_at']
+                end
+
+    # If cancel_at is set and in the future, subscription is scheduled to cancel
+    if cancel_at
+      cancel_at_timestamp = cancel_at.respond_to?(:to_i) ? cancel_at.to_i : cancel_at
+      return true if cancel_at_timestamp && cancel_at_timestamp > Time.now.to_i
+    end
+
+    false
+  end
+
+  # Get the cancellation date for a subscription scheduled to cancel
+  def get_cancellation_date(subscription)
+    return nil unless subscription
+
+    # Prefer cancel_at if set (custom cancellation date)
+    cancel_at = if subscription.respond_to?(:cancel_at)
+                  subscription.cancel_at
+                elsif subscription.is_a?(Hash)
+                  subscription['cancel_at']
+                end
+
+    if cancel_at
+      cancel_at_timestamp = cancel_at.respond_to?(:to_i) ? cancel_at.to_i : cancel_at
+      return cancel_at_timestamp if cancel_at_timestamp && cancel_at_timestamp > Time.now.to_i
+    end
+
+    # Fallback to current_period_end if cancel_at_period_end is true
+    cancel_at_period_end = if subscription.respond_to?(:cancel_at_period_end)
+                             subscription.cancel_at_period_end
+                           elsif subscription.is_a?(Hash)
+                             subscription['cancel_at_period_end']
+                           else
+                             false
+                           end
+
+    if cancel_at_period_end
+      period_end = subscription_current_period_end(subscription)
+      return period_end if period_end
+    end
+
+    nil
   end
 
 

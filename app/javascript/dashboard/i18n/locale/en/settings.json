@@ -500,9 +500,11 @@
       "INCLUDES": "Includes",
       "ADD_ONS_LABEL": "Add-ons",
       "TOTAL_LABEL": "Total (Next billing)",
+      "TOTAL_LABEL_CANCELLED": "Total",
       "TOTAL_BEFORE_CREDITS": "Subtotal",
       "APPLIED_CREDITS": "Applied balance",
       "NEXT_BILLING": "Next billing date",
+      "NEXT_BILLING_DATE": "Next billing: {date}",
       "TRIAL_ENDS": "Trial ends"
     },
     "SETUP_IN_PROGRESS": {
