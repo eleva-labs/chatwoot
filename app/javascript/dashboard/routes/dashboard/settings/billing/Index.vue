@@ -99,6 +99,11 @@ const subscriptionRenewsOn = computed(() => {
     return '-';
   }
 
+  // Don't show "Renews on" if subscription is scheduled to cancel
+  if (cancelAtPeriodEnd.value) {
+    return '-';
+  }
+
   const date = billingDate.value;
   return date ? format(date, 'dd MMM, yyyy') : '-';
 });
@@ -134,20 +139,47 @@ const cancelAtPeriodEnd = computed(() => {
   const normalizedFlag =
     typeof flag === 'string' ? flag.toLowerCase() : flag;
 
-  return normalizedFlag === true || normalizedFlag === 'true';
+  // Check if cancel_at_period_end is explicitly true
+  if (normalizedFlag === true || normalizedFlag === 'true') {
+    return true;
+  }
+
+  // Also check if cancel_at exists and is in the future
+  // When using cancel_at parameter, cancel_at_period_end might be false
+  // but the subscription is still scheduled to cancel
+  const cancelAtValue = customAttributes.value.cancel_at;
+  if (cancelAtValue) {
+    const cancelAtDate = convertTimestampToDate(cancelAtValue);
+    if (cancelAtDate && cancelAtDate > new Date()) {
+      return true;
+    }
+  }
+
+  return false;
 });
 
 const scheduledCancellationDate = computed(() => {
-  // When cancel_at_period_end is true, use the same date source as subscriptionEndDate
-  // (current_period_end or subscription_ends_on) to match Stripe's display
-  // This ensures consistency across all date displays
-  if (cancelAtPeriodEnd.value) {
+  // Check if cancel_at_period_end is explicitly true
+  // In this case, cancellation happens at period end, so use subscriptionEndDate
+  const flag = customAttributes.value.cancel_at_period_end;
+  const normalizedFlag =
+    typeof flag === 'string' ? flag.toLowerCase() : flag;
+  
+  if (normalizedFlag === true || normalizedFlag === 'true') {
     return subscriptionEndDate.value;
   }
   
-  // Fallback to cancel_at for immediate cancellations
+  // If cancel_at is set (specific cancellation timestamp), use that date
+  // This is different from cancel_at_period_end - it's a specific future date
   const cancelAtValue = customAttributes.value.cancel_at;
-  return convertTimestampToDate(cancelAtValue);
+  if (cancelAtValue) {
+    const cancelAtDate = convertTimestampToDate(cancelAtValue);
+    if (cancelAtDate && cancelAtDate > new Date()) {
+      return cancelAtDate;
+    }
+  }
+  
+  return null;
 });
 
 const scheduledCancellationLabel = computed(() => {

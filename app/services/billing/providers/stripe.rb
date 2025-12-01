@@ -1113,6 +1113,40 @@ module Billing
 
       private_class_method :find_plan_data_by_name
 
+      # Public method to sync subscription data from Stripe to account
+      # This ensures the database always has the latest subscription state from Stripe
+      # This is particularly important for cancel_at_period_end flag which may not be
+      # updated via webhooks if they are delayed or missed
+      def self.sync_subscription_from_stripe(account)
+        customer_id = account.custom_attributes&.dig('stripe_customer_id')
+        return false unless customer_id
+
+        begin
+          # Fetch active subscription from Stripe
+          # Use 'all' status to catch subscriptions that might be in various states
+          subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'all', limit: 10)
+          active_subscription = subscriptions.data.find do |sub|
+            %w[active trialing past_due].include?(sub.status)
+          end
+
+          return false unless active_subscription
+
+          # Use instance method to update account with subscription data
+          # This will sync all subscription attributes including cancel_at_period_end
+          provider_instance = new
+          provider_instance.send(:update_account_subscription_data, account, active_subscription)
+          
+          Rails.logger.info "Successfully synced subscription data from Stripe for account #{account.id}"
+          true
+        rescue ::Stripe::StripeError => e
+          Rails.logger.error "Error syncing subscription from Stripe for account #{account.id}: #{e.message}"
+          false
+        rescue StandardError => e
+          Rails.logger.error "Unexpected error syncing subscription from Stripe for account #{account.id}: #{e.message}"
+          false
+        end
+      end
+
       # Helper methods for webhook responses
       def success_response(message)
         { success: true, message: message }

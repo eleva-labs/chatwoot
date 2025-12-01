@@ -133,6 +133,14 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
   end
 
   def extract_subscription_data
+    # Sync subscription data from Stripe to ensure database has latest state
+    # This fixes issues where webhooks haven't been processed yet or were delayed
+    if current_account.custom_attributes&.dig('stripe_customer_id').present?
+      Billing::Providers::Stripe.sync_subscription_from_stripe(current_account)
+      # Reload account to get updated custom_attributes
+      current_account.reload
+    end
+
     custom_attrs = current_account.custom_attributes || {}
 
     {

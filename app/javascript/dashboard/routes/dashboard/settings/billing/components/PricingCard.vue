@@ -35,6 +35,8 @@ const props = defineProps({
 const { t, locale } = useI18n();
 
 const cancelButtonLabel = computed(() => {
+  // Show "Cancels on [date]" if there's a scheduled cancellation
+  // This works for both cancel_at_period_end=true and cancel_at scenarios
   if (props.cancelAtPeriodEnd && props.subscriptionEndsOn) {
     return t('BILLING_SETTINGS.PRICING_TABLE.CANCELS_ON_DATE', {
       date: props.subscriptionEndsOn,
