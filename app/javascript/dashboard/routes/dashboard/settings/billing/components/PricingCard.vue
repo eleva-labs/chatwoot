@@ -69,6 +69,15 @@ const buttonConfig = computed(() => {
     };
   }
 
+  // Community plan users should see "Upgrade" not "Start trial" (they go directly to payment)
+  if (currentPlan === 'community') {
+    return {
+      label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
+      action: 'trial',
+      color: 'blue',
+    };
+  }
+
   // No plan or inactive -> Start trial
   if (!currentPlan || status === 'inactive') {
     return {
@@ -133,6 +142,15 @@ const buttonConfig = computed(() => {
     }
 
     // If current plan is invalid but target is valid, treat as new subscription
+    // Community plan users should see "Upgrade" not "Start trial"
+    if (currentPlan === 'community') {
+      return {
+        label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
+        action: 'trial',
+        color: 'blue',
+      };
+    }
+
     return {
       label: t('BILLING_SETTINGS.PRICING_TABLE.START_TRIAL'),
       action: 'trial',
