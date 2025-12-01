@@ -53,7 +53,6 @@ class AccountBuilder
     @account = Account.new(name: account_name, locale: I18n.locale)
     set_initial_plan_attributes
     @account.save!
-    add_store_id_to_account
 
     Current.account = @account
     @account
@@ -119,20 +118,6 @@ class AccountBuilder
 
     # Set plan limits
     @account.limits = plan_limits
-  end
-
-  def add_store_id_to_account
-    store_id = generate_store_id
-    @account.update!(
-      custom_attributes: @account.custom_attributes.merge(store_id: store_id)
-    )
-    Rails.logger.info "Generated store_id: #{store_id} for account: #{@account.id}"
-  end
-
-  def generate_store_id
-    padded_id = @account.id.to_s.rjust(12, '0')
-    store_uuid = "00000000-0000-0000-0000-#{padded_id}"
-    return store_uuid
   end
 
   def dispatch_owner_token_event(user, account)

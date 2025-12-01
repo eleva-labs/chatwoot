@@ -261,8 +261,8 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
   end
 
   def ai_token_status
-    store_id = current_account.custom_attributes&.dig('store_id')
-    return nil if store_id.blank?
+    # Use account.id (integer) with id_type=external, following the same pattern as other AI Backend services
+    store_id = current_account.id
 
     token_service = AiBackendService::TokenCreditsService.new
     balance = token_service.balance(store_id)

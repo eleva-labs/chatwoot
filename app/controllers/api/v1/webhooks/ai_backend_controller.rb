@@ -79,7 +79,33 @@ module Api
           store_id = payload['store_id']
           raise ActiveRecord::RecordNotFound if store_id.blank?
 
-          Account.find_by!("custom_attributes->>'store_id' = ?", store_id)
+          # AI Backend sends the real UUID (store.id) in webhook payloads
+          # Query AI Backend to get the external_id (account.id) from the UUID
+          begin
+            store_service = AiBackendService::StoreService.new(id_type: AiBackendService::Constants::IdType::INTERNAL)
+            store_response = store_service.get_store(store_id)
+            external_id = store_response.external_id
+
+            # Find account by external_id (which matches account.id)
+            account = Account.find_by(id: external_id)
+            raise ActiveRecord::RecordNotFound unless account
+
+            account
+          rescue AiBackendService::StoreService::StoreError => e
+            Rails.logger.error "Failed to lookup store by UUID in AI Backend: #{e.message}"
+            raise ActiveRecord::RecordNotFound
+          rescue HTTParty::Error, SocketError, Net::ReadTimeout, Net::OpenTimeout, Net::TimeoutError, Errno::ECONNREFUSED, Errno::ETIMEDOUT => e
+            # Handle network errors (timeout, connection refused, etc.)
+            # These should be treated as account not found rather than 500 errors
+            Rails.logger.error "Network error while looking up store in AI Backend: #{e.class} - #{e.message}"
+            raise ActiveRecord::RecordNotFound
+          rescue StandardError => e
+            # Catch any other unexpected errors to prevent 500 responses
+            # Log the full error for debugging but treat as account not found
+            Rails.logger.error "Unexpected error while looking up store in AI Backend: #{e.class} - #{e.message}"
+            Rails.logger.error e.backtrace.join("\n")
+            raise ActiveRecord::RecordNotFound
+          end
         end
 
         def account_not_found_message

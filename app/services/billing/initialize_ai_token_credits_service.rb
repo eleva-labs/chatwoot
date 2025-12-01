@@ -20,15 +20,8 @@ module Billing
         return
       end
 
-      # Check store_id from custom_attributes (no fallback - must be present)
-      # Following the same pattern as PurchaseAiTokenCreditsService
-      store_id = @account.custom_attributes&.dig('store_id')
-      if store_id.blank?
-        error_message = "store_id not set for account #{@account.id}"
-        Rails.logger.warn "Skipping AI token init for account #{@account.id}: #{error_message}"
-        raise StandardError, error_message if @raise_on_error
-        return
-      end
+      # Use account.id (integer) with id_type=external, following the same pattern as other AI Backend services
+      store_id = @account.id
 
       # Check if already initialized to prevent duplicate calls
       if already_initialized?

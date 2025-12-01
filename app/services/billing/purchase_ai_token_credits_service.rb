@@ -19,8 +19,8 @@ class Billing::PurchaseAiTokenCreditsService
     purchase_check = Billing::CanPurchaseAddOnsService.new(@account)
     return failure_response(purchase_check.error_message) if purchase_check.blocked?
 
-    store_id = @account.custom_attributes&.dig('store_id')
-    return failure_response('AI store ID not found for account') if store_id.blank?
+    # Use account.id (integer) with id_type=external, following the same pattern as other AI Backend services
+    store_id = @account.id
 
     price = fetch_price_from_stripe(@pack_config['lookup_key'])
     return failure_response("Price not found in Stripe for lookup_key: #{@pack_config['lookup_key']}") unless price

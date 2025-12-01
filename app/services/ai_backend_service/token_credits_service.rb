@@ -3,6 +3,13 @@
 require 'httparty'
 require 'openssl'
 
+# TokenCreditsService - Manage token credits in AI Backend
+#
+# IMPORTANT: Defaults to id_type=external, using Chatwoot account.id
+# - balance(account_id) - Gets balance using account.id with id_type=external
+# - transactions(account_id) - Gets transactions using account.id with id_type=external
+# - add_credits(store_id:, ...) - Adds credits using account.id with id_type=external
+# - reset_credits(store_id:, ...) - Resets credits using account.id with id_type=external
 class AiBackendService::TokenCreditsService
   include HTTParty
 
@@ -14,7 +21,8 @@ class AiBackendService::TokenCreditsService
   RESET_CREDITS_PATH = '/api/token-credits/reset'
   DEFAULT_TRANSACTION_LIMIT = 100
 
-  def initialize
+  def initialize(id_type: AiBackendService::Constants::IdType::EXTERNAL)
+    @id_type = id_type
     self.class.base_uri(ai_backend_api_url)
   end
 
@@ -22,9 +30,12 @@ class AiBackendService::TokenCreditsService
     timestamp = current_timestamp
     payload = {}
 
+    query_params = { store_id: store_id.to_s }
+    query_params[:id_type] = @id_type if @id_type.present?
+
     response = self.class.get(
       BALANCE_PATH,
-      query: { store_id: store_id.to_s },
+      query: query_params,
       headers: headers(payload, timestamp)
     )
 
@@ -35,12 +46,15 @@ class AiBackendService::TokenCreditsService
     timestamp = current_timestamp
     payload = {}
 
+    query_params = {
+      store_id: store_id.to_s,
+      limit: limit
+    }
+    query_params[:id_type] = @id_type if @id_type.present?
+
     response = self.class.get(
       TRANSACTIONS_PATH,
-      query: {
-        store_id: store_id.to_s,
-        limit: limit
-      },
+      query: query_params,
       headers: headers(payload, timestamp)
     )
 
@@ -58,6 +72,9 @@ class AiBackendService::TokenCreditsService
       metadata: metadata
     }.compact
 
+    # Add id_type to payload if using external ID
+    payload[:id_type] = @id_type if @id_type.present?
+
     timestamp = current_timestamp
 
     response = self.class.post(
@@ -74,6 +91,9 @@ class AiBackendService::TokenCreditsService
       store_id: store_id.to_s,
       base_limit: base_limit
     }
+
+    # Add id_type to payload if using external ID
+    payload[:id_type] = @id_type if @id_type.present?
 
     timestamp = current_timestamp
 

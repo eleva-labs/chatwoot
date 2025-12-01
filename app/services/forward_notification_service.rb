@@ -145,8 +145,8 @@ class ForwardNotificationService
   end
 
   def find_notification_config
-    store_id = @account.custom_attributes['store_id']
-    return if store_id.blank?
+    # Use account.id (integer) with id_type=external, following the same pattern as other AI Backend services
+    store_id = @account.id
 
     begin
       # Instantiate the configuration service

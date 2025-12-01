@@ -23,14 +23,8 @@ module Billing
         return
       end
 
-      # Check if store_id exists (required for initialization)
-      store_id = account.custom_attributes&.dig('store_id')
-      if store_id.blank?
-        Rails.logger.warn "Account #{account_id} does not have store_id yet, will retry"
-        raise StandardError, "store_id not set for account #{account_id}"
-      end
-
       # Pass raise_on_error: true to allow exceptions to propagate for retry logic
+      # Service now uses account.id directly (no need to check for store_id)
       service = Billing::InitializeAiTokenCreditsService.new(account, raise_on_error: true)
       service.perform
 

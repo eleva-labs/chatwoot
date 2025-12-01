@@ -57,17 +57,12 @@ RSpec.describe AccountBuilder do
     end
 
     context 'when an account is created' do
-      it 'adds a correctly formatted store_id to custom_attributes' do
+      it 'does not add store_id to custom_attributes (removed - using account.id with id_type=external instead)' do
         _user, account = account_builder.perform
 
-        # 1. Check if the store_id exists in custom_attributes
-        expect(account.custom_attributes).to have_key('store_id')
-
-        # 2. Check if the store_id is formatted correctly
-        # We generate the expected ID based on the new account's ID and compare.
-        expected_padded_id = account.id.to_s.rjust(12, '0')
-        expected_store_id = "00000000-0000-0000-0000-#{expected_padded_id}"
-        expect(account.custom_attributes['store_id']).to eq(expected_store_id)
+        # store_id is no longer stored in custom_attributes
+        # All AI Backend services now use account.id with id_type=external
+        expect(account.custom_attributes).not_to have_key('store_id')
       end
 
       it 'sets initial starter plan with trialing status and billing status provisioning_pending' do

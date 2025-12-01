@@ -133,11 +133,8 @@ module Billing
     def reset_tokens(base_limit, period_end)
       Rails.logger.info "Resetting AI token credits for account #{@account.id}: base_limit=#{base_limit}, period_end=#{period_end}"
 
-      store_id = store_identifier
-      if store_id.blank?
-        Rails.logger.warn "Skipping AI token reset for account #{@account.id}: store_id not set"
-        return
-      end
+      # Use account.id (integer) with id_type=external, following the same pattern as other AI Backend services
+      store_id = @account.id
 
       service = AiBackendService::TokenCreditsService.new
       service.reset_credits(store_id: store_id, base_limit: base_limit)
@@ -150,14 +147,6 @@ module Billing
       @account.update!(custom_attributes: attrs)
 
       Rails.logger.info "Successfully reset AI token credits for account #{@account.id}"
-    end
-
-    def store_identifier
-      store_id = @account.custom_attributes&.dig('store_id')
-      return store_id if store_id.present?
-
-      # Fallback: use account.id (legacy behaviour) if store_id not yet stored
-      @account.id
     end
   end
 end

@@ -1,6 +1,7 @@
 export default class StoreEntity {
   constructor(account, user_email) {
-    this.id = account.store_id;
+    // Use account.id instead of store_id from custom_attributes
+    this.id = account.id;
     this.name = account.name;
     this.email = user_email;
     this.phone = account.phone || '';
