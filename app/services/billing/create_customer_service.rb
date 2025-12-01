@@ -48,6 +48,11 @@ module Billing
         update_account_attributes(customer, subscription)
         sync_account_features
 
+        # Initialize AI token credits after subscription is created
+        # Use background job to avoid blocking subscription creation
+        # Following the same pattern as AiBackendListener (enqueue jobs with perform_later)
+        Billing::InitializeAiTokenCreditsJob.perform_later(@account.id)
+
         Rails.logger.info 'CreateCustomerService completed successfully'
         success_response(customer: customer, subscription: subscription)
       rescue StandardError => e
