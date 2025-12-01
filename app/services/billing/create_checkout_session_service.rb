@@ -16,6 +16,10 @@ module Billing
 
     def perform
       return failure_response('Invalid plan') unless self.class.plan_exists?(@plan_name)
+
+      # If the account is trialing on the same plan, use the portal to add payment info
+      return portal_response if trialing_same_plan?
+
       # Allow checkout sessions for plan upgrades/changes, but prevent if already on the same plan
       return failure_response('Account already has this plan') if already_has_current_plan?
 
@@ -42,6 +46,24 @@ module Billing
     end
 
     private
+
+    def trialing_same_plan?
+      current_plan = @account.custom_attributes&.dig('plan_name')
+      subscription_status = @account.custom_attributes&.dig('subscription_status')
+
+      current_plan == @plan_name && subscription_status == Billing::SubscriptionStatuses::TRIALING
+    end
+
+    def portal_response
+      portal_service = Billing::CreatePortalSessionService.new(@account)
+      result = portal_service.perform
+      return failure_response(result[:error]) unless result[:success]
+
+      success_response(
+        portal_url: result[:data][:session_url],
+        session_id: result[:data][:session_id]
+      )
+    end
 
     def already_has_current_plan?
       current_plan = @account.custom_attributes&.dig('plan_name')
@@ -73,13 +95,13 @@ module Billing
       # Allow checkout if subscription is paused (user can reactivate)
       return false if subscription_status == Billing::SubscriptionStatuses::PAUSED
 
-      # Prevent checkout only if they already have this exact plan and it's in an active state
-      # Active states: active, trialing (both indicate subscription is currently active)
-      active_statuses = [
-        Billing::SubscriptionStatuses::ACTIVE,
-        Billing::SubscriptionStatuses::TRIALING
-      ]
-      active_statuses.include?(subscription_status)
+      # Allow checkout if subscription is trialing (user wants to convert trial to paid)
+      # This allows users on trial to add a payment method and convert to paid subscription
+      return false if subscription_status == Billing::SubscriptionStatuses::TRIALING
+
+      # Prevent checkout only if they already have this exact plan and it's in an active paid state
+      # Active paid state: active (indicates subscription is currently active and paid)
+      subscription_status == Billing::SubscriptionStatuses::ACTIVE
     end
 
     def create_checkout_session

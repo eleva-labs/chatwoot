@@ -191,6 +191,12 @@ export const actions = {
           return; // Stop execution to allow for redirect
         }
 
+        // If the backend sends a portal URL (for trialing conversion), redirect
+        if (response.data.data.portal_url) {
+          window.location = response.data.data.portal_url;
+          return;
+        }
+
         // Otherwise, update the account data with the new subscription information while preserving existing data
         const accountId = response.data.data.account_id;
         const existingAccount = storeGetters.getAccount(accountId);

@@ -559,6 +559,7 @@
       "NO_PLANS": "No hay planes de precios disponibles.",
       "START_TRIAL": "Iniciar prueba",
       "UPGRADE": "Actualizar",
+      "ADD_PAYMENT_DETAILS": "Añadir detalles de pago",
       "DOWNGRADE": "Bajar de categoría",
       "CANCEL": "Cancelar",
       "CANCELS_ON_DATE": "Se cancela el {date}",

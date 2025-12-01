@@ -80,6 +80,15 @@ const buttonConfig = computed(() => {
 
   // On trial (subscription_status: 'trialing') -> Upgrade (start subscription)
   if (status === 'trialing') {
+    // If viewing the current plan, offer to add billing info (convert trial)
+    if (currentPlan === targetPlan) {
+      return {
+        label: t('BILLING_SETTINGS.PRICING_TABLE.ADD_PAYMENT_DETAILS'),
+        action: 'upgrade', // Triggers createSubscription which handles portal redirect
+        color: 'blue',
+      };
+    }
+
     return {
       label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
       action: 'upgrade',

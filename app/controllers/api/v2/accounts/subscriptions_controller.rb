@@ -42,6 +42,7 @@ class Api::V2::Accounts::SubscriptionsController < Api::BaseController
         message: 'Checkout session created successfully',
         data: {
           checkout_url: result[:data][:checkout_url],
+          portal_url: result[:data][:portal_url],
           session_id: result[:data][:session_id]
         }
       }
