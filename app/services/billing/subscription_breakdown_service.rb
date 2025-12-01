@@ -41,7 +41,8 @@ class Billing::SubscriptionBreakdownService
       end
       
       # Add credit information if available from upcoming invoice
-      if upcoming_invoice
+      # Skip credit calculation for trial subscriptions (amount_due is $0 due to trial, not credits)
+      if upcoming_invoice && !trialing?(subscription)
         breakdown_data[:total_before_credits] = calculate_total_before_credits(upcoming_invoice)
         breakdown_data[:credits_applied] = calculate_credits_applied(upcoming_invoice)
       end
@@ -183,13 +184,29 @@ class Billing::SubscriptionBreakdownService
       }
     end
 
-    # If we have upcoming invoice data, use amount_due (net amount after credits)
+    # If we have upcoming invoice data
     if upcoming_invoice
-      amount_due = upcoming_invoice.amount_due || 0
-      return {
-        amount_cents: amount_due,
-        amount_formatted: format_price(amount_due)
-      }
+      # For trial subscriptions, amount_due is $0.00 (nothing is due during trial)
+      # Use subtotal or total to show what will be charged after trial ends
+      is_trial = trialing?(subscription)
+      
+      if is_trial
+        # During trial: use total (amount after discounts/taxes) to show future charge
+        # Fallback to subtotal if total is not available
+        total_amount = upcoming_invoice.total || upcoming_invoice.subtotal || 0
+        return {
+          amount_cents: total_amount,
+          amount_formatted: format_price(total_amount)
+        }
+      else
+        # Active subscription: use amount_due (net amount after credits/discounts)
+        # This shows the actual amount the customer will pay
+        amount_due = upcoming_invoice.amount_due || 0
+        return {
+          amount_cents: amount_due,
+          amount_formatted: format_price(amount_due)
+        }
+      end
     end
 
     # Fallback: calculate from subscription items (before credits)
@@ -211,8 +228,10 @@ class Billing::SubscriptionBreakdownService
     customer_id = @account.custom_attributes&.dig('stripe_customer_id')
     return nil unless customer_id
 
-    subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'active', limit: 1)
-    subscriptions.data.first
+    # Fetch subscriptions with status 'all' and filter for active/trialing subscriptions
+    # This ensures we capture both active and trialing subscriptions
+    subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'all', limit: 10)
+    subscriptions.data.find { |sub| %w[active trialing].include?(sub.status) }
   end
 
   def fetch_upcoming_invoice(subscription)
@@ -264,6 +283,7 @@ class Billing::SubscriptionBreakdownService
     # Credits applied = subtotal - amount_due
     # This matches what Stripe shows in the dashboard as "Applied balance"
     # The difference between subtotal and amount_due represents credits/discounts applied
+    # Note: This method should NOT be called for trial subscriptions (handled in breakdown method)
     subtotal = upcoming_invoice.subtotal || 0
     amount_due = upcoming_invoice.amount_due || 0
     credits_cents = [subtotal - amount_due, 0].max
@@ -431,6 +451,18 @@ class Billing::SubscriptionBreakdownService
     nil
   end
 
+  # Check if subscription is in trial status
+  def trialing?(subscription)
+    return false unless subscription
+
+    status = if subscription.respond_to?(:status)
+               subscription.status
+             elsif subscription.is_a?(Hash)
+               subscription['status']
+             end
+
+    status == Billing::SubscriptionStatuses::TRIALING
+  end
 
   def build_breakdown_from_plan_config
     # Build breakdown from plan configuration (for free trials, community plans, etc.)
