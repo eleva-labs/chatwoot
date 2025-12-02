@@ -24,6 +24,10 @@ class Channel::Whatsapp < ApplicationRecord
   self.table_name = 'channel_whatsapp'
   EDITABLE_ATTRS = [:phone_number, :provider, { provider_config: {} }].freeze
 
+  # Override default threshold (2) from Reauthorizable concern
+  # Higher threshold for WhatsApp/Whapi due to transient 401 errors during reconnection cycles
+  AUTHORIZATION_ERROR_THRESHOLD = 3
+
   # default at the moment is 360dialog lets change later.
   PROVIDERS = %w[default whatsapp_cloud whapi].freeze
 

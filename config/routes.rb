@@ -207,12 +207,7 @@ Rails.application.routes.draw do
             member do
               get :qr_code
               post :retry_webhook
-            end
-          end
-          resources :whapi_channels, only: [:create] do
-            member do
-              get :qr_code
-              post :retry_webhook
+              post :reauthorize
             end
           end
           resources :inbox_members, only: [:create, :show], param: :inbox_id do

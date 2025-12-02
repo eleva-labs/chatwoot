@@ -13,6 +13,7 @@ import DuplicateInboxBanner from './channels/instagram/DuplicateInboxBanner.vue'
 import MicrosoftReauthorize from './channels/microsoft/Reauthorize.vue';
 import GoogleReauthorize from './channels/google/Reauthorize.vue';
 import WhatsappReauthorize from './channels/whatsapp/Reauthorize.vue';
+import WhapiReauthorize from './channels/whapi/Reauthorize.vue';
 import PreChatFormSettings from './PreChatForm/Settings.vue';
 import WeeklyAvailability from './components/WeeklyAvailability.vue';
 import GreetingsEditor from 'shared/components/GreetingsEditor.vue';
@@ -48,6 +49,7 @@ export default {
     NextButton,
     InstagramReauthorize,
     WhatsappReauthorize,
+    WhapiReauthorize,
     DuplicateInboxBanner,
     Editor,
     Avatar,
@@ -267,6 +269,13 @@ export default {
         this.inbox.reauthorization_required
       );
     },
+    whapiUnauthorized() {
+      return (
+        this.isAWhatsAppChannel &&
+        this.inbox.provider === 'whapi' &&
+        this.inbox.reauthorization_required
+      );
+    },
   },
   watch: {
     $route(to) {
@@ -446,6 +455,7 @@ export default {
       <GoogleReauthorize v-if="googleUnauthorized" :inbox="inbox" />
       <InstagramReauthorize v-if="instagramUnauthorized" :inbox="inbox" />
       <WhatsappReauthorize v-if="whatsappUnauthorized" :inbox="inbox" />
+      <WhapiReauthorize v-if="whapiUnauthorized" :inbox="inbox" />
       <DuplicateInboxBanner
         v-if="hasDuplicateInstagramInbox"
         :content="$t('INBOX_MGMT.ADD.INSTAGRAM.DUPLICATE_INBOX_BANNER')"

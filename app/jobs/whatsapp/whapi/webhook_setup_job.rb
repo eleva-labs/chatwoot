@@ -20,7 +20,9 @@ class Whatsapp::Whapi::WebhookSetupJob < ApplicationJob
     config_object.set_webhook_configured(webhook_url)
     
     Rails.logger.info "[WhapiWebhookSetup] Webhook configured successfully for channel #{channel_id}"
-  rescue Net::TimeoutError, Net::OpenTimeout => e
+  rescue Timeout::Error => e
+    # Catch all timeout exceptions (Net::ReadTimeout, Net::OpenTimeout, Net::WriteTimeout, etc.)
+    # Timeout::Error is the superclass for all timeout-related exceptions in Ruby
     Rails.logger.warn "[WhapiWebhookSetup] Webhook setup timeout for channel #{channel_id}: #{e.message}"
     config_object&.set_webhook_failed("Timeout: #{e.message}")
     raise

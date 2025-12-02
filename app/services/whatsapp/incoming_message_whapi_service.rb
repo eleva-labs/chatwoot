@@ -4,14 +4,25 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   # echoes, and status updates.
 
   def perform
-    # Handle Whapi connection status events first
-    if params['events']&.any?
+    # Handle Whapi connection status events first (events array or top-level event)
+    if params['events']&.any? || (params['event'].present? && params['event']['type'] == 'users')
       correlation_id = params['correlation_id'] || SecureRandom.uuid
       Whatsapp::WhapiConnectionStatusService.new(
         channel: inbox.channel,
         params: params,
         correlation_id: correlation_id
       ).perform
+      return
+    end
+
+    # Handle health status updates from channels.post webhook
+    if params['health'].present?
+      correlation_id = params['correlation_id'] || SecureRandom.uuid
+      Whatsapp::WhapiConnectionStatusService.new(
+        channel: inbox.channel,
+        params: params,
+        correlation_id: correlation_id
+      ).process_health_status(params['health'])
       return
     end
 

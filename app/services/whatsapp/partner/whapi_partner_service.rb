@@ -37,16 +37,26 @@ class Whatsapp::Partner::WhapiPartnerService
     return unless config
 
     key = "whapi_external_api:#{action}:#{Current.account.id}"
-    current_count = Redis::Alfred.get(key).to_i
+    
+    # Use atomic increment to avoid race conditions
+    # INCR returns the new value after incrementing
+    # If key doesn't exist, INCR initializes it to 0 then increments to 1
+    new_count = Redis::Alfred.incr(key)
+    
+    # Set expiry on first increment (when count becomes 1)
+    # This ensures the key expires after the period, resetting the counter
+    # Only one request will get new_count == 1, so this is safe
+    if new_count == 1
+      # Set expiry using Redis directly (Redis::Alfred doesn't have expire method)
+      # This creates a fixed window: counter resets after period expires
+      $alfred.with { |conn| conn.expire(key, config[:period].to_i) }
+    end
 
-    if current_count >= config[:limit]
+    if new_count > config[:limit]
       raise CustomExceptions::RateLimitExceeded.new(
         message: "Rate limit exceeded for #{action}. Limit: #{config[:limit]} per #{config[:period] / 1.hour} hour(s)"
       )
     end
-
-    # Increment counter and set expiry
-    Redis::Alfred.setex(key, current_count + 1, config[:period].to_i)
   end
 
   def fetch_projects
@@ -94,24 +104,45 @@ class Whatsapp::Partner::WhapiPartnerService
   # Set webhook at channel level using per-channel token against API base
   # Docs: PATCH /settings with Authorization: Bearer <channel token>
   def update_channel_webhook(channel_token:, webhook_url:, retries: 3)
-    # Configure webhook with comprehensive settings for message sync
-    payload = {
-      webhooks: [
+    # Get webhook secret for signature validation (optional)
+    # Only use dedicated webhook secret variable - WHAPI_PARTNER_TOKEN is for Partner API auth
+    webhook_secret = ENV['WHAPI_PARTNER_WEBHOOK_SECRET'].presence
+
+    # Build webhook configuration
+    webhook_config = {
+      events: [
         {
-          events: [
-            {
-              type: 'messages',
-              method: 'post'
-            },
-            {
-              type: 'statuses',
-              method: 'post'
-            }
-          ],
-          mode: 'body',
-          url: webhook_url
+          type: 'messages',
+          method: 'post'
+        },
+        {
+          type: 'statuses',
+          method: 'post'
+        },
+        {
+          type: 'users',
+          method: 'post'
+        },
+        {
+          type: 'users',
+          method: 'delete'
+        },
+        {
+          type: 'channel',
+          method: 'post'
         }
       ],
+      mode: 'body',
+      url: webhook_url
+    }
+
+    # Add secret for webhook signature validation if configured
+    # This ensures Whapi signs webhooks so Chatwoot can verify them
+    webhook_config[:secret] = webhook_secret if webhook_secret.present?
+
+    # Configure webhook with comprehensive settings for message sync and disconnection detection
+    payload = {
+      webhooks: [webhook_config],
       callback_persist: true,
       media: {
         auto_download: %w[image audio voice video document sticker]
@@ -198,6 +229,7 @@ class Whatsapp::Partner::WhapiPartnerService
     end
 
     last_error = nil
+    last_exception = nil
 
     retries.times do |attempt|
       Rails.logger.info "[WhapiPartner] QR Code base64 attempt #{attempt + 1} of #{retries} for token #{channel_token[0..8]}..."
@@ -211,6 +243,7 @@ class Whatsapp::Partner::WhapiPartnerService
         return result
       rescue StandardError => e
         last_error = e.message
+        last_exception = e
       
         # Log detailed error information
         Rails.logger.error "[WhapiPartner] QR Code attempt #{attempt + 1} failed with #{e.class}: #{last_error}"
@@ -220,6 +253,12 @@ class Whatsapp::Partner::WhapiPartnerService
         # Don't retry if channel is already authenticated
         if e.message.include?('already authenticated')
           Rails.logger.info '[WhapiPartner] QR Code: Channel already authenticated, stopping retries'
+          raise e
+        end
+
+        # Don't retry rate limit errors - preserve the exception type
+        if e.is_a?(CustomExceptions::RateLimitExceeded)
+          Rails.logger.info '[WhapiPartner] QR Code: Rate limit exceeded, stopping retries'
           raise e
         end
 
@@ -247,6 +286,12 @@ class Whatsapp::Partner::WhapiPartnerService
       Rails.logger.error "[WhapiPartner] Marking WHAPI service as down due to: #{last_error}"
       Rails.logger.error "[WhapiPartner] Service will be marked as down for #{WHAPI_SERVICE_DOWN_TTL} seconds"
       Rails.cache.write(WHAPI_SERVICE_DOWN_CACHE_KEY, true, expires_in: WHAPI_SERVICE_DOWN_TTL)
+    end
+
+    # Preserve original exception type if it was a rate limit error
+    if last_exception.is_a?(CustomExceptions::RateLimitExceeded)
+      Rails.logger.error "[WhapiPartner] Re-raising rate limit exception after #{retries} attempts"
+      raise last_exception
     end
 
     final_error = "WHAPI generate_qr_code_base64 failed after #{retries} attempts for token #{channel_token[0..8]}.... Last error: #{last_error}"

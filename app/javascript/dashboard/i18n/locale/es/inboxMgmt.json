@@ -331,6 +331,7 @@
         "GENERATING_QR": "Generando código QR...",
         "LOADING_QR": "Cargando código QR...",
         "QR_HELP_TEXT": "Escanea este código QR con tu aplicación móvil de WhatsApp para conectar tu canal",
+        "QR_EXPIRED": "El código QR ha expirado. Por favor, inténtalo de nuevo.",
         "SUCCESS_TEXT": "¡Tu canal de WhatsApp se ha conectado exitosamente!",
         "SUCCESS_MESSAGE": "¡Canal de WhatsApp conectado exitosamente!",
         "CONTINUE_BUTTON": "Continuar"
