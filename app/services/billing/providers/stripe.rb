@@ -488,8 +488,14 @@ module Billing
 
         update_payment_status(account, 'succeeded')
 
-        # Reset AI token credits on subscription renewal
-        reset_ai_token_credits(account, invoice)
+        # Only reset AI token credits on subscription renewal, not on initial subscription creation
+        # Skip reset for trial invoices (billing_reason: "subscription_create")
+        billing_reason = invoice['billing_reason'] || invoice.dig('parent', 'subscription_details', 'billing_reason')
+        unless billing_reason == 'subscription_create'
+          reset_ai_token_credits(account, invoice)
+        else
+          Rails.logger.info "Skipping token reset for initial subscription invoice (billing_reason: subscription_create)"
+        end
 
         success_response('Payment succeeded, account updated')
       end
@@ -592,10 +598,47 @@ module Billing
         success_response("Payment action required notification logged for account #{account.id}")
       end
 
-      # Extracts account ID from invoice metadata (line items or subscription details)
+      # Resets AI token credits on subscription renewal
+      # Extracts subscription from invoice and passes it to the service
       def reset_ai_token_credits(account, invoice)
-        Billing::ResetAiTokenCreditsService.new(account, invoice).perform
+        subscription_id = extract_subscription_id_from_invoice(invoice)
+        return unless subscription_id
+
+        subscription = get_subscription(subscription_id)
+        Billing::ResetAiTokenCreditsService.new(account, invoice, subscription).perform
+      rescue StandardError => e
+        Rails.logger.error "Error retrieving subscription for token reset: #{e.message}"
+        # Don't raise - allow webhook processing to continue
       end
+
+      # Extracts subscription ID from invoice
+      # Tries multiple locations to support different Stripe API versions and invoice types
+      def extract_subscription_id_from_invoice(invoice)
+        # Handle Stripe object (responds to .subscription)
+        return invoice.subscription if invoice.respond_to?(:subscription)
+
+        return nil unless invoice.is_a?(Hash)
+
+        # Check direct subscription field (simplest case)
+        subscription_id = invoice['subscription']
+        return subscription_id if subscription_id.present?
+
+        # Modern Stripe API versions (flexible billing) - subscription ID is in parent details
+        subscription_id = invoice.dig('parent', 'subscription_details', 'subscription')
+        return subscription_id if subscription_id.present?
+
+        # Final fallback - check line items for subscription details
+        # (as mentioned in Stripe knowledge base: lines.data.subscription)
+        line_items = invoice.dig('lines', 'data') || []
+        line_items.each do |item|
+          sub_id = item.dig('parent', 'subscription_item_details', 'subscription')
+          return sub_id if sub_id.present?
+        end
+
+        nil
+      end
+
+      # Extracts account ID from invoice metadata (line items or subscription details)
 
       def extract_account_id_from_invoice(invoice)
         # First try to get from line items metadata

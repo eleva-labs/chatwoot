@@ -92,13 +92,14 @@ class AiBackendService::TokenCreditsService
       base_limit: base_limit
     }
 
-    # Add id_type to payload if using external ID
-    payload[:id_type] = @id_type if @id_type.present?
+    query_params = {}
+    query_params[:id_type] = @id_type if @id_type.present?
 
     timestamp = current_timestamp
 
     response = self.class.post(
       RESET_CREDITS_PATH,
+      query: query_params,
       headers: headers(payload, timestamp),
       body: payload.to_json
     )
