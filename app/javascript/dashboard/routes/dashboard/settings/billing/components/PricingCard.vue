@@ -1,8 +1,6 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useStore } from 'dashboard/composables/store.js';
-import * as Sentry from '@sentry/vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 
 const props = defineProps({
@@ -34,31 +32,16 @@ const props = defineProps({
 
 const { t, locale } = useI18n();
 
-const cancelButtonLabel = computed(() => {
-  // Show "Cancels on [date]" if there's a scheduled cancellation
-  // This works for both cancel_at_period_end=true and cancel_at scenarios
-  if (props.cancelAtPeriodEnd && props.subscriptionEndsOn) {
-    return t('BILLING_SETTINGS.PRICING_TABLE.CANCELS_ON_DATE', {
-      date: props.subscriptionEndsOn,
-    });
-  }
-
-  return t('BILLING_SETTINGS.PRICING_TABLE.CANCEL');
-});
-const store = useStore();
-
-// Plan hierarchy for comparison
-const PLAN_HIERARCHY = {
-  starter: 1,
-};
-
 /**
  * Calculate button configuration based on user's current plan
+ * Simplified: Only shows "Current Plan" if user is on this plan.
+ * All other scenarios (upgrade, downgrade, payment, etc.) are handled
+ * by the "Go to billing portal" button.
+ * IMPORTANT: Custom plan always shows "Get in Touch" regardless of user's current plan.
  */
 const buttonConfig = computed(() => {
   const currentPlan = props.currentPlanName;
   const targetPlan = props.plan.plan_name;
-  const status = props.subscriptionStatus;
 
   // Custom plan always shows "Get in Touch" regardless of current plan status
   if (targetPlan === 'custom') {
@@ -66,121 +49,27 @@ const buttonConfig = computed(() => {
       label: t('BILLING_SETTINGS.PRICING_TABLE.GET_IN_TOUCH'),
       action: 'contact',
       color: 'blue',
+      disabled: false,
     };
   }
 
-  // Community plan users should see "Upgrade" not "Start trial" (they go directly to payment)
-  if (currentPlan === 'community') {
+  // If user is on this plan, show "Current Plan"
+  if (currentPlan === targetPlan) {
     return {
-      label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
-      action: 'trial',
-      color: 'blue',
-    };
-  }
-
-  // No plan or inactive -> Start trial
-  if (!currentPlan || status === 'inactive') {
-    return {
-      label: t('BILLING_SETTINGS.PRICING_TABLE.START_TRIAL'),
-      action: 'trial',
-      color: 'blue',
-    };
-  }
-
-  // On trial (subscription_status: 'trialing') -> Upgrade (start subscription)
-  if (status === 'trialing') {
-    // If viewing the current plan, offer to add billing info (convert trial)
-    if (currentPlan === targetPlan) {
-      return {
-        label: t('BILLING_SETTINGS.PRICING_TABLE.ADD_PAYMENT_DETAILS'),
-        action: 'upgrade', // Triggers createSubscription which handles portal redirect
-        color: 'blue',
-      };
-    }
-
-    return {
-      label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
-      action: 'upgrade',
-      color: 'blue',
-    };
-  }
-
-  // Past due -> Update Payment (redirect to billing portal)
-  if (status === 'past_due') {
-    return {
-      label: t('BILLING_SETTINGS.PRICING_TABLE.UPDATE_PAYMENT'),
-      action: 'update_payment',
-      color: 'blue',
-    };
-  }
-
-  // Current plan (active, canceled, etc.)
-  const currentTier = PLAN_HIERARCHY[currentPlan];
-  const targetTier = PLAN_HIERARCHY[targetPlan];
-
-  // Validate plan names exist in hierarchy
-  if (currentTier === undefined || targetTier === undefined) {
-    // Invalid plan name(s) - track error and return safe fallback
-    Sentry.captureException(
-      new Error(
-        `Invalid plan name detected. Current: "${currentPlan}" (tier: ${currentTier}), ` +
-          `Target: "${targetPlan}" (tier: ${targetTier})`
-      ),
-      {
-        tags: { component: 'PricingCard', action: 'buttonConfig' },
-        extra: { currentPlan, targetPlan, currentTier, targetTier },
-      }
-    );
-
-    // If target plan is invalid, disable button or show contact support
-    if (targetTier === undefined) {
-      return {
-        label: t('BILLING_SETTINGS.PRICING_TABLE.CONTACT_SALES'),
-        action: 'contact',
-        color: 'slate',
-      };
-    }
-
-    // If current plan is invalid but target is valid, treat as new subscription
-    // Community plan users should see "Upgrade" not "Start trial"
-    if (currentPlan === 'community') {
-      return {
-        label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
-        action: 'trial',
-        color: 'blue',
-      };
-    }
-
-    return {
-      label: t('BILLING_SETTINGS.PRICING_TABLE.START_TRIAL'),
-      action: 'trial',
-      color: 'blue',
-    };
-  }
-
-  if (currentTier === targetTier) {
-    // Same plan -> Cancel
-    return {
-      label: cancelButtonLabel.value,
-      action: 'cancel',
+      label: t('BILLING_SETTINGS.PRICING_TABLE.CURRENT_PLAN'),
+      action: null,
       color: 'slate',
+      disabled: true,
     };
   }
 
-  if (targetTier > currentTier) {
-    // Higher tier -> Upgrade
-    return {
-      label: t('BILLING_SETTINGS.PRICING_TABLE.UPGRADE'),
-      action: 'upgrade',
-      color: 'blue',
-    };
-  }
-
-  // Lower tier -> Downgrade
+  // TODO: Handle scenario when user is not on this plan
+  // This functionality should be handled by the "Go to billing portal" button
   return {
-    label: t('BILLING_SETTINGS.PRICING_TABLE.DOWNGRADE'),
-    action: 'downgrade',
-    color: 'blue',
+    label: t('BILLING_SETTINGS.PRICING_TABLE.CURRENT_PLAN'),
+    action: null,
+    color: 'slate',
+    disabled: true,
   };
 });
 
@@ -193,21 +82,15 @@ const selectedPrice = computed(() => {
 
 /**
  * Handle button click
+ * Simplified: Button is disabled when showing "Current Plan", so this should not be called.
+ * All subscription management is handled by the "Go to billing portal" button.
+ * Custom plan button opens contact form.
  */
 const handleButtonClick = async () => {
   const { action } = buttonConfig.value;
 
-  if (action === 'trial' || action === 'upgrade') {
-    // Create checkout session
-    await store.dispatch('accounts/createSubscription', {
-      planName: props.plan.plan_name,
-      billingInterval: props.billingInterval,
-    });
-  } else if (action === 'downgrade' || action === 'cancel' || action === 'update_payment') {
-    // Redirect to billing portal (handles cancel, downgrade, and payment updates)
-    await store.dispatch('accounts/checkout');
-  } else if (action === 'contact') {
-    // Handle contact action - redirect to form based on plan and locale
+  // Handle contact action for custom plan - redirect to form based on locale
+  if (action === 'contact') {
     if (props.plan.plan_name === 'custom') {
       // Custom plan: redirect to language-specific contact form
       const formUrls = {
@@ -217,16 +100,10 @@ const handleButtonClick = async () => {
       const currentLocale = locale.value || 'en';
       const formUrl = formUrls[currentLocale] || formUrls.en;
       window.open(formUrl, '_blank', 'noopener noreferrer');
-    } else {
-      // Invalid plan - track warning and do nothing
-      // This prevents errors when target plan name is invalid
-      Sentry.captureMessage('Invalid target plan, contact action triggered', {
-        level: 'warning',
-        tags: { component: 'PricingCard', action: 'handleButtonClick' },
-        extra: { targetPlan: props.plan.plan_name },
-      });
     }
   }
+  // Button is disabled when showing "Current Plan", so this should not be called
+  // All subscription management is handled by the "Go to billing portal" button
 };
 </script>
 
@@ -276,6 +153,7 @@ const handleButtonClick = async () => {
       class="w-full mb-6"
       variant="solid"
       :color="buttonConfig.color"
+      :disabled="buttonConfig.disabled"
       @click="handleButtonClick"
     >
       {{ buttonConfig.label }}

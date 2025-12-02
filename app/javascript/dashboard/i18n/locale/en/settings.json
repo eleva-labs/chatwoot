@@ -560,6 +560,7 @@
       "START_TRIAL": "Start trial",
       "UPGRADE": "Upgrade",
       "ADD_PAYMENT_DETAILS": "Add payment details",
+      "CURRENT_PLAN": "Current Plan",
       "DOWNGRADE": "Downgrade",
       "CANCEL": "Cancel",
       "CANCELS_ON_DATE": "Cancels on {date}",
