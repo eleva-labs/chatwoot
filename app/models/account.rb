@@ -108,6 +108,7 @@ class Account < ApplicationRecord
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
 
   before_validation :validate_limit_keys
+  before_create :enable_default_custom_features
   after_create_commit :notify_creation
   # Note: Stripe subscription is now created synchronously in AccountBuilder
   # No longer using after_create_commit callback to avoid duplicate creation
@@ -283,6 +284,29 @@ class Account < ApplicationRecord
 
   def validate_limit_keys
     # method overridden in enterprise module
+  end
+
+  def enable_default_custom_features
+    return unless defined?(CustomFeaturesService)
+
+    # Enable Whapi Partner feature by default for new accounts
+    # This ensures WhatsApp channel creation via Whapi is available immediately
+    # Set directly on internal_attributes to avoid calling save during before_create
+    # Use dup and reassignment pattern to ensure Rails change tracking works properly
+    feature_name = 'channel_whatsapp_whapi_partner'
+    return unless CustomFeaturesService.feature_exists?(feature_name)
+
+    # Get current features (or empty array if none)
+    # Check for nil first before calling dup (internal_attributes may be nil during before_create)
+    current_attrs = (internal_attributes || {}).dup
+    current_features = current_attrs['custom_features'] || []
+    
+    # Add the feature if not already present
+    unless current_features.include?(feature_name)
+      # Reassign entire hash to ensure Rails change tracking works
+      current_attrs['custom_features'] = (current_features + [feature_name]).uniq
+      self.internal_attributes = current_attrs
+    end
   end
 
   def remove_account_sequences
