@@ -171,14 +171,5 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <!-- Success -->
-    <div
-      v-else-if="step === 'success'"
-      class="flex flex-col items-center justify-center mx-8 mt-5"
-    >
-      <p class="text-green-600 font-medium">
-        {{ $t('INBOX.REAUTHORIZE.SUCCESS') }}
-      </p>
-    </div>
   </div>
 </template>
