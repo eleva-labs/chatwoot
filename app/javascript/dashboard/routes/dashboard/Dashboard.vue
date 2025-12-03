@@ -18,8 +18,7 @@ const CommandBar = defineAsyncComponent(
 
 import CopilotLauncher from 'dashboard/components-next/copilot/CopilotLauncher.vue';
 import CopilotContainer from 'dashboard/components/copilot/CopilotContainer.vue';
-// import FloatingAIAssistant from 'dashboard/components/FloatingAIAssistant.vue'; // Temporarily disabled for POC
-import { FloatingAIAssistantPOC } from 'dashboard/components/ai-assistant-poc';
+import { AiAssistant } from 'dashboard/components-next/ai-assistant';
 
 import MobileSidebarLauncher from 'dashboard/components-next/sidebar/MobileSidebarLauncher.vue';
 
@@ -33,8 +32,7 @@ export default {
     CopilotLauncher,
     CopilotContainer,
     MobileSidebarLauncher,
-    // FloatingAIAssistant, // Temporarily disabled for POC
-    FloatingAIAssistantPOC,
+    AiAssistant,
   },
   setup() {
     const upgradePageRef = ref(null);
@@ -168,9 +166,7 @@ export default {
           @toggle="toggleMobileSidebar"
         />
         <CopilotContainer />
-        <!-- AI Assistant - using Vercel AI SDK POC -->
-        <FloatingAIAssistantPOC v-if="canUseAI" />
-        <!-- <FloatingAIAssistant v-if="canUseAI" /> -->
+        <AiAssistant v-if="canUseAI" />
       </template>
       <AddAccountModal
         :show="showCreateAccountModal"

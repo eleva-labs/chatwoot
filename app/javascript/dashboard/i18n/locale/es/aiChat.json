@@ -1,0 +1,71 @@
+{
+  "AI_CHAT": {
+    "HEADER": {
+      "TITLE": "Empleado IA",
+      "CLOSE": "Cerrar chat"
+    },
+    "EMPTY_STATE": {
+      "TITLE": "Inicia una conversación con tu Empleado IA",
+      "DESCRIPTION": "Escribe un mensaje abajo para comenzar",
+      "SUGGESTIONS_LABEL": "Intenta preguntar sobre"
+    },
+    "INPUT": {
+      "PLACEHOLDER": "Escribe un mensaje...",
+      "SEND": "Enviar mensaje",
+      "DISABLED_NO_BOT": "Selecciona un Empleado IA para comenzar a chatear"
+    },
+    "STATUS": {
+      "READY": "Listo",
+      "SUBMITTED": "Enviando...",
+      "STREAMING": "Respondiendo...",
+      "ERROR": "Error"
+    },
+    "MESSAGE": {
+      "COPY": "Copiar mensaje",
+      "COPY_SUCCESS": "Mensaje copiado al portapapeles",
+      "REGENERATE": "Regenerar respuesta"
+    },
+    "REASONING": {
+      "THINKING": "Pensando...",
+      "VIEW": "Ver razonamiento",
+      "HIDE": "Ocultar razonamiento"
+    },
+    "TOOL": {
+      "PREPARING": "Preparando...",
+      "RUNNING": "Ejecutando...",
+      "COMPLETED": "Completado",
+      "ERROR": "Error",
+      "INPUT_LABEL": "Entrada",
+      "OUTPUT_LABEL": "Salida"
+    },
+    "SOURCES": {
+      "TITLE": "Fuentes",
+      "VIEW": "Ver fuentes",
+      "HIDE": "Ocultar fuentes"
+    },
+    "ERROR": {
+      "TITLE": "Algo salió mal",
+      "NETWORK": "Error de conexión. Verifica tu internet.",
+      "AUTH": "Sesión expirada. Inicia sesión nuevamente.",
+      "RATE_LIMIT": "Demasiadas solicitudes. Espera {seconds} segundos.",
+      "SERVER": "Error del servidor. Nuestro equipo ha sido notificado.",
+      "UNKNOWN": "Ocurrió un error inesperado.",
+      "RETRY": "Reintentar",
+      "EDIT_RETRY": "Editar y reintentar",
+      "DISMISS": "Descartar",
+      "FRESH_START": "Comenzar de nuevo",
+      "TECHNICAL_DETAILS": "Detalles técnicos"
+    },
+    "SUGGESTIONS": {
+      "LABEL": "Sugerencias"
+    },
+    "LOADER": {
+      "WAITING": "Procesando..."
+    },
+    "SCROLL_TO_BOTTOM": "Desplazar al final",
+    "BOT_SELECTOR": {
+      "LABEL": "Seleccionar Empleado IA",
+      "PLACEHOLDER": "Elige un Empleado IA"
+    }
+  }
+}

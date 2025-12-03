@@ -1,0 +1,71 @@
+{
+  "AI_CHAT": {
+    "HEADER": {
+      "TITLE": "AI Assistant",
+      "CLOSE": "Close chat"
+    },
+    "EMPTY_STATE": {
+      "TITLE": "Start a conversation",
+      "DESCRIPTION": "Type a message below to begin",
+      "SUGGESTIONS_LABEL": "Try asking about"
+    },
+    "INPUT": {
+      "PLACEHOLDER": "Type a message...",
+      "SEND": "Send message",
+      "DISABLED_NO_BOT": "Select a bot to start chatting"
+    },
+    "STATUS": {
+      "READY": "Ready",
+      "SUBMITTED": "Sending...",
+      "STREAMING": "Responding...",
+      "ERROR": "Error"
+    },
+    "MESSAGE": {
+      "COPY": "Copy message",
+      "COPY_SUCCESS": "Message copied to clipboard",
+      "REGENERATE": "Regenerate response"
+    },
+    "REASONING": {
+      "THINKING": "Thinking...",
+      "VIEW": "View reasoning",
+      "HIDE": "Hide reasoning"
+    },
+    "TOOL": {
+      "PREPARING": "Preparing...",
+      "RUNNING": "Running...",
+      "COMPLETED": "Completed",
+      "ERROR": "Error",
+      "INPUT_LABEL": "Input",
+      "OUTPUT_LABEL": "Output"
+    },
+    "SOURCES": {
+      "TITLE": "Sources",
+      "VIEW": "View sources",
+      "HIDE": "Hide sources"
+    },
+    "ERROR": {
+      "TITLE": "Something went wrong",
+      "NETWORK": "Connection error. Please check your internet.",
+      "AUTH": "Session expired. Please log in again.",
+      "RATE_LIMIT": "Too many requests. Please wait {seconds} seconds.",
+      "SERVER": "Server error. Our team has been notified.",
+      "UNKNOWN": "An unexpected error occurred.",
+      "RETRY": "Retry",
+      "EDIT_RETRY": "Edit & Retry",
+      "DISMISS": "Dismiss",
+      "FRESH_START": "Start over",
+      "TECHNICAL_DETAILS": "Technical details"
+    },
+    "SUGGESTIONS": {
+      "LABEL": "Suggestions"
+    },
+    "LOADER": {
+      "WAITING": "Processing..."
+    },
+    "SCROLL_TO_BOTTOM": "Scroll to bottom",
+    "BOT_SELECTOR": {
+      "LABEL": "Select AI Employee",
+      "PLACEHOLDER": "Choose an AI Employee"
+    }
+  }
+}

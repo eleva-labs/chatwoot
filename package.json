@@ -32,6 +32,7 @@
   ],
   "dependencies": {
     "@ai-sdk/vue": "^2.0.104",
+    "ai": "^5.0.104",
     "@breezystack/lamejs": "^1.2.7",
     "@chatwoot/ninja-keys": "1.2.3",
     "@chatwoot/prosemirror-schema": "1.2.1",

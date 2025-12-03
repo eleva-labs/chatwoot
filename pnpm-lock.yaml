@@ -94,6 +94,9 @@ importers:
       activestorage:
         specifier: ^5.2.6
         version: 5.2.8
+      ai:
+        specifier: ^5.0.104
+        version: 5.0.104(zod@4.1.13)
       axios:
         specifier: ^1.8.2
         version: 1.8.2

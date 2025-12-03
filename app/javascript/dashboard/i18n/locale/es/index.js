@@ -1,5 +1,6 @@
 import advancedFilters from './advancedFilters.json';
 import agentBots from './agentBots.json';
+import aiChat from './aiChat.json';
 import agentMgmt from './agentMgmt.json';
 import attributesMgmt from './attributesMgmt.json';
 import auditLogs from './auditLogs.json';
@@ -41,6 +42,7 @@ import contentTemplates from './contentTemplates.json';
 export default {
   ...advancedFilters,
   ...agentBots,
+  ...aiChat,
   ...agentMgmt,
   ...attributesMgmt,
   ...auditLogs,
