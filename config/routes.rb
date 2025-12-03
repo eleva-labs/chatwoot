@@ -208,6 +208,7 @@ Rails.application.routes.draw do
               get :qr_code
               post :retry_webhook
               post :reauthorize
+              post :initiate_reconnection
             end
           end
           resources :inbox_members, only: [:create, :show], param: :inbox_id do

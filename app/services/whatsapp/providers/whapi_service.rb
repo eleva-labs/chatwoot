@@ -172,6 +172,42 @@ class Whatsapp::Providers::WhapiService < Whatsapp::Providers::BaseService
     Rails.logger.debug "WHAPI health check cache busted for channel #{whatsapp_channel.id}"
   end
 
+  # Fetches detailed health status from WHAPI - not cached
+  def health_status
+    api_key = provider_config_object&.api_key
+    unless api_key.present?
+      Rails.logger.error "WHAPI health check failed: api_key is missing for channel #{whatsapp_channel.id}"
+      return { 'text' => 'MISSING_CONFIG' }
+    end
+
+    response = safe_http_request_with_retry('whapi_health_check_auth') do
+      HTTParty.get(
+        "#{api_base_path}/health",
+        headers: api_headers,
+        query: {
+          wakeup: 'true',
+          platform: 'Chrome,Whapi,1.6.0',
+          channel_type: 'web'
+        },
+        timeout: whapi_timeout
+      )
+    end
+
+    if response&.success?
+      parsed_response = response.parsed_response
+      Rails.logger.info "[WhapiService] Health check raw response for channel #{whatsapp_channel.id}: #{parsed_response.inspect}"
+      if parsed_response.is_a?(Hash) && parsed_response['status'].is_a?(Hash)
+        return parsed_response['status']
+      end
+    end
+
+    handle_failed_health_check(response)
+    { 'text' => 'REQUEST_FAILED' }
+  rescue StandardError => e
+    Rails.logger.error "WHAPI health check error: #{e.message}"
+    { 'text' => 'ERROR' }
+  end
+
   # Public method - used by controllers to check channel connection status
   def healthy?
     # Validate api_key exists before proceeding
@@ -184,44 +220,27 @@ class Whatsapp::Providers::WhapiService < Whatsapp::Providers::BaseService
     # Cache health status for 30 seconds to avoid excessive API calls
     cache_key = "whapi_health_#{api_key[0..8]}"
 
-    Rails.cache.fetch(cache_key, expires_in: 30.seconds) do
-      response = safe_http_request_with_retry('whapi_health_check_auth') do
-        HTTParty.get(
-          "#{api_base_path}/health",
-          headers: api_headers,
-          query: {
-            wakeup: 'true',
-            platform: 'Chrome,Whapi,1.6.0',
-            channel_type: 'web'
-          },
-          timeout: whapi_timeout
-        )
-      end
+    # Fetch and cache the full health status hash
+    cached_status = Rails.cache.fetch(cache_key, expires_in: 30.seconds) do
+      health_status
+    end
 
-      if response && response.success?
-        parsed_response = response.parsed_response
-        if parsed_response.is_a?(Hash) && parsed_response.dig('status', 'text') == 'AUTH'
-          # Clear reauthorization if we were previously flagged
-          whatsapp_channel.reauthorized! if whatsapp_channel.reauthorization_required?
-          Rails.logger.debug 'WHAPI service is healthy and authenticated' if Rails.env.development?
-          true
-        else
-          status_text = parsed_response&.dig('status', 'text')
-          # Check if status indicates disconnection
-          if %w[STOP ERROR].include?(status_text)
-            whatsapp_channel.authorization_error!
-          end
-          status_code = parsed_response&.dig('status', 'code')
-          Rails.logger.warn "WHAPI service not authenticated, status: #{status_code}/#{status_text}"
-          false
-        end
-      else
-        handle_failed_health_check(response)
-        false
+    # Determine health based on the cached status text
+    if cached_status['text'] == 'AUTH'
+      # Clear reauthorization if we were previously flagged
+      whatsapp_channel.reauthorized! if whatsapp_channel.reauthorization_required?
+      Rails.logger.debug 'WHAPI service is healthy and authenticated' if Rails.env.development?
+      true
+    else
+      # Check if status indicates disconnection
+      if %w[STOP ERROR].include?(cached_status['text'])
+        whatsapp_channel.authorization_error!
       end
+      Rails.logger.warn "WHAPI service not authenticated, status: #{cached_status['code']}/#{cached_status['text']}"
+      false
     end
   rescue StandardError => e
-    Rails.logger.error "WHAPI health check error: #{e.message}"
+    Rails.logger.error "WHAPI healthy? check error: #{e.message}"
     false
   end
 

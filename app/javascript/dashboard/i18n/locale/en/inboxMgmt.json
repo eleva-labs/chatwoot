@@ -333,7 +333,15 @@
         "QR_EXPIRED": "QR code expired. Please try again.",
         "SUCCESS_TEXT": "Your WhatsApp channel has been successfully connected!",
         "SUCCESS_MESSAGE": "WhatsApp channel connected successfully!",
-        "CONTINUE_BUTTON": "Continue"
+        "CONTINUE_BUTTON": "Continue",
+        "CONNECTION_ERROR": "Failed to connect. Please try again.",
+        "STATUS": {
+          "INIT": "Initializing channel...",
+          "LAUNCH": "Starting connection...",
+          "QR": "QR code ready, please scan",
+          "AUTH": "Connected!",
+          "WAITING": "Preparing connection..."
+        }
       },
       "VOICE": {
         "TITLE": "Voice Channel",

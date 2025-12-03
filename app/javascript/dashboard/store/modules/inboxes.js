@@ -27,6 +27,8 @@ export const state = {
   onboarding: {
     onboardingConcluded: false,
   },
+  // QR codes received via websocket for Whapi reconnection
+  whapiQrCodes: {},
 };
 
 export const getters = {
@@ -163,6 +165,10 @@ export const getters = {
         item.instagram_id === instagramId &&
         item.channel_type === INBOX_TYPES.INSTAGRAM
     );
+  },
+  // Get QR code for a Whapi inbox (received via websocket)
+  getWhapiQrCode: $state => inboxId => {
+    return $state.whapiQrCodes?.[inboxId];
   },
 };
 
@@ -344,9 +350,14 @@ export const actions = {
       throw error; // Ensure function always returns or throws
     }
   },
-  // Fetch a fresh QR code image for Whapi login
+  // Fetch a fresh QR code image for Whapi login (legacy polling approach)
   getWhapiQrCode: async (_ctx, inboxId) => {
     const { data } = await WhapiChannel.getQrCode(inboxId);
+    return data;
+  },
+  // Initiate Whapi reconnection - triggers channel wakeup, QR delivered via websocket
+  initiateWhapiReconnection: async (_ctx, inboxId) => {
+    const { data } = await WhapiChannel.initiateReconnection(inboxId);
     return data;
   },
   syncTemplates: async (_, inboxId) => {
@@ -370,6 +381,33 @@ export const mutations = {
   // Update only attributes for an inbox (used by websocket status updates)
   UPDATE_INBOX_ATTRIBUTES($state, data) {
     MutationHelpers.updateAttributes($state, data);
+  },
+  // Store QR code received via websocket for Whapi reconnection
+  SET_WHAPI_QR_CODE($state, { inboxId, qrBase64, expiresIn }) {
+    $state.whapiQrCodes = {
+      ...$state.whapiQrCodes,
+      [inboxId]: { qrBase64, expiresIn, receivedAt: Date.now() },
+    };
+  },
+  // Clear QR code after successful connection or cancellation
+  CLEAR_WHAPI_QR_CODE($state, inboxId) {
+    const { [inboxId]: _, ...rest } = $state.whapiQrCodes;
+    $state.whapiQrCodes = rest;
+  },
+  SET_WHAPI_WEBHOOK_CONFIGURED($state, inboxId) {
+    console.log('[Vuex] SET_WHAPI_WEBHOOK_CONFIGURED called for inbox:', inboxId);
+    console.log('[Vuex] Current inboxes in store:', $state.records.map(r => ({ id: r.id, name: r.name })));
+    const inbox = $state.records.find(record => record.id === Number(inboxId));
+    if (inbox) {
+      console.log('[Vuex] Found inbox, updating provider_config');
+      inbox.provider_config = {
+        ...(inbox.provider_config || {}),
+        webhook_configured: true,
+      };
+      console.log('[Vuex] Updated provider_config:', inbox.provider_config);
+    } else {
+      console.warn('[Vuex] Inbox not found in store:', inboxId);
+    }
   },
 };
 

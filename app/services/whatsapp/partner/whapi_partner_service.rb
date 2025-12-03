@@ -219,6 +219,50 @@ class Whatsapp::Partner::WhapiPartnerService
     raise e
   end
 
+  # Simple QR fetch - no retries, used when channel is confirmed in QR state via webhook
+  # This method is called by WhapiConnectionStatusService when processing QR health status
+  def generate_qr_code_simple(channel_token:)
+    Rails.logger.info "[WhapiPartner] Simple QR fetch for channel token: #{channel_token[0..8]}..."
+
+    response = self.class.get(
+      "#{api_base_url}/users/login",
+      headers: api_headers_with_channel_token(channel_token),
+      timeout: 10,
+      read_timeout: 8,
+      open_timeout: 3
+    )
+
+    return nil unless response.success?
+
+    parsed = response.parsed_response
+    return nil unless parsed.is_a?(Hash)
+
+    # Handle already authenticated case
+    if parsed.dig('error', 'code') == 409 || parsed['error']&.to_s&.include?('already authenticated')
+      Rails.logger.info '[WhapiPartner] Simple QR fetch: Channel already authenticated'
+      return nil
+    end
+
+    # Extract QR base64 from various possible response formats
+    raw_b64 = parsed['qr'] || parsed['base64'] || parsed['image'] || parsed['image_base64'] || parsed.dig('data', 'qr')
+    return nil unless raw_b64.present?
+
+    # Clean up data URL prefix if present
+    raw_b64 = raw_b64.split(',').last if raw_b64.to_s.start_with?('data:image')
+
+    expires_in = (parsed['expire'] || parsed['expires_in'] || parsed['ttl'] || 20).to_i
+
+    Rails.logger.info "[WhapiPartner] Simple QR fetch successful, QR length: #{raw_b64.length}, expires_in: #{expires_in}"
+
+    {
+      'image_base64' => raw_b64,
+      'expires_in' => expires_in.positive? ? expires_in : 20
+    }
+  rescue StandardError => e
+    Rails.logger.error "[WhapiPartner] Simple QR fetch failed: #{e.message}"
+    nil
+  end
+
   def generate_qr_code_base64_with_retry(channel_token:, retries: 3)
     Rails.logger.info "[WhapiPartner] Starting QR code base64 generation with #{retries} retries for token: #{channel_token[0..8]}..."
     

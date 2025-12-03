@@ -32,16 +32,11 @@ const store = useStore();
 const { t } = useI18n();
 
 // State (replaces data())
-const step = ref('name'); // name | qr | success
+const step = ref('name'); // name | waiting | qr | success
 const inboxName = ref('');
 const createdInbox = ref(null);
-const qrImageB64 = ref('');
-const qrPollTimer = ref(null);
 const lottieTimer = ref(null);
-const qrRetryCount = ref(0);
-const qrMaxRetries = ref(20); // ~5 minutes at 15s interval
-const isLoadingQr = ref(false);
-const qrError = ref(null);
+const isInitiatingConnection = ref(false);
 const showLottieAnimation = ref(true);
 const isLottieComplete = ref(false);
 
@@ -61,14 +56,47 @@ const {
   handleChannelCreation,
 } = useChannelPurchaseManager({ store, baseLabel, t });
 
-// Helper functions (need to be defined before computed properties)
-const clearQrTimer = () => {
-  if (qrPollTimer.value) {
-    clearTimeout(qrPollTimer.value);
-    qrPollTimer.value = null;
-  }
-};
+// Computed properties - updated via ActionCable
+const currentInbox = computed(() => {
+  if (!createdInbox.value) return {};
+  return store.getters['inboxes/getInbox'](createdInbox.value.id) || {};
+});
 
+const whapiStatus = computed(() => {
+  return currentInbox.value.provider_config?.whapi_status;
+});
+
+const connectionStatus = computed(() => {
+  const cfg = currentInbox.value.provider_config || {};
+  return cfg.connection_status || 'pending';
+});
+
+const qrFromWebsocket = computed(() => {
+  if (!createdInbox.value) return null;
+  return store.getters['inboxes/getWhapiQrCode'](createdInbox.value.id);
+});
+
+const qrImageSrc = computed(() => {
+  const qr = qrFromWebsocket.value;
+  return qr?.qrBase64 ? `data:image/png;base64,${qr.qrBase64}` : null;
+});
+
+const statusMessage = computed(() => {
+  switch (whapiStatus.value) {
+    case 'INIT':
+      return t('INBOX_MGMT.ADD.WHAPI.STATUS.INIT');
+    case 'LAUNCH':
+      return t('INBOX_MGMT.ADD.WHAPI.STATUS.LAUNCH');
+    case 'QR':
+      return t('INBOX_MGMT.ADD.WHAPI.STATUS.QR');
+    case 'AUTH':
+      return t('INBOX_MGMT.ADD.WHAPI.STATUS.AUTH');
+    default:
+      return t('INBOX_MGMT.ADD.WHAPI.STATUS.WAITING');
+  }
+});
+
+// Helper functions
 const clearLottieTimer = () => {
   if (lottieTimer.value) {
     clearTimeout(lottieTimer.value);
@@ -85,8 +113,6 @@ const onLottieComplete = () => {
 const startLottieTimer = () => {
   // Fallback timer in case @complete event doesn't fire
   // Most Lottie animations are 2-3 seconds, so we'll wait 2.5 seconds
-
-  // Store the timer ID so we can clear it later
   lottieTimer.value = setTimeout(() => {
     if (showLottieAnimation.value && !isLottieComplete.value) {
       onLottieComplete();
@@ -94,16 +120,11 @@ const startLottieTimer = () => {
   }, 2500);
 };
 
-// Computed properties
-const currentInbox = computed(() => {
-  if (!createdInbox.value) return {};
-  return store.getters['inboxes/getInbox'](createdInbox.value.id) || {};
-});
-
-const connectionStatus = computed(() => {
-  const cfg = currentInbox.value.provider_config || {};
-  return cfg.connection_status || 'pending';
-});
+const clearQrCode = () => {
+  if (createdInbox.value) {
+    store.commit('inboxes/CLEAR_WHAPI_QR_CODE', createdInbox.value.id);
+  }
+};
 
 // Validation setup
 const rules = {
@@ -121,82 +142,71 @@ const isContinueButtonDisabled = computed(() => {
     v$.value.inboxName.$invalid ||
     uiFlags.value.isCreating ||
     isPurchasingExtraChannel.value ||
-    isChannelInfoLoading.value
-    ||
+    isChannelInfoLoading.value ||
     isTrialLimitReached.value
   );
 });
 
-const fetchQrAndStartPolling = async () => {
-  // GUARD: Prevent concurrent execution (follows codebase pattern)
-  if (isLoadingQr.value) return;
+// Watch for webhook configuration success
+watch(
+  () => currentInbox.value.provider_config?.webhook_configured,
+  (isConfigured, wasConfigured) => {
+    console.log('[Whapi.vue] Webhook configured watcher:', { isConfigured, wasConfigured, currentStep: step.value });
+    if (isConfigured && !wasConfigured && step.value === 'waiting') {
+      console.log('[Whapi.vue] Webhook configured, initiating connection');
+      initiateConnection();
+    }
+  }
+);
 
-  isLoadingQr.value = true;
-  qrError.value = null;
+// Initiate connection via websocket after channel creation
+const initiateConnection = async () => {
+  console.log('[Whapi.vue] initiateConnection called', { createdInbox: createdInbox.value?.id, isInitiating: isInitiatingConnection.value });
+  if (!createdInbox.value || isInitiatingConnection.value) {
+    console.log('[Whapi.vue] initiateConnection skipped - no inbox or already initiating');
+    return;
+  }
+
+  isInitiatingConnection.value = true;
 
   try {
+    console.log('[Whapi.vue] Dispatching initiateWhapiReconnection for inbox:', createdInbox.value.id);
     const response = await store.dispatch(
-      'inboxes/getWhapiQrCode',
+      'inboxes/initiateWhapiReconnection',
       createdInbox.value.id
     );
+    console.log('[Whapi.vue] initiateWhapiReconnection response:', response);
 
-    // Check if channel is already authenticated
-    if (response.authenticated) {
-      isLoadingQr.value = false;
-      clearQrTimer();
+    // If the response contains the QR code directly, display it immediately
+    if (response.image_base64) {
+      console.log('[Whapi.vue] QR code received directly in response, storing it');
+      const qrCodeData = {
+        qrBase64: response.image_base64,
+        expiresIn: response.expires_in,
+      };
+      store.commit('inboxes/SET_WHAPI_QR_CODE', {
+        inboxId: createdInbox.value.id,
+        ...qrCodeData,
+      });
+      step.value = 'qr';
+      isInitiatingConnection.value = false;
+      return;
+    }
+
+    // If already connected, show success immediately
+    if (response.status === 'connected') {
+      console.log('[Whapi.vue] Channel already connected');
       step.value = 'success';
       return;
     }
 
-    const {
-      image_base64: imageBase64,
-      poll_in: pollIn,
-      expires_in: expiresIn,
-    } = response;
-
-    if (imageBase64) {
-      qrImageB64.value = `data:image/png;base64,${imageBase64}`;
-      isLoadingQr.value = false;
-    } else {
-      qrError.value = 'QR code is being generated, please wait...';
-    }
-
-    clearQrTimer();
-    const intervalMs = (pollIn || Math.max(15, expiresIn || 20)) * 1000;
-    qrRetryCount.value += 1;
-    if (qrRetryCount.value > qrMaxRetries.value) {
-      isLoadingQr.value = false;
-      qrError.value = 'QR code generation timed out. Please try again.';
-      useAlert('QR code expired or retry limit reached');
-      return;
-    }
-    qrPollTimer.value = setTimeout(fetchQrAndStartPolling, intervalMs);
-  } catch (e) {
-    // Enhanced error handling with specific messages
-    isLoadingQr.value = false;
-
-    qrRetryCount.value += 1;
-    if (qrRetryCount.value > qrMaxRetries.value) {
-      qrError.value = 'QR code generation failed. Please try again.';
-      useAlert('QR code expired or retry limit reached');
-      return;
-    }
-
-    // Show specific error message if available
-    if (e.message && e.message.includes('already authenticated')) {
-      clearQrTimer();
-      step.value = 'success';
-    } else if (e.message && e.message.includes('503')) {
-      qrError.value = 'Service temporarily unavailable. Retrying...';
-      qrPollTimer.value = setTimeout(fetchQrAndStartPolling, 30000);
-    } else if (e.message && e.message.includes('unexpected response format')) {
-      qrError.value = 'QR code is being prepared. Retrying...';
-      qrPollTimer.value = setTimeout(fetchQrAndStartPolling, 15000);
-    } else {
-      // Default retry interval
-      qrError.value = 'Generating QR code. Please wait...';
-      qrPollTimer.value = setTimeout(fetchQrAndStartPolling, 20000);
-    }
+    console.log('[Whapi.vue] Waiting for QR via websocket');
+    // Otherwise, wait for QR via websocket - no polling
+  } catch (error) {
+    console.error('[Whapi.vue] initiateConnection error:', error);
+    useAlert(error?.message || t('INBOX_MGMT.ADD.WHAPI.CONNECTION_ERROR'));
+  } finally {
+    isInitiatingConnection.value = false;
   }
 };
 
@@ -211,8 +221,9 @@ const createChannel = async () => {
       })
     );
     createdInbox.value = created;
-    step.value = 'qr';
-    fetchQrAndStartPolling();
+    // Don't initiate connection here, wait for webhook configured event
+    // The watcher will trigger initiateConnection()
+    step.value = 'waiting';
   } catch (error) {
     useAlert(
       error?.message || 'An error occurred while creating the channel'
@@ -221,6 +232,7 @@ const createChannel = async () => {
 };
 
 const proceedOnSuccess = () => {
+  clearQrCode();
   if (props.disabledAutoRoute) return;
   router.replace({
     name: 'settings_inboxes_invite_team',
@@ -228,10 +240,17 @@ const proceedOnSuccess = () => {
   });
 };
 
-// Watchers
+// Watch for QR arrival via websocket
+watch(qrFromWebsocket, qr => {
+  if (qr?.qrBase64 && step.value === 'waiting') {
+    step.value = 'qr';
+  }
+});
+
+// Watch for connection success via websocket
 watch(connectionStatus, newVal => {
-  if (step.value === 'qr' && newVal === 'connected') {
-    clearQrTimer();
+  if ((step.value === 'waiting' || step.value === 'qr') && newVal === 'connected') {
+    clearQrCode();
     step.value = 'success';
   }
 });
@@ -255,8 +274,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  clearQrTimer();
   clearLottieTimer();
+  clearQrCode();
 });
 </script>
 
@@ -319,49 +338,30 @@ onBeforeUnmount(() => {
       </div>
     </form>
 
+    <!-- Waiting for QR via websocket -->
+    <div
+      v-else-if="step === 'waiting'"
+      class="flex flex-col items-center justify-center"
+    >
+      <Spinner :size="64" class="text-n-brand" />
+      <p class="mt-4 text-slate-600">
+        {{ statusMessage }}
+      </p>
+    </div>
+
+    <!-- QR Code display -->
     <div
       v-else-if="step === 'qr'"
       class="flex flex-col items-center justify-center"
     >
-      <!-- Loading spinner when QR is being generated -->
-      <div v-if="isLoadingQr && !qrImageB64" class="flex flex-col items-center">
-        <div class="flex items-center justify-center h-48 w-48">
-          <Spinner :size="64" class="text-n-brand" />
-        </div>
-        <p class="mt-4 text-slate-600">
-          {{ $t('INBOX_MGMT.ADD.WHAPI.GENERATING_QR') }}
-        </p>
-      </div>
-
-      <!-- QR Code image when available -->
       <img
-        v-else-if="qrImageB64"
-        :src="qrImageB64"
+        v-if="qrImageSrc"
+        :src="qrImageSrc"
         alt="WhatsApp QR Code"
         class="h-48 w-48 border border-gray-300 rounded"
       />
 
-      <!-- Error state when QR failed to load -->
-      <div v-else-if="qrError" class="flex flex-col items-center">
-        <div
-          class="h-48 w-48 border-2 border-dashed border-gray-300 rounded flex items-center justify-center"
-        >
-          <p class="text-gray-500 text-center px-4">{{ qrError }}</p>
-        </div>
-      </div>
-
-      <!-- Default loading state -->
-      <div v-else class="flex flex-col items-center">
-        <div
-          class="h-48 w-48 border-2 border-dashed border-gray-300 rounded flex items-center justify-center"
-        >
-          <p class="text-gray-500">
-            {{ $t('INBOX_MGMT.ADD.WHAPI.LOADING_QR') }}
-          </p>
-        </div>
-      </div>
-
-      <p v-if="qrImageB64" class="mt-3 text-slate-600">
+      <p v-if="qrImageSrc" class="mt-3 text-slate-600">
         {{ $t('INBOX_MGMT.ADD.WHAPI.QR_HELP_TEXT') }}
       </p>
     </div>

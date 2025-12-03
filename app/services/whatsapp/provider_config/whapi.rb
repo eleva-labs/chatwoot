@@ -34,6 +34,18 @@ module Whatsapp
         channel.provider_config&.[]('connection_status') || 'pending'
       end
 
+      # Actual Whapi channel status (INIT, LAUNCH, QR, AUTH, ERROR, etc.)
+      def whapi_status
+        channel.provider_config&.[]('whapi_status')
+      end
+
+      def update_whapi_status(status)
+        config = channel.provider_config || {}
+        config['whapi_status'] = status
+        config['whapi_status_updated_at'] = Time.current.iso8601
+        channel.update!(provider_config: config)
+      end
+
       def whapi_partner_channel?
         whapi_channel_id.present?
       end

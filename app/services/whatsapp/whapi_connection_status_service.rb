@@ -26,15 +26,24 @@ class Whatsapp::WhapiConnectionStatusService
 
   def process_health_status(health)
     status_text = health.dig('status', 'text')
+    Rails.logger.info "[Whapi][#{correlation_id}] Processing health status: #{status_text} for channel #{channel.id}"
+
+    # Always update and broadcast whapi_status for all states
+    channel.provider_config_object.update_whapi_status(status_text)
+    broadcast_whapi_status(status_text)
+    Rails.logger.info "[Whapi][#{correlation_id}] Updated whapi_status to #{status_text} and broadcast to frontend"
+
     case status_text
+    when 'QR'
+      handle_qr_ready_status
     when 'AUTH'
       handle_authenticated_status
     when 'STOP', 'ERROR'
       handle_disconnection_status(status_text)
     when 'SYNC_ERROR'
       handle_sync_error_status
-    when 'QR', 'INIT', 'LAUNCH', 'NOT_INIT'
-      # Transient states - do not trigger disconnection
+    when 'INIT', 'LAUNCH', 'NOT_INIT'
+      # Transient states - status already broadcast, nothing else needed
       Rails.logger.info "[Whapi][#{correlation_id}] Channel in transient state: #{status_text}"
     else
       Rails.logger.info "[Whapi][#{correlation_id}] Unhandled health status: #{status_text}"
@@ -271,7 +280,94 @@ class Whatsapp::WhapiConnectionStatusService
     broadcast_connection_status('sync_error')
   end
 
+  def handle_qr_ready_status
+    Rails.logger.info "[Whapi][#{correlation_id}] Channel #{channel.id} in QR state, fetching QR code"
+
+    # Update connection status to reconnecting
+    channel.provider_config_object.update_connection_status('reconnecting')
+
+    # Fetch QR code now that we know it's ready
+    qr_data = fetch_qr_code
+    if qr_data
+      Rails.logger.info "[Whapi][#{correlation_id}] QR code fetched successfully, length: #{qr_data['image_base64']&.length}, expires_in: #{qr_data['expires_in']}"
+      broadcast_qr_code(qr_data)
+      Rails.logger.info "[Whapi][#{correlation_id}] QR code broadcast successfully via ActionCable"
+    else
+      Rails.logger.error "[Whapi][#{correlation_id}] Failed to fetch QR despite QR status"
+    end
+  end
+
+  def fetch_qr_code
+    channel_token = channel.provider_config_object.whapi_channel_token
+    unless channel_token.present?
+      Rails.logger.error "[Whapi][#{correlation_id}] Cannot fetch QR: channel_token is missing"
+      return nil
+    end
+
+    Rails.logger.info "[Whapi][#{correlation_id}] Fetching QR code for channel #{channel.id}, token: #{channel_token[0..8]}..."
+    service = Whatsapp::Partner::WhapiPartnerService.new
+    qr_data = service.generate_qr_code_simple(channel_token: channel_token)
+    
+    if qr_data
+      Rails.logger.info "[Whapi][#{correlation_id}] QR code fetched successfully"
+    else
+      Rails.logger.warn "[Whapi][#{correlation_id}] QR code fetch returned nil"
+    end
+    
+    qr_data
+  rescue StandardError => e
+    Rails.logger.error "[Whapi][#{correlation_id}] QR fetch failed: #{e.class} - #{e.message}"
+    Rails.logger.error "[Whapi][#{correlation_id}] QR fetch backtrace: #{e.backtrace&.first(5)&.join(' -> ')}"
+    nil
+  end
+
+  def broadcast_qr_code(qr_data)
+    ActionCable.server.broadcast(
+      "account_#{channel.account_id}",
+      {
+        event: 'whapi_qr_code_received',
+        data: {
+          account_id: channel.account_id,
+          inbox_id: channel.inbox.id,
+          qr_base64: qr_data['image_base64'],
+          expires_in: qr_data['expires_in'],
+          correlation_id: correlation_id
+        }
+      }
+    )
+  end
+
+  def broadcast_whapi_status(whapi_status)
+    ActionCable.server.broadcast(
+      "account_#{channel.account_id}",
+      {
+        event: 'whapi_channel_status_updated',
+        data: {
+          account_id: channel.account_id,
+          inbox_id: channel.inbox.id,
+          whapi_status: whapi_status,
+          connection_status: derive_connection_status(whapi_status),
+          phone_number: channel.phone_number,
+          correlation_id: correlation_id
+        }
+      }
+    )
+  end
+
+  def derive_connection_status(whapi_status)
+    case whapi_status
+    when 'AUTH' then 'connected'
+    when 'STOP', 'ERROR' then 'disconnected'
+    when 'SYNC_ERROR' then 'sync_error'
+    else 'reconnecting' # INIT, LAUNCH, QR, NOT_INIT
+    end
+  end
+
   def broadcast_connection_status(status)
+    # Include whapi_status to prevent overwriting it with undefined in frontend
+    # The frontend expects both connection_status and whapi_status in the payload
+    current_whapi_status = channel.provider_config_object.whapi_status
+    
     ActionCable.server.broadcast(
       "account_#{channel.account_id}",
       {
@@ -280,6 +376,7 @@ class Whatsapp::WhapiConnectionStatusService
           account_id: channel.account_id,
           inbox_id: channel.inbox.id,
           connection_status: status,
+          whapi_status: current_whapi_status,
           phone_number: channel.phone_number,
           correlation_id: correlation_id
         }

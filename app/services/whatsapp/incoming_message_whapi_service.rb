@@ -4,25 +4,36 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   # echoes, and status updates.
 
   def perform
-    # Handle Whapi connection status events first (events array or top-level event)
-    if params['events']&.any? || (params['event'].present? && params['event']['type'] == 'users')
-      correlation_id = params['correlation_id'] || SecureRandom.uuid
-      Whatsapp::WhapiConnectionStatusService.new(
-        channel: inbox.channel,
-        params: params,
-        correlation_id: correlation_id
-      ).perform
+    correlation_id = params['correlation_id'] || SecureRandom.uuid
+    connection_status_service = Whatsapp::WhapiConnectionStatusService.new(
+      channel: inbox.channel,
+      params: params,
+      correlation_id: correlation_id
+    )
+
+    # Handle health status updates from channel.post webhook (with or without event.type == 'channel')
+    if params['health'].present?
+      Rails.logger.info "[WhapiIncoming][#{correlation_id}] Processing health status webhook, status: #{params['health'].dig('status', 'text')}"
+      connection_status_service.process_health_status(params['health'])
       return
     end
 
-    # Handle health status updates from channels.post webhook
-    if params['health'].present?
-      correlation_id = params['correlation_id'] || SecureRandom.uuid
-      Whatsapp::WhapiConnectionStatusService.new(
-        channel: inbox.channel,
-        params: params,
-        correlation_id: correlation_id
-      ).process_health_status(params['health'])
+    # Handle Whapi connection status events (events array or top-level event)
+    if params['events']&.any? || (params['event'].present? && params['event']['type'] == 'users')
+      Rails.logger.info "[WhapiIncoming][#{correlation_id}] Processing connection status events"
+      connection_status_service.perform
+      return
+    end
+
+    # Handle channel.post event (may contain health status)
+    if params['event'].present? && params['event']['type'] == 'channel'
+      Rails.logger.info "[WhapiIncoming][#{correlation_id}] Processing channel.post event"
+      # If health is nested in event, process it
+      if params.dig('event', 'health', 'status').present?
+        connection_status_service.process_health_status(params.dig('event', 'health'))
+      elsif params['health'].present?
+        connection_status_service.process_health_status(params['health'])
+      end
       return
     end
 
