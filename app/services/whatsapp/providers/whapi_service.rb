@@ -161,10 +161,28 @@ class Whatsapp::Providers::WhapiService < Whatsapp::Providers::BaseService
   end
 
   # Check if WHAPI service is healthy (with caching to avoid excessive calls)
+  # Bust the health check cache to force a fresh check
+  # This is critical when channel authentication status changes (e.g., via webhook)
+  def bust_health_check_cache
+    api_key = provider_config_object&.api_key
+    return unless api_key.present?
+
+    cache_key = "whapi_health_#{api_key[0..8]}"
+    Rails.cache.delete(cache_key)
+    Rails.logger.debug "WHAPI health check cache busted for channel #{whatsapp_channel.id}"
+  end
+
   # Public method - used by controllers to check channel connection status
   def healthy?
+    # Validate api_key exists before proceeding
+    api_key = provider_config_object&.api_key
+    unless api_key.present?
+      Rails.logger.error "WHAPI health check failed: api_key is missing"
+      return false
+    end
+
     # Cache health status for 30 seconds to avoid excessive API calls
-    cache_key = "whapi_health_#{provider_config_object.api_key[0..8]}"
+    cache_key = "whapi_health_#{api_key[0..8]}"
 
     Rails.cache.fetch(cache_key, expires_in: 30.seconds) do
       response = safe_http_request_with_retry('whapi_health_check_auth') do

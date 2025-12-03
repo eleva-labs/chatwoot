@@ -555,6 +555,9 @@ class Whatsapp::Partner::WhapiPartnerService
     end
   end
 
+  # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/AbcSize
+
   # Circuit breaker helper methods
   def service_degraded?
     Rails.cache.read("#{WHAPI_SERVICE_DOWN_CACHE_KEY}_degraded").present?

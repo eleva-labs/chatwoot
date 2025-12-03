@@ -141,6 +141,8 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
 
     # Check if channel is already connected before attempting QR code generation
     # This prevents 500 errors when the channel is connected in Whapi but Chatwoot thinks it's disconnected
+    # Bust health check cache to ensure we read fresh data (important after webhook authentication)
+    bust_health_check_cache(channel)
     begin
       health_response = check_channel_health(channel)
       if health_response[:connected]
@@ -243,47 +245,57 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
       # If QR code generation fails (e.g., 500 error), check if channel is actually connected
       # This handles cases where Whapi returns an error but the channel is still connected
       Rails.logger.warn "[WhapiPartner][#{correlation_id}] QR code generation failed: #{e.message}, checking channel health"
-      
+      Rails.logger.warn "[WhapiPartner][#{correlation_id}] Full error for QR code failure: #{e.inspect}"
+      Rails.logger.debug { "[WhapiPartner][#{correlation_id}] Backtrace: \n#{e.backtrace.join("\n")}" if e.backtrace }
+
+      health_response = nil # Initialize with nil
       begin
+        # Bust health check cache before checking to ensure fresh data
+        # This is critical when channel authenticates via webhook during QR polling
+        bust_health_check_cache(channel)
         health_response = check_channel_health(channel)
-        
-        if health_response[:connected]
+        Rails.logger.info "[WhapiPartner][#{correlation_id}] Health check response: #{health_response.inspect}"
+
+        if health_response&.dig(:connected)
           Rails.logger.info "[WhapiPartner][#{correlation_id}] Channel is actually connected despite QR generation error, syncing status"
-          
-          # Clear reauthorization state and update connection status
+
           begin
+            # Busting cache before updating the channel to ensure latest data is used
+            if Rails.env.enterprise?
+              ::Enterprise::Caching::AccountCachingService.new(channel.account).bust_limits_cache
+            end
+            channel.inbox.account.update_cache_key('inbox')
             channel.reauthorized! if channel.reauthorization_required?
             channel.provider_config_object.update_connection_status('connected')
-
-            # Schedule phone number sync in background (non-blocking)
             Whatsapp::Whapi::PhoneSyncJob.perform_later(@inbox.channel.id)
             Rails.logger.info "[WhapiPartner][#{correlation_id}] Phone sync scheduled in background"
 
-            ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'qr.error_but_connected', account_id: Current.account.id,
-                                                                        inbox_id: @inbox.id, correlation_id: correlation_id)
-            render json: {
-              authenticated: true,
-              message: 'WhatsApp account successfully connected!',
-              correlation_id: correlation_id
-            }, status: :ok and return
+            render json: { authenticated: true, message: 'WhatsApp account successfully connected!' }, status: :ok and return
           rescue StandardError => status_error
             Rails.logger.error "[WhapiPartner][#{correlation_id}] Error updating channel status: #{status_error.message}"
-            # Still return success since health check confirmed connection
-            render json: {
-              authenticated: true,
-              message: 'WhatsApp account successfully connected!',
-              correlation_id: correlation_id
-            }, status: :ok and return
+            render json: { authenticated: true, message: 'WhatsApp account successfully connected!' }, status: :ok and return
           end
         end
       rescue StandardError => health_error
-        Rails.logger.error "[WhapiPartner][#{correlation_id}] Health check failed: #{health_error.message}"
-        # Continue to re-raise original error
+        Rails.logger.error "[WhapiPartner][#{correlation_id}] Health check failed after QR error: #{health_error.message}"
+        Rails.logger.debug { "[WhapiPartner][#{correlation_id}] Health check backtrace: \n#{health_error.backtrace.join("\n")}" if health_error.backtrace }
       end
 
-      # Channel is not connected, re-raise the original error
-      Rails.logger.error "[WhapiPartner][#{correlation_id}] QR code generation failed and channel is not connected: #{e.message}"
-      raise e
+      # Channel is not connected, return a retryable error instead of 500
+      Rails.logger.warn "[WhapiPartner][#{correlation_id}] QR code generation failed but is retryable: #{e.message}. "\
+                        "Health status after check: #{health_response&.dig(:status)}"
+      status = health_response ? health_response[:status] : 'UNKNOWN'
+      render json: { message: "QR code is not ready yet. Please try again in a few seconds. (Health status: #{status})" },
+             status: :unprocessable_entity
+      return
+    end
+
+    # Guard: Ensure qr_payload exists before accessing it
+    unless qr_payload.present?
+      Rails.logger.error "[WhapiPartner][#{correlation_id}] QR code generation succeeded but payload is nil"
+      render json: { message: 'QR code generation failed. Please try again.', correlation_id: correlation_id },
+             status: :internal_server_error
+      return
     end
 
     # update last_qr_at for polling/expiry hints
@@ -310,18 +322,50 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
       return
     end
 
+    # Verify channel has required configuration
+    channel_token = channel.provider_config_object&.whapi_channel_token || channel.provider_config_object&.api_key
+    if channel_token.blank?
+      Rails.logger.error "[WhapiPartner][#{correlation_id}] Reauthorize failed: channel token missing for channel #{channel.id}"
+      render json: {
+        success: false,
+        message: 'Channel configuration is missing. Please recreate the channel.',
+        correlation_id: correlation_id
+      }, status: :unprocessable_entity
+      return
+    end
+
     # Verify channel is actually connected before clearing reauthorization
-    health_response = check_channel_health(channel)
+    begin
+      health_response = check_channel_health(channel)
+    rescue StandardError => e
+      Rails.logger.error "[WhapiPartner][#{correlation_id}] Health check error during reauthorize: #{e.class} - #{e.message}"
+      Rails.logger.error e.backtrace.join("\n") if e.backtrace
+      render json: {
+        success: false,
+        message: 'Failed to check channel health. Please try again.',
+        correlation_id: correlation_id
+      }, status: :internal_server_error
+      return
+    end
 
     if health_response[:connected]
-      channel.reauthorized!
-      channel.provider_config_object.update_connection_status('connected')
+      begin
+        channel.reauthorized!
+        channel.provider_config_object.update_connection_status('connected')
 
-      render json: {
-        success: true,
-        message: 'Channel reauthorized successfully',
-        correlation_id: correlation_id
-      }, status: :ok
+        render json: {
+          success: true,
+          message: 'Channel reauthorized successfully',
+          correlation_id: correlation_id
+        }, status: :ok
+      rescue StandardError => e
+        Rails.logger.error "[WhapiPartner][#{correlation_id}] Error updating channel status: #{e.class} - #{e.message}"
+        render json: {
+          success: false,
+          message: 'Channel is connected but failed to update status. Please refresh the page.',
+          correlation_id: correlation_id
+        }, status: :internal_server_error
+      end
     else
       render json: {
         success: false,
@@ -427,6 +471,13 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
   end
 
   def check_channel_health(channel)
+    # Validate channel has required configuration before attempting health check
+    channel_token = channel.provider_config_object&.whapi_channel_token || channel.provider_config_object&.api_key
+    unless channel_token.present?
+      Rails.logger.warn "[Whapi] Health check skipped: channel token missing for channel #{channel.id}"
+      return { connected: false, status: 'MISSING_CONFIG' }
+    end
+
     service = Whatsapp::Providers::WhapiService.new(whatsapp_channel: channel)
 
     if service.healthy?
@@ -435,7 +486,21 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
       { connected: false, status: 'DISCONNECTED' }
     end
   rescue StandardError => e
-    Rails.logger.error "[Whapi] Health check failed: #{e.message}"
-    { connected: false, status: 'ERROR' }
+    Rails.logger.error "[Whapi] Health check failed: #{e.class} - #{e.message}"
+    Rails.logger.error e.backtrace.join("\n") if Rails.env.development?
+    # Return disconnected status instead of ERROR to allow QR code generation to proceed
+    # This is especially important for disconnected channels that need reconnection
+    { connected: false, status: 'DISCONNECTED' }
+  end
+
+  def bust_health_check_cache(channel)
+    # Clear the health check cache to ensure fresh data is read
+    # This is critical when channel authentication happens via webhook
+    channel_token = channel.provider_config_object&.whapi_channel_token || channel.provider_config_object&.api_key
+    return unless channel_token.present?
+
+    cache_key = "whapi_health_#{channel_token[0..8]}"
+    Rails.cache.delete(cache_key)
+    Rails.logger.debug "[WhapiPartner] Health check cache busted for channel #{channel.id}"
   end
 end

@@ -222,6 +222,20 @@ class Whatsapp::WhapiConnectionStatusService
 
     # Update connection status
     channel.provider_config_object.update_connection_status('connected')
+
+    # Bust health check cache to ensure subsequent health checks read fresh data
+    # This is critical to prevent stale cache from causing issues during reconnection
+    begin
+      service = Whatsapp::Providers::WhapiService.new(whatsapp_channel: channel)
+      service.bust_health_check_cache
+    rescue StandardError => e
+      Rails.logger.warn "[Whapi][#{correlation_id}] Failed to bust health check cache: #{e.message}"
+      # Non-critical, continue with status update
+    end
+
+    # Bust inbox cache to ensure background jobs see updated channel status
+    channel.inbox.account.update_cache_key('inbox')
+
     broadcast_connection_status('connected')
   end
 

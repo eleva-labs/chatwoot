@@ -16,7 +16,10 @@ module Whatsapp
       end
 
       def api_key
-        channel.provider_config&.[]('api_key')
+        # Fall back to whapi_channel_token if api_key is missing
+        # They should always be the same value, but this handles edge cases
+        # where api_key might be missing (e.g., older channels, data issues)
+        channel.provider_config&.[]('api_key') || channel.provider_config&.[]('whapi_channel_token')
       end
 
       def whapi_channel_id
