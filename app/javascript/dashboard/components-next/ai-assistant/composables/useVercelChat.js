@@ -226,7 +226,7 @@ export function useVercelChat(options) {
     // Methods
     sendMessage,
     setMessages: msgs => {
-      chat.setMessages(msgs);
+      chat.messages = msgs; // Use setter, not method
       syncState();
     },
     clearError: () => {

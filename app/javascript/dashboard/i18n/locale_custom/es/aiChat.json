@@ -66,6 +66,18 @@
     "BOT_SELECTOR": {
       "LABEL": "Seleccionar asistente",
       "PLACEHOLDER": "Elige un asistente"
+    },
+    "SESSIONS": {
+      "TITLE": "Historial de chats",
+      "HISTORY": "Ver historial de chats",
+      "NEW_CHAT": "Nuevo chat",
+      "EMPTY": "Sin chats anteriores",
+      "NO_PREVIEW": "Nueva conversación",
+      "MESSAGES": "mensajes",
+      "DELETE": "Eliminar chat",
+      "DELETE_CONFIRM": "¿Estás seguro de que deseas eliminar este chat?",
+      "TODAY": "Hoy",
+      "YESTERDAY": "Ayer"
     }
   }
 }

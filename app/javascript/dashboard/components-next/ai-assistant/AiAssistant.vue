@@ -44,6 +44,14 @@ const {
   botName,
   botAvatar,
   isDisabled,
+  // Session management
+  sessions,
+  activeSessionId,
+  isLoadingSessions,
+  loadSession,
+  startNewSession,
+  deleteSession,
+  fetchSessions,
 } = useAiAssistant();
 
 // Check if chat is loading (for pulse animation on FAB)
@@ -86,6 +94,13 @@ const layoutProps = computed(() => {
     :user-avatar="userAvatar"
     :bot-name="botName"
     :bot-avatar="botAvatar"
+    :sessions="sessions"
+    :active-session-id="activeSessionId"
+    :sessions-loading="isLoadingSessions"
+    @load-session="loadSession"
+    @new-session="startNewSession"
+    @delete-session="deleteSession"
+    @fetch-sessions="fetchSessions"
   />
 
   <!-- Panel layouts (floating, sidebar) -->
@@ -112,6 +127,13 @@ const layoutProps = computed(() => {
         :user-avatar="userAvatar"
         :bot-name="botName"
         :bot-avatar="botAvatar"
+        :sessions="sessions"
+        :active-session-id="activeSessionId"
+        :sessions-loading="isLoadingSessions"
+        @load-session="loadSession"
+        @new-session="startNewSession"
+        @delete-session="deleteSession"
+        @fetch-sessions="fetchSessions"
         @close="close"
       />
     </template>

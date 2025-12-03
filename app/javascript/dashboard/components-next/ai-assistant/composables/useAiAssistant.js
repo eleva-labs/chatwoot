@@ -2,13 +2,14 @@
  * useAiAssistant.js
  *
  * Composable for AI Assistant domain logic.
- * Handles bot fetching, auth, chat state initialization.
+ * Handles bot fetching, auth, chat state initialization, and session management.
  * Used by AiAssistant orchestrator component.
  */
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import { useVercelChat } from './useVercelChat';
+import { useAiChatSessionManager } from './useAiChatSessionManager';
 import Auth from 'dashboard/api/auth';
 
 export function useAiAssistant() {
@@ -49,20 +50,44 @@ export function useAiAssistant() {
   const availableBots = ref([]);
   const botsLoading = ref(false);
 
-  // Session management
-  const activeChatSessionId = ref(null);
+  // Session management - use dedicated composable
+  const sessionManager = useAiChatSessionManager(accountId.value);
 
   // Initialize Vercel AI SDK Chat
   const chat = useVercelChat({
     api: `/api/v1/accounts/${accountId.value}/ai_chat/stream`,
     body: () => ({
       agent_bot_id: selectedBotId.value,
-      chat_session_id: activeChatSessionId.value,
+      chat_session_id: sessionManager.activeSessionId.value,
     }),
     onSessionId: id => {
-      activeChatSessionId.value = id;
+      // Persist session ID when received from backend
+      sessionManager.setActiveSessionId(id, selectedBotId.value);
     },
   });
+
+  // Watch for bot changes to restore session ID from localStorage
+  // Sessions list is fetched lazily when user opens history panel
+  watch(
+    selectedBotId,
+    (newBotId, oldBotId) => {
+      // Only react to actual bot changes, not initial mount
+      if (newBotId && oldBotId && newBotId !== oldBotId) {
+        // Clear current sessions (will be re-fetched when history panel opens)
+        sessionManager.sessions.value = [];
+        // Restore session ID from localStorage for new bot
+        const storedSessionId = sessionManager.getStoredSessionId(newBotId);
+        if (storedSessionId) {
+          sessionManager.setActiveSessionId(storedSessionId, newBotId);
+        } else {
+          sessionManager.activeSessionId.value = null;
+        }
+        // Clear chat messages for new bot context
+        chat.setMessages([]);
+      }
+    },
+    { immediate: false }
+  );
 
   // Computed properties
   const currentBot = computed(() =>
@@ -106,9 +131,20 @@ export function useAiAssistant() {
     }
   };
 
-  // Auto-fetch on mount
-  onMounted(() => {
-    fetchBots();
+  // Auto-fetch bots on mount
+  // Sessions are fetched lazily when user opens history panel
+  onMounted(async () => {
+    await fetchBots();
+    // Only restore active session ID from localStorage (no API call)
+    // This ensures chat_session_id is sent with first message
+    if (selectedBotId.value) {
+      const storedSessionId = sessionManager.getStoredSessionId(
+        selectedBotId.value
+      );
+      if (storedSessionId) {
+        sessionManager.setActiveSessionId(storedSessionId, selectedBotId.value);
+      }
+    }
   });
 
   return {
@@ -128,6 +164,18 @@ export function useAiAssistant() {
     botName,
     botAvatar,
     isDisabled,
+
+    // Session management
+    sessions: sessionManager.sessions,
+    activeSessionId: sessionManager.activeSessionId,
+    isLoadingSessions: sessionManager.isLoadingSessions,
+    loadSession: sessionId =>
+      sessionManager.loadSession(sessionId, selectedBotId.value, chat),
+    startNewSession: () =>
+      sessionManager.startNewSession(selectedBotId.value, chat),
+    deleteSession: sessionId =>
+      sessionManager.deleteSession(sessionId, selectedBotId.value),
+    fetchSessions: () => sessionManager.fetchSessions(selectedBotId.value),
 
     // Methods
     fetchBots,

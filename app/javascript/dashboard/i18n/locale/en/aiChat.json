@@ -66,6 +66,18 @@
     "BOT_SELECTOR": {
       "LABEL": "Select AI Employee",
       "PLACEHOLDER": "Choose an AI Employee"
+    },
+    "SESSIONS": {
+      "TITLE": "Chat History",
+      "HISTORY": "View chat history",
+      "NEW_CHAT": "New chat",
+      "EMPTY": "No previous chats",
+      "NO_PREVIEW": "New conversation",
+      "MESSAGES": "messages",
+      "DELETE": "Delete chat",
+      "DELETE_CONFIRM": "Are you sure you want to delete this chat?",
+      "TODAY": "Today",
+      "YESTERDAY": "Yesterday"
     }
   }
 }
