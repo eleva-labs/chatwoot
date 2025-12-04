@@ -78,6 +78,7 @@
     "LOADER": {
       "WAITING": "Procesando..."
     },
+    "SCROLL_TO_TOP": "Ir al inicio",
     "SCROLL_TO_BOTTOM": "Desplazar al final",
     "BOT_SELECTOR": {
       "LABEL": "Seleccionar Empleado IA",
@@ -94,6 +95,9 @@
       "DELETE_CONFIRM": "¿Estás seguro de que deseas eliminar este chat?",
       "TODAY": "Hoy",
       "YESTERDAY": "Ayer"
+    },
+    "COLLAPSIBLE": {
+      "COLLAPSE": "Colapsar"
     }
   }
 }

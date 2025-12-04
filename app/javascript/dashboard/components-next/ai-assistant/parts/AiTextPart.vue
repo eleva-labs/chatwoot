@@ -22,7 +22,7 @@ const showCursor = computed(
 </script>
 
 <template>
-  <div class="ai-text-part">
+  <div class="ai-text-part animate-fade-in-up">
     <span v-dompurify-html="formattedContent" class="prose prose-bubble" />
     <span
       v-if="showCursor"

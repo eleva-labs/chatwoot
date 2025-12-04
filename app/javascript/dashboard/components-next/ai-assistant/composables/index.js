@@ -7,3 +7,5 @@ export {
   toBackendMessage,
 } from './useAiMessageMapper';
 export { useAiChatSessionManager } from './useAiChatSessionManager';
+export { useAutoScroll } from './useAutoScroll';
+export { useAutoResizeTextarea } from './useAutoResizeTextarea';

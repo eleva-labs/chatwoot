@@ -470,11 +470,7 @@ const handleFreshStart = () => {
     </div>
 
     <!-- Conversation -->
-    <AiConversation
-      :messages="chatMessages"
-      :is-streaming="isStreaming"
-      class="flex-1"
-    >
+    <AiConversation :is-streaming="isStreaming" class="flex-1">
       <AiConversationContent>
         <AiConversationEmptyState v-if="chatMessages.length === 0" />
 

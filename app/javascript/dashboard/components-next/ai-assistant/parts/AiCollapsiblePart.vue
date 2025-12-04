@@ -5,8 +5,10 @@
  * Base collapsible container for AI message parts (reasoning, tools, etc).
  * Provides unified styling, expand/collapse, and streaming state handling.
  */
-import { ref, watch, computed, nextTick } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useToggle } from '@vueuse/core';
+import { useI18n } from 'vue-i18n';
+import AiMessageAction from '../message/AiMessageAction.vue';
 
 const props = defineProps({
   icon: { type: String, required: true },
@@ -18,17 +20,13 @@ const props = defineProps({
   },
   isStreaming: { type: Boolean, default: false },
   autoExpandOnStream: { type: Boolean, default: true },
+  showActions: { type: Boolean, default: true },
 });
+
+const { t } = useI18n();
 
 const [isExpanded, toggleExpanded] = useToggle(false);
 const contentRef = ref(null);
-
-// Scroll content into view when expanded
-const scrollIntoView = () => {
-  nextTick(() => {
-    contentRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  });
-};
 
 // Auto-expand when streaming starts
 watch(
@@ -47,7 +45,7 @@ const colorMap = {
     iconActive: 'animate-pulse text-n-violet-9',
     labelActive: 'text-n-violet-11',
     spinner: 'text-n-violet-9',
-    border: 'border-n-violet-6',
+    border: 'border-n-slate-6',
     cursor: 'bg-n-violet-9',
   },
   slate: {
@@ -115,7 +113,6 @@ const accentClasses = computed(() => colorMap[props.accentColor]);
       leave-active-class="transition-all duration-300 ease-in"
       enter-from-class="opacity-0 -translate-y-2"
       leave-to-class="opacity-0 -translate-y-2"
-      @after-enter="scrollIntoView"
     >
       <div v-if="isExpanded" ref="contentRef" class="px-3 pb-3">
         <div
@@ -123,6 +120,18 @@ const accentClasses = computed(() => colorMap[props.accentColor]);
           :class="accentClasses.border"
         >
           <slot :is-streaming="isStreaming" :accent-classes="accentClasses" />
+        </div>
+        <!-- Actions -->
+        <div
+          v-if="showActions"
+          class="flex items-center justify-end gap-0.5 mt-2"
+        >
+          <slot name="actions" :collapse="() => (isExpanded = false)" />
+          <AiMessageAction
+            icon="i-lucide-chevron-up"
+            :label="t('AI_CHAT.COLLAPSIBLE.COLLAPSE')"
+            @click="isExpanded = false"
+          />
         </div>
       </div>
     </Transition>
