@@ -8,6 +8,8 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
   def stream
     setup_sse_headers
 
+    session_id_set = false
+
     messaging_service.stream_message(
       account_id: Current.account.id,
       user_id: Current.user.id,
@@ -15,8 +17,11 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
       message: @message_content,
       chat_session_id: params[:chat_session_id]
     ) do |chunk, session_id|
-      # Set session ID header on first chunk (if present and not already set)
-      response.headers['X-Chat-Session-Id'] = session_id if session_id.present? && response.headers['X-Chat-Session-Id'].blank?
+      # Set session ID header (before first write commits headers)
+      if session_id.present? && !session_id_set
+        response.headers['X-Chat-Session-Id'] = session_id
+        session_id_set = true
+      end
       response.stream.write(chunk)
     end
   rescue IOError => e

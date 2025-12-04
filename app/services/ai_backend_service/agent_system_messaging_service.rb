@@ -223,9 +223,6 @@ module AiBackendService
 
       log_request('stream_message', account_id, user_id, agent_bot_id, chat_session_id)
 
-      # Ensure user exists before streaming (can't retry mid-stream)
-      ensure_user_exists(user_id, account_id)
-
       uri = build_stream_uri(query_params)
       session_id = nil
       chunk_count = 0

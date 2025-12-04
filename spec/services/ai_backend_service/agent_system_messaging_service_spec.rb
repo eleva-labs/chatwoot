@@ -372,18 +372,6 @@ RSpec.describe AiBackendService::AgentSystemMessagingService do
         expect(session_ids.first).to eq('session-789')
       end
 
-      it 'calls ensure_user_exists before streaming' do
-        service.stream_message(
-          account_id: account.id,
-          user_id: user.id,
-          agent_bot_id: agent_bot.id,
-          message: message
-        ) { |_c, _s| nil }
-
-        # Verify user creation endpoint was called
-        expect(a_request(:post, users_url_pattern)).to have_been_made
-      end
-
       it 'builds correct stream URI with query params' do
         service.stream_message(
           account_id: account.id,

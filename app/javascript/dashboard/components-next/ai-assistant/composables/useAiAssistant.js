@@ -135,15 +135,9 @@ export function useAiAssistant() {
   // Sessions are fetched lazily when user opens history panel
   onMounted(async () => {
     await fetchBots();
-    // Only restore active session ID from localStorage (no API call)
-    // This ensures chat_session_id is sent with first message
+    // Restore previous session from localStorage (includes loading messages)
     if (selectedBotId.value) {
-      const storedSessionId = sessionManager.getStoredSessionId(
-        selectedBotId.value
-      );
-      if (storedSessionId) {
-        sessionManager.setActiveSessionId(storedSessionId, selectedBotId.value);
-      }
+      await sessionManager.restoreSession(selectedBotId.value, chat);
     }
   });
 

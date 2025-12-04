@@ -102,11 +102,11 @@ export function useVercelChat(options) {
       };
     },
 
-    // Custom fetch to extract session ID from response headers
+    // Custom fetch to extract session ID from response header
     fetch: async (url, fetchOptions) => {
       const response = await window.fetch(url, fetchOptions);
 
-      // Extract session ID from response headers
+      // Extract session ID from response header
       const sessionId = response.headers.get('X-Chat-Session-Id');
       if (sessionId && onSessionId) {
         onSessionId(sessionId);
