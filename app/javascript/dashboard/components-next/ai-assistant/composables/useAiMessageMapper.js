@@ -8,14 +8,14 @@
  * UIMessage format with parts[] array for streaming support.
  */
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
-import { PART_TYPES } from '../constants';
+import { PART_TYPES, MESSAGE_ROLE } from '../constants';
 
 /**
  * Transform a single backend message to UIMessage format.
  * UIMessage is the Vercel AI SDK format with parts[] array.
  *
  * @param {Object} backendMsg - Message from backend API
- * @returns {Object} UIMessage format for Vercel AI SDK
+ * @returns {Object|null} UIMessage format for Vercel AI SDK, or null if should be filtered
  *
  * @example
  * // Backend format:
@@ -27,27 +27,41 @@ import { PART_TYPES } from '../constants';
 export function toUIMessage(backendMsg) {
   // Normalize keys to camelCase
   const msg = useCamelCase(backendMsg, { deep: true });
+  const role = msg.messageRole || msg.role;
+  const content = msg.content || '';
+
+  // Skip tool messages from backend - they don't have the rich format we need
+  // Tool execution info is only available during streaming, not from history
+  if (role === MESSAGE_ROLE.TOOL) {
+    return null;
+  }
+
+  // Skip assistant messages with empty content (these were tool-call placeholders)
+  if (role === MESSAGE_ROLE.ASSISTANT && !content.trim()) {
+    return null;
+  }
 
   // Handle various timestamp field names from backend
   const timestamp = msg.sentDate || msg.timestamp || msg.createdAt;
 
   return {
     id: msg.externalId || msg.id,
-    role: msg.messageRole || msg.role,
-    parts: [{ type: PART_TYPES.TEXT, text: msg.content || '' }],
+    role,
+    parts: [{ type: PART_TYPES.TEXT, text: content }],
     createdAt: timestamp ? new Date(timestamp) : new Date(),
   };
 }
 
 /**
  * Transform an array of backend messages to UIMessage format.
+ * Filters out tool messages and empty assistant messages.
  *
  * @param {Array} messages - Array of backend messages
- * @returns {Array} Array of UIMessages
+ * @returns {Array} Array of UIMessages (filtered)
  */
 export function toUIMessages(messages) {
   if (!Array.isArray(messages)) return [];
-  return messages.map(toUIMessage);
+  return messages.map(toUIMessage).filter(Boolean);
 }
 
 /**

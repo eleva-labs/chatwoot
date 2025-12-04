@@ -10,14 +10,14 @@ const props = defineProps({
 const { t } = useI18n();
 
 const containerRef = ref(null);
-const showScrollButton = ref(false);
 const isNearBottom = ref(true);
-const userScrolledUp = ref(false);
-const lastScrollTop = ref(0);
 
 // Throttle control for streaming scroll
 let lastScrollTime = 0;
 const THROTTLE_MS = 50;
+
+// Distance threshold for "near bottom" - used for auto-scroll and button visibility
+const SCROLL_THRESHOLD_PX = 150;
 
 const scrollToBottom = (behavior = 'smooth') => {
   if (containerRef.value) {
@@ -32,59 +32,27 @@ const handleScroll = () => {
   if (!containerRef.value) return;
   const { scrollTop, scrollHeight, clientHeight } = containerRef.value;
   const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-
-  // Detect intentional upward scroll (user wants to read history)
-  if (scrollTop < lastScrollTop.value && distanceFromBottom > 150) {
-    userScrolledUp.value = true;
-  }
-
-  // Reset userScrolledUp when user scrolls back to bottom
-  if (distanceFromBottom < 100) {
-    userScrolledUp.value = false;
-  }
-
-  lastScrollTop.value = scrollTop;
-
-  // Update state
-  isNearBottom.value = distanceFromBottom < 100;
-  showScrollButton.value = !isNearBottom.value;
+  isNearBottom.value = distanceFromBottom < SCROLL_THRESHOLD_PX;
 };
 
-// Manual scroll button resets user intent
-const handleScrollButtonClick = () => {
-  userScrolledUp.value = false;
-  scrollToBottom();
-};
-
-// Throttled auto-scroll during streaming
+// Auto-scroll when messages change (if near bottom)
 watch(
   () => props.messages,
-  () => {
-    if (!props.isStreaming) return;
-
-    const now = Date.now();
-    if (now - lastScrollTime < THROTTLE_MS) return;
-    lastScrollTime = now;
-
-    if (!userScrolledUp.value && isNearBottom.value) {
-      scrollToBottom('instant');
-    }
-  },
-  { deep: true }
-);
-
-// New messages - scroll if near bottom and user hasn't scrolled up
-watch(
-  () => props.messages.length,
   async () => {
-    // Skip during streaming (handled by deep watcher)
-    if (props.isStreaming) return;
+    if (!isNearBottom.value) return;
 
-    if (isNearBottom.value && !userScrolledUp.value) {
+    // Throttle during streaming for performance
+    if (props.isStreaming) {
+      const now = Date.now();
+      if (now - lastScrollTime < THROTTLE_MS) return;
+      lastScrollTime = now;
+      scrollToBottom('instant');
+    } else {
       await nextTick();
       scrollToBottom();
     }
-  }
+  },
+  { deep: true }
 );
 
 onMounted(() => {
@@ -95,14 +63,16 @@ defineExpose({ scrollToBottom });
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    class="relative flex-1 overflow-y-auto"
-    @scroll="handleScroll"
-  >
-    <slot />
+  <div class="relative flex-1 flex flex-col overflow-hidden">
+    <div
+      ref="containerRef"
+      class="flex-1 overflow-y-auto"
+      @scroll="handleScroll"
+    >
+      <slot />
+    </div>
 
-    <!-- Scroll to bottom button -->
+    <!-- Scroll to bottom button - positioned relative to container, not scroll content -->
     <Transition
       enter-active-class="transition-opacity duration-200 ease-out"
       leave-active-class="transition-opacity duration-150 ease-in"
@@ -110,10 +80,10 @@ defineExpose({ scrollToBottom });
       leave-to-class="opacity-0"
     >
       <button
-        v-if="showScrollButton"
+        v-if="!isNearBottom"
         :aria-label="t('AI_CHAT.SCROLL_TO_BOTTOM')"
-        class="absolute bottom-4 ltr:right-4 rtl:left-4 p-2 rounded-full bg-n-solid-3 shadow-lg hover:bg-n-solid-4 transition-colors"
-        @click="handleScrollButtonClick"
+        class="absolute bottom-4 ltr:right-4 rtl:left-4 size-9 flex items-center justify-center rounded-full bg-n-solid-3 shadow-lg hover:bg-n-solid-4 transition-colors z-10"
+        @click="scrollToBottom()"
       >
         <span class="i-lucide-chevron-down size-5 text-n-slate-11" />
       </button>
