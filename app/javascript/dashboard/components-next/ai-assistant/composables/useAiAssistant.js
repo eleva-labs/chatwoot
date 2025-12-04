@@ -181,5 +181,3 @@ export function useAiAssistant() {
     fetchBots,
   };
 }
-
-export default useAiAssistant;

@@ -14,6 +14,25 @@
       "SEND": "Send message",
       "DISABLED_NO_BOT": "Select an AI Employee to start chatting with"
     },
+    "VOICE_INPUT": {
+      "START": "Start voice input",
+      "STOP": "Stop recording",
+      "CANCEL": "Cancel recording",
+      "TRANSCRIBING": "Transcribing...",
+      "COMING_SOON": "Voice input (coming soon)",
+      "PERMISSION_REQUIRED": "Microphone access required",
+      "PERMISSION_DENIED": "Microphone access denied. Please enable in browser settings.",
+      "NOT_SUPPORTED": "Voice input not supported in this browser",
+      "RECORDING": "Recording...",
+      "MAX_DURATION": "Maximum recording time reached",
+      "ERROR": {
+        "GENERIC": "Voice input failed. Please try again.",
+        "TRANSCRIPTION": "Could not transcribe audio. Please try again.",
+        "UPLOAD": "Failed to upload audio. Please try again.",
+        "NO_SPEECH": "No speech detected. Please try again.",
+        "NETWORK": "Network error. Please check your connection."
+      }
+    },
     "STATUS": {
       "READY": "Ready",
       "SUBMITTED": "Sending...",

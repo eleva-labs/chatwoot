@@ -17,9 +17,11 @@ export { default as AiPartRenderer } from './parts/AiPartRenderer.vue';
 export { default as AiTextPart } from './parts/AiTextPart.vue';
 export { default as AiReasoningPart } from './parts/AiReasoningPart.vue';
 export { default as AiToolPart } from './parts/AiToolPart.vue';
+export { default as AiCollapsiblePart } from './parts/AiCollapsiblePart.vue';
 
 // Input
 export { default as AiPromptInput } from './input/AiPromptInput.vue';
+export { default as AiVoiceButton } from './input/AiVoiceButton.vue';
 
 // Feedback
 export { default as AiLoader } from './feedback/AiLoader.vue';

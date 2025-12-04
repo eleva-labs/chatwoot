@@ -1,6 +1,14 @@
 <script setup>
-import { ref, computed } from 'vue';
+/**
+ * AiChatPanel.vue
+ *
+ * Main chat panel container managing message display, bot selection,
+ * session history, streaming states, and user input.
+ */
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useToggle } from '@vueuse/core';
+import { OnClickOutside } from '@vueuse/components';
 import { provideAiChatContext } from '../provider';
 import { CHAT_STATUS, PART_TYPES, MESSAGE_ROLE } from '../constants';
 
@@ -9,13 +17,14 @@ import AiConversationContent from '../conversation/AiConversationContent.vue';
 import AiConversationEmptyState from '../conversation/AiConversationEmptyState.vue';
 import AiMessage from '../message/AiMessage.vue';
 import AiMessageContent from '../message/AiMessageContent.vue';
+import AiMessageActions from '../message/AiMessageActions.vue';
+import AiMessageAction from '../message/AiMessageAction.vue';
 import AiPartRenderer from '../parts/AiPartRenderer.vue';
 import AiPromptInput from '../input/AiPromptInput.vue';
 import AiLoader from '../feedback/AiLoader.vue';
 import AiChatError from '../feedback/AiChatError.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
-import { OnClickOutside } from '@vueuse/components';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -24,7 +33,6 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   // Bot selector props
   bots: { type: Array, default: () => [] },
-  selectedBotId: { type: [Number, String], default: null },
   botsLoading: { type: Boolean, default: false },
   // Avatar props
   userName: { type: String, default: '' },
@@ -39,22 +47,27 @@ const props = defineProps({
 
 const emit = defineEmits([
   'close',
-  'update:selectedBotId',
   'loadSession',
   'newSession',
   'deleteSession',
   'fetchSessions',
 ]);
 
+// v-model for bot selection
+const selectedBotId = defineModel('selectedBotId', {
+  type: [Number, String],
+  default: null,
+});
+
 const showBotSelector = computed(() => props.bots.length > 0);
 
 // Get current selected bot for avatar display
 const currentBot = computed(() =>
-  props.bots.find(b => b.id === props.selectedBotId)
+  props.bots.find(b => b.id === selectedBotId.value)
 );
 
-// Bot selector dropdown state
-const isBotSelectorOpen = ref(false);
+// Bot selector dropdown state (useToggle pattern)
+const [isBotSelectorOpen, toggleBotSelector] = useToggle(false);
 
 // Transform bots to dropdown menu format
 const botMenuItems = computed(() =>
@@ -66,24 +79,23 @@ const botMenuItems = computed(() =>
       src: bot.avatar_url,
       name: bot.name,
     },
-    isSelected: bot.id === props.selectedBotId,
+    isSelected: bot.id === selectedBotId.value,
   }))
 );
 
 const handleBotSelect = ({ value }) => {
-  emit('update:selectedBotId', Number(value));
+  selectedBotId.value = Number(value);
   isBotSelectorOpen.value = false;
 };
 
-// Session history panel state
-const showSessionHistory = ref(false);
+// Session history panel state (useToggle pattern)
+const [showSessionHistory, toggleSessionHistoryValue] = useToggle(false);
 const hasSessions = computed(() => props.sessions.length > 0);
 
 const toggleSessionHistory = () => {
-  const willOpen = !showSessionHistory.value;
-  showSessionHistory.value = willOpen;
+  toggleSessionHistoryValue();
   // Fetch sessions when opening the panel (lazy loading)
-  if (willOpen) {
+  if (showSessionHistory.value) {
     emit('fetchSessions');
   }
 };
@@ -211,6 +223,15 @@ const getTextParts = message => {
   );
 };
 
+// Check if message has text content to display
+const hasTextContent = message => {
+  const textParts = getTextParts(message);
+  return textParts.some(p => p.text?.trim());
+};
+
+// Check if this message is the last one (for streaming indicators)
+const isLastMessage = msgIdx => msgIdx === chatMessages.value.length - 1;
+
 // Provide context to child components
 provideAiChatContext({
   status: chatStatus,
@@ -270,7 +291,7 @@ const handleFreshStart = () => {
                   :disabled="isLoading || botsLoading"
                   :aria-label="t('AI_CHAT.BOT_SELECTOR.LABEL')"
                   class="flex items-center gap-2 min-w-0 hover:bg-n-alpha-1 rounded-lg px-1.5 py-1 -ml-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  @click="isBotSelectorOpen = !isBotSelectorOpen"
+                  @click="toggleBotSelector()"
                 >
                   <Avatar
                     :src="currentBot?.avatar_url"
@@ -436,7 +457,7 @@ const handleFreshStart = () => {
                 <button
                   v-tooltip="t('AI_CHAT.SESSIONS.DELETE')"
                   :aria-label="t('AI_CHAT.SESSIONS.DELETE')"
-                  class="p-1 rounded text-n-slate-9 hover:text-n-ruby-9 hover:bg-n-ruby-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  class="p-1 rounded text-n-slate-9 hover:text-n-ruby-9 hover:bg-n-ruby-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex-shrink-0"
                   @click.stop="handleDeleteSession(session.chatSessionId)"
                 >
                   <span class="i-lucide-trash-2 size-4" />
@@ -458,14 +479,15 @@ const handleFreshStart = () => {
         <AiConversationEmptyState v-if="chatMessages.length === 0" />
 
         <AiMessage
-          v-for="message in chatMessages"
+          v-for="(message, msgIdx) in chatMessages"
           :key="message.id"
           :from="message.role"
           v-bind="getAvatarProps(message.role)"
+          class="group"
         >
           <!-- Assistant messages: split into reasoning, tools, and text -->
           <template v-if="message.role === MESSAGE_ROLE.ASSISTANT">
-            <div class="flex flex-col gap-1 max-w-[80%]">
+            <div class="flex flex-col gap-1 w-full">
               <!-- Reasoning parts - outside bubble -->
               <AiPartRenderer
                 v-for="(part, idx) in getReasoningParts(message)"
@@ -473,7 +495,9 @@ const handleFreshStart = () => {
                 :part="part"
                 :role="message.role"
                 :is-streaming="
-                  isStreaming && idx === getReasoningParts(message).length - 1
+                  isStreaming &&
+                  isLastMessage(msgIdx) &&
+                  idx === getReasoningParts(message).length - 1
                 "
               />
               <!-- Tool parts - outside bubble -->
@@ -482,20 +506,38 @@ const handleFreshStart = () => {
                 :key="`tool-${part.toolCallId}`"
                 :part="part"
                 :role="message.role"
-                :is-streaming="isStreaming"
+                :is-streaming="isStreaming && isLastMessage(msgIdx)"
               />
-              <!-- Text content - inside bubble -->
-              <AiMessageContent :from="message.role">
+              <!-- Text content - inside bubble (only show when there's content) -->
+              <AiMessageContent
+                v-if="hasTextContent(message)"
+                :from="message.role"
+              >
                 <AiPartRenderer
                   v-for="(part, idx) in getTextParts(message)"
                   :key="`text-${idx}`"
                   :part="part"
                   :role="message.role"
                   :is-streaming="
-                    isStreaming && idx === getTextParts(message).length - 1
+                    isStreaming &&
+                    isLastMessage(msgIdx) &&
+                    idx === getTextParts(message).length - 1
                   "
                 />
               </AiMessageContent>
+              <!-- Message Actions (Copy, Regenerate) -->
+              <AiMessageActions>
+                <AiMessageAction
+                  icon="i-lucide-copy"
+                  :label="t('AI_CHAT.MESSAGE.COPY')"
+                  disabled
+                />
+                <AiMessageAction
+                  icon="i-lucide-refresh-ccw"
+                  :label="t('AI_CHAT.MESSAGE.REGENERATE')"
+                  disabled
+                />
+              </AiMessageActions>
             </div>
           </template>
           <!-- User messages: all parts inside bubble -->

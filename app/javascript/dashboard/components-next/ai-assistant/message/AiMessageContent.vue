@@ -19,7 +19,7 @@ const bubbleClass = computed(() => ({
 </script>
 
 <template>
-  <div class="max-w-[80%] px-4 py-2" :class="bubbleClass">
+  <div class="px-4 py-2" :class="bubbleClass">
     <slot />
   </div>
 </template>

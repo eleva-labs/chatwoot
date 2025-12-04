@@ -66,7 +66,7 @@ const layoutProps = computed(() => {
   if (props.layout === 'floating') {
     return {
       position: props.position || 'bottom-right',
-      panelClass: props.panelClass || 'h-[550px] w-96',
+      panelClass: props.panelClass || 'h-[600px] w-[768px]',
       fabClass: isLoading.value ? 'size-14 animate-pulse' : 'size-14',
     };
   }

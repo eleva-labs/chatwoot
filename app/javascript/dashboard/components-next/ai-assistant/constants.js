@@ -27,3 +27,11 @@ export const MESSAGE_ROLE = {
   ASSISTANT: 'assistant',
   TOOL: 'tool',
 };
+
+export const VOICE_INPUT_STATUS = {
+  IDLE: 'idle',
+  RECORDING: 'recording',
+  TRANSCRIBING: 'transcribing',
+  ERROR: 'error',
+  DISABLED: 'disabled',
+};

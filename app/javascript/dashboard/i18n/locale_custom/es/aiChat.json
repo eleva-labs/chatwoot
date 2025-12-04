@@ -14,6 +14,25 @@
       "SEND": "Enviar mensaje",
       "DISABLED_NO_BOT": "Selecciona un Empleado IA para comenzar a chatear"
     },
+    "VOICE_INPUT": {
+      "START": "Iniciar entrada de voz",
+      "STOP": "Detener grabación",
+      "CANCEL": "Cancelar grabación",
+      "TRANSCRIBING": "Transcribiendo...",
+      "COMING_SOON": "Entrada de voz (próximamente)",
+      "PERMISSION_REQUIRED": "Se requiere acceso al micrófono",
+      "PERMISSION_DENIED": "Acceso al micrófono denegado. Por favor, habilítalo en la configuración del navegador.",
+      "NOT_SUPPORTED": "Entrada de voz no soportada en este navegador",
+      "RECORDING": "Grabando...",
+      "MAX_DURATION": "Tiempo máximo de grabación alcanzado",
+      "ERROR": {
+        "GENERIC": "La entrada de voz falló. Por favor, intenta de nuevo.",
+        "TRANSCRIPTION": "No se pudo transcribir el audio. Por favor, intenta de nuevo.",
+        "UPLOAD": "Error al subir el audio. Por favor, intenta de nuevo.",
+        "NO_SPEECH": "No se detectó voz. Por favor, intenta de nuevo.",
+        "NETWORK": "Error de red. Por favor, verifica tu conexión."
+      }
+    },
     "STATUS": {
       "READY": "Listo",
       "SUBMITTED": "Enviando...",

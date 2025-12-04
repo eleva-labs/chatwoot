@@ -26,6 +26,12 @@ const alignmentClass = computed(() => ({
   'flex-row': !isUser.value,
 }));
 
+// Assistant messages get fixed 80% width, user messages shrink to fit (max 80%)
+const contentContainerClass = computed(() => ({
+  'w-[80%]': !isUser.value,
+  'max-w-[80%]': isUser.value,
+}));
+
 const avatarName = computed(() => {
   if (props.avatarName) return props.avatarName;
   return isUser.value ? 'User' : 'AI';
@@ -47,6 +53,10 @@ const avatarIcon = computed(() => {
       rounded-full
       class="flex-shrink-0 mb-1"
     />
-    <slot />
+    <div class="flex flex-col gap-1 min-w-0" :class="contentContainerClass">
+      <slot />
+      <!-- Spacer for user messages to align with assistant message actions height -->
+      <div v-if="isUser" class="h-7" aria-hidden="true" />
+    </div>
   </div>
 </template>
