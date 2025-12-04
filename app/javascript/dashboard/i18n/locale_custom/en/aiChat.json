@@ -31,10 +31,7 @@
       "HIDE": "Hide reasoning"
     },
     "TOOL": {
-      "PREPARING": "Preparing...",
-      "RUNNING": "Running...",
-      "COMPLETED": "Completed",
-      "ERROR": "Error",
+      "LABEL": "Tool",
       "INPUT_LABEL": "Input",
       "OUTPUT_LABEL": "Output"
     },

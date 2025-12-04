@@ -31,10 +31,7 @@
       "HIDE": "Ocultar razonamiento"
     },
     "TOOL": {
-      "PREPARING": "Preparando...",
-      "RUNNING": "Ejecutando...",
-      "COMPLETED": "Completado",
-      "ERROR": "Error",
+      "LABEL": "Herramienta",
       "INPUT_LABEL": "Entrada",
       "OUTPUT_LABEL": "Salida"
     },

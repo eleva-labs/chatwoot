@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { provideAiChatContext } from '../provider';
-import { CHAT_STATUS } from '../constants';
+import { CHAT_STATUS, PART_TYPES, MESSAGE_ROLE } from '../constants';
 
 import AiConversation from '../conversation/AiConversation.vue';
 import AiConversationContent from '../conversation/AiConversationContent.vue';
@@ -166,7 +166,7 @@ const showLoader = computed(() => {
 
 // Get avatar info for a message based on role
 const getAvatarProps = role => {
-  if (role === 'user') {
+  if (role === MESSAGE_ROLE.USER) {
     return {
       avatarName: props.userName,
       avatarSrc: props.userAvatar,
@@ -176,6 +176,39 @@ const getAvatarProps = role => {
     avatarName: props.botName,
     avatarSrc: props.botAvatar,
   };
+};
+
+// Helper to check if a part is a tool part (type starts with 'tool-')
+const isToolPart = part => part?.type?.startsWith('tool-');
+
+// Get reasoning parts from message
+const getReasoningParts = message => {
+  if (message.role !== MESSAGE_ROLE.ASSISTANT) return [];
+  return (message.parts || []).filter(p => p.type === PART_TYPES.REASONING);
+};
+
+// Get tool parts from message (deduplicated by toolCallId, keep latest)
+const getToolParts = message => {
+  if (message.role !== MESSAGE_ROLE.ASSISTANT) return [];
+  const toolParts = (message.parts || []).filter(isToolPart);
+
+  // Dedupe by toolCallId - keep only the latest state for each tool
+  const toolMap = new Map();
+  toolParts.forEach(part => {
+    if (part.toolCallId) {
+      toolMap.set(part.toolCallId, part);
+    }
+  });
+
+  return Array.from(toolMap.values());
+};
+
+// Get text/content parts (everything except reasoning and tools)
+const getTextParts = message => {
+  if (message.role !== MESSAGE_ROLE.ASSISTANT) return message.parts || [];
+  return (message.parts || []).filter(
+    p => p.type !== PART_TYPES.REASONING && !isToolPart(p)
+  );
 };
 
 // Provide context to child components
@@ -430,15 +463,53 @@ const handleFreshStart = () => {
           :from="message.role"
           v-bind="getAvatarProps(message.role)"
         >
-          <AiMessageContent :from="message.role">
-            <AiPartRenderer
-              v-for="(part, idx) in message.parts"
-              :key="idx"
-              :part="part"
-              :role="message.role"
-              :is-streaming="isStreaming && idx === message.parts.length - 1"
-            />
-          </AiMessageContent>
+          <!-- Assistant messages: split into reasoning, tools, and text -->
+          <template v-if="message.role === MESSAGE_ROLE.ASSISTANT">
+            <div class="flex flex-col gap-1 max-w-[80%]">
+              <!-- Reasoning parts - outside bubble -->
+              <AiPartRenderer
+                v-for="(part, idx) in getReasoningParts(message)"
+                :key="`reasoning-${idx}`"
+                :part="part"
+                :role="message.role"
+                :is-streaming="
+                  isStreaming && idx === getReasoningParts(message).length - 1
+                "
+              />
+              <!-- Tool parts - outside bubble -->
+              <AiPartRenderer
+                v-for="part in getToolParts(message)"
+                :key="`tool-${part.toolCallId}`"
+                :part="part"
+                :role="message.role"
+                :is-streaming="isStreaming"
+              />
+              <!-- Text content - inside bubble -->
+              <AiMessageContent :from="message.role">
+                <AiPartRenderer
+                  v-for="(part, idx) in getTextParts(message)"
+                  :key="`text-${idx}`"
+                  :part="part"
+                  :role="message.role"
+                  :is-streaming="
+                    isStreaming && idx === getTextParts(message).length - 1
+                  "
+                />
+              </AiMessageContent>
+            </div>
+          </template>
+          <!-- User messages: all parts inside bubble -->
+          <template v-else>
+            <AiMessageContent :from="message.role">
+              <AiPartRenderer
+                v-for="(part, idx) in message.parts"
+                :key="idx"
+                :part="part"
+                :role="message.role"
+                :is-streaming="isStreaming && idx === message.parts.length - 1"
+              />
+            </AiMessageContent>
+          </template>
         </AiMessage>
 
         <AiLoader v-if="showLoader" />
