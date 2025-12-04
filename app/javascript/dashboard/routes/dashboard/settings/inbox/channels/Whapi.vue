@@ -151,9 +151,7 @@ const isContinueButtonDisabled = computed(() => {
 watch(
   () => currentInbox.value.provider_config?.webhook_configured,
   (isConfigured, wasConfigured) => {
-    console.log('[Whapi.vue] Webhook configured watcher:', { isConfigured, wasConfigured, currentStep: step.value });
     if (isConfigured && !wasConfigured && step.value === 'waiting') {
-      console.log('[Whapi.vue] Webhook configured, initiating connection');
       initiateConnection();
     }
   }
@@ -161,25 +159,20 @@ watch(
 
 // Initiate connection via websocket after channel creation
 const initiateConnection = async () => {
-  console.log('[Whapi.vue] initiateConnection called', { createdInbox: createdInbox.value?.id, isInitiating: isInitiatingConnection.value });
   if (!createdInbox.value || isInitiatingConnection.value) {
-    console.log('[Whapi.vue] initiateConnection skipped - no inbox or already initiating');
     return;
   }
 
   isInitiatingConnection.value = true;
 
   try {
-    console.log('[Whapi.vue] Dispatching initiateWhapiReconnection for inbox:', createdInbox.value.id);
     const response = await store.dispatch(
       'inboxes/initiateWhapiReconnection',
       createdInbox.value.id
     );
-    console.log('[Whapi.vue] initiateWhapiReconnection response:', response);
 
     // If the response contains the QR code directly, display it immediately
     if (response.image_base64) {
-      console.log('[Whapi.vue] QR code received directly in response, storing it');
       const qrCodeData = {
         qrBase64: response.image_base64,
         expiresIn: response.expires_in,
@@ -195,15 +188,12 @@ const initiateConnection = async () => {
 
     // If already connected, show success immediately
     if (response.status === 'connected') {
-      console.log('[Whapi.vue] Channel already connected');
       step.value = 'success';
       return;
     }
 
-    console.log('[Whapi.vue] Waiting for QR via websocket');
     // Otherwise, wait for QR via websocket - no polling
   } catch (error) {
-    console.error('[Whapi.vue] initiateConnection error:', error);
     useAlert(error?.message || t('INBOX_MGMT.ADD.WHAPI.CONNECTION_ERROR'));
   } finally {
     isInitiatingConnection.value = false;

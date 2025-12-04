@@ -88,40 +88,7 @@ class Whatsapp::WhapiConnectionStatusService
     # Extract phone number from user if available
     phone_number = user_obj&.dig('id') || user_obj&.dig('phone')
     
-    if phone_number.present?
-      formatted_phone = phone_number.to_s.start_with?('+') ? phone_number.to_s : "+#{phone_number}"
-      
-      # Update webhook URL with phone number (same as handle_connected_event)
-      webhook_updated = false
-      new_webhook_url = nil
-      begin
-        webhook_updated, new_webhook_url = update_webhook_with_phone_number(formatted_phone)
-      rescue StandardError => e
-        Rails.logger.warn "[Whapi][#{correlation_id}] Failed to update webhook with phone number: #{e.message}"
-      end
-
-      # Update channel with connected phone number and status
-      config_object = channel.provider_config_object
-      config_object.update_connection_status('connected')
-      config_object.update_phone_number(formatted_phone)
-      config_object.update_webhook_url(new_webhook_url) if webhook_updated && new_webhook_url.present?
-    else
-      # Still update status even without phone number
-      channel.provider_config_object.update_connection_status('connected')
-    end
-
-    # Clear reauthorization state when successfully reconnected
-    channel.reauthorized!
-
-    # Broadcast status update for UI
-    broadcast_connection_status('connected')
-    ActiveSupport::Notifications.instrument(
-      'whapi.onboarding',
-      action: 'connected',
-      channel_id: channel.id,
-      inbox_id: channel.inbox.id,
-      correlation_id: correlation_id
-    )
+    handle_user_connection(phone_number)
   end
 
   def handle_users_disconnected(user_obj)
@@ -152,26 +119,34 @@ class Whatsapp::WhapiConnectionStatusService
     phone_number = event['phone']
     return unless phone_number.present?
 
-    # Ensure phone number is in E.164 format
-    formatted_phone = phone_number.start_with?('+') ? phone_number : "+#{phone_number}"
+    handle_user_connection(phone_number)
+  end
 
-    Rails.logger.info "[Whapi][#{correlation_id}] Channel #{channel.id} connected with phone: #{formatted_phone}"
+  def handle_user_connection(phone_number)
+    if phone_number.present?
+      # Ensure phone number is in E.164 format
+      formatted_phone = phone_number.to_s.start_with?('+') ? phone_number.to_s : "+#{phone_number}"
 
-    # Update webhook URL with phone number
-    webhook_updated = false
-    new_webhook_url = nil
-    begin
-      webhook_updated, new_webhook_url = update_webhook_with_phone_number(formatted_phone)
-    rescue StandardError => e
-      Rails.logger.warn "[Whapi][#{correlation_id}] Failed to update webhook with phone number: #{e.message}"
+      Rails.logger.info "[Whapi][#{correlation_id}] Channel #{channel.id} connected with phone: #{formatted_phone}"
+
+      # Update webhook URL with phone number
+      webhook_updated = false
+      new_webhook_url = nil
+      begin
+        webhook_updated, new_webhook_url = update_webhook_with_phone_number(formatted_phone)
+      rescue StandardError => e
+        Rails.logger.warn "[Whapi][#{correlation_id}] Failed to update webhook with phone number: #{e.message}"
+      end
+
+      # Update channel with connected phone number and status
+      config_object = channel.provider_config_object
+      config_object.update_connection_status('connected')
+      config_object.update_phone_number(formatted_phone)
+      config_object.update_webhook_url(new_webhook_url) if webhook_updated && new_webhook_url.present?
+    else
+      # Still update status even without phone number
+      channel.provider_config_object.update_connection_status('connected')
     end
-
-    # Update channel with connected phone number and status
-    config_object = channel.provider_config_object
-    config_object.update_connection_status('connected')
-    config_object.update_phone_number(formatted_phone)
-
-    config_object.update_webhook_url(new_webhook_url) if webhook_updated && new_webhook_url.present?
 
     # Clear reauthorization state when successfully reconnected
     channel.reauthorized!

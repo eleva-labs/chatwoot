@@ -205,7 +205,6 @@ Rails.application.routes.draw do
           end
           resources :whapi_channels, only: [:create] do
             member do
-              get :qr_code
               post :retry_webhook
               post :reauthorize
               post :initiate_reconnection

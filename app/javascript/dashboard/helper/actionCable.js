@@ -118,11 +118,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onWhapiWebhookConfigured = data => {
-    console.log('[ActionCable] Received whapi_webhook_configured event:', data);
     const { inbox_id: inboxId } = data;
-    console.log('[ActionCable] Committing SET_WHAPI_WEBHOOK_CONFIGURED for inbox:', inboxId);
     this.app.$store.commit('inboxes/SET_WHAPI_WEBHOOK_CONFIGURED', inboxId);
-    console.log('[ActionCable] Mutation committed, inbox provider_config:', this.app.$store.getters['inboxes/getInbox'](inboxId)?.provider_config);
   };
 
   onConversationCreated = data => {

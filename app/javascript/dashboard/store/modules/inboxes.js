@@ -350,11 +350,6 @@ export const actions = {
       throw error; // Ensure function always returns or throws
     }
   },
-  // Fetch a fresh QR code image for Whapi login (legacy polling approach)
-  getWhapiQrCode: async (_ctx, inboxId) => {
-    const { data } = await WhapiChannel.getQrCode(inboxId);
-    return data;
-  },
   // Initiate Whapi reconnection - triggers channel wakeup, QR delivered via websocket
   initiateWhapiReconnection: async (_ctx, inboxId) => {
     const { data } = await WhapiChannel.initiateReconnection(inboxId);
@@ -395,18 +390,12 @@ export const mutations = {
     $state.whapiQrCodes = rest;
   },
   SET_WHAPI_WEBHOOK_CONFIGURED($state, inboxId) {
-    console.log('[Vuex] SET_WHAPI_WEBHOOK_CONFIGURED called for inbox:', inboxId);
-    console.log('[Vuex] Current inboxes in store:', $state.records.map(r => ({ id: r.id, name: r.name })));
     const inbox = $state.records.find(record => record.id === Number(inboxId));
     if (inbox) {
-      console.log('[Vuex] Found inbox, updating provider_config');
       inbox.provider_config = {
         ...(inbox.provider_config || {}),
         webhook_configured: true,
       };
-      console.log('[Vuex] Updated provider_config:', inbox.provider_config);
-    } else {
-      console.warn('[Vuex] Inbox not found in store:', inboxId);
     }
   },
 };
