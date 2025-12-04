@@ -222,8 +222,8 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
     bot_ids = agent_systems.map { |sys| sys['externalId'].to_i }
 
     # Batch fetch avatar URLs from Chatwoot (local DB - fast)
-    agent_bots = AgentBot.where(id: bot_ids)
-                         .select(:id, :name, :avatar_url)
+    # Note: Can't use select(:avatar_url) because it's a method from Avatarable, not a column
+    agent_bots = AgentBot.where(id: bot_ids).with_attached_avatar
 
     # Create lookup map: id => agent_bot
     avatar_lookup = agent_bots.index_by(&:id)

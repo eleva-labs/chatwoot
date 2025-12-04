@@ -167,7 +167,7 @@ module AiBackendService
           'message_role' => msg['messageRole'] || msg['message_role'],
           'content' => msg['content'],
           'sent_date' => msg['sentDate'] || msg['sent_date'],
-          'has_media' => msg['hasMedia'] || msg['has_media']
+          'has_media' => msg.key?('hasMedia') ? msg['hasMedia'] : msg['has_media']
         }
       end
 
@@ -203,7 +203,7 @@ module AiBackendService
            ValidationError, ServiceUnavailableError
       raise
     rescue StandardError => e
-      Rails.logger.error("AI Backend API call failed: #{e.message}", error: e.class.name)
+      Rails.logger.error("AI Backend API call failed: #{e.class.name} - #{e.message}")
       raise ServiceError, e.message
     end
 
