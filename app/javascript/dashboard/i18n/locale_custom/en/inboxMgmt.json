@@ -26,6 +26,10 @@
       "FINISH": {
         "TITLE": "Voilà!",
         "BODY": "You are all set to go!"
+      },
+      "INVITE_TEAM": {
+        "TITLE": "Invite Team",
+        "BODY": "Invite team members to collaborate on this channel."
       }
     },
     "ADD": {
@@ -499,7 +503,7 @@
         "PICK_AGENTS": "Pick members for the channel"
       },
       "DETAILS": {
-        "TITLE": "Inbox Details",
+        "TITLE": "Channel Details",
         "DESC": "From the dropdown below, select the Facebook Page you want to connect to Chatwoot. You can also give a custom name to your channel for better identification."
       },
       "FINISH": {
@@ -553,7 +557,7 @@
     "VIEW": "View",
     "EDIT": {
       "API": {
-        "SUCCESS_MESSAGE": "Inbox settings updated successfully",
+        "SUCCESS_MESSAGE": "Channel settings updated successfully",
         "AUTO_ASSIGNMENT_SUCCESS_MESSAGE": "Auto assignment updated successfully",
         "ERROR_MESSAGE": "We couldn't update channel settings. Please try again later."
       },
@@ -611,9 +615,9 @@
         "NO": "No, Keep "
       },
       "API": {
-        "SUCCESS_MESSAGE": "Inbox deleted successfully",
+        "SUCCESS_MESSAGE": "Channel deleted successfully",
         "ERROR_MESSAGE": "Could not delete channel. Please try again later.",
-        "AVATAR_SUCCESS_MESSAGE": "Inbox avatar deleted successfully",
+        "AVATAR_SUCCESS_MESSAGE": "Channel avatar deleted successfully",
         "AVATAR_ERROR_MESSAGE": "Could not delete the channel avatar. Please try again later."
       }
     },
@@ -722,7 +726,7 @@
       "HMAC_LINK_TO_DOCS": "You can read more here.",
       "HMAC_MANDATORY_VERIFICATION": "Enforce User Identity Validation",
       "HMAC_MANDATORY_DESCRIPTION": "If enabled, requests that cannot be verified will be rejected.",
-      "INBOX_IDENTIFIER": "Inbox Identifier",
+      "INBOX_IDENTIFIER": "Channel Identifier",
       "INBOX_IDENTIFIER_SUB_TEXT": "Use the `inbox_identifier` token shown here to authentication your API clients.",
       "FORWARD_EMAIL_TITLE": "Forward to Email",
       "FORWARD_EMAIL_SUB_TEXT": "Start forwarding your emails to the following email address.",

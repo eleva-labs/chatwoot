@@ -157,7 +157,7 @@
     "BUTTON_LABEL": "Start conversation",
     "TITLE": "New conversation",
     "DESC": "Start a new conversation by sending a new message.",
-    "NO_INBOX": "Couldn't find an channel to initiate a new conversation with this contact.",
+    "NO_INBOX": "Couldn't find a channel to initiate a new conversation with this contact.",
     "FORM": {
       "TO": {
         "LABEL": "To"
@@ -165,7 +165,7 @@
       "INBOX": {
         "LABEL": "Via Channel",
         "PLACEHOLDER": "Choose source channel",
-        "ERROR": "Select an channel"
+        "ERROR": "Select a channel"
       },
       "SUBJECT": {
         "LABEL": "Subject",

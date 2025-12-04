@@ -121,12 +121,12 @@
     },
     "PAGINATION": {
       "RESULTS": "Mostrando {start} a {end} de {total} resultados",
-      "PER_PAGE_TEMPLATE": "{size} / page"
+      "PER_PAGE_TEMPLATE": "{size} / página"
     }
   },
   "AGENT_REPORTS": {
     "HEADER": "Resumen de agentes",
-    "DESCRIPTION": "Easily track agent performance with key metrics such as conversations, response times, resolution times, and resolved cases. Click an agent’s name to learn more.",
+    "DESCRIPTION": "Rastree fácilmente el rendimiento de los agentes con métricas clave como conversaciones, tiempos de respuesta, tiempos de resolución y casos resueltos. Haga clic en el nombre de un agente para más detalles.",
     "LOADING_CHART": "Cargando datos del gráfico...",
     "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
     "DOWNLOAD_AGENT_REPORTS": "Descargar reportes de agente",
@@ -194,7 +194,7 @@
   },
   "LABEL_REPORTS": {
     "HEADER": "Resumen de etiquetas",
-    "DESCRIPTION": "Track label performance with key metrics including conversations, response times, resolution times, and resolved cases. Click a label name for detailed insights.",
+    "DESCRIPTION": "Rastree el rendimiento de las etiquetas con métricas clave incluyendo conversaciones, tiempos de respuesta, tiempos de resolución y casos resueltos. Haga clic en el nombre de una etiqueta para información detallada.",
     "LOADING_CHART": "Cargando datos del gráfico...",
     "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
     "DOWNLOAD_LABEL_REPORTS": "Descargar reportes de etiquetas",
@@ -262,13 +262,13 @@
   },
   "INBOX_REPORTS": {
     "HEADER": "Resumen de canal",
-    "DESCRIPTION": "Quickly view your inbox performance with key metrics like conversations, response times, resolution times, and resolved cases—all in one place. Click an inbox name for more details.",
+    "DESCRIPTION": "Visualiza rápidamente el rendimiento de tu canal con métricas clave como conversaciones, tiempos de respuesta, tiempos de resolución y casos resueltos, todo en un solo lugar. Haz clic en el nombre de un canal para más detalles.",
     "LOADING_CHART": "Cargando datos del gráfico...",
     "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
     "DOWNLOAD_INBOX_REPORTS": "Descargar reportes de canal",
-    "FILTER_DROPDOWN_LABEL": "Seleccione una canal",
-    "ALL_INBOXES": "All Inboxes",
-    "SEARCH_INBOX": "Search Inbox",
+    "FILTER_DROPDOWN_LABEL": "Seleccione un canal",
+    "ALL_INBOXES": "Todos los canales",
+    "SEARCH_INBOX": "Buscar canal",
     "METRICS": {
       "CONVERSATIONS": {
         "NAME": "Conversaciones",
@@ -332,7 +332,7 @@
   },
   "TEAM_REPORTS": {
     "HEADER": "Vista general del equipo",
-    "DESCRIPTION": "Get a snapshot of your team’s performance with essential metrics, including conversations, response times, resolution times, and resolved cases. Click a team name for more details.",
+    "DESCRIPTION": "Obtenga una instantánea del rendimiento de su equipo con métricas esenciales, incluyendo conversaciones, tiempos de respuesta, tiempos de resolución y casos resueltos. Haga clic en el nombre de un equipo para más detalles.",
     "LOADING_CHART": "Cargando datos del gráfico...",
     "NO_ENOUGH_DATA": "No hemos recibido suficientes puntos de datos para generar el informe. Inténtalo de nuevo más tarde.",
     "DOWNLOAD_TEAM_REPORTS": "Descargar informes del equipo",
@@ -471,7 +471,7 @@
       "DOWNLOAD_REPORT": "Descargar reporte"
     },
     "RESOLUTION_HEATMAP": {
-      "HEADER": "Resolutions",
+      "HEADER": "Resoluciones",
       "NO_CONVERSATIONS": "No hay conversaciones",
       "CONVERSATION": "{count} conversación",
       "CONVERSATIONS": "{count} conversaciones",
@@ -489,10 +489,10 @@
       }
     },
     "TEAM_CONVERSATIONS": {
-      "ALL_TEAMS": "All Teams",
-      "HEADER": "Conversations by teams",
-      "LOADING_MESSAGE": "Loading team metrics...",
-      "NO_TEAMS": "There is no data available",
+      "ALL_TEAMS": "Todos los equipos",
+      "HEADER": "Conversaciones por equipos",
+      "LOADING_MESSAGE": "Cargando métricas del equipo...",
+      "NO_TEAMS": "No hay datos disponibles",
       "TABLE_HEADER": {
         "TEAM": "Equipo",
         "OPEN": "Abrir",
@@ -518,7 +518,7 @@
   },
   "SLA_REPORTS": {
     "HEADER": "Informes de SLA",
-    "NO_RECORDS": "SLA applied conversations are not available.",
+    "NO_RECORDS": "No hay conversaciones con SLA aplicado disponibles.",
     "LOADING": "Cargando datos de SLA...",
     "DOWNLOAD_SLA_REPORTS": "Descargar reportes de SLA",
     "DOWNLOAD_FAILED": "Error al descargar los informes de SLA",
@@ -532,7 +532,7 @@
       "INPUT_PLACEHOLDER": {
         "SLA": "Nombre de SLA",
         "AGENTS": "Nombre del agente",
-        "INBOXES": "Nombre de la canal",
+        "INBOXES": "Nombre del canal",
         "LABELS": "Nombre de la etiqueta",
         "TEAMS": "Nombre del equipo"
       },
@@ -546,15 +546,15 @@
     "METRICS": {
       "HIT_RATE": {
         "LABEL": "Tasa de Aciertos",
-        "TOOLTIP": "Percentage of SLAs created were completed successfully"
+        "TOOLTIP": "Porcentaje de SLAs creados que se completaron exitosamente"
       },
       "NO_OF_MISSES": {
         "LABEL": "Número de Fallos",
-        "TOOLTIP": "Total SLA misses in a certain period"
+        "TOOLTIP": "Total de SLAs incumplidos en un período determinado"
       },
       "NO_OF_CONVERSATIONS": {
         "LABEL": "Número de conversaciones",
-        "TOOLTIP": "Total number of conversations with SLA"
+        "TOOLTIP": "Número total de conversaciones con SLA"
       }
     },
     "TABLE": {
@@ -571,9 +571,9 @@
     "AGENT": "Miembro",
     "TEAM": "Equipo",
     "LABEL": "Etiqueta",
-    "AVG_RESOLUTION_TIME": "Avg. Resolution Time",
-    "AVG_FIRST_RESPONSE_TIME": "Avg. First Response Time",
-    "AVG_REPLY_TIME": "Avg. Customer Waiting Time",
+    "AVG_RESOLUTION_TIME": "Tiempo prom. de resolución",
+    "AVG_FIRST_RESPONSE_TIME": "Tiempo prom. de primera respuesta",
+    "AVG_REPLY_TIME": "Tiempo prom. de espera del cliente",
     "RESOLUTION_COUNT": "Número de resoluciones",
     "CONVERSATIONS": "Núm. de conversaciones"
   }
