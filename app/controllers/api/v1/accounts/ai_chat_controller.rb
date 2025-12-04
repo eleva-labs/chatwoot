@@ -1,169 +1,74 @@
 class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
   include ActionController::Live
 
-  # Stream endpoint - proxies SSE from Python backend to Vue frontend
+  before_action :validate_message, only: [:stream, :create]
+  before_action :validate_and_set_agent_bot, only: [:stream, :create]
+
+  # Stream endpoint - SSE streaming via service
   def stream
-    # Validate required parameters
-    last_message = params[:messages]&.last
-    return render json: { error: 'No message provided' }, status: :bad_request if last_message.blank?
+    setup_sse_headers
 
-    agent_bot_id = params[:agent_bot_id]
-    return render json: { error: 'No agent bot selected' }, status: :bad_request if agent_bot_id.blank?
-
-    # Validate bot belongs to current account
-    agent_bot = Current.account.agent_bots.find_by(id: agent_bot_id)
-    return render json: { error: 'Agent bot not found' }, status: :not_found unless agent_bot
-
-    # Set SSE headers
-    response.headers['Content-Type'] = 'text/event-stream'
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['X-Accel-Buffering'] = 'no' # Disable nginx buffering
-    # Vercel AI / standard protocol hint headers for mobile client parsers
-    response.headers['x-vercel-ai-ui-message-stream'] = 'v1'
-    response.headers['x-ai-streaming-protocol'] = 'v1'
-
-    # Build request body (same format as non-streaming endpoint)
-    request_body = {
-      agentInput: {
-        messages: [last_message[:content]],
-        context: {
-          sender: {
-            id: Current.user.id,
-            name: Current.user.name,
-            email: Current.user.email
-          },
-          event: 'message_created'
-        }
-      }
-    }
-
-    # Include session ID if provided
-    request_body[:chatSessionId] = params[:chat_session_id] if params[:chat_session_id].present?
-
-    # Build query parameters for Python backend
-    query_params = {
-      store_id: Current.account.id.to_s,
-      agent_system_id: agent_bot_id.to_s,
-      user_id: Current.user.id.to_s,
-      id_type: 'external'
-    }
-
-    # Proxy streaming request to Python backend using Net::HTTP
-    uri = URI("#{ENV.fetch('AI_BACKEND_URL', nil)}/api/messaging/agent-systems/message/stream")
-    uri.query = URI.encode_www_form(query_params)
-
-    Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
-      request = Net::HTTP::Post.new(uri)
-      request['Content-Type'] = 'application/json'
-      request['Accept'] = 'text/event-stream'
-      request.body = request_body.to_json
-
-      http.request(request) do |backend_response|
-        # Extract session ID from backend response headers
-        session_id = backend_response['X-Chat-Session-Id']
-        response.headers['X-Chat-Session-Id'] = session_id if session_id.present?
-
-        Rails.logger.info("[AI Streaming Proxy] Starting stream for account=#{Current.account.id}, user=#{Current.user.id}, bot=#{agent_bot_id}")
-
-        # Stream chunks from backend to frontend
-        chunk_count = 0
-        backend_response.read_body do |chunk|
-          chunk_count += 1
-
-          # Log received chunk (truncate if too long)
-          chunk_preview = chunk.length > 200 ? "#{chunk[0..200]}..." : chunk
-          Rails.logger.info("[AI Streaming Proxy] Chunk ##{chunk_count} received (#{chunk.bytesize} bytes): #{chunk_preview}")
-
-          # Parse and log event type if it's SSE format
-          if chunk.include?('event:')
-            event_match = chunk.match(/event:\s*(\S+)/)
-            Rails.logger.info("[AI Streaming Proxy] Event type detected: #{event_match[1]}") if event_match
-          end
-
-          # Forward chunk to frontend
-          response.stream.write chunk
-          Rails.logger.info("[AI Streaming Proxy] Chunk ##{chunk_count} forwarded to frontend")
-        rescue IOError => e
-          # Client disconnected - stop streaming
-          Rails.logger.info("[AI Streaming Proxy] Client disconnected during streaming: #{e.message}")
-          break
-        end
-
-        Rails.logger.info("[AI Streaming Proxy] Stream completed. Total chunks: #{chunk_count}")
-      end
+    messaging_service.stream_message(
+      account_id: Current.account.id,
+      user_id: Current.user.id,
+      agent_bot_id: @agent_bot.id,
+      message: @message_content,
+      chat_session_id: params[:chat_session_id]
+    ) do |chunk, session_id|
+      # Set session ID header on first chunk (if present and not already set)
+      response.headers['X-Chat-Session-Id'] = session_id if session_id.present? && response.headers['X-Chat-Session-Id'].blank?
+      response.stream.write(chunk)
     end
-  rescue StandardError => e
-    Rails.logger.error("Streaming error: #{e.message}")
-    # Send error event in standardized SSE format (Vercel AI SDK compatible)
-    # No event: field, type is inside JSON payload
-    error_data = {
-      type: 'error',
-      errorText: e.message,
-      errorCode: 'STREAM_ERROR'
-    }
-    error_event = "data: #{error_data.to_json}\n\n"
-    begin
-      response.stream.write error_event
-    rescue StandardError
-      nil
-    end # Ignore if stream already closed
+  rescue IOError => e
+    Rails.logger.info("[AiChat] Client disconnected: #{e.message}")
+  rescue AiBackendService::AgentSystemMessagingService::UserNotFoundError
+    write_sse_error('User account not found in AI system', 'USER_NOT_FOUND')
+  rescue AiBackendService::AgentSystemMessagingService::AgentSystemNotFoundError
+    write_sse_error('Selected AI bot is no longer available', 'BOT_NOT_FOUND')
+  rescue AiBackendService::AgentSystemMessagingService::ServiceUnavailableError
+    write_sse_error('AI service temporarily unavailable', 'SERVICE_UNAVAILABLE')
+  rescue AiBackendService::AgentSystemMessagingService::ServiceError => e
+    Rails.logger.error("[AiChat] Streaming error: #{e.message}")
+    write_sse_error(e.message, 'STREAM_ERROR')
   ensure
     begin
       response.stream.close
     rescue StandardError
       nil
-    end # Ensure stream is closed
+    end
   end
 
   def create
-    # Validate required parameters
-    last_message = params[:messages]&.last
-    return render json: { error: 'No message provided' }, status: :bad_request if last_message.blank?
-
-    agent_bot_id = params[:agent_bot_id]
-    return render json: { error: 'No agent bot selected' }, status: :bad_request if agent_bot_id.blank?
-
-    # Validate bot belongs to current account
-    agent_bot = Current.account.agent_bots.find_by(id: agent_bot_id)
-    return render json: { error: 'Agent bot not found' }, status: :not_found unless agent_bot
-
-    # Call AI Backend service
-    service = AiBackendService::AiAssistantService.new
-    result = service.send_message(
+    result = messaging_service.send_message(
       account_id: Current.account.id,
       user_id: Current.user.id,
-      agent_bot_id: agent_bot.id,
-      message: last_message[:content],
-      chat_session_id: params[:chat_session_id] # Optional, from frontend
+      agent_bot_id: @agent_bot.id,
+      message: @message_content,
+      chat_session_id: params[:chat_session_id]
     )
 
     render json: {
       response: result['response_text'],
       session_id: result['chat_session_id']
     }
-  rescue AiBackendService::AiAssistantService::UserNotFoundError => e
+  rescue AiBackendService::AgentSystemMessagingService::UserNotFoundError => e
     Rails.logger.error("User not found in AI Backend: #{e.message}")
-    render json: { error: 'User account not found in AI system. Please contact support.' }, status: :not_found
-
-  rescue AiBackendService::AiAssistantService::AgentSystemNotFoundError => e
+    render_error('User account not found in AI system. Please contact support.', :not_found)
+  rescue AiBackendService::AgentSystemMessagingService::AgentSystemNotFoundError => e
     Rails.logger.error("Agent system not found: #{e.message}")
-    render json: { error: 'Selected AI bot is no longer available' }, status: :not_found
-
-  rescue AiBackendService::AiAssistantService::OwnershipError => e
+    render_error('Selected AI bot is no longer available', :not_found)
+  rescue AiBackendService::AgentSystemMessagingService::OwnershipError => e
     Rails.logger.error("Ownership violation: #{e.message}")
-    render json: { error: 'Access denied to AI bot' }, status: :forbidden
-
-  rescue AiBackendService::AiAssistantService::ValidationError => e
+    render_error('Access denied to AI bot', :forbidden)
+  rescue AiBackendService::AgentSystemMessagingService::ValidationError => e
     Rails.logger.error("Validation error: #{e.message}")
-    render json: { error: "Invalid request: #{e.message}" }, status: :bad_request
-
-  rescue AiBackendService::AiAssistantService::ServiceUnavailableError => e
+    render_error("Invalid request: #{e.message}", :bad_request)
+  rescue AiBackendService::AgentSystemMessagingService::ServiceUnavailableError => e
     Rails.logger.error("AI Backend unavailable: #{e.message}")
-    render json: { error: 'AI service temporarily unavailable. Please try again later.' }, status: :service_unavailable
-
-  rescue AiBackendService::AiAssistantService::ServiceError => e
+    render_error('AI service temporarily unavailable. Please try again later.', :service_unavailable)
+  rescue AiBackendService::AgentSystemMessagingService::ServiceError => e
     Rails.logger.error("AI Backend error: #{e.message}")
-    render json: { error: 'AI service error. Please try again.' }, status: :internal_server_error
+    render_error('AI service error. Please try again.', :internal_server_error)
   end
 
   # List available bots (Hybrid: AI Backend + Chatwoot enrichment)
@@ -202,7 +107,7 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
     limit = (params[:limit] || 25).to_i
     limit = [[limit, 1].max, 100].min # Clamp between 1-100
 
-    service = AiBackendService::AiAssistantService.new
+    service = AiBackendService::AgentSystemMessagingService.new
     result = service.list_sessions(
       account_id: Current.account.id,
       user_id: Current.user.id,
@@ -215,7 +120,7 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
       total_count: result['total_count'],
       limit: limit
     }
-  rescue AiBackendService::AiAssistantService::ServiceError => e
+  rescue AiBackendService::AgentSystemMessagingService::ServiceError => e
     Rails.logger.error("Failed to fetch sessions: #{e.message}")
     render json: { error: 'Failed to load conversation history' }, status: :service_unavailable
   end
@@ -229,7 +134,7 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
 
     limit = params[:limit]&.to_i
 
-    service = AiBackendService::AiAssistantService.new
+    service = AiBackendService::AgentSystemMessagingService.new
     result = service.get_session_messages(
       chat_session_id: session_id,
       limit: limit
@@ -249,7 +154,7 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
       messages: transformed_messages,
       total_count: result['total_count']
     }
-  rescue AiBackendService::AiAssistantService::ServiceError => e
+  rescue AiBackendService::AgentSystemMessagingService::ServiceError => e
     Rails.logger.error("Failed to fetch messages: #{e.message}")
     render json: { error: 'Failed to load messages' }, status: :service_unavailable
   end
@@ -260,16 +165,54 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
     session_id = params[:session_id]
     return render json: { error: 'No session ID provided' }, status: :bad_request if session_id.blank?
 
-    service = AiBackendService::AiAssistantService.new
+    service = AiBackendService::AgentSystemMessagingService.new
     service.delete_session(chat_session_id: session_id)
 
     render json: { success: true, message: 'Conversation deleted successfully' }
-  rescue AiBackendService::AiAssistantService::ServiceError => e
+  rescue AiBackendService::AgentSystemMessagingService::ServiceError => e
     Rails.logger.error("Failed to delete session: #{e.message}")
     render json: { error: 'Failed to delete conversation' }, status: :service_unavailable
   end
 
   private
+
+  def messaging_service
+    @messaging_service ||= AiBackendService::AgentSystemMessagingService.new
+  end
+
+  def validate_message
+    @message_content = params.dig(:messages, -1, :content) || params[:messages]&.last&.dig('content')
+    render_error('No message provided', :bad_request) if @message_content.blank?
+  end
+
+  def validate_and_set_agent_bot
+    agent_bot_id = params[:agent_bot_id]
+    return render_error('No agent bot selected', :bad_request) if agent_bot_id.blank?
+
+    @agent_bot = Current.account.agent_bots.find_by(id: agent_bot_id)
+    return render_error('Agent bot not found', :not_found) unless @agent_bot
+  end
+
+  def setup_sse_headers
+    response.headers['Content-Type'] = 'text/event-stream'
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers['x-vercel-ai-ui-message-stream'] = 'v1'
+    response.headers['x-ai-streaming-protocol'] = 'v1'
+  end
+
+  def write_sse_error(message, code)
+    error_data = { type: 'error', errorText: message, errorCode: code }
+    begin
+      response.stream.write("data: #{error_data.to_json}\n\n")
+    rescue StandardError
+      nil
+    end
+  end
+
+  def render_error(message, status)
+    render json: { error: message }, status: status
+  end
 
   # Enrich AI Backend data with Chatwoot avatar URLs
   def enrich_with_chatwoot_avatars(agent_systems)

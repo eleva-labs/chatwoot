@@ -2,18 +2,19 @@
 
 require 'httparty'
 
-# AiAssistantService - Send messages to AI Backend for AI Assistant feature
+# AgentSystemMessagingService - Chat messaging operations for AI Backend
 #
-# This service implements the messaging API integration for the floating AI assistant.
-# It uses the /api/messaging/agent-systems/message endpoint with minimal payload approach.
+# Handles all messaging interactions with the AI Backend for agent systems.
+# Uses the /api/messaging/agent-systems/* endpoints.
 #
-# Key Features:
-# - Sends only NEW message (backend loads history from DB)
-# - Handles user creation if needed
-# - Supports conversation continuity via chat_session_id
-# - Includes rich context for better AI responses
+# Responsibilities:
+# - Send messages (streaming and non-streaming)
+# - Manage chat sessions (list, get messages, delete)
+# - Handle user creation retry logic
+#
+# Related Service: AgentSystemService (CRUD operations for agent systems)
 module AiBackendService
-  class AiAssistantService
+  class AgentSystemMessagingService
     include HTTParty
 
     class ServiceError < StandardError; end
@@ -26,8 +27,8 @@ module AiBackendService
     def initialize
       self.class.base_uri ai_backend_api_url
       self.class.headers({
-        'Content-Type' => 'application/json'
-      })
+                           'Content-Type' => 'application/json'
+                         })
     end
 
     # List chat sessions for a user and agent system
@@ -67,10 +68,10 @@ module AiBackendService
 
       # Transform response to frontend format
       sessions_data = response.parsed_response
-      
+
       # AI Backend uses camelCase (chatSessions), not snake_case (chat_sessions)
       raw_sessions = sessions_data['chatSessions'] || sessions_data['chat_sessions'] || []
-      
+
       # Transform camelCase to snake_case for controller
       transformed_sessions = raw_sessions.first(limit).map do |session|
         {
@@ -81,7 +82,7 @@ module AiBackendService
           'updated_at' => session['updatedAt'] || session['updated_at']
         }
       end
-      
+
       {
         'sessions' => transformed_sessions,
         'total_count' => sessions_data['totalCount'] || sessions_data['total_count'] || raw_sessions.length
@@ -157,7 +158,7 @@ module AiBackendService
       # Transform response to frontend format
       messages_data = response.parsed_response
       raw_messages = messages_data['messages'] || []
-      
+
       # Transform camelCase to snake_case for controller
       transformed_messages = raw_messages.map do |msg|
         {
@@ -169,7 +170,7 @@ module AiBackendService
           'has_media' => msg['hasMedia'] || msg['has_media']
         }
       end
-      
+
       {
         'messages' => transformed_messages,
         'total_count' => messages_data['totalCount'] || messages_data['total_count'] || raw_messages.length
@@ -182,7 +183,7 @@ module AiBackendService
       raise ServiceError, "Failed to fetch messages: #{e.message}"
     end
 
-    # Send message to AI Backend
+    # Send message to AI Backend (non-streaming)
     # @param account_id [Integer] Chatwoot account ID
     # @param user_id [Integer] Chatwoot user ID
     # @param agent_bot_id [Integer] Selected AgentBot ID
@@ -190,34 +191,75 @@ module AiBackendService
     # @param chat_session_id [String, nil] Optional session ID for continuity
     # @return [Hash] { 'response_text' => String, 'chat_session_id' => String }
     def send_message(account_id:, user_id:, agent_bot_id:, message:, chat_session_id: nil)
-      # Build request body (Approach 3: Minimal - only new message)
       body = build_request_body(message, user_id, chat_session_id)
+      query_params = build_query_params(account_id, agent_bot_id, user_id)
 
-      # Build query parameters
-      query_params = {
-        store_id: account_id.to_s,
-        agent_system_id: agent_bot_id.to_s,
-        user_id: user_id.to_s,
-        id_type: 'external'
-      }
+      log_request('send_message', account_id, user_id, agent_bot_id, chat_session_id)
 
-      Rails.logger.info(
-        "Sending message to AI Backend: account_id=#{account_id}, user_id=#{user_id}, " \
-        "agent_bot_id=#{agent_bot_id}, has_session=#{chat_session_id.present?}"
-      )
-
-      # Make API call with retry logic for user creation
       response = make_api_call_with_retry(query_params, body, account_id, user_id)
 
-      # Parse and transform response
       parse_response(response)
     rescue UserNotFoundError, AgentSystemNotFoundError, OwnershipError,
-           ValidationError, ServiceUnavailableError => e
-      # Re-raise specific errors for controller handling
+           ValidationError, ServiceUnavailableError
       raise
     rescue StandardError => e
       Rails.logger.error("AI Backend API call failed: #{e.message}", error: e.class.name)
       raise ServiceError, e.message
+    end
+
+    # Stream message via SSE
+    # @param account_id [Integer] Chatwoot account ID
+    # @param user_id [Integer] Chatwoot user ID
+    # @param agent_bot_id [Integer] Selected AgentBot ID
+    # @param message [String] User message text
+    # @param chat_session_id [String, nil] Optional session ID
+    # @yield [chunk, session_id] Yields each SSE chunk and session_id (from headers)
+    # @return [void]
+    def stream_message(account_id:, user_id:, agent_bot_id:, message:, chat_session_id: nil)
+      raise ArgumentError, 'Block required for streaming' unless block_given?
+
+      body = build_request_body(message, user_id, chat_session_id)
+      query_params = build_query_params(account_id, agent_bot_id, user_id)
+
+      log_request('stream_message', account_id, user_id, agent_bot_id, chat_session_id)
+
+      # Ensure user exists before streaming (can't retry mid-stream)
+      ensure_user_exists(user_id, account_id)
+
+      uri = build_stream_uri(query_params)
+      session_id = nil
+      chunk_count = 0
+
+      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
+        http.read_timeout = 120 # 2 minutes for long AI responses
+
+        request = build_stream_request(uri, body)
+
+        http.request(request) do |response|
+          validate_stream_response(response)
+
+          # Extract session ID from headers (only available once)
+          session_id = response['X-Chat-Session-Id']
+
+          response.read_body do |chunk|
+            chunk_count += 1
+            log_chunk(chunk_count, chunk)
+            yield(chunk, session_id)
+          end
+        end
+      end
+
+      Rails.logger.info("[AgentSystemMessaging] Stream completed. Total chunks: #{chunk_count}")
+    rescue Net::OpenTimeout, Net::ReadTimeout => e
+      Rails.logger.error("[AgentSystemMessaging] Timeout: #{e.message}")
+      raise ServiceUnavailableError, "Connection timeout: #{e.message}"
+    rescue Errno::ECONNREFUSED => e
+      Rails.logger.error("[AgentSystemMessaging] Connection refused: #{e.message}")
+      raise ServiceUnavailableError, "Connection refused: #{e.message}"
+    rescue IOError => e
+      # Client disconnected - this is expected, just log and re-raise
+      Rails.logger.info("[AgentSystemMessaging] Client disconnected: #{e.message}")
+      raise
     end
 
     private
@@ -228,7 +270,7 @@ module AiBackendService
 
       body = {
         agentInput: {
-          messages: [message], # ✅ Array with ONLY the new message
+          messages: [message],
           context: {
             sender: {
               id: user.id,
@@ -240,10 +282,77 @@ module AiBackendService
         }
       }
 
-      # Include session ID if provided (for conversation continuity)
       body[:chatSessionId] = chat_session_id if chat_session_id.present?
-
       body
+    end
+
+    # Build query parameters for API calls
+    def build_query_params(account_id, agent_bot_id, user_id)
+      {
+        store_id: account_id.to_s,
+        agent_system_id: agent_bot_id.to_s,
+        user_id: user_id.to_s,
+        id_type: 'external'
+      }
+    end
+
+    # Build URI for streaming endpoint
+    def build_stream_uri(query_params)
+      uri = URI("#{ai_backend_api_url}/api/messaging/agent-systems/message/stream")
+      uri.query = URI.encode_www_form(query_params)
+      uri
+    end
+
+    # Build HTTP request for streaming
+    def build_stream_request(uri, body)
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+      request['Accept'] = 'text/event-stream'
+      request.body = body.to_json
+      request
+    end
+
+    # Validate streaming response and raise appropriate errors
+    def validate_stream_response(response)
+      case response.code.to_i
+      when 200..299
+        # Success - continue streaming
+      when 404
+        error_body = begin
+          response.body
+        rescue StandardError
+          ''
+        end
+        if error_body.include?('User not found') || error_body.include?('user')
+          raise UserNotFoundError, 'User not found in AI Backend'
+        elsif error_body.include?('Agent system') || error_body.include?('agent_system')
+          raise AgentSystemNotFoundError, 'Agent system not found'
+        else
+          raise ServiceError, "Resource not found: #{error_body}"
+        end
+      when 400
+        raise ValidationError, "Bad request: #{response.body}"
+      when 503, 500..599
+        raise ServiceUnavailableError, "AI service unavailable (#{response.code})"
+      else
+        raise ServiceError, "Unexpected error: #{response.code} - #{response.body}"
+      end
+    end
+
+    # Log request for debugging
+    def log_request(method, account_id, user_id, agent_bot_id, chat_session_id)
+      Rails.logger.info(
+        "[AgentSystemMessaging] #{method}: account=#{account_id}, " \
+        "user=#{user_id}, bot=#{agent_bot_id}, session=#{chat_session_id.present?}"
+      )
+    end
+
+    # Log streaming chunk for debugging
+    def log_chunk(chunk_count, chunk)
+      return unless Rails.logger.debug?
+
+      chunk_preview = chunk.length > 200 ? "#{chunk[0..200]}..." : chunk
+      Rails.logger.debug { "[AgentSystemMessaging] Chunk ##{chunk_count} (#{chunk.bytesize} bytes): #{chunk_preview}" }
     end
 
     # Make API call with retry logic for user not found errors
@@ -322,9 +431,7 @@ module AiBackendService
 
       when 200..299
         # Success - validate response structure
-        unless response.parsed_response.is_a?(Hash)
-          raise ServiceError, 'Invalid response format from AI Backend'
-        end
+        raise ServiceError, 'Invalid response format from AI Backend' unless response.parsed_response.is_a?(Hash)
 
       else
         raise ServiceError, "Unexpected error: #{response.code}"
@@ -354,4 +461,3 @@ module AiBackendService
     end
   end
 end
-
