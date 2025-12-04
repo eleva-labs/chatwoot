@@ -5,7 +5,7 @@
  * Base collapsible container for AI message parts (reasoning, tools, etc).
  * Provides unified styling, expand/collapse, and streaming state handling.
  */
-import { ref, watch, computed } from 'vue';
+import { watch, computed } from 'vue';
 import { useToggle } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import AiMessageAction from '../message/AiMessageAction.vue';
@@ -26,7 +26,6 @@ const props = defineProps({
 const { t } = useI18n();
 
 const [isExpanded, toggleExpanded] = useToggle(false);
-const contentRef = ref(null);
 
 // Auto-expand when streaming starts
 watch(
@@ -42,11 +41,11 @@ watch(
 // Dynamic color classes based on accent color
 const colorMap = {
   violet: {
-    iconActive: 'animate-pulse text-n-violet-9',
-    labelActive: 'text-n-violet-11',
-    spinner: 'text-n-violet-9',
+    iconActive: 'animate-pulse text-n-iris-9',
+    labelActive: 'text-n-iris-11',
+    spinner: 'text-n-iris-9',
     border: 'border-n-slate-6',
-    cursor: 'bg-n-violet-9',
+    cursor: 'bg-n-iris-9',
   },
   slate: {
     iconActive: 'animate-pulse text-n-slate-9',
@@ -83,7 +82,7 @@ const accentClasses = computed(() => colorMap[props.accentColor]);
 
 <template>
   <div
-    class="rounded-xl bg-n-alpha-1/50 border border-n-weak/50 w-full min-w-0 overflow-hidden"
+    class="rounded-xl bg-n-alpha-4 border border-n-weak/50 w-full min-w-0 overflow-hidden"
   >
     <button
       :aria-expanded="isExpanded"
@@ -114,7 +113,7 @@ const accentClasses = computed(() => colorMap[props.accentColor]);
       enter-from-class="opacity-0 -translate-y-2"
       leave-to-class="opacity-0 -translate-y-2"
     >
-      <div v-if="isExpanded" ref="contentRef" class="px-3 pb-3">
+      <div v-if="isExpanded" class="px-3 pb-3">
         <div
           class="pl-6 border-l-2 overflow-x-auto"
           :class="accentClasses.border"

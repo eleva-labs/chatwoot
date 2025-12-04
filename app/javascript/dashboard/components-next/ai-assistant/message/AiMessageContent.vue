@@ -11,9 +11,9 @@ const props = defineProps({
 });
 
 const bubbleClass = computed(() => ({
-  'bg-n-brand text-white rounded-2xl rounded-br-sm':
+  'bg-n-iris-3 text-n-iris-12 rounded-2xl rounded-br-sm':
     props.from === MESSAGE_ROLE.USER,
-  'bg-n-solid-3 text-n-slate-12 rounded-2xl rounded-bl-sm':
+  'bg-n-slate-3 text-n-slate-12 rounded-2xl rounded-bl-sm':
     props.from === MESSAGE_ROLE.ASSISTANT,
 }));
 </script>

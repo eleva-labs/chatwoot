@@ -39,10 +39,10 @@ const label = computed(() =>
     :auto-expand-on-stream="false"
   >
     <template #default="{ accentClasses }">
-      <div class="text-sm text-n-slate-12">
+      <div class="text-sm">
         <span
           v-dompurify-html="formattedContent"
-          class="prose prose-sm prose-invert max-w-none"
+          class="prose prose-sm prose-bubble text-n-slate-12 max-w-none"
         />
         <span
           v-if="isStreaming"
