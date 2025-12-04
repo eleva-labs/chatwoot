@@ -3,6 +3,7 @@ class Whatsapp::Whapi::WhapiChannelCleanupJob < ApplicationJob
   retry_on StandardError, wait: 5.seconds, attempts: 5
 
   # Deletes the upstream Whapi channel using the Partner API.
+  # Note: User logout happens synchronously in before_destroy callback.
   # Arguments:
   # - whapi_channel_id: String
   def perform(whapi_channel_id)

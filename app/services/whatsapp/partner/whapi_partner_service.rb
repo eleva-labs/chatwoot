@@ -27,7 +27,8 @@ class Whatsapp::Partner::WhapiPartnerService
       'Authorization' => "Bearer #{partner_token}",
       'Content-Type' => 'application/json'
     }
-    @api_base_url = api_base_url
+    # Default to gate.whapi.cloud if not configured (same as WhapiProviderConfig)
+    @api_base_url = api_base_url.presence || 'https://gate.whapi.cloud'
   end
 
   def rate_limit_external_api_call(action)
@@ -341,6 +342,55 @@ class Whatsapp::Partner::WhapiPartnerService
     final_error = "WHAPI generate_qr_code_base64 failed after #{retries} attempts for token #{channel_token[0..8]}.... Last error: #{last_error}"
     Rails.logger.error "[WhapiPartner] #{final_error}"
     raise(StandardError, final_error)
+  end
+
+  def logout_user(channel_token:)
+    if channel_token.blank?
+      Rails.logger.warn("[WhapiPartner] Logout skipped: channel_token is blank")
+      return false
+    end
+
+    if api_base_url.blank?
+      Rails.logger.error("[WhapiPartner] Logout failed: api_base_url is not configured (WHAPI_API_BASE_URL env var missing)")
+      return false
+    end
+
+    logout_url = "#{api_base_url}/users/logout"
+    Rails.logger.info("[WhapiPartner] Attempting logout for channel token: #{channel_token[0..8]}... at #{logout_url}")
+
+    headers = api_headers_with_channel_token(channel_token).merge(
+      'Accept' => 'application/json'
+    )
+
+    response = self.class.post(
+      logout_url,
+      headers: headers,
+      timeout: 10,
+      read_timeout: 8,
+      open_timeout: 3
+    )
+
+    Rails.logger.info("[WhapiPartner] Logout response: HTTP #{response.code} for channel token #{channel_token[0..8]}...")
+
+    # 200 OK: Success
+    if response.success?
+      Rails.logger.info("[WhapiPartner] User logged out successfully for channel token: #{channel_token[0..8]}...")
+      return true
+    end
+
+    # 409: Already logged out - treat as success
+    if response.code == 409
+      Rails.logger.info("[WhapiPartner] User already logged out for channel token: #{channel_token[0..8]}...")
+      return true
+    end
+
+    # 500/Other errors: Log warning but don't fail
+    Rails.logger.warn("[WhapiPartner] Logout failed for channel token #{channel_token[0..8]}...: HTTP #{response.code} - #{safe_error_message(response)}")
+    false
+  rescue StandardError => e
+    Rails.logger.error("[WhapiPartner] Logout error for channel token #{channel_token[0..8]}...: #{e.class} - #{e.message}")
+    Rails.logger.error("[WhapiPartner] Logout error backtrace: #{e.backtrace&.first(5)&.join("\n")}")
+    false
   end
 
   def delete_channel(channel_id:)

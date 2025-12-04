@@ -128,6 +128,7 @@ module Whatsapp
       def cleanup_on_destroy
         return unless whapi_partner_channel?
 
+        # Only delete the channel from Whapi - logout already happened in before_destroy callback
         Whatsapp::Whapi::WhapiChannelCleanupJob.perform_later(whapi_channel_id)
       rescue StandardError => e
         Rails.logger.warn("Failed to enqueue WhapiChannelCleanupJob for channel ##{channel.id}: #{e.message}")
