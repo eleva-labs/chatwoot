@@ -9,7 +9,7 @@ module Billing
       # Creates a customer in Stripe
       def create_customer(account, plan_name)
         # Generate idempotency key based on account ID to prevent duplicate customers
-        # idempotency_key = "customer_create_#{account.id}_#{plan_name}"
+        idempotency_key = "customer_create_#{account.id}_#{plan_name}"
 
         ::Stripe::Customer.create(
           {
@@ -19,8 +19,8 @@ module Billing
               account_id: account.id.to_s, # Store as string per Stripe best practice
               plan: plan_name
             }
-          }
-          # idempotency_key: idempotency_key
+          },
+          idempotency_key: idempotency_key
         )
       rescue ::Stripe::RateLimitError => e
         # Handle rate limiting - should retry with backoff
