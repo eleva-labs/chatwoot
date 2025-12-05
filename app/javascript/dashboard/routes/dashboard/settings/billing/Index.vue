@@ -257,9 +257,7 @@ const onBillingButtonClick = async () => {
 };
 
 const onToggleChatWindow = () => {
-  if (window.$chatwoot) {
-    window.$chatwoot.toggle();
-  }
+  window.open('https://wa.me/50672925075', '_blank', 'noopener,noreferrer');
 };
 
 const checkForCheckoutSuccess = () => {
