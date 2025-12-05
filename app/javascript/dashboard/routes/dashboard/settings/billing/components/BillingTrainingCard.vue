@@ -14,6 +14,13 @@ const store = useStore();
 
 // Use unified composable for add-on purchase eligibility
 const { canPurchaseAddOns } = useCanPurchaseAddOns();
+
+// ClickUp form URLs for training purchase confirmations
+const CLICKUP_LIVE_TRAINING_FORM_URL =
+  'https://forms.clickup.com/9013924102/f/8cmb486-5313/1BGO6J4UOP8LQ9SRLX';
+const CLICKUP_LIVE_1_1_TRAINING_FORM_URL =
+  'https://forms.clickup.com/9013924102/f/8cmb486-5373/3TXFBIX92855LN6ME5';
+
 // ============================================================================
 // STATE MANAGEMENT
 // ============================================================================
@@ -142,6 +149,13 @@ const purchaseTraining = async trainingType => {
       useAlert(t('BILLING_SETTINGS.TRAINING.PURCHASE_SUCCESS'), {
         duration: 5000,
       });
+
+      // Redirect to ClickUp form for training purchases
+      if (trainingType === 'live_training') {
+        window.open(CLICKUP_LIVE_TRAINING_FORM_URL, '_blank', 'noopener noreferrer');
+      } else if (trainingType === 'live_1_1_training') {
+        window.open(CLICKUP_LIVE_1_1_TRAINING_FORM_URL, '_blank', 'noopener noreferrer');
+      }
     } else {
       throw new Error('Purchase failed - no success flag in response');
     }
