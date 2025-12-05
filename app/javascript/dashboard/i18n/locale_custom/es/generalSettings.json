@@ -1,10 +1,10 @@
 {
   "GENERAL_SETTINGS": {
     "LIMIT_MESSAGES": {
-      "CONVERSATION": "You have exceeded the conversation limit. Hacker plan allows only 500 conversations.",
-      "INBOXES": "You have exceeded the inbox limit. Hacker plan only supports website live-chat. Additional inboxes like email, WhatsApp etc. require a paid plan.",
+      "CONVERSATION": "Ha excedido el límite de conversaciones. El plan Hacker solo permite 500 conversaciones.",
+      "INBOXES": "Has superado el límite de canales. El plan Hacker solo admite chat en vivo del sitio web. Canales adicionales como correo electrónico, WhatsApp, etc. requieren un plan de pago.",
       "AGENTS": "Has superado el límite de agentes. Tu plan solo permite {allowedAgents} agentes.",
-      "NON_ADMIN": "Please contact your administrator to upgrade the plan and continue using all features."
+      "NON_ADMIN": "Por favor contacte a su administrador para actualizar el plan y continuar usando todas las funciones."
     },
     "TITLE": "Configuración de la cuenta",
     "SUBMIT": "Actualizar ajustes",
@@ -28,10 +28,10 @@
       "SUCCESS": "Cuenta marcada para eliminación",
       "FAILURE": "No se pudo eliminar la cuenta, ¡inténtalo de nuevo!",
       "SCHEDULED_DELETION": {
-        "TITLE": "Account Scheduled for Deletion",
-        "MESSAGE_MANUAL": "This account is scheduled for deletion on {deletionDate}. This was requested by an administrator. You can cancel the deletion before this date.",
+        "TITLE": "Cuenta programada para eliminación",
+        "MESSAGE_MANUAL": "Esta cuenta está programada para eliminación el {deletionDate}. Esto fue solicitado por un administrador. Puede cancelar la eliminación antes de esta fecha.",
         "MESSAGE_INACTIVITY": "Esta cuenta se eliminará el {deletionDate} debido a inactividad. Puedes cancelar la eliminación antes de esta fecha.",
-        "CLEAR_BUTTON": "Cancel Scheduled Deletion"
+        "CLEAR_BUTTON": "Cancelar eliminación programada"
       }
     },
     "FORM": {

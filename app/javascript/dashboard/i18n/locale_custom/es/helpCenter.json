@@ -46,7 +46,7 @@
         "UPLOADING": "Subiendo...",
         "SUCCESS": "Imagen subida con éxito",
         "ERROR": "Error al subir la imagen",
-        "UN_AUTHORIZED_ERROR": "You are not authorized to upload images",
+        "UN_AUTHORIZED_ERROR": "No estás autorizado para subir imágenes",
         "ERROR_FILE_SIZE": "El tamaño de la imagen debe ser menor que {size}MB",
         "ERROR_FILE_FORMAT": "El formato de la imagen debe ser jpg, jpeg o png",
         "ERROR_FILE_DIMENSIONS": "Las dimensiones de la imagen deben ser menores de 2000 x 2000"
@@ -160,8 +160,8 @@
         },
         "SEND_CNAME_INSTRUCTIONS": {
           "API": {
-            "SUCCESS_MESSAGE": "CNAME instructions sent successfully",
-            "ERROR_MESSAGE": "Error while sending CNAME instructions"
+            "SUCCESS_MESSAGE": "Instrucciones CNAME enviadas correctamente",
+            "ERROR_MESSAGE": "Error al enviar las instrucciones CNAME"
           }
         }
       },
@@ -255,13 +255,13 @@
         "DOMAIN": {
           "LABEL": "Dominio personalizado",
           "PLACEHOLDER": "Dominio personalizado del portal",
-          "HELP_TEXT": "Add only If you want to use a custom domain for your portals. Eg: {exampleURL}",
+          "HELP_TEXT": "Añadir solo si quieres usar un dominio personalizado para tus portales. Ej: {exampleURL}",
           "ERROR": "Introduzca una URL de dominio válida"
         },
         "HOME_PAGE_LINK": {
           "LABEL": "Enlace de página principal",
           "PLACEHOLDER": "Enlace de página de inicio del portal",
-          "HELP_TEXT": "The link used to return from the portal to the home page. Eg: {exampleURL}",
+          "HELP_TEXT": "El enlace usado para volver del portal a la página de inicio. Ej: {exampleURL}",
           "ERROR": "Introduzca una URL de página de inicio válida"
         },
         "THEME_COLOR": {
@@ -498,7 +498,7 @@
     "ARTICLES_PAGE": {
       "ARTICLE_CARD": {
         "CARD": {
-          "VIEWS": "{count} view | {count} views",
+          "VIEWS": "{count} vista | {count} vistas",
           "DROPDOWN_MENU": {
             "PUBLISH": "Publicar",
             "DRAFT": "Borrador",
@@ -534,8 +534,8 @@
       "EMPTY_STATE": {
         "ALL": {
           "TITLE": "Escribir un artículo",
-          "SUBTITLE": "Write a rich article, let’s get started!",
-          "BUTTON_LABEL": "New article"
+          "SUBTITLE": "Escribe un artículo completo, ¡empecemos!",
+          "BUTTON_LABEL": "Nuevo artículo"
         },
         "MINE": {
           "TITLE": "No has escrito ningún artículo aquí",
@@ -660,7 +660,7 @@
         "PREVIEW": "Previsualizar",
         "PUBLISH": "Publicar",
         "DRAFT": "Borrador",
-        "ARCHIVE": "Archive",
+        "ARCHIVE": "Archivar",
         "BACK_TO_ARTICLES": "Volver a los artículos"
       },
       "EDIT_ARTICLE": {
@@ -682,7 +682,7 @@
       }
     },
     "PORTAL_SWITCHER": {
-      "NEW_PORTAL": "New portal",
+      "NEW_PORTAL": "Nuevo portal",
       "PORTALS": "Portales",
       "CREATE_PORTAL": "Crear y administrar múltiples portales",
       "ARTICLES": "artículos",
@@ -690,7 +690,7 @@
       "PORTAL_NAME": "Nombre del portal"
     },
     "CREATE_PORTAL_DIALOG": {
-      "TITLE": "Create new portal",
+      "TITLE": "Crear nuevo portal",
       "DESCRIPTION": "Dele un nombre a su portal y cree una URL amigable. Puede modificar ambos más tarde en la configuración.",
       "CONFIRM_BUTTON_LABEL": "Crear",
       "NAME": {
@@ -713,7 +713,7 @@
           "IMAGE_UPLOAD_ERROR": "¡No se pudo subir la imagen! Intente nuevamente",
           "IMAGE_UPLOAD_SUCCESS": "Imagen agregada exitosamente. Por favor haga clic en guardar cambios para guardar el logo",
           "IMAGE_DELETE_SUCCESS": "Logo eliminado correctamente",
-          "IMAGE_DELETE_ERROR": "Unable to delete logo",
+          "IMAGE_DELETE_ERROR": "No se pudo eliminar el logo",
           "IMAGE_UPLOAD_SIZE_ERROR": "El tamaño de la imagen debe ser menor que {size}MB"
         },
         "NAME": {
@@ -722,15 +722,15 @@
           "ERROR": "El nombre es requerido"
         },
         "HEADER_TEXT": {
-          "LABEL": "Header text",
+          "LABEL": "Texto de encabezado",
           "PLACEHOLDER": "Texto de encabezado del portal"
         },
         "PAGE_TITLE": {
-          "LABEL": "Page title",
+          "LABEL": "Título de página",
           "PLACEHOLDER": "Título de página del portal"
         },
         "HOME_PAGE_LINK": {
-          "LABEL": "Home page link",
+          "LABEL": "Enlace de página de inicio",
           "PLACEHOLDER": "Enlace de página de inicio del portal",
           "ERROR": "Ingrese una URL válida. El enlace de la página de inicio debe comenzar con 'http://' o 'https://'."
         },
@@ -739,15 +739,15 @@
           "PLACEHOLDER": "Portal slug"
         },
         "LIVE_CHAT_WIDGET": {
-          "LABEL": "Live chat widget",
-          "PLACEHOLDER": "Select live chat widget",
+          "LABEL": "Widget de chat en vivo",
+          "PLACEHOLDER": "Seleccionar widget de chat en vivo",
           "HELP_TEXT": "Seleccione un widget de chat en vivo que aparecerá en su centro de ayuda",
-          "NONE_OPTION": "No widget"
+          "NONE_OPTION": "Sin widget"
         },
         "BRAND_COLOR": {
-          "LABEL": "Brand color"
+          "LABEL": "Color de marca"
         },
-        "SAVE_CHANGES": "Save changes"
+        "SAVE_CHANGES": "Guardar cambios"
       },
       "CONFIGURATION_FORM": {
         "CUSTOM_DOMAIN": {
@@ -757,109 +757,109 @@
           "STATUS_DESCRIPTION": "Su portal personalizado comenzará a funcionar tan pronto como sea verificado.",
           "PLACEHOLDER": "Dominio personalizado del portal",
           "EDIT_BUTTON": "Editar",
-          "ADD_BUTTON": "Add custom domain",
+          "ADD_BUTTON": "Agregar dominio personalizado",
           "STATUS": {
             "LIVE": "En vivo",
-            "PENDING": "Awaiting verification",
-            "ERROR": "Verification failed"
+            "PENDING": "Esperando verificación",
+            "ERROR": "Verificación fallida"
           },
           "DIALOG": {
-            "ADD_HEADER": "Add custom domain",
-            "EDIT_HEADER": "Edit custom domain",
-            "ADD_CONFIRM_BUTTON_LABEL": "Add domain",
-            "EDIT_CONFIRM_BUTTON_LABEL": "Update domain",
+            "ADD_HEADER": "Agregar dominio personalizado",
+            "EDIT_HEADER": "Editar dominio personalizado",
+            "ADD_CONFIRM_BUTTON_LABEL": "Agregar dominio",
+            "EDIT_CONFIRM_BUTTON_LABEL": "Actualizar dominio",
             "LABEL": "Dominio personalizado",
             "PLACEHOLDER": "Dominio personalizado del portal",
-            "ERROR": "Custom domain is required",
-            "FORMAT_ERROR": "Please enter a valid domain URL e.g. docs.yourdomain.com"
+            "ERROR": "El dominio personalizado es requerido",
+            "FORMAT_ERROR": "Por favor ingrese una URL de dominio válida, ej: docs.tudominio.com"
           },
           "DNS_CONFIGURATION_DIALOG": {
-            "HEADER": "DNS configuration",
+            "HEADER": "Configuración DNS",
             "DESCRIPTION": "Inicie sesión en la cuenta que tiene con su proveedor de DNS y agregue un registro CNAME para el subdominio que apunte a chatwoot.help",
-            "COPY": "Successfully copied CNAME",
+            "COPY": "CNAME copiado correctamente",
             "SEND_INSTRUCTIONS": {
-              "HEADER": "Send instructions",
+              "HEADER": "Enviar instrucciones",
               "DESCRIPTION": "Si prefiere que alguien de su equipo de desarrollo maneje este paso, puede ingresar la dirección de correo electrónico a continuación y les enviaremos las instrucciones requeridas.",
               "PLACEHOLDER": "Ingrese su correo electrónico",
-              "ERROR": "Enter a valid email address",
+              "ERROR": "Ingrese una dirección de correo válida",
               "SEND_BUTTON": "Enviar"
             }
           }
         },
         "DELETE_PORTAL": {
-          "BUTTON": "Delete {portalName}",
+          "BUTTON": "Eliminar {portalName}",
           "HEADER": "Eliminar portal",
           "DESCRIPTION": "Eliminar permanentemente este portal. Esta acción es irreversible",
           "DIALOG": {
-            "HEADER": "Sure you want to delete {portalName}?",
+            "HEADER": "¿Seguro que desea eliminar {portalName}?",
             "DESCRIPTION": "Esta es una acción permanente que no se puede revertir.",
             "CONFIRM_BUTTON_LABEL": "Eliminar"
           }
         },
-        "EDIT_CONFIGURATION": "Edit configuration"
+        "EDIT_CONFIGURATION": "Editar configuración"
       },
       "API": {
         "CREATE_PORTAL": {
           "SUCCESS_MESSAGE": "Portal creado correctamente",
-          "ERROR_MESSAGE": "Unable to create portal"
+          "ERROR_MESSAGE": "No se pudo crear el portal"
         },
         "UPDATE_PORTAL": {
           "SUCCESS_MESSAGE": "Portal actualizado correctamente",
-          "ERROR_MESSAGE": "Unable to update portal"
+          "ERROR_MESSAGE": "No se pudo actualizar el portal"
         }
       }
     },
     "PDF_UPLOAD": {
-      "TITLE": "Upload PDF Document",
-      "DESCRIPTION": "Upload a PDF document to automatically generate FAQs using AI",
+      "TITLE": "Subir documento PDF",
+      "DESCRIPTION": "Sube un documento PDF para generar preguntas frecuentes automáticamente usando IA",
       "DRAG_DROP_TEXT": "Arrastre y suelte su archivo PDF aquí, o haga clic para seleccionar",
-      "SELECT_FILE": "Select PDF File",
-      "ADDITIONAL_CONTEXT_LABEL": "Additional Context (Optional)",
+      "SELECT_FILE": "Seleccionar archivo PDF",
+      "ADDITIONAL_CONTEXT_LABEL": "Contexto adicional (Opcional)",
       "ADDITIONAL_CONTEXT_PLACEHOLDER": "Proporcione cualquier contexto o instrucción adicional para la generación de preguntas frecuentes...",
       "UPLOADING": "Subiendo...",
-      "UPLOAD": "Upload & Process",
+      "UPLOAD": "Subir y procesar",
       "CANCEL": "Cancelar",
-      "ERROR_INVALID_TYPE": "Please select a valid PDF file",
-      "ERROR_FILE_TOO_LARGE": "File size must be less than 512MB",
-      "ERROR_UPLOAD_FAILED": "Failed to upload PDF. Please try again."
+      "ERROR_INVALID_TYPE": "Por favor seleccione un archivo PDF válido",
+      "ERROR_FILE_TOO_LARGE": "El tamaño del archivo debe ser menor de 512MB",
+      "ERROR_UPLOAD_FAILED": "Error al subir el PDF. Por favor intente de nuevo."
     },
     "PDF_DOCUMENTS": {
-      "TITLE": "PDF Documents",
+      "TITLE": "Documentos PDF",
       "DESCRIPTION": "Administrar documentos PDF cargados y generar preguntas frecuentes desde ellos",
-      "UPLOAD_PDF": "Upload PDF",
+      "UPLOAD_PDF": "Subir PDF",
       "UPLOAD_FIRST_PDF": "Cargue su primer PDF",
-      "UPLOADED_BY": "Uploaded by",
-      "GENERATE_FAQS": "Generate FAQs",
+      "UPLOADED_BY": "Subido por",
+      "GENERATE_FAQS": "Generar preguntas frecuentes",
       "GENERATING": "Generando...",
       "CONFIRM_DELETE": "¿Está seguro que desea borrar {filename}?",
       "EMPTY_STATE": {
-        "TITLE": "No PDF documents yet",
-        "DESCRIPTION": "Upload PDF documents to automatically generate FAQs using AI"
+        "TITLE": "Sin documentos PDF aún",
+        "DESCRIPTION": "Sube documentos PDF para generar preguntas frecuentes automáticamente usando IA"
       },
       "STATUS": {
-        "UPLOADED": "Ready",
-        "PROCESSING": "Processing",
+        "UPLOADED": "Listo",
+        "PROCESSING": "Procesando",
         "PROCESSED": "Completado",
-        "FAILED": "Failed"
+        "FAILED": "Fallido"
       }
     },
     "CONTENT_GENERATION": {
-      "TITLE": "Content Generation",
-      "DESCRIPTION": "Upload PDF documents to automatically generate FAQ content using AI",
-      "UPLOAD_TITLE": "Upload PDF Document",
+      "TITLE": "Generación de contenido",
+      "DESCRIPTION": "Sube documentos PDF para generar contenido de preguntas frecuentes automáticamente usando IA",
+      "UPLOAD_TITLE": "Subir documento PDF",
       "DRAG_DROP": "Arrastre y suelte su archivo PDF aquí, o haga clic para seleccionar",
-      "SELECT_FILE": "Select PDF File",
-      "UPLOADING": "Processing document...",
-      "UPLOAD_SUCCESS": "Document processed successfully!",
-      "UPLOAD_ERROR": "Failed to upload document. Please try again.",
-      "INVALID_FILE_TYPE": "Please select a valid PDF file",
-      "FILE_TOO_LARGE": "File size must be less than 512MB",
-      "GENERATED_CONTENT": "Generated FAQ Content",
-      "PUBLISH_SELECTED": "Publish Selected",
-      "PUBLISHING": "Publishing...",
-      "FROM_DOCUMENT": "From document",
-      "NO_CONTENT": "No generated content available. Upload a PDF document to get started.",
-      "LOADING": "Loading generated content..."
+      "SELECT_FILE": "Seleccionar archivo PDF",
+      "UPLOADING": "Procesando documento...",
+      "UPLOAD_SUCCESS": "¡Documento procesado correctamente!",
+      "UPLOAD_ERROR": "Error al subir el documento. Por favor intente de nuevo.",
+      "INVALID_FILE_TYPE": "Por favor seleccione un archivo PDF válido",
+      "FILE_TOO_LARGE": "El tamaño del archivo debe ser menor de 512MB",
+      "GENERATED_CONTENT": "Contenido de preguntas frecuentes generado",
+      "PUBLISH_SELECTED": "Publicar seleccionados",
+      "PUBLISHING": "Publicando...",
+      "FROM_DOCUMENT": "Del documento",
+      "NO_CONTENT": "No hay contenido generado disponible. Sube un documento PDF para comenzar.",
+      "LOADING": "Cargando contenido generado..."
     }
   }
 }

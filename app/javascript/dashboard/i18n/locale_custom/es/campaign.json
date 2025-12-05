@@ -138,10 +138,10 @@
       }
     },
     "WHATSAPP": {
-      "HEADER_TITLE": "WhatsApp campaigns",
+      "HEADER_TITLE": "Campañas de WhatsApp",
       "NEW_CAMPAIGN": "Crear campaña",
       "EMPTY_STATE": {
-        "TITLE": "No WhatsApp campaigns are available",
+        "TITLE": "No hay campañas de WhatsApp disponibles",
         "SUBTITLE": "Lanza una campaña de WhatsApp para conectar con tus clientes directamente. Envía ofertas o has anuncios fácilmente. Haz clic en 'Crear campaña' para comenzar."
       },
       "CARD": {
@@ -170,10 +170,10 @@
             "ERROR": "Se requiere canal"
           },
           "TEMPLATE": {
-            "LABEL": "WhatsApp Template",
-            "PLACEHOLDER": "Select a template",
+            "LABEL": "Plantilla de WhatsApp",
+            "PLACEHOLDER": "Seleccionar una plantilla",
             "INFO": "Seleccione una plantilla para usar en esta campaña.",
-            "ERROR": "Template is required",
+            "ERROR": "Se requiere plantilla",
             "PREVIEW_TITLE": "Procesar {templateName}",
             "LANGUAGE": "Idioma",
             "CATEGORY": "Categoría",
@@ -195,7 +195,7 @@
             "CANCEL": "Cancelar"
           },
           "API": {
-            "SUCCESS_MESSAGE": "WhatsApp campaign created successfully",
+            "SUCCESS_MESSAGE": "Campaña de WhatsApp creada exitosamente",
             "ERROR_MESSAGE": "Se presentó un error. Por favor intente nuevamente."
           }
         }

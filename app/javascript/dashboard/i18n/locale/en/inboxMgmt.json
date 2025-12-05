@@ -26,6 +26,10 @@
       "FINISH": {
         "TITLE": "Voilà!",
         "BODY": "You are all set to go!"
+      },
+      "INVITE_TEAM": {
+        "TITLE": "Invite Team",
+        "BODY": "Invite team members to collaborate on this inbox."
       }
     },
     "ADD": {
