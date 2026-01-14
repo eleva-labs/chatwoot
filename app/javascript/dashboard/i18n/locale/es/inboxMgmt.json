@@ -322,7 +322,26 @@
         "QR_PREPARING": "El código QR se está preparando. Reintentando...",
         "QR_PLEASE_WAIT": "Generando código QR. Por favor espera...",
         "QR_EXPIRED": "Código QR expirado o límite de reintentos alcanzado",
-        "CHANNEL_CREATE_ERROR": "Ocurrió un error al crear el canal"
+        "CHANNEL_CREATE_ERROR": "Ocurrió un error al crear el canal",
+        "SETUP_MODE": {
+          "TITLE": "Elige el método de configuración",
+          "QR_CODE": "Configuración con código QR",
+          "QR_CODE_DESC": "Escanea un código QR con tu aplicación móvil de WhatsApp",
+          "MANUAL": "Clave API manual",
+          "MANUAL_DESC": "Ingresa tu token de canal WHAPI directamente"
+        },
+        "PHONE_NUMBER": {
+          "LABEL": "Número de teléfono",
+          "PLACEHOLDER": "Ingresa el número de teléfono (ej., +14155238886)",
+          "ERROR": "Por favor proporciona un número de teléfono válido en formato E.164"
+        },
+        "API_KEY": {
+          "LABEL": "Token del canal WHAPI",
+          "SUBTITLE": "Obtén esto desde el panel de tu canal WHAPI",
+          "PLACEHOLDER": "Tu token de canal WHAPI",
+          "ERROR": "El token API es requerido"
+        },
+        "MANUAL_SUBMIT_BUTTON": "Crear canal"
       },
       "VOICE": {
         "TITLE": "Voice Channel",
