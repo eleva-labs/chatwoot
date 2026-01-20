@@ -13,7 +13,7 @@ import {
   CHATWOOT_SET_USER,
 } from '../../constants/appEvents';
 
-Cookies.defaults = { sameSite: 'Lax' };
+Cookies.defaults = { sameSite: 'Lax', path: '/' };
 
 export const getLoadingStatus = state => state.fetchAPIloadingStatus;
 export const setLoadingStatus = (state, status) => {
@@ -30,16 +30,24 @@ export const getHeaderExpiry = response =>
 
 export const setAuthCredentials = response => {
   const expiryDate = getHeaderExpiry(response);
-  Cookies.set('cw_d_session_info', JSON.stringify(response.headers), {
+  // Extract only the auth headers we need (AxiosHeaders object doesn't stringify properly)
+  const authHeaders = {
+    'access-token': response.headers['access-token'],
+    client: response.headers.client,
+    uid: response.headers.uid,
+    expiry: response.headers.expiry,
+  };
+  Cookies.set('cw_d_session_info', JSON.stringify(authHeaders), {
     expires: differenceInDays(expiryDate, new Date()),
+    path: '/',
   });
   setUser(response.data.data, expiryDate);
 };
 
 export const clearBrowserSessionCookies = () => {
-  Cookies.remove('cw_d_session_info');
-  Cookies.remove('auth_data');
-  Cookies.remove('user');
+  Cookies.remove('cw_d_session_info', { path: '/' });
+  Cookies.remove('auth_data', { path: '/' });
+  Cookies.remove('user', { path: '/' });
 };
 
 export const clearLocalStorageOnLogout = () => {
