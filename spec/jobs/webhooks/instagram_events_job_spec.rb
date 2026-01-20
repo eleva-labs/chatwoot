@@ -302,4 +302,28 @@ describe Webhooks::InstagramEventsJob do
       end
     end
   end
+
+  describe 'lock mechanism' do
+    let(:lock_manager) { instance_double(Redis::LockManager) }
+    let(:dm_event) { build(:instagram_message_create_event).with_indifferent_access }
+
+    before do
+      allow(Redis::LockManager).to receive(:new).and_return(lock_manager)
+      allow(lock_manager).to receive(:lock).and_return(true)
+      allow(lock_manager).to receive(:unlock).and_return(true)
+    end
+
+    it 'acquires lock with 30 second timeout' do
+      sender_id = dm_event[:entry][0][:messaging][0][:sender][:id]
+      ig_account_id = dm_event[:entry][0][:id]
+      expected_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: sender_id, ig_account_id: ig_account_id)
+
+      expect(lock_manager).to receive(:lock).with(expected_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_entries)
+
+      job_instance.perform(dm_event[:entry])
+    end
+  end
 end
