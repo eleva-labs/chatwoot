@@ -106,3 +106,10 @@ CLAUDE.local.md
 .netlify
 .histoire
 scripts/db/__pycache__/
+
+# Playwright E2E
+# Auth state files (but keep .gitkeep for directory structure)
+e2e/.auth/*.json
+playwright-report/
+test-results/
+.env.test

@@ -391,3 +391,100 @@ tasks:
       - task: lint-backend
       - task: lint-frontend
 
+  # =====================================================================
+  # E2E TESTING (Playwright)
+  # Commands for end-to-end testing with Playwright
+  # =====================================================================
+
+  e2e-install:
+    desc: 'Install Playwright, MCP, and browsers'
+    cmds:
+      - pnpm add -D @playwright/test dotenv wait-on
+      - pnpm exec playwright install chromium
+      - |
+        echo "Playwright installed"
+        echo ""
+        echo "To enable AI testing with Claude, add to ~/.claude.json:"
+        echo '   "mcpServers": { "playwright": { "command": "npx", "args": ["@playwright/mcp@latest"] } }'
+
+  e2e-fetch-creds:
+    desc: 'Fetch E2E credentials from AWS SSM Parameter Store'
+    cmds:
+      - |
+        echo "Fetching E2E credentials from SSM..."
+        E2E_ADMIN_EMAIL=$(aws ssm get-parameter --name "/chatwoot/e2e/admin-email" --with-decryption --query "Parameter.Value" --output text)
+        E2E_ADMIN_PASSWORD=$(aws ssm get-parameter --name "/chatwoot/e2e/admin-password" --with-decryption --query "Parameter.Value" --output text)
+        E2E_AGENT_EMAIL=$(aws ssm get-parameter --name "/chatwoot/e2e/agent-email" --with-decryption --query "Parameter.Value" --output text)
+        E2E_AGENT_PASSWORD=$(aws ssm get-parameter --name "/chatwoot/e2e/agent-password" --with-decryption --query "Parameter.Value" --output text)
+
+        cat > .env.test << EOF
+        # E2E Test Credentials (fetched from SSM - do not commit)
+        E2E_ADMIN_EMAIL=$E2E_ADMIN_EMAIL
+        E2E_ADMIN_PASSWORD=$E2E_ADMIN_PASSWORD
+        E2E_AGENT_EMAIL=$E2E_AGENT_EMAIL
+        E2E_AGENT_PASSWORD=$E2E_AGENT_PASSWORD
+        BASE_URL=https://dev.app.chatscommerce.com
+        EOF
+
+        echo "Credentials saved to .env.test"
+
+  e2e-seed:
+    desc: 'Seed E2E test users in database (requires Docker)'
+    cmds:
+      - |
+        if ! docker compose ps rails | grep -q "Up"; then
+          echo "Rails container not running. Start with: docker compose up -d"
+          exit 1
+        fi
+      - docker compose exec -T rails bundle exec rails runner "load 'scripts/e2e/seed_test_data.rb'"
+      - |
+        echo "E2E test users seeded"
+        echo "   Admin: e2e-admin@test.chatwoot.local"
+        echo "   Agent: e2e-agent@test.chatwoot.local"
+
+  e2e-cleanup:
+    desc: 'Remove E2E test data from database'
+    cmds:
+      - 'docker compose exec -T rails bundle exec rails e2e:cleanup'
+      - echo "E2E test data removed"
+
+  e2e-run:
+    desc: 'Run E2E tests (usage: task e2e-run [-- --grep @smoke])'
+    cmds:
+      - pnpm e2e {{.CLI_ARGS}}
+
+  e2e-run-local:
+    desc: 'Run E2E tests against local Docker (with wait)'
+    cmds:
+      - |
+        echo "Waiting for Rails to be ready..."
+        npx wait-on http://localhost:3000/api/v1/ -t 60000
+      - pnpm e2e {{.CLI_ARGS}}
+
+  e2e-run-dev:
+    desc: 'Run E2E tests against dev environment'
+    env:
+      BASE_URL: https://dev.app.chatscommerce.com
+    cmds:
+      - pnpm e2e {{.CLI_ARGS}}
+
+  e2e-codegen:
+    desc: 'Launch Playwright codegen for exploratory testing'
+    cmds:
+      - pnpm e2e:codegen:local
+
+  e2e-codegen-dev:
+    desc: 'Launch Playwright codegen against dev environment'
+    cmds:
+      - pnpm e2e:codegen:dev
+
+  e2e-report:
+    desc: 'View Playwright test report'
+    cmds:
+      - pnpm e2e:report
+
+  e2e-ui:
+    desc: 'Run Playwright tests with UI mode'
+    cmds:
+      - pnpm e2e:ui
+
