@@ -1,0 +1,131 @@
+name: E2E Tests - Playwright
+
+# E2E tests run against the live dev environment (https://dev.app.chatscommerce.com)
+# CI does NOT spin up Docker - it tests the actual deployed application
+
+on:
+  # Manual trigger with environment selection
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+      test_filter:
+        description: 'Test filter (e.g., @smoke, @regression, leave empty for all)'
+        required: false
+        default: '@smoke'
+        type: string
+
+  # Run on PRs to develop/main (smoke tests only)
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - develop
+      - main
+    paths:
+      - 'app/**'
+      - 'lib/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - '.github/workflows/e2e.yml'
+
+  # Scheduled run (full suite) - Weekdays 6am UTC
+  schedule:
+    - cron: '0 6 * * 1-5'
+
+env:
+  CI: true
+  BASE_URL: https://dev.app.chatscommerce.com
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Skip if PR is a draft
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+
+    concurrency:
+      # Cancel outdated runs when new commits are pushed
+      group: e2e-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 23
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Fetch E2E credentials from SSM
+        run: |
+          # Fetch credentials from SSM and create .env.test
+          cat > .env.test << EOF
+          E2E_ADMIN_EMAIL=$(aws ssm get-parameter --name "/chatwoot/e2e/admin-email" --query "Parameter.Value" --output text)
+          E2E_ADMIN_PASSWORD=$(aws ssm get-parameter --name "/chatwoot/e2e/admin-password" --with-decryption --query "Parameter.Value" --output text)
+          E2E_AGENT_EMAIL=$(aws ssm get-parameter --name "/chatwoot/e2e/agent-email" --query "Parameter.Value" --output text)
+          E2E_AGENT_PASSWORD=$(aws ssm get-parameter --name "/chatwoot/e2e/agent-password" --with-decryption --query "Parameter.Value" --output text)
+          BASE_URL=https://dev.app.chatscommerce.com
+          EOF
+
+      - name: Run E2E tests
+        run: |
+          # Determine test filter based on trigger type
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FILTER="${{ github.event.inputs.test_filter }}"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Full suite on scheduled runs
+            FILTER=""
+          else
+            # PR runs use smoke tests
+            FILTER="@smoke"
+          fi
+
+          if [ -n "$FILTER" ]; then
+            echo "Running tests with filter: $FILTER"
+            pnpm e2e -- --grep "$FILTER"
+          else
+            echo "Running all tests"
+            pnpm e2e
+          fi
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
