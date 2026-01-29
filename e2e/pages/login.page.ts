@@ -40,13 +40,51 @@ export class LoginPage extends BasePage {
 
   /**
    * Navigate to the login page
+   *
+   * This method handles the race condition where the Vue app may not have
+   * mounted yet when the DOM is ready. It waits for network activity to
+   * settle and retries navigation if the form doesn't appear.
    */
   async goto() {
-    await super.goto('/app/login');
-    // Wait for DOM to be ready
-    await this.page.waitForLoadState('domcontentloaded');
-    // Wait for the login form to be visible with longer timeout for slower servers
-    await this.emailInput.waitFor({ state: 'visible', timeout: 30000 });
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Navigate to login page
+        await super.goto('/app/login');
+
+        // Wait for network to be mostly idle (Vue app needs JS bundles)
+        // Use 'load' state which waits for all resources including scripts
+        await this.page.waitForLoadState('load');
+
+        // Additional wait for Vue to mount - check for the form with shorter timeout per attempt
+        const attemptTimeout = attempt === maxRetries ? 30000 : 10000;
+        await this.emailInput.waitFor({ state: 'visible', timeout: attemptTimeout });
+
+        // Success - form is visible
+        return;
+      } catch (error) {
+        lastError = error as Error;
+
+        // Check if we got redirected (e.g., already authenticated)
+        const currentUrl = this.page.url();
+        if (currentUrl.includes('/dashboard') || currentUrl.includes('/accounts/')) {
+          // Already logged in, not an error for login tests that clear storage
+          throw new Error(
+            `Already authenticated - redirected to ${currentUrl}. ` +
+            'Ensure test uses storageState: { cookies: [], origins: [] }'
+          );
+        }
+
+        if (attempt < maxRetries) {
+          // Wait a bit before retry to let any pending operations complete
+          await this.page.waitForTimeout(1000);
+        }
+      }
+    }
+
+    throw lastError || new Error('Failed to load login page after retries');
   }
 
   /**
