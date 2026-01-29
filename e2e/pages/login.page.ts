@@ -43,8 +43,10 @@ export class LoginPage extends BasePage {
    */
   async goto() {
     await super.goto('/app/login');
-    // Wait for the login form to be visible
-    await this.emailInput.waitFor({ state: 'visible', timeout: 10000 });
+    // Wait for DOM to be ready
+    await this.page.waitForLoadState('domcontentloaded');
+    // Wait for the login form to be visible with longer timeout for slower servers
+    await this.emailInput.waitFor({ state: 'visible', timeout: 30000 });
   }
 
   /**

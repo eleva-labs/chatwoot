@@ -7,13 +7,22 @@ Rake::Task['db:migrate'].enhance do
 end
 
 # Auto-run custom migrations after standard migrations
+# AND dump custom schema after custom migrations complete
 Rake::Task['db:migrate'].enhance do
   Rake::Task['db:migrate:custom'].invoke
+  # Dump custom schema AFTER custom migrations, not during db:schema:dump
+  # This ensures tables exist before we try to dump them
+  Rake::Task['db:schema:dump:custom'].invoke
 end
 
 # Auto-dump custom schema after standard schema dump
+# Only when called directly (not during db:migrate which handles it above)
 Rake::Task['db:schema:dump'].enhance do
-  Rake::Task['db:schema:dump:custom'].invoke
+  # Only dump if custom tables actually exist (avoids empty schema on fresh db)
+  if ActiveRecord::Base.connection.table_exists?('account_prompts')
+    Rake::Task['db:schema:dump:custom'].reenable
+    Rake::Task['db:schema:dump:custom'].invoke
+  end
 end
 
 # Auto-load custom schema after standard schema load
