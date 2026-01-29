@@ -99,8 +99,9 @@ CLAUDE.local.md
 # PNPM
 .pnpm-store
 
-# Docs
+# Docs (local/temporary documentation)
 /docs/ignored/*
+/docs/temp/*
 
 # Histoire deployment
 .netlify
