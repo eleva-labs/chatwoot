@@ -215,6 +215,52 @@ pnpm e2e:report
 # Report is generated at playwright-report/index.html
 ```
 
+### Cross-Browser Testing
+
+By default, tests run only on Chromium for fast feedback. Firefox and WebKit (Safari) are available for cross-browser testing.
+
+#### Install Additional Browsers
+
+```bash
+# Install Firefox and WebKit
+pnpm exec playwright install firefox webkit
+```
+
+#### Run Specific Browser
+
+```bash
+# Run tests on Firefox
+pnpm e2e -- --project=firefox
+
+# Run tests on WebKit (Safari)
+pnpm e2e -- --project=webkit
+
+# Run on multiple browsers
+pnpm e2e -- --project=chromium --project=firefox
+```
+
+#### Run All Browsers
+
+Set `E2E_ALL_BROWSERS=true` to include Firefox and WebKit in the default test run:
+
+```bash
+# Run on all browsers (Chromium + Firefox + WebKit)
+E2E_ALL_BROWSERS=true pnpm e2e
+
+# Run smoke tests on all browsers
+E2E_ALL_BROWSERS=true pnpm e2e -- --grep @smoke
+```
+
+#### Browser Support Notes
+
+| Browser | Engine | Notes |
+|---------|--------|-------|
+| Chromium | Blink | Default, fastest, matches Chrome/Edge |
+| Firefox | Gecko | Good for compatibility testing |
+| WebKit | WebKit | Matches Safari on macOS/iOS |
+
+**Recommendation**: Use Chromium for daily development and PR checks. Run cross-browser tests in nightly/scheduled CI runs or before major releases.
+
 ---
 
 ## Writing Tests

@@ -18,6 +18,10 @@ const BASE_URL = process.env.BASE_URL
 const IS_CI = !!process.env.CI;
 const IS_LOCAL = BASE_URL.includes('localhost') || BASE_URL.includes('0.0.0.0');
 
+// Cross-browser testing: set E2E_ALL_BROWSERS=true to include Firefox/WebKit
+// Or use --project=firefox or --project=webkit to run specific browsers
+const ALL_BROWSERS = process.env.E2E_ALL_BROWSERS === 'true';
+
 export default defineConfig({
   testDir: './e2e/tests',
   fullyParallel: true,
@@ -71,6 +75,26 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: /.*\.admin\.spec\.ts/,
     },
+
+    // Firefox - only included when E2E_ALL_BROWSERS=true or --project=firefox
+    ...(ALL_BROWSERS ? [{
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: 'e2e/.auth/agent.json',
+      },
+      dependencies: ['setup'],
+    }] : []),
+
+    // WebKit (Safari) - only included when E2E_ALL_BROWSERS=true or --project=webkit
+    ...(ALL_BROWSERS ? [{
+      name: 'webkit',
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'e2e/.auth/agent.json',
+      },
+      dependencies: ['setup'],
+    }] : []),
   ],
 
   // Only use webServer for local development (not CI)
