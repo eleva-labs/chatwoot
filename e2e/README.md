@@ -408,6 +408,15 @@ task e2e-fetch-creds
 
 Copy `.env.test.example` to `.env.test` and configure:
 
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `E2E_ADMIN_EMAIL` | Yes | - | Admin test user email |
+| `E2E_ADMIN_PASSWORD` | Yes | - | Admin test user password |
+| `E2E_AGENT_EMAIL` | Yes | - | Agent test user email |
+| `E2E_AGENT_PASSWORD` | Yes | - | Agent test user password |
+| `BASE_URL` | No | `http://localhost:3000` | Application URL (falls back to `FRONTEND_URL` from `.env`) |
+| `E2E_ALL_BROWSERS` | No | `false` | Set `true` to include Firefox and WebKit in test runs |
+
 ```env
 # Test User Credentials
 E2E_ADMIN_EMAIL=e2e-admin@test.chatwoot.local
@@ -415,11 +424,11 @@ E2E_ADMIN_PASSWORD=Password1!
 E2E_AGENT_EMAIL=e2e-agent@test.chatwoot.local
 E2E_AGENT_PASSWORD=Password1!
 
-# Override base URL (optional - defaults to FRONTEND_URL from .env)
-# BASE_URL=http://localhost:3000
+# Application URL
+BASE_URL=http://localhost:3000
 
-# For dev environment testing
-# BASE_URL=https://dev.app.chatscommerce.com
+# Cross-browser testing (optional)
+# E2E_ALL_BROWSERS=true
 ```
 
 ---
