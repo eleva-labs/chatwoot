@@ -113,3 +113,5 @@ e2e/.auth/*.json
 playwright-report/
 test-results/
 .env.test
+# Playwright MCP browser data/cache
+.playwright-mcp/

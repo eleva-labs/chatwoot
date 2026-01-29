@@ -340,22 +340,23 @@ This opens a browser where you can:
 
 ### Using Playwright MCP with Claude
 
-For AI-assisted exploratory testing, configure Playwright MCP in your Claude settings.
+For AI-assisted exploratory testing, Playwright MCP is pre-configured at the project level.
 
-**1. Ensure MCP is configured:**
+**1. MCP is already configured:**
 
-Add to `~/.claude.json` (or `.claude/settings.json`):
+The project includes a `.mcp.json` file at the repository root that configures Playwright MCP for all team members:
 
 ```json
 {
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["@playwright/mcp@latest"]
+      "args": ["-y", "@playwright/mcp@latest"]
     }
   }
 }
 ```
+
 
 **2. Use Claude to interact with the app:**
 
