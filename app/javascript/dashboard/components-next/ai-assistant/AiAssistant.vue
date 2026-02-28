@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n';
 import { useAiAssistant } from './composables/useAiAssistant';
 import { FloatingPanel, SidebarPanel } from 'dashboard/components-next/panels';
 import { CHAT_STATUS } from './constants';
+import { provideAiChat } from './provider';
 import AiChatPanel from './containers/AiChatPanel.vue';
 
 const props = defineProps({
@@ -24,7 +25,19 @@ const props = defineProps({
   fabIcon: { type: String, default: 'i-lucide-sparkles' },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
+
+// Bridge Chatwoot's vue-i18n into the AI chat i18n provider
+// so all descendant components use useAiI18n() instead of useI18n()
+provideAiChat({
+  i18n: {
+    t,
+    get locale() {
+      return locale.value;
+    },
+    dir: 'ltr',
+  },
+});
 
 const panels = {
   floating: FloatingPanel,

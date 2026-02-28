@@ -6,20 +6,22 @@
  * Uses AiCollapsiblePart for consistent styling and behavior.
  */
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import MessageFormatter from 'shared/helpers/MessageFormatter.js';
 import AiCollapsiblePart from './AiCollapsiblePart.vue';
 
 const props = defineProps({
   part: { type: Object, required: true },
   isStreaming: { type: Boolean, default: false },
+  renderMarkdown: { type: Function, default: null },
 });
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 const text = computed(() => props.part?.text || '');
 
 const formattedContent = computed(() => {
+  if (props.renderMarkdown) return props.renderMarkdown(text.value);
   return new MessageFormatter(text.value).formattedMessage;
 });
 

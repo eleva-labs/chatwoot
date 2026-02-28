@@ -1,13 +1,27 @@
+/**
+ * useVercelChat.ts
+ *
+ * Composable wrapping the Vercel AI SDK Chat class.
+ * Accepts a TransportConfig + ChatBehaviorConfig to decouple from
+ * Chatwoot-specific transport/auth concerns.
+ *
+ * All Chatwoot-specific logic (auth headers, API paths, request body shape)
+ * is injected via the config — see chatwootChatConfig.ts.
+ */
+
 import { Chat } from '@ai-sdk/vue';
 import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from 'ai';
 import { ref, onUnmounted, getCurrentInstance, type Ref } from 'vue';
 import { CHAT_STATUS, type ChatStatus } from '../constants';
-import { getAuthHeaders } from '../utils/auth';
+import type {
+  TransportConfig,
+  ChatBehaviorConfig,
+} from '../types/chatConfig';
 
 /**
  * Extract text content from UIMessage parts.
- * UIMessages use parts[] array with type='text' items.
+ * Used as default request body builder when TransportConfig.prepareRequest is not provided.
  */
 function extractTextContent(message: {
   parts?: Array<{ type: string; text?: string }>;
@@ -22,18 +36,10 @@ function extractTextContent(message: {
   return message.content || '';
 }
 
-interface VercelChatOptions {
-  api: string;
-  body?:
-    | Record<string, unknown>
-    | (() => Record<string, unknown>)
-    | null;
+export interface VercelChatCallbacks {
   onSessionId?: (sessionId: string) => void;
   onFinish?: (result: unknown) => void;
   onError?: (error: Error) => void;
-  sendAutomaticallyWhen?: (opts: {
-    messages: UIMessage[];
-  }) => boolean | PromiseLike<boolean>;
 }
 
 interface VercelChatReturn {
@@ -55,20 +61,29 @@ interface VercelChatReturn {
 }
 
 /**
- * Create a Vercel AI SDK Chat instance configured for Chatwoot.
+ * Create a Vercel AI SDK Chat instance from a TransportConfig.
  *
- * Uses the SDK's native DefaultChatTransport with custom configuration
- * for authentication, request body format, and session ID extraction.
+ * Uses the SDK's native DefaultChatTransport with configuration
+ * injected via interfaces — no hardcoded Chatwoot endpoints or auth.
  */
-export function useVercelChat(options: VercelChatOptions): VercelChatReturn {
-  const { api, body, onSessionId, onFinish, onError, sendAutomaticallyWhen } =
-    options;
+export function useVercelChat(
+  transportConfig: TransportConfig,
+  behaviorConfig?: ChatBehaviorConfig,
+  callbacks?: VercelChatCallbacks,
+): VercelChatReturn {
+  const { onSessionId, onFinish, onError } = callbacks || {};
+
+  // Resolve the stream endpoint (can be a string or factory function)
+  const api =
+    typeof transportConfig.streamEndpoint === 'function'
+      ? transportConfig.streamEndpoint()
+      : transportConfig.streamEndpoint;
 
   const transport = new DefaultChatTransport({
     api,
-    headers: getAuthHeaders,
+    headers: transportConfig.getHeaders,
 
-    // Transform UIMessage[] to Chatwoot backend format
+    // Transform UIMessage[] to backend format via config or fallback
     prepareSendMessagesRequest: async ({
       messages,
       headers,
@@ -81,8 +96,18 @@ export function useVercelChat(options: VercelChatOptions): VercelChatReturn {
       headers: Record<string, string>;
     }) => {
       const lastMessage = messages[messages.length - 1];
-      const dynamicBody = typeof body === 'function' ? body() : body || {};
 
+      // If the config provides a prepareRequest function, delegate to it
+      if (transportConfig.prepareRequest) {
+        return transportConfig.prepareRequest({
+          messages: messages as unknown as UIMessage[],
+          lastMessage: lastMessage as unknown as UIMessage,
+          headers,
+          metadata: {},
+        });
+      }
+
+      // Default: send only the last message's text content
       return {
         body: {
           messages: [
@@ -91,20 +116,22 @@ export function useVercelChat(options: VercelChatOptions): VercelChatReturn {
               content: extractTextContent(lastMessage),
             },
           ],
-          ...dynamicBody,
         },
         headers,
       };
     },
 
-    // Custom fetch to extract session ID from response header
+    // Custom fetch for session ID extraction and optional fetch override
     fetch: async (url: string | URL | Request, fetchOptions?: RequestInit) => {
-      const response = await window.fetch(url, fetchOptions);
+      const fetchFn = transportConfig.fetch || window.fetch;
+      const response = await fetchFn(url, fetchOptions);
 
-      // Extract session ID from response header
-      const sessionId = response.headers.get('X-Chat-Session-Id');
-      if (sessionId && onSessionId) {
-        onSessionId(sessionId);
+      // Extract session ID using config's extractor (or skip)
+      if (transportConfig.extractSessionId && onSessionId) {
+        const sessionId = transportConfig.extractSessionId(response);
+        if (sessionId) {
+          onSessionId(sessionId);
+        }
       }
 
       return response;
@@ -117,8 +144,8 @@ export function useVercelChat(options: VercelChatOptions): VercelChatReturn {
     onError,
   };
 
-  if (sendAutomaticallyWhen) {
-    chatInit.sendAutomaticallyWhen = sendAutomaticallyWhen;
+  if (behaviorConfig?.sendAutomaticallyWhen) {
+    chatInit.sendAutomaticallyWhen = behaviorConfig.sendAutomaticallyWhen;
   }
 
   const chat = new Chat(chatInit);
@@ -214,7 +241,9 @@ export function useVercelChat(options: VercelChatOptions): VercelChatReturn {
   const regenerate = chat.regenerate
     ? async (...args: unknown[]): Promise<void> => {
         startPolling();
-        return (chat.regenerate as (...a: unknown[]) => Promise<void>)(...args);
+        return (chat.regenerate as (...a: unknown[]) => Promise<void>)(
+          ...args,
+        );
       }
     : undefined;
 

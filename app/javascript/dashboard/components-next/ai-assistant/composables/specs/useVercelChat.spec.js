@@ -48,12 +48,19 @@ vi.mock('vue', async () => {
 });
 
 import { useVercelChat } from '../useVercelChat';
-import Auth from 'dashboard/api/auth';
 import { Chat } from '@ai-sdk/vue';
 import { DefaultChatTransport } from 'ai';
+import { getAuthHeaders } from '../../utils/auth';
 
 describe('useVercelChat', () => {
   const api = '/api/v1/accounts/1/ai_chat/stream';
+
+  // Helper to create a minimal TransportConfig
+  const createTransportConfig = (overrides = {}) => ({
+    streamEndpoint: api,
+    getHeaders: getAuthHeaders,
+    ...overrides,
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,7 +71,7 @@ describe('useVercelChat', () => {
   // =============================================================================
   describe('initialization', () => {
     it('returns expected state and methods', () => {
-      const chat = useVercelChat({ api });
+      const chat = useVercelChat(createTransportConfig());
 
       expect(chat).toHaveProperty('messages');
       expect(chat).toHaveProperty('status');
@@ -76,22 +83,22 @@ describe('useVercelChat', () => {
     });
 
     it('initializes with empty messages', () => {
-      const chat = useVercelChat({ api });
+      const chat = useVercelChat(createTransportConfig());
       expect(chat.messages.value).toEqual([]);
     });
 
     it('initializes with ready status', () => {
-      const chat = useVercelChat({ api });
+      const chat = useVercelChat(createTransportConfig());
       expect(chat.status.value).toBe(CHAT_STATUS.READY);
     });
 
     it('initializes with null error', () => {
-      const chat = useVercelChat({ api });
+      const chat = useVercelChat(createTransportConfig());
       expect(chat.error.value).toBeNull();
     });
 
     it('creates DefaultChatTransport with correct API', () => {
-      useVercelChat({ api });
+      useVercelChat(createTransportConfig());
 
       expect(DefaultChatTransport).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -101,21 +108,45 @@ describe('useVercelChat', () => {
     });
 
     it('creates Chat instance with transport', () => {
-      useVercelChat({ api });
+      useVercelChat(createTransportConfig());
 
       expect(Chat).toHaveBeenCalled();
+    });
+
+    it('resolves streamEndpoint function', () => {
+      const dynamicApi = '/api/v1/accounts/2/ai_chat/stream';
+      useVercelChat(
+        createTransportConfig({
+          streamEndpoint: () => dynamicApi,
+        })
+      );
+
+      expect(DefaultChatTransport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          api: dynamicApi,
+        })
+      );
     });
   });
 
   // =============================================================================
-  // Authentication
+  // Authentication (via TransportConfig.getHeaders)
   // =============================================================================
   describe('authentication', () => {
-    it('includes auth headers when auth cookie exists', () => {
-      Auth.hasAuthCookie.mockReturnValue(true);
-      useVercelChat({ api });
+    it('uses getHeaders from TransportConfig', () => {
+      const customHeaders = vi.fn(() => ({
+        Authorization: 'Bearer custom-token',
+      }));
+      useVercelChat(createTransportConfig({ getHeaders: customHeaders }));
 
       // Get the headers function passed to DefaultChatTransport
+      const transportCall = DefaultChatTransport.mock.calls[0][0];
+      expect(transportCall.headers).toBe(customHeaders);
+    });
+
+    it('includes auth headers when using default getAuthHeaders', () => {
+      useVercelChat(createTransportConfig());
+
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       const headers = transportCall.headers();
 
@@ -126,25 +157,14 @@ describe('useVercelChat', () => {
         })
       );
     });
-
-    it('uses minimal headers when no auth cookie', () => {
-      Auth.hasAuthCookie.mockReturnValue(false);
-      useVercelChat({ api });
-
-      const transportCall = DefaultChatTransport.mock.calls[0][0];
-      const headers = transportCall.headers();
-
-      expect(headers).toEqual({ 'Content-Type': 'application/json' });
-    });
   });
 
   // =============================================================================
-  // Message Preparation
+  // Message Preparation (default fallback when no prepareRequest)
   // =============================================================================
   describe('message preparation', () => {
-    it('transforms UIMessages to backend format', async () => {
-      const body = { agent_bot_id: 123 };
-      useVercelChat({ api, body });
+    it('uses default text extraction when no prepareRequest', async () => {
+      useVercelChat(createTransportConfig());
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       const messages = [
@@ -158,29 +178,43 @@ describe('useVercelChat', () => {
 
       expect(result.body).toEqual({
         messages: [{ role: 'user', content: 'Hello' }],
-        agent_bot_id: 123,
       });
     });
 
-    it('handles body as a function', async () => {
-      const bodyFn = vi.fn(() => ({ agent_bot_id: 456 }));
-      useVercelChat({ api, body: bodyFn });
+    it('delegates to prepareRequest when provided in config', async () => {
+      const prepareRequest = vi.fn(({ lastMessage, headers }) => ({
+        body: {
+          messages: [{ role: lastMessage.role, content: 'custom' }],
+          agent_bot_id: 123,
+        },
+        headers,
+      }));
+
+      useVercelChat(createTransportConfig({ prepareRequest }));
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       const messages = [
-        { role: 'user', parts: [{ type: 'text', text: 'Test' }] },
+        { role: 'user', parts: [{ type: 'text', text: 'Hello' }] },
       ];
 
       await transportCall.prepareSendMessagesRequest({
         messages,
-        headers: {},
+        headers: { 'Content-Type': 'application/json' },
       });
 
-      expect(bodyFn).toHaveBeenCalled();
+      expect(prepareRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastMessage: expect.objectContaining({ role: 'user' }),
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+          }),
+          metadata: {},
+        })
+      );
     });
 
     it('extracts text from multiple parts', async () => {
-      useVercelChat({ api });
+      useVercelChat(createTransportConfig());
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       const messages = [
@@ -202,7 +236,7 @@ describe('useVercelChat', () => {
     });
 
     it('filters out non-text parts', async () => {
-      useVercelChat({ api });
+      useVercelChat(createTransportConfig());
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       const messages = [
@@ -225,7 +259,7 @@ describe('useVercelChat', () => {
     });
 
     it('uses content fallback when no parts', async () => {
-      useVercelChat({ api });
+      useVercelChat(createTransportConfig());
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       const messages = [{ role: 'user', content: 'Direct content' }];
@@ -239,7 +273,7 @@ describe('useVercelChat', () => {
     });
 
     it('handles empty parts array', async () => {
-      useVercelChat({ api });
+      useVercelChat(createTransportConfig());
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       const messages = [{ role: 'user', parts: [] }];
@@ -257,7 +291,7 @@ describe('useVercelChat', () => {
   // Session ID Extraction
   // =============================================================================
   describe('session ID extraction', () => {
-    it('calls onSessionId with extracted session ID from headers', async () => {
+    it('calls onSessionId when extractSessionId is provided', async () => {
       const onSessionId = vi.fn();
 
       // Mock window.fetch
@@ -267,7 +301,14 @@ describe('useVercelChat', () => {
 
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
 
-      useVercelChat({ api, onSessionId });
+      useVercelChat(
+        createTransportConfig({
+          extractSessionId: response =>
+            response.headers.get('X-Chat-Session-Id'),
+        }),
+        undefined,
+        { onSessionId }
+      );
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       await transportCall.fetch('/test', {});
@@ -283,7 +324,14 @@ describe('useVercelChat', () => {
 
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
 
-      useVercelChat({ api, onSessionId });
+      useVercelChat(
+        createTransportConfig({
+          extractSessionId: response =>
+            response.headers.get('X-Chat-Session-Id'),
+        }),
+        undefined,
+        { onSessionId }
+      );
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       await transportCall.fetch('/test', {});
@@ -293,12 +341,12 @@ describe('useVercelChat', () => {
       vi.unstubAllGlobals();
     });
 
-    it('does not call onSessionId when callback not provided', async () => {
+    it('does not call onSessionId when no extractSessionId in config', async () => {
       const mockResponse = { headers: new Headers() };
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
 
-      // Should not throw even without onSessionId callback
-      useVercelChat({ api });
+      // No extractSessionId in config
+      useVercelChat(createTransportConfig());
 
       const transportCall = DefaultChatTransport.mock.calls[0][0];
       await expect(transportCall.fetch('/test', {})).resolves.toBeDefined();
@@ -312,14 +360,14 @@ describe('useVercelChat', () => {
   // =============================================================================
   describe('dispose', () => {
     it('does not throw when called', () => {
-      const chat = useVercelChat({ api });
+      const chat = useVercelChat(createTransportConfig());
 
       // Should not throw
       expect(() => chat.dispose()).not.toThrow();
     });
 
     it('can be called multiple times without error', () => {
-      const chat = useVercelChat({ api });
+      const chat = useVercelChat(createTransportConfig());
 
       expect(() => {
         chat.dispose();
@@ -334,7 +382,7 @@ describe('useVercelChat', () => {
   describe('callbacks', () => {
     it('passes onFinish callback to Chat', () => {
       const onFinish = vi.fn();
-      useVercelChat({ api, onFinish });
+      useVercelChat(createTransportConfig(), undefined, { onFinish });
 
       expect(Chat).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -345,7 +393,7 @@ describe('useVercelChat', () => {
 
     it('passes onError callback to Chat', () => {
       const onError = vi.fn();
-      useVercelChat({ api, onError });
+      useVercelChat(createTransportConfig(), undefined, { onError });
 
       expect(Chat).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -356,48 +404,30 @@ describe('useVercelChat', () => {
 
     it('handles missing callbacks gracefully', () => {
       // Should not throw when no callbacks provided
-      expect(() => useVercelChat({ api })).not.toThrow();
+      expect(() => useVercelChat(createTransportConfig())).not.toThrow();
     });
   });
 
   // =============================================================================
-  // Body parameter
+  // Behavior config
   // =============================================================================
-  describe('body parameter', () => {
-    it('handles undefined body gracefully', async () => {
-      useVercelChat({ api });
+  describe('behavior config', () => {
+    it('passes sendAutomaticallyWhen from behaviorConfig to Chat', () => {
+      const sendAutomaticallyWhen = vi.fn(() => true);
+      useVercelChat(createTransportConfig(), { sendAutomaticallyWhen });
 
-      const transportCall = DefaultChatTransport.mock.calls[0][0];
-      const messages = [
-        { role: 'user', parts: [{ type: 'text', text: 'Hello' }] },
-      ];
-
-      const result = await transportCall.prepareSendMessagesRequest({
-        messages,
-        headers: {},
-      });
-
-      expect(result.body).toEqual({
-        messages: [{ role: 'user', content: 'Hello' }],
-      });
+      expect(Chat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sendAutomaticallyWhen,
+        })
+      );
     });
 
-    it('handles null body gracefully', async () => {
-      useVercelChat({ api, body: null });
+    it('does not set sendAutomaticallyWhen when not provided', () => {
+      useVercelChat(createTransportConfig(), {});
 
-      const transportCall = DefaultChatTransport.mock.calls[0][0];
-      const messages = [
-        { role: 'user', parts: [{ type: 'text', text: 'Hello' }] },
-      ];
-
-      const result = await transportCall.prepareSendMessagesRequest({
-        messages,
-        headers: {},
-      });
-
-      expect(result.body).toEqual({
-        messages: [{ role: 'user', content: 'Hello' }],
-      });
+      const chatCall = Chat.mock.calls[0][0];
+      expect(chatCall).not.toHaveProperty('sendAutomaticallyWhen');
     });
   });
 });

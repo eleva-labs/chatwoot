@@ -12,7 +12,7 @@
  * - disabled: Grayed out, not clickable
  */
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import { VOICE_INPUT_STATUS } from '../constants';
 
 const props = defineProps({
@@ -23,7 +23,7 @@ const props = defineProps({
 
 const emit = defineEmits(['click']);
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 const isRecording = computed(
   () => props.status === VOICE_INPUT_STATUS.RECORDING

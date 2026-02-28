@@ -35,14 +35,16 @@ const avatarIcon = computed(() => {
 
 <template>
   <div class="flex w-full items-end gap-2 px-4 py-2" :class="alignmentClass">
-    <Avatar
-      :name="avatarName"
-      :src="avatarSrc"
-      :icon-name="avatarIcon"
-      :size="28"
-      rounded-full
-      class="flex-shrink-0 mb-1"
-    />
+    <slot name="avatar">
+      <Avatar
+        :name="avatarName"
+        :src="avatarSrc"
+        :icon-name="avatarIcon"
+        :size="28"
+        rounded-full
+        class="flex-shrink-0 mb-1"
+      />
+    </slot>
     <div class="flex flex-col gap-1 min-w-0" :class="contentContainerClass">
       <slot />
       <!-- Spacer for user messages to align with assistant message actions height -->

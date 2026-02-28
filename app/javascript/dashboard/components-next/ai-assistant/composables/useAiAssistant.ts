@@ -4,7 +4,9 @@
  * Composable for AI Assistant domain logic.
  * Handles chat state initialization and session management.
  * Delegates bot fetching to useAIChatBot.
- * Used by AiAssistant orchestrator component.
+ *
+ * All Chatwoot-specific transport/session logic is injected via
+ * chatwootChatConfig factories — composables are framework-agnostic.
  */
 import { computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -12,6 +14,11 @@ import { useStore } from 'dashboard/composables/store';
 import { useVercelChat } from './useVercelChat';
 import { useAiChatSessionManager } from './useAiChatSessionManager';
 import { useAIChatBot } from './useAIChatBot';
+import {
+  createChatwootTransportConfig,
+  createChatwootSessionsAdapter,
+  chatwootBehaviorConfig,
+} from '../chatwootChatConfig';
 
 export function useAiAssistant() {
   const route = useRoute();
@@ -19,7 +26,11 @@ export function useAiAssistant() {
 
   // Current user
   const currentUser = computed(
-    () => store.getters.getCurrentUser as { name?: string; avatar_url?: string },
+    () =>
+      store.getters.getCurrentUser as {
+        name?: string;
+        avatar_url?: string;
+      },
   );
 
   // Account ID extraction
@@ -32,7 +43,14 @@ export function useAiAssistant() {
       return Number(pathMatch[1]);
     }
     return (window as unknown as Record<string, unknown>).chatwootConfig
-      ? ((window as unknown as Record<string, Record<string, unknown>>).chatwootConfig.accountId as number | null)
+      ? (
+          (
+            window as unknown as Record<
+              string,
+              Record<string, unknown>
+            >
+          ).chatwootConfig.accountId as number | null
+        )
       : null;
   });
 
@@ -45,16 +63,25 @@ export function useAiAssistant() {
     fetchBots,
   } = useAIChatBot(accountId);
 
-  // Session management - use dedicated composable
-  const sessionManager = useAiChatSessionManager(accountId.value);
+  // Create Chatwoot-specific sessions adapter (getter keeps accountId reactive)
+  const sessionsAdapter = createChatwootSessionsAdapter(
+    () => accountId.value,
+  );
 
-  // Initialize Vercel AI SDK Chat
-  const chat = useVercelChat({
-    api: `/api/v1/accounts/${accountId.value}/ai_chat/stream`,
-    body: () => ({
-      agent_bot_id: selectedBotId.value,
-      chat_session_id: sessionManager.activeSessionId.value,
+  // Session management — uses adapter, no hardcoded fetch
+  const sessionManager = useAiChatSessionManager(sessionsAdapter);
+
+  // Create Chatwoot-specific transport config (getter keeps accountId reactive)
+  const transportConfig = createChatwootTransportConfig(
+    () => accountId.value,
+    () => ({
+      agentBotId: selectedBotId.value,
+      sessionId: sessionManager.activeSessionId.value,
     }),
+  );
+
+  // Initialize Vercel AI SDK Chat via config
+  const chat = useVercelChat(transportConfig, chatwootBehaviorConfig, {
     onSessionId: (id: string) => {
       // Persist session ID when received from backend
       sessionManager.setActiveSessionId(id, selectedBotId.value);
@@ -71,7 +98,8 @@ export function useAiAssistant() {
         // Clear current sessions (will be re-fetched when history panel opens)
         sessionManager.sessions.value = [];
         // Restore session ID from localStorage for new bot
-        const storedSessionId = sessionManager.getStoredSessionId(newBotId);
+        const storedSessionId =
+          sessionManager.getStoredSessionId(newBotId);
         if (storedSessionId) {
           sessionManager.setActiveSessionId(storedSessionId, newBotId);
         } else {
@@ -85,7 +113,9 @@ export function useAiAssistant() {
   );
 
   // Computed properties
-  const chatTitle = computed(() => currentBot.value?.name || 'AI Assistant');
+  const chatTitle = computed(
+    () => currentBot.value?.name || 'AI Assistant',
+  );
 
   const userName = computed(() => currentUser.value?.name || '');
   const userAvatar = computed(() => currentUser.value?.avatar_url || '');
@@ -132,7 +162,8 @@ export function useAiAssistant() {
       sessionManager.startNewSession(selectedBotId.value!, chat),
     deleteSession: (sessionId: string) =>
       sessionManager.deleteSession(sessionId, selectedBotId.value!),
-    fetchSessions: () => sessionManager.fetchSessions(selectedBotId.value!),
+    fetchSessions: () =>
+      sessionManager.fetchSessions(selectedBotId.value!),
 
     // Methods
     fetchBots,

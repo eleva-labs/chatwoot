@@ -78,14 +78,34 @@ vi.mock('dashboard/api/auth', () => ({
   },
 }));
 
-// Mock schemas (parseBotsResponse is now used in useAiAssistant)
+// Mock schemas (parseBotsResponse is now used in useAIChatBot)
 vi.mock('../../schemas', () => ({
   parseBotsResponse: vi.fn(data => data),
+  parseSessionsResponse: vi.fn(data => data),
+  parseMessagesResponse: vi.fn(data => data),
+}));
+
+// Mock chatwootChatConfig (used by useAiAssistant)
+vi.mock('../../chatwootChatConfig', () => ({
+  createChatwootTransportConfig: vi.fn(getAccountId => ({
+    streamEndpoint: `/api/v1/accounts/${getAccountId()}/ai_chat/stream`,
+    getHeaders: vi.fn(() => ({ 'Content-Type': 'application/json' })),
+  })),
+  createChatwootSessionsAdapter: vi.fn(() => ({
+    fetchSessions: vi.fn().mockResolvedValue([]),
+    fetchMessages: vi.fn().mockResolvedValue([]),
+    deleteSession: vi.fn().mockResolvedValue(undefined),
+  })),
+  chatwootBehaviorConfig: { streamThrottle: 150 },
 }));
 
 import { useRoute } from 'vue-router';
 import { useVercelChat } from '../useVercelChat';
 import Auth from 'dashboard/api/auth';
+import {
+  createChatwootTransportConfig,
+  createChatwootSessionsAdapter,
+} from '../../chatwootChatConfig';
 
 describe('useAiAssistant', () => {
   let originalFetch;
@@ -142,15 +162,29 @@ describe('useAiAssistant', () => {
       expect(botsLoading.value).toBe(false);
     });
 
-    it('extracts accountId from route params', () => {
+    it('extracts accountId from route params and creates transport config', () => {
       useRoute.mockReturnValue({ params: { accountId: '456' } });
       useAiAssistant();
 
-      expect(useVercelChat).toHaveBeenCalledWith(
-        expect.objectContaining({
-          api: expect.stringContaining('/accounts/456/'),
-        })
+      expect(createChatwootTransportConfig).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function)
       );
+      // Verify the getter returns the correct accountId
+      const getAccountId = createChatwootTransportConfig.mock.calls[0][0];
+      expect(getAccountId()).toBe(456);
+    });
+
+    it('creates sessions adapter with accountId getter', () => {
+      useRoute.mockReturnValue({ params: { accountId: '456' } });
+      useAiAssistant();
+
+      expect(createChatwootSessionsAdapter).toHaveBeenCalledWith(
+        expect.any(Function)
+      );
+      // Verify the getter returns the correct accountId
+      const getAccountId = createChatwootSessionsAdapter.mock.calls[0][0];
+      expect(getAccountId()).toBe(456);
     });
   });
 
@@ -256,7 +290,10 @@ describe('useAiAssistant', () => {
 
       expect(botsLoading.value).toBe(true);
 
-      resolvePromise({ ok: true, json: () => Promise.resolve({ bots: [] }) });
+      resolvePromise({
+        ok: true,
+        json: () => Promise.resolve({ bots: [] }),
+      });
       await fetchPromise;
 
       expect(botsLoading.value).toBe(false);
@@ -461,13 +498,20 @@ describe('useAiAssistant', () => {
       expect(chat).toHaveProperty('sendMessage');
     });
 
-    it('configures useVercelChat with correct API endpoint', () => {
+    it('configures useVercelChat with transport config for correct account', () => {
       useRoute.mockReturnValue({ params: { accountId: '789' } });
       useAiAssistant();
 
+      // useVercelChat is now called with TransportConfig, BehaviorConfig, Callbacks
       expect(useVercelChat).toHaveBeenCalledWith(
         expect.objectContaining({
-          api: '/api/v1/accounts/789/ai_chat/stream',
+          streamEndpoint: '/api/v1/accounts/789/ai_chat/stream',
+        }),
+        expect.objectContaining({
+          streamThrottle: 150,
+        }),
+        expect.objectContaining({
+          onSessionId: expect.any(Function),
         })
       );
     });

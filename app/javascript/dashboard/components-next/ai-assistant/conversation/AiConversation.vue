@@ -1,13 +1,13 @@
 <script setup>
 import { toRef, onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import { useAutoScroll } from '../composables/useAutoScroll';
 
 const props = defineProps({
   isStreaming: { type: Boolean, default: false },
 });
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 const {
   containerRef,

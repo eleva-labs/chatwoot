@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import Button from 'dashboard/components-next/button/Button.vue';
 import AiVoiceButton from './AiVoiceButton.vue';
 import { useAutoResizeTextarea } from '../composables/useAutoResizeTextarea';
@@ -17,7 +17,7 @@ const emit = defineEmits(['submit']);
 // Voice input is disabled for Phase 1 (visual only)
 const voiceStatus = ref(VOICE_INPUT_STATUS.DISABLED);
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 const inputText = ref('');
 
 // Auto-resize textarea composable

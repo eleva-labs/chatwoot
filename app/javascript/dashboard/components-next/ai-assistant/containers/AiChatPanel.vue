@@ -6,7 +6,7 @@
  * and user input. Header and session history are delegated to child components.
  */
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import { useToggle } from '@vueuse/core';
 import { provideAiChatContext } from '../provider';
 import { CHAT_STATUS, MESSAGE_ROLE } from '../constants';
@@ -62,7 +62,7 @@ const selectedBotId = defineModel('selectedBotId', {
   default: null,
 });
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 // Session history panel state (useToggle pattern)
 const [showSessionHistory, toggleSessionHistoryValue] = useToggle(false);

@@ -7,7 +7,7 @@
  */
 import { watch, computed } from 'vue';
 import { useToggle } from '@vueuse/core';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import AiMessageAction from '../message/AiMessageAction.vue';
 
 const props = defineProps({
@@ -23,7 +23,7 @@ const props = defineProps({
   showActions: { type: Boolean, default: true },
 });
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 const [isExpanded, toggleExpanded] = useToggle(false);
 

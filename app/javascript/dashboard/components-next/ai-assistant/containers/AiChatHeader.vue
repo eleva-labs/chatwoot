@@ -9,7 +9,7 @@
  * Extracted from AiChatPanel.vue for separation of concerns.
  */
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import { useToggle } from '@vueuse/core';
 import { OnClickOutside } from '@vueuse/components';
 import { CHAT_STATUS } from '../constants';
@@ -34,7 +34,7 @@ const emit = defineEmits([
   'close',
 ]);
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 const showBotSelector = computed(() => props.bots.length > 0);
 

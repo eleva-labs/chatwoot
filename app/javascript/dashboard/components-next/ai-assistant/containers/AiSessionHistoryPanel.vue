@@ -8,7 +8,7 @@
  * Extracted from AiChatPanel.vue for separation of concerns.
  */
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import { formatSessionDate, formatSessionTime } from '../utils/formatHelpers';
 
 const props = defineProps({
@@ -19,7 +19,7 @@ const props = defineProps({
 
 const emit = defineEmits(['loadSession', 'deleteSession', 'close']);
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 const hasSessions = computed(() => props.sessions.length > 0);
 
@@ -82,30 +82,30 @@ const getSessionTime = dateString => {
       <ul v-else class="divide-y divide-n-weak">
         <li
           v-for="session in sessions"
-          :key="session.chatSessionId"
+          :key="session.chat_session_id"
           class="group"
         >
           <button
             class="w-full px-4 py-3 text-left hover:bg-n-alpha-2 transition-colors"
             :class="{
-              'bg-n-alpha-3': session.chatSessionId === activeSessionId,
+              'bg-n-alpha-3': session.chat_session_id === activeSessionId,
             }"
-            @click="emit('loadSession', session.chatSessionId)"
+            @click="emit('loadSession', session.chat_session_id)"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-n-slate-12 truncate">
-                  {{ getSessionDate(session.createdAt || session.created_at) }}
+                  {{ getSessionDate(session.created_at) }}
                 </p>
                 <p class="text-xs text-n-slate-10 mt-0.5">
-                  {{ getSessionTime(session.createdAt || session.created_at) }}
+                  {{ getSessionTime(session.created_at) }}
                 </p>
               </div>
               <button
                 v-tooltip="t('AI_CHAT.SESSIONS.DELETE')"
                 :aria-label="t('AI_CHAT.SESSIONS.DELETE')"
                 class="p-1 rounded text-n-slate-9 hover:text-n-ruby-9 hover:bg-n-ruby-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex-shrink-0"
-                @click.stop="emit('deleteSession', session.chatSessionId)"
+                @click.stop="emit('deleteSession', session.chat_session_id)"
               >
                 <span class="i-lucide-trash-2 size-4" />
               </button>

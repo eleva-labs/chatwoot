@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, onUnmounted, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
+import { categorizeError } from '../utils/errorHelpers';
 
 const props = defineProps({
   error: { type: Error, required: true },
@@ -11,7 +12,7 @@ const props = defineProps({
 
 const emit = defineEmits(['retry', 'edit', 'dismiss', 'fresh-start']);
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 // Countdown timer for rate limiting
 const countdown = ref(props.retryDelay);
@@ -42,15 +43,10 @@ onUnmounted(() => {
   }
 });
 
-// Classify error for icon/color
-const errorCategory = computed(() => {
-  const msg = props.error.message?.toLowerCase() || '';
-  if (msg.includes('network') || msg.includes('fetch')) return 'network';
-  if (msg.includes('429') || msg.includes('rate')) return 'rate_limit';
-  if (msg.includes('401') || msg.includes('403')) return 'auth';
-  if (msg.match(/5\d{2}/)) return 'server';
-  return 'unknown';
-});
+// Classify error for icon/color using shared pure function
+const errorCategory = computed(() =>
+  categorizeError(props.error.message || '')
+);
 
 const config = computed(() => {
   const configs = {

@@ -1,5 +1,5 @@
 <script setup>
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 
 defineProps({
   title: { type: String, default: null },
@@ -7,7 +7,7 @@ defineProps({
   icon: { type: String, default: 'i-lucide-message-circle' },
 });
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 </script>
 
 <template>

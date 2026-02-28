@@ -2,16 +2,18 @@
  * useAiChatSessionManager.ts
  *
  * Composable for AI chat session persistence and history management.
- * Handles fetching sessions, loading message history, and localStorage persistence.
+ * Accepts an optional SessionsAdapter to decouple from Chatwoot-specific
+ * API calls. When no adapter is provided, operates in single-session mode.
+ *
+ * All Chatwoot-specific fetch logic (API paths, auth headers, Zod parsing)
+ * lives in the adapter — see chatwootChatConfig.ts.
  */
 import { ref, type Ref } from 'vue';
 import { LocalStorage } from 'shared/helpers/localStorage';
-import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import { toUIMessages } from './useAiMessageMapper';
-import { getAuthHeaders } from '../utils/auth';
-import { parseSessionsResponse, parseMessagesResponse } from '../schemas';
 import { CHAT_STATUS } from '../constants';
 import type { ChatSession } from '../types';
+import type { SessionsAdapter, ChatMessage } from '../types/chatConfig';
 import type { UIMessage } from 'ai';
 
 // localStorage key for active sessions per bot
@@ -28,7 +30,10 @@ interface SessionManagerReturn {
   isLoadingSessions: Ref<boolean>;
   isLoadingMessages: Ref<boolean>;
   error: Ref<string | null>;
-  fetchSessions: (botId: number | string, limit?: number) => Promise<ChatSession[]>;
+  fetchSessions: (
+    botId: number | string,
+    limit?: number,
+  ) => Promise<ChatSession[]>;
   fetchSessionMessages: (
     sessionId: string,
     limit?: number,
@@ -58,9 +63,12 @@ interface SessionManagerReturn {
 
 /**
  * Composable for managing AI chat sessions.
+ *
+ * @param adapter - Optional SessionsAdapter. When undefined, session operations
+ *   return empty results (single-session mode).
  */
 export function useAiChatSessionManager(
-  accountId: number | string | null,
+  adapter?: SessionsAdapter,
 ): SessionManagerReturn {
   // State
   const sessions = ref<ChatSession[]>([]);
@@ -89,36 +97,26 @@ export function useAiChatSessionManager(
   };
 
   // ============================================================================
-  // API METHODS
+  // API METHODS (delegated to adapter)
   // ============================================================================
 
   const fetchSessions = async (
     botId: number | string,
     limit: number = 25,
   ): Promise<ChatSession[]> => {
-    if (!accountId || !botId) return [];
+    if (!adapter || !botId) return [];
 
     isLoadingSessions.value = true;
     error.value = null;
 
     try {
-      const response = await fetch(
-        `/api/v1/accounts/${accountId}/ai_chat/sessions?agent_bot_id=${botId}&limit=${limit}`,
-        { method: 'GET', headers: getAuthHeaders() },
-      );
+      const result = await adapter.fetchSessions({
+        agentBotId: Number(botId),
+        limit,
+      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sessions: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const parsed = parseSessionsResponse(data);
-      // Transform keys to camelCase for existing consumers
-      const transformed = useCamelCase(
-        { sessions: parsed.sessions },
-        { deep: true },
-      ) as { sessions: ChatSession[] };
-      sessions.value = transformed.sessions || [];
+      // Sessions use snake_case consistently (matching ChatSession type and API)
+      sessions.value = result || [];
       return sessions.value;
     } catch (e) {
       error.value = (e as Error).message;
@@ -133,24 +131,14 @@ export function useAiChatSessionManager(
     sessionId: string,
     limit: number = 100,
   ): Promise<Record<string, unknown>[]> => {
-    if (!accountId || !sessionId) return [];
+    if (!adapter || !sessionId) return [];
 
     isLoadingMessages.value = true;
     error.value = null;
 
     try {
-      const response = await fetch(
-        `/api/v1/accounts/${accountId}/ai_chat/sessions/${sessionId}/messages?limit=${limit}`,
-        { method: 'GET', headers: getAuthHeaders() },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch messages: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const parsed = parseMessagesResponse(data);
-      return parsed.messages as unknown as Record<string, unknown>[];
+      const result = await adapter.fetchMessages({ sessionId, limit });
+      return result as unknown as Record<string, unknown>[];
     } catch (e) {
       error.value = (e as Error).message;
       return [];
@@ -208,21 +196,14 @@ export function useAiChatSessionManager(
     sessionId: string,
     botId: number | string,
   ): Promise<boolean> => {
-    try {
-      const response = await fetch(
-        `/api/v1/accounts/${accountId}/ai_chat/sessions/${sessionId}`,
-        { method: 'DELETE', headers: getAuthHeaders() },
-      );
+    if (!adapter?.deleteSession) return false;
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete session: ${response.status}`);
-      }
+    try {
+      await adapter.deleteSession(sessionId);
 
       // Remove from local state
       sessions.value = sessions.value.filter(
-        s =>
-          (s as unknown as Record<string, unknown>).chatSessionId !==
-          sessionId,
+        s => s.chat_session_id !== sessionId,
       );
 
       // Clear from storage if it was the active session

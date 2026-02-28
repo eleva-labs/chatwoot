@@ -2,6 +2,7 @@
 import { computed, defineAsyncComponent } from 'vue';
 import { isToolPart } from '../types';
 import { PART_TYPES } from '../constants';
+import { usePartRegistry } from '../registry/partRegistry';
 
 import AiTextPart from './AiTextPart.vue';
 
@@ -22,8 +23,18 @@ const partTypeMap = {
   [PART_TYPES.REASONING]: AiReasoningPart,
 };
 
+const registry = usePartRegistry();
+
 const component = computed(() => {
-  if (isToolPart(props.part)) return AiToolPart;
+  // 1. Check registry for exact type match
+  if (registry.parts?.[props.part.type]) return registry.parts[props.part.type];
+  // 2. For tool parts, check tool registry by toolName
+  if (isToolPart(props.part)) {
+    const toolName = props.part.toolName;
+    if (toolName && registry.tools?.[toolName]) return registry.tools[toolName];
+    return AiToolPart;
+  }
+  // 3. Hardcoded defaults
   return partTypeMap[props.part.type] || null;
 });
 </script>

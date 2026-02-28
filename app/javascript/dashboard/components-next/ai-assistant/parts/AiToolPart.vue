@@ -7,7 +7,7 @@
  * Shows state-based icons and colors (pending=slate, complete=teal, error=ruby).
  */
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useAiI18n } from '../i18n/aiChatI18n';
 import { deriveToolDisplayState, isToolComplete, isToolFailed } from '../types';
 import { formatToolName } from '../utils/formatHelpers';
 import AiCollapsiblePart from './AiCollapsiblePart.vue';
@@ -17,7 +17,7 @@ const props = defineProps({
   isStreaming: { type: Boolean, default: false },
 });
 
-const { t } = useI18n();
+const { t } = useAiI18n();
 
 const displayState = computed(() => deriveToolDisplayState(props.part));
 
