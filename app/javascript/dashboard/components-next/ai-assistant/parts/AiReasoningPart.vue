@@ -42,10 +42,12 @@ const label = computed(() =>
   >
     <template #default="{ accentClasses }">
       <div class="text-sm">
-        <span
-          v-dompurify-html="formattedContent"
-          class="prose prose-sm prose-bubble text-n-slate-12 max-w-none"
-        />
+        <slot name="content" :text="text" :formatted="formattedContent">
+          <span
+            v-dompurify-html="formattedContent"
+            class="prose prose-sm prose-bubble text-n-slate-12 max-w-none"
+          />
+        </slot>
         <span
           v-if="isStreaming"
           class="inline-block w-1.5 h-3 ml-0.5 animate-pulse rounded-sm align-middle"

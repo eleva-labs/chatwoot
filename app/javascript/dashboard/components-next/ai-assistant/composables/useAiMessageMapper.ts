@@ -10,7 +10,7 @@
  * Ported from mobile's store/ai-chat/aiChatMapper.ts
  */
 import type { UIMessage } from 'ai';
-import { useCamelCase } from 'dashboard/composables/useTransformKeys';
+import camelcaseKeys from 'camelcase-keys';
 import { PART_TYPES, MESSAGE_ROLE } from '../constants';
 
 // === Part mapping (critical - preserves tool calls + reasoning) ===
@@ -135,7 +135,7 @@ export function toUIMessage(
   backendMsg: Record<string, unknown>,
 ): UIMessage | null {
   // Normalize keys to camelCase
-  const msg = useCamelCase(backendMsg, { deep: true }) as Record<
+  const msg = camelcaseKeys(backendMsg, { deep: true }) as Record<
     string,
     unknown
   >;

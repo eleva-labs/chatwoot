@@ -44,7 +44,7 @@ export { useAiAssistant } from './composables/useAiAssistant';
 
 // Utilities
 export * from './constants';
-export { useAiChatContext, provideAiChatContext, provideAiChat } from './provider';
+export { provideAiChat } from './provider';
 
 // Registry
 export { usePartRegistry, providePartRegistry } from './registry/partRegistry';

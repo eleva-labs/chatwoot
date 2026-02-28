@@ -83,14 +83,16 @@ const headerTitle = computed(() => props.title || t('AI_CHAT.HEADER.TITLE'));
                 class="flex items-center gap-2 min-w-0 hover:bg-n-alpha-1 rounded-lg px-1.5 py-1 -ml-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 @click="toggleBotSelector()"
               >
-                <Avatar
-                  :src="currentBot?.avatar_url"
-                  :name="currentBot?.name || 'AI'"
-                  :size="28"
-                  rounded-full
-                  icon-name="i-lucide-bot"
-                  class="flex-shrink-0"
-                />
+                <slot name="bot-avatar" :bot="currentBot" :size="28">
+                  <Avatar
+                    :src="currentBot?.avatar_url"
+                    :name="currentBot?.name || 'AI'"
+                    :size="28"
+                    rounded-full
+                    icon-name="i-lucide-bot"
+                    class="flex-shrink-0"
+                  />
+                </slot>
                 <span
                   class="text-base font-semibold text-n-slate-12 truncate max-w-32"
                 >
@@ -108,13 +110,20 @@ const headerTitle = computed(() => props.title || t('AI_CHAT.HEADER.TITLE'));
                   :class="{ 'rotate-180': isBotSelectorOpen }"
                 />
               </button>
-              <DropdownMenu
-                v-if="isBotSelectorOpen"
-                :menu-items="botMenuItems"
-                :thumbnail-size="24"
-                class="top-full mt-1 left-0"
-                @action="handleBotSelect"
-              />
+              <slot
+                name="bot-selector"
+                :is-open="isBotSelectorOpen"
+                :items="botMenuItems"
+                :on-select="handleBotSelect"
+              >
+                <DropdownMenu
+                  v-if="isBotSelectorOpen"
+                  :menu-items="botMenuItems"
+                  :thumbnail-size="24"
+                  class="top-full mt-1 left-0"
+                  @action="handleBotSelect"
+                />
+              </slot>
             </div>
           </OnClickOutside>
         </template>

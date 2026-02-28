@@ -323,12 +323,4 @@ export interface Bot {
   description?: string;
 }
 
-/**
- * AI Chat context provided to child components
- */
-export interface AiChatContext {
-  status: import('vue').ComputedRef<string>;
-  isStreaming: import('vue').ComputedRef<boolean>;
-  sendMessage: (params: { text: string }) => Promise<void>;
-  clearError: () => void;
-}
+

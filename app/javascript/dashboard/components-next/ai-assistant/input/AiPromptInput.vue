@@ -66,17 +66,24 @@ const handleKeydown = e => {
       <AiVoiceButton :status="voiceStatus" disabled />
 
       <!-- Submit button -->
-      <Button
-        type="submit"
+      <slot
+        name="send-button"
         :disabled="!canSubmit"
         :is-loading="isLoading"
-        :aria-label="t('AI_CHAT.INPUT.SEND')"
-        icon="i-lucide-send"
-        sm
-        solid
-        blue
-        class="flex-shrink-0"
-      />
+        :label="t('AI_CHAT.INPUT.SEND')"
+      >
+        <Button
+          type="submit"
+          :disabled="!canSubmit"
+          :is-loading="isLoading"
+          :aria-label="t('AI_CHAT.INPUT.SEND')"
+          icon="i-lucide-send"
+          sm
+          solid
+          blue
+          class="flex-shrink-0"
+        />
+      </slot>
     </form>
   </div>
 </template>

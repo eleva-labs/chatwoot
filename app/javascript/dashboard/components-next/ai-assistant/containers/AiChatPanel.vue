@@ -8,7 +8,6 @@
 import { computed } from 'vue';
 import { useAiI18n } from '../i18n/aiChatI18n';
 import { useToggle } from '@vueuse/core';
-import { provideAiChatContext } from '../provider';
 import { CHAT_STATUS, MESSAGE_ROLE } from '../constants';
 import {
   getReasoningParts,
@@ -185,18 +184,6 @@ const handleCopy = async message => {
     }
   }
 };
-
-// Provide context to child components
-provideAiChatContext({
-  status: chatStatus,
-  isStreaming,
-  sendMessage: props.chat.sendMessage,
-  clearError: () => {
-    if (props.chat.clearError) {
-      props.chat.clearError();
-    }
-  },
-});
 
 const handleSubmit = async text => {
   await props.chat.sendMessage({ text });

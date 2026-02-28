@@ -13,12 +13,14 @@ import type {
   TransportConfig,
   ChatBehaviorConfig,
   SessionsAdapter,
+  PersistenceAdapter,
   ChatMessage,
 } from './types/chatConfig';
 import type { ChatSession } from './types';
 import { getAuthHeaders } from './utils/auth';
 import { isTextPart, type MessagePart, type TextPart } from './types';
 import { parseSessionsResponse, parseMessagesResponse } from './schemas';
+import { LocalStorage } from 'shared/helpers/localStorage';
 import type { UIMessage } from 'ai';
 
 // ============================================================================
@@ -97,6 +99,28 @@ export function createChatwootTransportConfig(
 export const chatwootBehaviorConfig: ChatBehaviorConfig = {
   streamThrottle: 150,
 };
+
+// ============================================================================
+// Persistence Adapter Factory
+// ============================================================================
+
+/**
+ * Create a Chatwoot-specific persistence adapter using localStorage.
+ * Wraps Chatwoot's LocalStorage helper behind the PersistenceAdapter interface.
+ */
+export function createChatwootPersistenceAdapter(): PersistenceAdapter {
+  return {
+    async get(key: string): Promise<string | null> {
+      return LocalStorage.get(key) ?? null;
+    },
+    async set(key: string, value: string): Promise<void> {
+      LocalStorage.set(key, value);
+    },
+    async remove(key: string): Promise<void> {
+      LocalStorage.remove(key);
+    },
+  };
+}
 
 // ============================================================================
 // Sessions Adapter Factory

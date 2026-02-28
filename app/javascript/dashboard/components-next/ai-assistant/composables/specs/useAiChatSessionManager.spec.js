@@ -1,14 +1,6 @@
 import { useAiChatSessionManager } from '../useAiChatSessionManager';
 
 // Mock dependencies
-vi.mock('shared/helpers/localStorage', () => ({
-  LocalStorage: {
-    getFromJsonStore: vi.fn(),
-    updateJsonStore: vi.fn(),
-    deleteFromJsonStore: vi.fn(),
-  },
-}));
-
 vi.mock('../useAiMessageMapper', () => ({
   toUIMessages: vi.fn(messages =>
     messages.map(m => ({
@@ -19,8 +11,14 @@ vi.mock('../useAiMessageMapper', () => ({
   ),
 }));
 
-import { LocalStorage } from 'shared/helpers/localStorage';
 import { toUIMessages } from '../useAiMessageMapper';
+
+// Helper to create a mock persistence adapter
+const createMockPersistence = () => ({
+  get: vi.fn().mockResolvedValue(null),
+  set: vi.fn().mockResolvedValue(undefined),
+  remove: vi.fn().mockResolvedValue(undefined),
+});
 
 describe('useAiChatSessionManager', () => {
   const botId = 456;
@@ -88,42 +86,58 @@ describe('useAiChatSessionManager', () => {
   });
 
   // =============================================================================
-  // localStorage methods
+  // persistence methods (in-memory + adapter)
   // =============================================================================
-  describe('localStorage methods', () => {
-    it('getStoredSessionId retrieves from localStorage', () => {
-      LocalStorage.getFromJsonStore.mockReturnValue('stored-session-123');
-
+  describe('persistence methods', () => {
+    it('getStoredSessionId returns null when nothing stored', () => {
       const { getStoredSessionId } =
         useAiChatSessionManager(createMockAdapter());
       const result = getStoredSessionId(botId);
 
-      expect(LocalStorage.getFromJsonStore).toHaveBeenCalledWith(
-        'ai_chat_active_sessions',
-        String(botId)
-      );
-      expect(result).toBe('stored-session-123');
+      expect(result).toBeNull();
     });
 
-    it('storeSessionId saves to localStorage', () => {
-      const { storeSessionId } = useAiChatSessionManager(createMockAdapter());
+    it('storeSessionId saves to in-memory store', () => {
+      const { storeSessionId, getStoredSessionId } =
+        useAiChatSessionManager(createMockAdapter());
       storeSessionId(botId, sessionId);
 
-      expect(LocalStorage.updateJsonStore).toHaveBeenCalledWith(
-        'ai_chat_active_sessions',
-        String(botId),
+      expect(getStoredSessionId(botId)).toBe(sessionId);
+    });
+
+    it('storeSessionId delegates to persistence adapter when provided', () => {
+      const persistence = createMockPersistence();
+      const { storeSessionId } = useAiChatSessionManager(
+        createMockAdapter(),
+        persistence
+      );
+      storeSessionId(botId, sessionId);
+
+      expect(persistence.set).toHaveBeenCalledWith(
+        `ai_chat_active_sessions:${String(botId)}`,
         sessionId
       );
     });
 
-    it('clearStoredSessionId removes from localStorage', () => {
-      const { clearStoredSessionId } =
+    it('clearStoredSessionId removes from in-memory store', () => {
+      const { storeSessionId, clearStoredSessionId, getStoredSessionId } =
         useAiChatSessionManager(createMockAdapter());
+      storeSessionId(botId, sessionId);
       clearStoredSessionId(botId);
 
-      expect(LocalStorage.deleteFromJsonStore).toHaveBeenCalledWith(
-        'ai_chat_active_sessions',
-        String(botId)
+      expect(getStoredSessionId(botId)).toBeNull();
+    });
+
+    it('clearStoredSessionId delegates to persistence adapter when provided', () => {
+      const persistence = createMockPersistence();
+      const { clearStoredSessionId } = useAiChatSessionManager(
+        createMockAdapter(),
+        persistence
+      );
+      clearStoredSessionId(botId);
+
+      expect(persistence.remove).toHaveBeenCalledWith(
+        `ai_chat_active_sessions:${String(botId)}`
       );
     });
   });
@@ -271,18 +285,15 @@ describe('useAiChatSessionManager', () => {
   // loadSession
   // =============================================================================
   describe('loadSession', () => {
-    it('sets activeSessionId and stores in localStorage', async () => {
+    it('sets activeSessionId and stores in memory', async () => {
       const adapter = createMockAdapter();
 
-      const { loadSession, activeSessionId } = useAiChatSessionManager(adapter);
+      const { loadSession, activeSessionId, getStoredSessionId } =
+        useAiChatSessionManager(adapter);
       await loadSession(sessionId, botId, mockChat);
 
       expect(activeSessionId.value).toBe(sessionId);
-      expect(LocalStorage.updateJsonStore).toHaveBeenCalledWith(
-        'ai_chat_active_sessions',
-        String(botId),
-        sessionId
-      );
+      expect(getStoredSessionId(botId)).toBe(sessionId);
     });
 
     it('fetches messages via adapter and sets them on chat instance', async () => {
@@ -308,23 +319,40 @@ describe('useAiChatSessionManager', () => {
   // =============================================================================
   describe('restoreSession', () => {
     it('returns false when no stored session', async () => {
-      LocalStorage.getFromJsonStore.mockReturnValue(null);
-
       const { restoreSession } = useAiChatSessionManager(createMockAdapter());
       const result = await restoreSession(botId, mockChat);
 
       expect(result).toBe(false);
     });
 
-    it('loads stored session and returns true', async () => {
-      LocalStorage.getFromJsonStore.mockReturnValue(sessionId);
-
+    it('loads stored session from memory and returns true', async () => {
       const adapter = createMockAdapter();
 
-      const { restoreSession, activeSessionId } =
+      const { restoreSession, activeSessionId, storeSessionId } =
         useAiChatSessionManager(adapter);
+      // Pre-store a session ID
+      storeSessionId(botId, sessionId);
+
       const result = await restoreSession(botId, mockChat);
 
+      expect(result).toBe(true);
+      expect(activeSessionId.value).toBe(sessionId);
+    });
+
+    it('hydrates from persistence adapter when memory is empty', async () => {
+      const adapter = createMockAdapter();
+      const persistence = createMockPersistence();
+      persistence.get.mockResolvedValue(sessionId);
+
+      const { restoreSession, activeSessionId } = useAiChatSessionManager(
+        adapter,
+        persistence
+      );
+      const result = await restoreSession(botId, mockChat);
+
+      expect(persistence.get).toHaveBeenCalledWith(
+        `ai_chat_active_sessions:${String(botId)}`
+      );
       expect(result).toBe(true);
       expect(activeSessionId.value).toBe(sessionId);
     });
@@ -344,14 +372,13 @@ describe('useAiChatSessionManager', () => {
       expect(activeSessionId.value).toBeNull();
     });
 
-    it('clears stored session from localStorage', () => {
-      const { startNewSession } = useAiChatSessionManager(createMockAdapter());
+    it('clears stored session from memory', () => {
+      const { startNewSession, storeSessionId, getStoredSessionId } =
+        useAiChatSessionManager(createMockAdapter());
+      storeSessionId(botId, sessionId);
       startNewSession(botId, mockChat);
 
-      expect(LocalStorage.deleteFromJsonStore).toHaveBeenCalledWith(
-        'ai_chat_active_sessions',
-        String(botId)
-      );
+      expect(getStoredSessionId(botId)).toBeNull();
     });
 
     it('clears chat messages', () => {
@@ -386,7 +413,7 @@ describe('useAiChatSessionManager', () => {
     it('clears activeSessionId if deleted session was active', async () => {
       const adapter = createMockAdapter();
 
-      const { deleteSession, activeSessionId, sessions } =
+      const { deleteSession, activeSessionId, sessions, getStoredSessionId } =
         useAiChatSessionManager(adapter);
       activeSessionId.value = sessionId;
       sessions.value = [
@@ -396,7 +423,7 @@ describe('useAiChatSessionManager', () => {
       await deleteSession(sessionId, botId);
 
       expect(activeSessionId.value).toBeNull();
-      expect(LocalStorage.deleteFromJsonStore).toHaveBeenCalled();
+      expect(getStoredSessionId(botId)).toBeNull();
     });
 
     it('does not clear activeSessionId if different session deleted', async () => {
@@ -452,35 +479,52 @@ describe('useAiChatSessionManager', () => {
       expect(activeSessionId.value).toBe(sessionId);
     });
 
-    it('stores session in localStorage when both ids provided', () => {
-      const { setActiveSessionId } =
+    it('stores session in memory when both ids provided', () => {
+      const { setActiveSessionId, getStoredSessionId } =
         useAiChatSessionManager(createMockAdapter());
 
       setActiveSessionId(sessionId, botId);
 
-      expect(LocalStorage.updateJsonStore).toHaveBeenCalledWith(
-        'ai_chat_active_sessions',
-        String(botId),
+      expect(getStoredSessionId(botId)).toBe(sessionId);
+    });
+
+    it('stores session via persistence adapter when both ids provided', () => {
+      const persistence = createMockPersistence();
+      const { setActiveSessionId } = useAiChatSessionManager(
+        createMockAdapter(),
+        persistence
+      );
+
+      setActiveSessionId(sessionId, botId);
+
+      expect(persistence.set).toHaveBeenCalledWith(
+        `ai_chat_active_sessions:${String(botId)}`,
         sessionId
       );
     });
 
     it('does not store when sessionId is null', () => {
-      const { setActiveSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+      const persistence = createMockPersistence();
+      const { setActiveSessionId } = useAiChatSessionManager(
+        createMockAdapter(),
+        persistence
+      );
 
       setActiveSessionId(null, botId);
 
-      expect(LocalStorage.updateJsonStore).not.toHaveBeenCalled();
+      expect(persistence.set).not.toHaveBeenCalled();
     });
 
     it('does not store when botId is null', () => {
-      const { setActiveSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+      const persistence = createMockPersistence();
+      const { setActiveSessionId } = useAiChatSessionManager(
+        createMockAdapter(),
+        persistence
+      );
 
       setActiveSessionId(sessionId, null);
 
-      expect(LocalStorage.updateJsonStore).not.toHaveBeenCalled();
+      expect(persistence.set).not.toHaveBeenCalled();
     });
   });
 
@@ -506,18 +550,17 @@ describe('useAiChatSessionManager', () => {
       expect(result).toBe(false);
     });
 
-    it('localStorage methods still work', () => {
-      LocalStorage.getFromJsonStore.mockReturnValue('session-abc');
+    it('in-memory persistence methods still work', () => {
       const { getStoredSessionId, storeSessionId, clearStoredSessionId } =
         useAiChatSessionManager();
 
-      expect(getStoredSessionId(botId)).toBe('session-abc');
+      expect(getStoredSessionId(botId)).toBeNull();
 
       storeSessionId(botId, 'new-session');
-      expect(LocalStorage.updateJsonStore).toHaveBeenCalled();
+      expect(getStoredSessionId(botId)).toBe('new-session');
 
       clearStoredSessionId(botId);
-      expect(LocalStorage.deleteFromJsonStore).toHaveBeenCalled();
+      expect(getStoredSessionId(botId)).toBeNull();
     });
   });
 });

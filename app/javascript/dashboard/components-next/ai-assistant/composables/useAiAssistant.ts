@@ -17,6 +17,7 @@ import { useAIChatBot } from './useAIChatBot';
 import {
   createChatwootTransportConfig,
   createChatwootSessionsAdapter,
+  createChatwootPersistenceAdapter,
   chatwootBehaviorConfig,
 } from '../chatwootChatConfig';
 
@@ -68,8 +69,14 @@ export function useAiAssistant() {
     () => accountId.value,
   );
 
+  // Create Chatwoot-specific persistence adapter (wraps LocalStorage)
+  const persistenceAdapter = createChatwootPersistenceAdapter();
+
   // Session management — uses adapter, no hardcoded fetch
-  const sessionManager = useAiChatSessionManager(sessionsAdapter);
+  const sessionManager = useAiChatSessionManager(
+    sessionsAdapter,
+    persistenceAdapter,
+  );
 
   // Create Chatwoot-specific transport config (getter keeps accountId reactive)
   const transportConfig = createChatwootTransportConfig(
@@ -88,7 +95,7 @@ export function useAiAssistant() {
     },
   });
 
-  // Watch for bot changes to restore session ID from localStorage
+  // Watch for bot changes to restore session ID from persistent storage
   // Sessions list is fetched lazily when user opens history panel
   watch(
     selectedBotId,
@@ -97,7 +104,7 @@ export function useAiAssistant() {
       if (newBotId && oldBotId && newBotId !== oldBotId) {
         // Clear current sessions (will be re-fetched when history panel opens)
         sessionManager.sessions.value = [];
-        // Restore session ID from localStorage for new bot
+        // Restore session ID from persistent storage for new bot
         const storedSessionId =
           sessionManager.getStoredSessionId(newBotId);
         if (storedSessionId) {
@@ -128,7 +135,7 @@ export function useAiAssistant() {
   // Sessions are fetched lazily when user opens history panel
   onMounted(async () => {
     await fetchBots();
-    // Restore previous session from localStorage (includes loading messages)
+    // Restore previous session from persistent storage (includes loading messages)
     if (selectedBotId.value) {
       await sessionManager.restoreSession(selectedBotId.value, chat);
     }

@@ -9,14 +9,17 @@
  * lives in the adapter — see chatwootChatConfig.ts.
  */
 import { ref, type Ref } from 'vue';
-import { LocalStorage } from 'shared/helpers/localStorage';
 import { toUIMessages } from './useAiMessageMapper';
 import { CHAT_STATUS } from '../constants';
 import type { ChatSession } from '../types';
-import type { SessionsAdapter, ChatMessage } from '../types/chatConfig';
+import type {
+  SessionsAdapter,
+  ChatMessage,
+  PersistenceAdapter,
+} from '../types/chatConfig';
 import type { UIMessage } from 'ai';
 
-// localStorage key for active sessions per bot
+// Storage key prefix for active sessions per bot
 const STORAGE_KEY = 'ai_chat_active_sessions';
 
 interface ChatInstance {
@@ -66,9 +69,12 @@ interface SessionManagerReturn {
  *
  * @param adapter - Optional SessionsAdapter. When undefined, session operations
  *   return empty results (single-session mode).
+ * @param persistence - Optional PersistenceAdapter for session ID storage.
+ *   Falls back to a simple in-memory Map when not provided.
  */
 export function useAiChatSessionManager(
   adapter?: SessionsAdapter,
+  persistence?: PersistenceAdapter,
 ): SessionManagerReturn {
   // State
   const sessions = ref<ChatSession[]>([]);
@@ -78,22 +84,35 @@ export function useAiChatSessionManager(
   const error = ref<string | null>(null);
 
   // ============================================================================
-  // LOCALSTORAGE PERSISTENCE
+  // SESSION ID PERSISTENCE (via PersistenceAdapter)
   // ============================================================================
 
+  // In-memory fallback when no persistence adapter is provided
+  const memoryStore = new Map<string, string>();
+
   const getStoredSessionId = (botId: number | string): string | null => {
-    return LocalStorage.getFromJsonStore(STORAGE_KEY, String(botId));
+    const key = `${STORAGE_KEY}:${String(botId)}`;
+    // Read from in-memory cache (hydrated from PersistenceAdapter on init)
+    return memoryStore.get(key) ?? null;
   };
 
   const storeSessionId = (
     botId: number | string,
     sessionId: string,
   ): void => {
-    LocalStorage.updateJsonStore(STORAGE_KEY, String(botId), sessionId);
+    const key = `${STORAGE_KEY}:${String(botId)}`;
+    memoryStore.set(key, sessionId);
+    if (persistence) {
+      persistence.set(key, sessionId);
+    }
   };
 
   const clearStoredSessionId = (botId: number | string): void => {
-    LocalStorage.deleteFromJsonStore(STORAGE_KEY, String(botId));
+    const key = `${STORAGE_KEY}:${String(botId)}`;
+    memoryStore.delete(key);
+    if (persistence) {
+      persistence.remove(key);
+    }
   };
 
   // ============================================================================
@@ -175,6 +194,13 @@ export function useAiChatSessionManager(
     botId: number | string,
     chat: ChatInstance,
   ): Promise<boolean> => {
+    // Hydrate from persistence adapter if available
+    const key = `${STORAGE_KEY}:${String(botId)}`;
+    if (persistence && !memoryStore.has(key)) {
+      const stored = await persistence.get(key);
+      if (stored) memoryStore.set(key, stored);
+    }
+
     const storedSessionId = getStoredSessionId(botId);
     if (storedSessionId) {
       await loadSession(storedSessionId, botId, chat);

@@ -96,6 +96,11 @@ vi.mock('../../chatwootChatConfig', () => ({
     fetchMessages: vi.fn().mockResolvedValue([]),
     deleteSession: vi.fn().mockResolvedValue(undefined),
   })),
+  createChatwootPersistenceAdapter: vi.fn(() => ({
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue(undefined),
+    remove: vi.fn().mockResolvedValue(undefined),
+  })),
   chatwootBehaviorConfig: { streamThrottle: 150 },
 }));
 
