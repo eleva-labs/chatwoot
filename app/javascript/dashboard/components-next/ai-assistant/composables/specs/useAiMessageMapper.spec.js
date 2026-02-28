@@ -2,7 +2,6 @@ import {
   toUIMessage,
   toUIMessages,
   toBackendMessage,
-  useAiMessageMapper,
 } from '../useAiMessageMapper';
 import { PART_TYPES, MESSAGE_ROLE } from '../../constants';
 
@@ -289,22 +288,6 @@ describe('useAiMessageMapper', () => {
       const resultDate = new Date(result.sent_date);
       expect(resultDate.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
       expect(resultDate.getTime()).toBeLessThanOrEqual(afterTime.getTime());
-    });
-  });
-
-  // =============================================================================
-  // useAiMessageMapper (composable hook)
-  // =============================================================================
-  describe('useAiMessageMapper', () => {
-    it('returns all transformation functions', () => {
-      const mapper = useAiMessageMapper();
-
-      expect(mapper).toHaveProperty('toUIMessage');
-      expect(mapper).toHaveProperty('toUIMessages');
-      expect(mapper).toHaveProperty('toBackendMessage');
-      expect(typeof mapper.toUIMessage).toBe('function');
-      expect(typeof mapper.toUIMessages).toBe('function');
-      expect(typeof mapper.toBackendMessage).toBe('function');
     });
   });
 });

@@ -1,17 +1,18 @@
 import { Chat } from '@ai-sdk/vue';
 import { DefaultChatTransport } from 'ai';
-import { ref, onUnmounted, getCurrentInstance } from 'vue';
-import { CHAT_STATUS } from '../constants';
+import type { UIMessage } from 'ai';
+import { ref, onUnmounted, getCurrentInstance, type Ref } from 'vue';
+import { CHAT_STATUS, type ChatStatus } from '../constants';
 import { getAuthHeaders } from '../utils/auth';
 
 /**
  * Extract text content from UIMessage parts.
  * UIMessages use parts[] array with type='text' items.
- *
- * @param {Object} message - UIMessage object
- * @returns {string} Combined text content
  */
-function extractTextContent(message) {
+function extractTextContent(message: {
+  parts?: Array<{ type: string; text?: string }>;
+  content?: string;
+}): string {
   if (message.parts && Array.isArray(message.parts)) {
     return message.parts
       .filter(part => part.type === 'text')
@@ -21,48 +22,64 @@ function extractTextContent(message) {
   return message.content || '';
 }
 
+interface VercelChatOptions {
+  api: string;
+  body?:
+    | Record<string, unknown>
+    | (() => Record<string, unknown>)
+    | null;
+  onSessionId?: (sessionId: string) => void;
+  onFinish?: (result: unknown) => void;
+  onError?: (error: Error) => void;
+  sendAutomaticallyWhen?: (opts: {
+    messages: UIMessage[];
+  }) => boolean | PromiseLike<boolean>;
+}
+
+interface VercelChatReturn {
+  messages: Ref<UIMessage[]>;
+  status: Ref<ChatStatus>;
+  error: Ref<Error | null>;
+  sendMessage: (...args: unknown[]) => Promise<void>;
+  setMessages: (msgs: UIMessage[]) => void;
+  clearError: () => void;
+  regenerate: ((...args: unknown[]) => Promise<void>) | undefined;
+  addToolOutput: (opts: {
+    tool: string;
+    toolCallId: string;
+    output?: unknown;
+    state?: 'output-error';
+    errorText?: string;
+  }) => Promise<void>;
+  dispose: () => void;
+}
+
 /**
  * Create a Vercel AI SDK Chat instance configured for Chatwoot.
  *
  * Uses the SDK's native DefaultChatTransport with custom configuration
  * for authentication, request body format, and session ID extraction.
- *
- * @param {Object} options - Configuration options
- * @param {string} options.api - API endpoint URL
- * @param {Function} [options.getAuthHeaders] - DEPRECATED: Auth headers are now handled internally
- * @param {Object|Function} options.body - Additional body params or function returning them
- * @param {Function} [options.onSessionId] - Callback with session ID from response headers
- * @param {Function} [options.onFinish] - Callback when stream finishes
- * @param {Function} [options.onError] - Callback on error
- * @returns {Chat} Vercel AI SDK Chat instance
- *
- * @example
- * const chat = useVercelChat({
- *   api: `/api/v1/accounts/${accountId}/ai_chat/stream`,
- *   body: () => ({
- *     agent_bot_id: selectedBotId.value,
- *     chat_session_id: sessionId.value,
- *   }),
- *   onSessionId: (id) => { sessionId.value = id; },
- *   onFinish: (result) => console.log('Done:', result),
- * });
- *
- * // Send a message
- * await chat.sendMessage({ text: 'Hello!' });
- *
- * // Access reactive state
- * chat.messages  // UIMessage[]
- * chat.status    // 'ready' | 'submitted' | 'streaming' | 'error'
  */
-export function useVercelChat(options) {
-  const { api, body, onSessionId, onFinish, onError } = options;
+export function useVercelChat(options: VercelChatOptions): VercelChatReturn {
+  const { api, body, onSessionId, onFinish, onError, sendAutomaticallyWhen } =
+    options;
 
   const transport = new DefaultChatTransport({
     api,
     headers: getAuthHeaders,
 
     // Transform UIMessage[] to Chatwoot backend format
-    prepareSendMessagesRequest: async ({ messages, headers }) => {
+    prepareSendMessagesRequest: async ({
+      messages,
+      headers,
+    }: {
+      messages: Array<{
+        role: string;
+        parts?: Array<{ type: string; text?: string }>;
+        content?: string;
+      }>;
+      headers: Record<string, string>;
+    }) => {
       const lastMessage = messages[messages.length - 1];
       const dynamicBody = typeof body === 'function' ? body() : body || {};
 
@@ -81,7 +98,7 @@ export function useVercelChat(options) {
     },
 
     // Custom fetch to extract session ID from response header
-    fetch: async (url, fetchOptions) => {
+    fetch: async (url: string | URL | Request, fetchOptions?: RequestInit) => {
       const response = await window.fetch(url, fetchOptions);
 
       // Extract session ID from response header
@@ -94,11 +111,17 @@ export function useVercelChat(options) {
     },
   });
 
-  const chat = new Chat({
+  const chatInit: Record<string, unknown> = {
     transport,
     onFinish,
     onError,
-  });
+  };
+
+  if (sendAutomaticallyWhen) {
+    chatInit.sendAutomaticallyWhen = sendAutomaticallyWhen;
+  }
+
+  const chat = new Chat(chatInit);
 
   // ============================================================================
   // REACTIVITY WORKAROUND
@@ -115,20 +138,20 @@ export function useVercelChat(options) {
   // See: https://github.com/vercel/ai/discussions/7510
   // ============================================================================
 
-  const messages = ref([]);
-  const status = ref(CHAT_STATUS.READY);
-  const error = ref(null);
-  let pollInterval = null;
+  const messages = ref<UIMessage[]>([]);
+  const status = ref<ChatStatus>(CHAT_STATUS.READY);
+  const error = ref<Error | null>(null);
+  let pollInterval: ReturnType<typeof setTimeout> | null = null;
   let isPolling = false;
 
-  const syncState = () => {
+  const syncState = (): void => {
     // Deep clone to ensure Vue detects changes in nested parts
     messages.value = structuredClone(chat.messages);
-    status.value = chat.status;
-    error.value = chat.error;
+    status.value = chat.status as ChatStatus;
+    error.value = chat.error ?? null;
   };
 
-  const startPolling = () => {
+  const startPolling = (): void => {
     if (isPolling) return;
     isPolling = true;
 
@@ -136,7 +159,7 @@ export function useVercelChat(options) {
     let idleChecks = 0;
     const MAX_IDLE_CHECKS = 5; // Allow ~250ms for status to change
 
-    const poll = () => {
+    const poll = (): void => {
       if (!isPolling) return;
 
       syncState();
@@ -164,7 +187,7 @@ export function useVercelChat(options) {
     poll();
   };
 
-  const stopPolling = () => {
+  const stopPolling = (): void => {
     isPolling = false;
     if (pollInterval) {
       clearTimeout(pollInterval);
@@ -172,7 +195,7 @@ export function useVercelChat(options) {
     }
   };
 
-  const dispose = () => {
+  const dispose = (): void => {
     stopPolling();
   };
 
@@ -182,18 +205,30 @@ export function useVercelChat(options) {
   }
 
   // Wrap sendMessage to start polling when a message is sent
-  const sendMessage = async (...args) => {
+  const sendMessage = async (...args: unknown[]): Promise<void> => {
     startPolling();
-    return chat.sendMessage(...args);
+    return (chat.sendMessage as (...a: unknown[]) => Promise<void>)(...args);
   };
 
   // Wrap regenerate to start polling
   const regenerate = chat.regenerate
-    ? async (...args) => {
+    ? async (...args: unknown[]): Promise<void> => {
         startPolling();
-        return chat.regenerate(...args);
+        return (chat.regenerate as (...a: unknown[]) => Promise<void>)(...args);
       }
     : undefined;
+
+  // Expose addToolOutput from the Chat instance
+  const addToolOutput = async (opts: {
+    tool: string;
+    toolCallId: string;
+    output?: unknown;
+    state?: 'output-error';
+    errorText?: string;
+  }): Promise<void> => {
+    startPolling();
+    return (chat.addToolOutput as (o: unknown) => Promise<void>)(opts);
+  };
 
   return {
     // Reactive state (refs for Vue reactivity when passed as props)
@@ -203,15 +238,16 @@ export function useVercelChat(options) {
 
     // Methods
     sendMessage,
-    setMessages: msgs => {
+    setMessages: (msgs: UIMessage[]): void => {
       chat.messages = msgs; // Use setter, not method
       syncState();
     },
-    clearError: () => {
+    clearError: (): void => {
       if (chat.clearError) chat.clearError();
       syncState();
     },
     regenerate,
+    addToolOutput,
 
     // Manual cleanup (for non-component usage)
     dispose,

@@ -1,82 +1,90 @@
 /**
- * useAiChatSessionManager.js
+ * useAiChatSessionManager.ts
  *
  * Composable for AI chat session persistence and history management.
  * Handles fetching sessions, loading message history, and localStorage persistence.
- *
- * Features:
- * - Fetch session list from backend
- * - Load session messages and transform to UIMessage format
- * - Persist active session ID per bot in localStorage
- * - Restore session on mount
- * - Start new sessions
- * - Delete sessions
  */
-import { ref } from 'vue';
+import { ref, type Ref } from 'vue';
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import { toUIMessages } from './useAiMessageMapper';
 import { getAuthHeaders } from '../utils/auth';
 import { parseSessionsResponse, parseMessagesResponse } from '../schemas';
 import { CHAT_STATUS } from '../constants';
+import type { ChatSession } from '../types';
+import type { UIMessage } from 'ai';
 
 // localStorage key for active sessions per bot
 const STORAGE_KEY = 'ai_chat_active_sessions';
 
+interface ChatInstance {
+  status: Ref<string>;
+  setMessages: (messages: UIMessage[]) => void;
+}
+
+interface SessionManagerReturn {
+  sessions: Ref<ChatSession[]>;
+  activeSessionId: Ref<string | null>;
+  isLoadingSessions: Ref<boolean>;
+  isLoadingMessages: Ref<boolean>;
+  error: Ref<string | null>;
+  fetchSessions: (botId: number | string, limit?: number) => Promise<ChatSession[]>;
+  fetchSessionMessages: (
+    sessionId: string,
+    limit?: number,
+  ) => Promise<Record<string, unknown>[]>;
+  loadSession: (
+    sessionId: string,
+    botId: number | string,
+    chat: ChatInstance,
+  ) => Promise<void>;
+  restoreSession: (
+    botId: number | string,
+    chat: ChatInstance,
+  ) => Promise<boolean>;
+  startNewSession: (botId: number | string, chat: ChatInstance) => void;
+  deleteSession: (
+    sessionId: string,
+    botId: number | string,
+  ) => Promise<boolean>;
+  setActiveSessionId: (
+    sessionId: string | null,
+    botId: number | string | null,
+  ) => void;
+  getStoredSessionId: (botId: number | string) => string | null;
+  storeSessionId: (botId: number | string, sessionId: string) => void;
+  clearStoredSessionId: (botId: number | string) => void;
+}
+
 /**
  * Composable for managing AI chat sessions.
- *
- * @param {number|string} accountId - Current account ID
- * @returns {Object} Session management state and methods
- *
- * @example
- * const sessionManager = useAiChatSessionManager(accountId);
- *
- * // Fetch sessions for a bot
- * await sessionManager.fetchSessions(botId);
- *
- * // Load a specific session
- * await sessionManager.loadSession(sessionId, botId, chat);
- *
- * // Restore last active session
- * await sessionManager.restoreSession(botId, chat);
  */
-export function useAiChatSessionManager(accountId) {
+export function useAiChatSessionManager(
+  accountId: number | string | null,
+): SessionManagerReturn {
   // State
-  const sessions = ref([]);
-  const activeSessionId = ref(null);
+  const sessions = ref<ChatSession[]>([]);
+  const activeSessionId = ref<string | null>(null);
   const isLoadingSessions = ref(false);
   const isLoadingMessages = ref(false);
-  const error = ref(null);
+  const error = ref<string | null>(null);
 
   // ============================================================================
   // LOCALSTORAGE PERSISTENCE
-  // Using LocalStorage helper from shared/helpers/localStorage.js
   // ============================================================================
 
-  /**
-   * Get stored session ID for a bot from localStorage.
-   * @param {number|string} botId - Bot ID
-   * @returns {string|null} Stored session ID or null
-   */
-  const getStoredSessionId = botId => {
+  const getStoredSessionId = (botId: number | string): string | null => {
     return LocalStorage.getFromJsonStore(STORAGE_KEY, String(botId));
   };
 
-  /**
-   * Store session ID for a bot in localStorage.
-   * @param {number|string} botId - Bot ID
-   * @param {string} sessionId - Session ID to store
-   */
-  const storeSessionId = (botId, sessionId) => {
+  const storeSessionId = (
+    botId: number | string,
+    sessionId: string,
+  ): void => {
     LocalStorage.updateJsonStore(STORAGE_KEY, String(botId), sessionId);
   };
 
-  /**
-   * Clear stored session ID for a bot from localStorage.
-   * @param {number|string} botId - Bot ID
-   */
-  const clearStoredSessionId = botId => {
+  const clearStoredSessionId = (botId: number | string): void => {
     LocalStorage.deleteFromJsonStore(STORAGE_KEY, String(botId));
   };
 
@@ -84,13 +92,10 @@ export function useAiChatSessionManager(accountId) {
   // API METHODS
   // ============================================================================
 
-  /**
-   * Fetch sessions list from backend.
-   * @param {number|string} botId - Agent bot ID
-   * @param {number} limit - Max sessions to fetch (default 25)
-   * @returns {Array} List of sessions
-   */
-  const fetchSessions = async (botId, limit = 25) => {
+  const fetchSessions = async (
+    botId: number | string,
+    limit: number = 25,
+  ): Promise<ChatSession[]> => {
     if (!accountId || !botId) return [];
 
     isLoadingSessions.value = true;
@@ -99,7 +104,7 @@ export function useAiChatSessionManager(accountId) {
     try {
       const response = await fetch(
         `/api/v1/accounts/${accountId}/ai_chat/sessions?agent_bot_id=${botId}&limit=${limit}`,
-        { method: 'GET', headers: getAuthHeaders() }
+        { method: 'GET', headers: getAuthHeaders() },
       );
 
       if (!response.ok) {
@@ -111,12 +116,12 @@ export function useAiChatSessionManager(accountId) {
       // Transform keys to camelCase for existing consumers
       const transformed = useCamelCase(
         { sessions: parsed.sessions },
-        { deep: true }
-      );
+        { deep: true },
+      ) as { sessions: ChatSession[] };
       sessions.value = transformed.sessions || [];
       return sessions.value;
     } catch (e) {
-      error.value = e.message;
+      error.value = (e as Error).message;
       sessions.value = [];
       return [];
     } finally {
@@ -124,13 +129,10 @@ export function useAiChatSessionManager(accountId) {
     }
   };
 
-  /**
-   * Fetch messages for a specific session.
-   * @param {string} sessionId - Chat session ID
-   * @param {number} limit - Max messages to fetch (default 100)
-   * @returns {Array} List of messages in backend format
-   */
-  const fetchSessionMessages = async (sessionId, limit = 100) => {
+  const fetchSessionMessages = async (
+    sessionId: string,
+    limit: number = 100,
+  ): Promise<Record<string, unknown>[]> => {
     if (!accountId || !sessionId) return [];
 
     isLoadingMessages.value = true;
@@ -139,7 +141,7 @@ export function useAiChatSessionManager(accountId) {
     try {
       const response = await fetch(
         `/api/v1/accounts/${accountId}/ai_chat/sessions/${sessionId}/messages?limit=${limit}`,
-        { method: 'GET', headers: getAuthHeaders() }
+        { method: 'GET', headers: getAuthHeaders() },
       );
 
       if (!response.ok) {
@@ -148,24 +150,20 @@ export function useAiChatSessionManager(accountId) {
 
       const data = await response.json();
       const parsed = parseMessagesResponse(data);
-      return parsed.messages;
+      return parsed.messages as unknown as Record<string, unknown>[];
     } catch (e) {
-      error.value = e.message;
+      error.value = (e as Error).message;
       return [];
     } finally {
       isLoadingMessages.value = false;
     }
   };
 
-  /**
-   * Load a session into the chat instance.
-   * Fetches messages and transforms to UIMessage format.
-   *
-   * @param {string} sessionId - Session to load
-   * @param {number|string} botId - Current bot ID (for persistence)
-   * @param {Object} chat - Vercel Chat instance with setMessages()
-   */
-  const loadSession = async (sessionId, botId, chat) => {
+  const loadSession = async (
+    sessionId: string,
+    botId: number | string,
+    chat: ChatInstance,
+  ): Promise<void> => {
     // Guard: don't load while streaming (prevents message corruption)
     const currentStatus = chat.status?.value;
     if (
@@ -185,15 +183,10 @@ export function useAiChatSessionManager(accountId) {
     chat.setMessages(uiMessages);
   };
 
-  /**
-   * Restore session from localStorage on mount.
-   * Call this after bot is selected.
-   *
-   * @param {number|string} botId - Current bot ID
-   * @param {Object} chat - Vercel Chat instance
-   * @returns {boolean} True if session was restored
-   */
-  const restoreSession = async (botId, chat) => {
+  const restoreSession = async (
+    botId: number | string,
+    chat: ChatInstance,
+  ): Promise<boolean> => {
     const storedSessionId = getStoredSessionId(botId);
     if (storedSessionId) {
       await loadSession(storedSessionId, botId, chat);
@@ -202,31 +195,23 @@ export function useAiChatSessionManager(accountId) {
     return false;
   };
 
-  /**
-   * Start a new chat session.
-   * Clears messages and active session ID.
-   *
-   * @param {number|string} botId - Current bot ID
-   * @param {Object} chat - Vercel Chat instance
-   */
-  const startNewSession = (botId, chat) => {
+  const startNewSession = (
+    botId: number | string,
+    chat: ChatInstance,
+  ): void => {
     activeSessionId.value = null;
     clearStoredSessionId(botId);
     chat.setMessages([]);
   };
 
-  /**
-   * Delete a session from backend and local state.
-   *
-   * @param {string} sessionId - Session to delete
-   * @param {number|string} botId - Current bot ID (to clear from storage if active)
-   * @returns {boolean} True if deletion was successful
-   */
-  const deleteSession = async (sessionId, botId) => {
+  const deleteSession = async (
+    sessionId: string,
+    botId: number | string,
+  ): Promise<boolean> => {
     try {
       const response = await fetch(
         `/api/v1/accounts/${accountId}/ai_chat/sessions/${sessionId}`,
-        { method: 'DELETE', headers: getAuthHeaders() }
+        { method: 'DELETE', headers: getAuthHeaders() },
       );
 
       if (!response.ok) {
@@ -235,7 +220,9 @@ export function useAiChatSessionManager(accountId) {
 
       // Remove from local state
       sessions.value = sessions.value.filter(
-        s => s.chatSessionId !== sessionId
+        s =>
+          (s as unknown as Record<string, unknown>).chatSessionId !==
+          sessionId,
       );
 
       // Clear from storage if it was the active session
@@ -246,19 +233,15 @@ export function useAiChatSessionManager(accountId) {
 
       return true;
     } catch (e) {
-      error.value = e.message;
+      error.value = (e as Error).message;
       return false;
     }
   };
 
-  /**
-   * Update active session ID when received from stream response.
-   * Call this from onSessionId callback in useVercelChat.
-   *
-   * @param {string} sessionId - New session ID from backend
-   * @param {number|string} botId - Current bot ID
-   */
-  const setActiveSessionId = (sessionId, botId) => {
+  const setActiveSessionId = (
+    sessionId: string | null,
+    botId: number | string | null,
+  ): void => {
     activeSessionId.value = sessionId;
     if (sessionId && botId) {
       storeSessionId(botId, sessionId);

@@ -6,7 +6,6 @@ const props = defineProps({
   from: {
     type: String,
     required: true,
-    validator: v => Object.values(MESSAGE_ROLE).includes(v),
   },
 });
 

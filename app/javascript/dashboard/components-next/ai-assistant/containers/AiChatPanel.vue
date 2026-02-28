@@ -31,15 +31,12 @@ const props = defineProps({
   showHeader: { type: Boolean, default: true },
   title: { type: String, default: null },
   disabled: { type: Boolean, default: false },
-  // Bot selector props
   bots: { type: Array, default: () => [] },
   botsLoading: { type: Boolean, default: false },
-  // Avatar props
   userName: { type: String, default: '' },
   userAvatar: { type: String, default: '' },
   botName: { type: String, default: '' },
   botAvatar: { type: String, default: '' },
-  // Session management props
   sessions: { type: Array, default: () => [] },
   activeSessionId: { type: String, default: null },
   sessionsLoading: { type: Boolean, default: false },
@@ -121,7 +118,9 @@ const formatSessionDate = dateString => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
-  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor(
+    (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+  );
 
   if (diffDays === 0) return t('AI_CHAT.SESSIONS.TODAY');
   if (diffDays === 1) return t('AI_CHAT.SESSIONS.YESTERDAY');
@@ -191,7 +190,7 @@ const getAvatarProps = role => {
 };
 
 // Helper to check if a part is a tool part (type starts with 'tool-')
-const isToolPart = part => part?.type?.startsWith('tool-');
+const isToolPart = part => part?.type?.startsWith('tool-') ?? false;
 
 // Get reasoning parts from message
 const getReasoningParts = message => {
@@ -207,8 +206,9 @@ const getToolParts = message => {
   // Dedupe by toolCallId - keep only the latest state for each tool
   const toolMap = new Map();
   toolParts.forEach(part => {
-    if (part.toolCallId) {
-      toolMap.set(part.toolCallId, part);
+    const callId = part.toolCallId;
+    if (callId) {
+      toolMap.set(callId, part);
     }
   });
 
@@ -226,7 +226,7 @@ const getTextParts = message => {
 // Check if message has text content to display
 const hasTextContent = message => {
   const textParts = getTextParts(message);
-  return textParts.some(p => p.text?.trim());
+  return textParts.some(p => 'text' in p && p.text?.trim());
 };
 
 // Check if this message is the last one (for streaming indicators)

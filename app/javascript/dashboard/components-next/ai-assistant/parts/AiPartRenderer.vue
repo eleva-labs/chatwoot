@@ -1,13 +1,16 @@
 <script setup>
 import { computed, defineAsyncComponent } from 'vue';
+import { isToolPart } from '../types';
 import { PART_TYPES } from '../constants';
 
 import AiTextPart from './AiTextPart.vue';
+
 const props = defineProps({
   part: { type: Object, required: true },
   role: { type: String, required: true },
   isStreaming: { type: Boolean, default: false },
 });
+
 // Lazy load less common parts
 const AiReasoningPart = defineAsyncComponent(
   () => import('./AiReasoningPart.vue')
@@ -20,14 +23,8 @@ const partTypeMap = {
 };
 
 const component = computed(() => {
-  const partType = props.part?.type;
-
-  // Handle tool parts
-  if (partType?.startsWith('tool-')) {
-    return AiToolPart;
-  }
-
-  return partTypeMap[partType] || null;
+  if (isToolPart(props.part)) return AiToolPart;
+  return partTypeMap[props.part.type] || null;
 });
 </script>
 

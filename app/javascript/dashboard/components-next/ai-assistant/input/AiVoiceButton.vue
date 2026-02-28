@@ -16,19 +16,9 @@ import { useI18n } from 'vue-i18n';
 import { VOICE_INPUT_STATUS } from '../constants';
 
 const props = defineProps({
-  status: {
-    type: String,
-    default: VOICE_INPUT_STATUS.DISABLED,
-    validator: v => Object.values(VOICE_INPUT_STATUS).includes(v),
-  },
-  duration: {
-    type: Number,
-    default: 0,
-  },
-  disabled: {
-    type: Boolean,
-    default: true,
-  },
+  status: { type: String, default: VOICE_INPUT_STATUS.DISABLED },
+  duration: { type: Number, default: 0 },
+  disabled: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['click']);

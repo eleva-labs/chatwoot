@@ -1,27 +1,30 @@
 /**
- * useAiAssistant.js
+ * useAiAssistant.ts
  *
  * Composable for AI Assistant domain logic.
  * Handles bot fetching, auth, chat state initialization, and session management.
  * Used by AiAssistant orchestrator component.
  */
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, type Ref, type ComputedRef } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import { useVercelChat } from './useVercelChat';
 import { useAiChatSessionManager } from './useAiChatSessionManager';
 import { getAuthHeaders } from '../utils/auth';
 import { parseBotsResponse } from '../schemas';
+import type { Bot } from '../types';
 
 export function useAiAssistant() {
   const route = useRoute();
   const store = useStore();
 
   // Current user
-  const currentUser = computed(() => store.getters.getCurrentUser);
+  const currentUser = computed(
+    () => store.getters.getCurrentUser as { name?: string; avatar_url?: string },
+  );
 
   // Account ID extraction
-  const accountId = computed(() => {
+  const accountId = computed((): number | null => {
     if (route.params.accountId) {
       return Number(route.params.accountId);
     }
@@ -29,12 +32,14 @@ export function useAiAssistant() {
     if (pathMatch) {
       return Number(pathMatch[1]);
     }
-    return window.chatwootConfig?.accountId || null;
+    return (window as unknown as Record<string, unknown>).chatwootConfig
+      ? ((window as unknown as Record<string, Record<string, unknown>>).chatwootConfig.accountId as number | null)
+      : null;
   });
 
   // Bot selection state
-  const selectedBotId = ref(null);
-  const availableBots = ref([]);
+  const selectedBotId = ref<number | null>(null);
+  const availableBots = ref<Bot[]>([]);
   const botsLoading = ref(false);
 
   // Session management - use dedicated composable
@@ -47,7 +52,7 @@ export function useAiAssistant() {
       agent_bot_id: selectedBotId.value,
       chat_session_id: sessionManager.activeSessionId.value,
     }),
-    onSessionId: id => {
+    onSessionId: (id: string) => {
       // Persist session ID when received from backend
       sessionManager.setActiveSessionId(id, selectedBotId.value);
     },
@@ -57,7 +62,7 @@ export function useAiAssistant() {
   // Sessions list is fetched lazily when user opens history panel
   watch(
     selectedBotId,
-    (newBotId, oldBotId) => {
+    (newBotId: number | null, oldBotId: number | null) => {
       // Only react to actual bot changes, not initial mount
       if (newBotId && oldBotId && newBotId !== oldBotId) {
         // Clear current sessions (will be re-fetched when history panel opens)
@@ -73,12 +78,12 @@ export function useAiAssistant() {
         chat.setMessages([]);
       }
     },
-    { immediate: false }
+    { immediate: false },
   );
 
   // Computed properties
-  const currentBot = computed(() =>
-    availableBots.value.find(b => b.id === selectedBotId.value)
+  const currentBot = computed((): Bot | undefined =>
+    availableBots.value.find(b => b.id === selectedBotId.value),
   );
 
   const chatTitle = computed(() => currentBot.value?.name || 'AI Assistant');
@@ -91,14 +96,14 @@ export function useAiAssistant() {
   const isDisabled = computed(() => !selectedBotId.value);
 
   // Fetch bots
-  const fetchBots = async () => {
+  const fetchBots = async (): Promise<void> => {
     if (!accountId.value) return;
 
     botsLoading.value = true;
     try {
       const response = await fetch(
         `/api/v1/accounts/${accountId.value}/ai_chat/bots`,
-        { method: 'GET', headers: getAuthHeaders() }
+        { method: 'GET', headers: getAuthHeaders() },
       );
 
       if (!response.ok) {
@@ -107,7 +112,7 @@ export function useAiAssistant() {
 
       const data = await response.json();
       const parsed = parseBotsResponse(data);
-      availableBots.value = parsed.bots;
+      availableBots.value = parsed.bots as Bot[];
 
       if (availableBots.value.length > 0 && !selectedBotId.value) {
         selectedBotId.value = availableBots.value[0].id;
@@ -151,13 +156,13 @@ export function useAiAssistant() {
     sessions: sessionManager.sessions,
     activeSessionId: sessionManager.activeSessionId,
     isLoadingSessions: sessionManager.isLoadingSessions,
-    loadSession: sessionId =>
-      sessionManager.loadSession(sessionId, selectedBotId.value, chat),
+    loadSession: (sessionId: string) =>
+      sessionManager.loadSession(sessionId, selectedBotId.value!, chat),
     startNewSession: () =>
-      sessionManager.startNewSession(selectedBotId.value, chat),
-    deleteSession: sessionId =>
-      sessionManager.deleteSession(sessionId, selectedBotId.value),
-    fetchSessions: () => sessionManager.fetchSessions(selectedBotId.value),
+      sessionManager.startNewSession(selectedBotId.value!, chat),
+    deleteSession: (sessionId: string) =>
+      sessionManager.deleteSession(sessionId, selectedBotId.value!),
+    fetchSessions: () => sessionManager.fetchSessions(selectedBotId.value!),
 
     // Methods
     fetchBots,

@@ -1,5 +1,30 @@
-import { ref, computed, watch, onUnmounted, unref } from 'vue';
+import {
+  ref,
+  computed,
+  watch,
+  onUnmounted,
+  unref,
+  type Ref,
+  type ComputedRef,
+} from 'vue';
 import { useEventListener, useRafFn } from '@vueuse/core';
+
+interface AutoScrollOptions {
+  isStreaming?: Ref<boolean> | boolean;
+  thresholdPx?: number;
+  resumePx?: number;
+}
+
+interface AutoScrollReturn {
+  containerRef: Ref<HTMLElement | null>;
+  isNearBottom: Ref<boolean>;
+  isNearTop: Ref<boolean>;
+  userScrolledAway: Ref<boolean>;
+  showScrollToTop: ComputedRef<boolean>;
+  showScrollToBottom: ComputedRef<boolean>;
+  scrollToTop: () => void;
+  scrollToBottom: (behavior?: ScrollBehavior) => void;
+}
 
 /**
  * Composable for managing auto-scroll behavior in streaming chat interfaces.
@@ -10,14 +35,8 @@ import { useEventListener, useRafFn } from '@vueuse/core';
  * - Configurable thresholds for "near bottom/top" detection
  * - Scroll-to-top/bottom methods with smooth behavior
  * - Escape hatch: shows scroll-to-top during streaming so user can break free
- *
- * @param {Object} options - Configuration options
- * @param {Ref<boolean>|boolean} options.isStreaming - Reactive streaming state
- * @param {number} options.thresholdPx - Distance threshold for "near" detection (default: 150)
- * @param {number} options.resumePx - Distance to bottom to resume auto-scroll (default: 20)
- * @returns {Object} Scroll state and methods
  */
-export function useAutoScroll(options = {}) {
+export function useAutoScroll(options: AutoScrollOptions = {}): AutoScrollReturn {
   const {
     isStreaming: isStreamingOption = false,
     thresholdPx = 150,
@@ -25,7 +44,7 @@ export function useAutoScroll(options = {}) {
   } = options;
 
   // Container ref to bind to scrollable element
-  const containerRef = ref(null);
+  const containerRef = ref<HTMLElement | null>(null);
 
   // Scroll position state
   const isNearBottom = ref(true);
@@ -43,7 +62,7 @@ export function useAutoScroll(options = {}) {
    * - During streaming when user hasn't escaped yet (escape hatch)
    */
   const showScrollToTop = computed(
-    () => !isNearTop.value || (isStreaming.value && !userScrolledAway.value)
+    () => !isNearTop.value || (isStreaming.value && !userScrolledAway.value),
   );
 
   /**
@@ -53,9 +72,8 @@ export function useAutoScroll(options = {}) {
 
   /**
    * Scroll to bottom of container
-   * @param {string} behavior - 'smooth' or 'instant'
    */
-  const scrollToBottom = (behavior = 'smooth') => {
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth'): void => {
     if (containerRef.value) {
       containerRef.value.scrollTo({
         top: containerRef.value.scrollHeight,
@@ -65,7 +83,7 @@ export function useAutoScroll(options = {}) {
   };
 
   // RAF control - defined early so scrollToTop can use it
-  let pauseRaf = () => {};
+  let pauseRaf: () => void = () => {};
 
   // Timestamp to ignore scroll events briefly after programmatic scroll
   // This prevents the "reset to bottom" logic from firing before animation moves us away
@@ -74,7 +92,7 @@ export function useAutoScroll(options = {}) {
   /**
    * Scroll to top of container and pause auto-scroll
    */
-  const scrollToTop = () => {
+  const scrollToTop = (): void => {
     if (containerRef.value) {
       userScrolledAway.value = true; // Pause auto-scroll immediately
       pauseRaf(); // Stop RAF immediately (don't wait for watcher)
@@ -93,7 +111,7 @@ export function useAutoScroll(options = {}) {
   /**
    * Handle scroll events - update position state and detect user intent
    */
-  const handleScroll = () => {
+  const handleScroll = (): void => {
     if (!containerRef.value) return;
 
     const { scrollTop, scrollHeight, clientHeight } = containerRef.value;
@@ -126,7 +144,7 @@ export function useAutoScroll(options = {}) {
 
   // RAF-based auto-scroll for smooth streaming experience
   // Uses useRafFn from VueUse for proper lifecycle management
-  let resumeRaf = () => {};
+  let resumeRaf: () => void = () => {};
   const rafFn = useRafFn(
     () => {
       // Double-check userScrolledAway in RAF loop for immediate response
@@ -134,7 +152,7 @@ export function useAutoScroll(options = {}) {
         containerRef.value.scrollTop = containerRef.value.scrollHeight;
       }
     },
-    { immediate: false } // Don't start immediately, controlled by watchers
+    { immediate: false }, // Don't start immediately, controlled by watchers
   );
 
   // Assign RAF controls after creation
@@ -144,7 +162,7 @@ export function useAutoScroll(options = {}) {
   // Start/stop RAF loop based on streaming state
   watch(
     isStreaming,
-    streaming => {
+    (streaming: boolean) => {
       if (streaming && !userScrolledAway.value) {
         resumeRaf();
       } else {
@@ -155,11 +173,11 @@ export function useAutoScroll(options = {}) {
         }
       }
     },
-    { immediate: true }
+    { immediate: true },
   );
 
   // Stop RAF when user scrolls away, resume when they return (during streaming)
-  watch(userScrolledAway, scrolledAway => {
+  watch(userScrolledAway, (scrolledAway: boolean) => {
     if (scrolledAway) {
       pauseRaf();
     } else if (isStreaming.value) {

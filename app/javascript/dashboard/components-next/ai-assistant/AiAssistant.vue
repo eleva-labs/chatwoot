@@ -18,11 +18,9 @@ const props = defineProps({
     default: 'floating',
     validator: v => ['floating', 'sidebar', 'inline'].includes(v),
   },
-  // Layout-specific props
   position: { type: String, default: null },
   panelClass: { type: String, default: null },
   width: { type: String, default: null },
-  // FAB customization
   fabIcon: { type: String, default: 'i-lucide-sparkles' },
 });
 

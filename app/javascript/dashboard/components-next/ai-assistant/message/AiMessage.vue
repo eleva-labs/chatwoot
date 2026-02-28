@@ -4,19 +4,9 @@ import { MESSAGE_ROLE } from '../constants';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 
 const props = defineProps({
-  from: {
-    type: String,
-    required: true,
-    validator: v => Object.values(MESSAGE_ROLE).includes(v),
-  },
-  avatarName: {
-    type: String,
-    default: '',
-  },
-  avatarSrc: {
-    type: String,
-    default: '',
-  },
+  from: { type: String, required: true },
+  avatarName: { type: String, default: '' },
+  avatarSrc: { type: String, default: '' },
 });
 
 const isUser = computed(() => props.from === MESSAGE_ROLE.USER);
