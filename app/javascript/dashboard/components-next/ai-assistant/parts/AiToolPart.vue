@@ -4,9 +4,12 @@
  *
  * Displays tool call details (input/output) in a collapsible panel.
  * Uses AiCollapsiblePart for consistent styling and behavior.
+ * Shows state-based icons and colors (pending=slate, complete=teal, error=ruby).
  */
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { deriveToolDisplayState, isToolComplete, isToolFailed } from '../types';
+import { formatToolName } from '../utils/formatHelpers';
 import AiCollapsiblePart from './AiCollapsiblePart.vue';
 
 const props = defineProps({
@@ -16,20 +19,36 @@ const props = defineProps({
 
 const { t } = useI18n();
 
+const displayState = computed(() => deriveToolDisplayState(props.part));
+
+const stateConfig = computed(() => {
+  const state = displayState.value;
+  if (isToolFailed(state)) {
+    return { icon: 'i-lucide-x-circle', accent: 'ruby' };
+  }
+  if (isToolComplete(state)) {
+    return { icon: 'i-lucide-check-circle', accent: 'teal' };
+  }
+  return { icon: 'i-lucide-wrench', accent: 'slate' };
+});
+
 const toolName = computed(
   () => props.part?.toolName || props.part?.output?.tool_name || ''
+);
+const displayName = computed(() =>
+  formatToolName(toolName.value, t('AI_CHAT.TOOL.LABEL'))
 );
 const hasInput = computed(() => props.part?.input);
 const hasOutput = computed(() => props.part?.output);
 
-const label = computed(() => toolName.value || t('AI_CHAT.TOOL.LABEL'));
+const label = computed(() => displayName.value);
 </script>
 
 <template>
   <AiCollapsiblePart
-    icon="i-lucide-wrench"
+    :icon="stateConfig.icon"
     :label="label"
-    accent-color="slate"
+    :accent-color="stateConfig.accent"
     :is-streaming="isStreaming"
     :auto-expand-on-stream="false"
   >

@@ -2,17 +2,16 @@
  * useAiAssistant.ts
  *
  * Composable for AI Assistant domain logic.
- * Handles bot fetching, auth, chat state initialization, and session management.
+ * Handles chat state initialization and session management.
+ * Delegates bot fetching to useAIChatBot.
  * Used by AiAssistant orchestrator component.
  */
-import { ref, computed, onMounted, watch, type Ref, type ComputedRef } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import { useVercelChat } from './useVercelChat';
 import { useAiChatSessionManager } from './useAiChatSessionManager';
-import { getAuthHeaders } from '../utils/auth';
-import { parseBotsResponse } from '../schemas';
-import type { Bot } from '../types';
+import { useAIChatBot } from './useAIChatBot';
 
 export function useAiAssistant() {
   const route = useRoute();
@@ -37,10 +36,14 @@ export function useAiAssistant() {
       : null;
   });
 
-  // Bot selection state
-  const selectedBotId = ref<number | null>(null);
-  const availableBots = ref<Bot[]>([]);
-  const botsLoading = ref(false);
+  // Bot selection — delegated to useAIChatBot
+  const {
+    selectedBotId,
+    availableBots,
+    botsLoading,
+    currentBot,
+    fetchBots,
+  } = useAIChatBot(accountId);
 
   // Session management - use dedicated composable
   const sessionManager = useAiChatSessionManager(accountId.value);
@@ -82,10 +85,6 @@ export function useAiAssistant() {
   );
 
   // Computed properties
-  const currentBot = computed((): Bot | undefined =>
-    availableBots.value.find(b => b.id === selectedBotId.value),
-  );
-
   const chatTitle = computed(() => currentBot.value?.name || 'AI Assistant');
 
   const userName = computed(() => currentUser.value?.name || '');
@@ -94,35 +93,6 @@ export function useAiAssistant() {
   const botAvatar = computed(() => currentBot.value?.avatar_url || '');
 
   const isDisabled = computed(() => !selectedBotId.value);
-
-  // Fetch bots
-  const fetchBots = async (): Promise<void> => {
-    if (!accountId.value) return;
-
-    botsLoading.value = true;
-    try {
-      const response = await fetch(
-        `/api/v1/accounts/${accountId.value}/ai_chat/bots`,
-        { method: 'GET', headers: getAuthHeaders() },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch bots: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const parsed = parseBotsResponse(data);
-      availableBots.value = parsed.bots as Bot[];
-
-      if (availableBots.value.length > 0 && !selectedBotId.value) {
-        selectedBotId.value = availableBots.value[0].id;
-      }
-    } catch {
-      availableBots.value = [];
-    } finally {
-      botsLoading.value = false;
-    }
-  };
 
   // Auto-fetch bots on mount
   // Sessions are fetched lazily when user opens history panel

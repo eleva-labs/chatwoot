@@ -2,16 +2,24 @@
 /**
  * AiChatPanel.vue
  *
- * Main chat panel container managing message display, bot selection,
- * session history, streaming states, and user input.
+ * Main chat panel container managing message display, streaming states,
+ * and user input. Header and session history are delegated to child components.
  */
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToggle } from '@vueuse/core';
-import { OnClickOutside } from '@vueuse/components';
 import { provideAiChatContext } from '../provider';
-import { CHAT_STATUS, PART_TYPES, MESSAGE_ROLE } from '../constants';
+import { CHAT_STATUS, MESSAGE_ROLE } from '../constants';
+import {
+  getReasoningParts,
+  getDeduplicatedToolParts,
+  getTextParts,
+  getMessageTextContent,
+} from '../types';
+import { validateAndNormalizeMessages } from '../utils/messageValidation';
 
+import AiChatHeader from './AiChatHeader.vue';
+import AiSessionHistoryPanel from './AiSessionHistoryPanel.vue';
 import AiConversation from '../conversation/AiConversation.vue';
 import AiConversationContent from '../conversation/AiConversationContent.vue';
 import AiConversationEmptyState from '../conversation/AiConversationEmptyState.vue';
@@ -23,8 +31,6 @@ import AiPartRenderer from '../parts/AiPartRenderer.vue';
 import AiPromptInput from '../input/AiPromptInput.vue';
 import AiLoader from '../feedback/AiLoader.vue';
 import AiChatError from '../feedback/AiChatError.vue';
-import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
-import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -56,38 +62,10 @@ const selectedBotId = defineModel('selectedBotId', {
   default: null,
 });
 
-const showBotSelector = computed(() => props.bots.length > 0);
-
-// Get current selected bot for avatar display
-const currentBot = computed(() =>
-  props.bots.find(b => b.id === selectedBotId.value)
-);
-
-// Bot selector dropdown state (useToggle pattern)
-const [isBotSelectorOpen, toggleBotSelector] = useToggle(false);
-
-// Transform bots to dropdown menu format
-const botMenuItems = computed(() =>
-  props.bots.map(bot => ({
-    value: bot.id,
-    label: bot.name,
-    action: 'select',
-    thumbnail: {
-      src: bot.avatar_url,
-      name: bot.name,
-    },
-    isSelected: bot.id === selectedBotId.value,
-  }))
-);
-
-const handleBotSelect = ({ value }) => {
-  selectedBotId.value = Number(value);
-  isBotSelectorOpen.value = false;
-};
+const { t } = useI18n();
 
 // Session history panel state (useToggle pattern)
 const [showSessionHistory, toggleSessionHistoryValue] = useToggle(false);
-const hasSessions = computed(() => props.sessions.length > 0);
 
 const toggleSessionHistory = () => {
   toggleSessionHistoryValue();
@@ -111,34 +89,16 @@ const handleDeleteSession = sessionId => {
   emit('deleteSession', sessionId);
 };
 
-const { t } = useI18n();
-
-// Date formatting helpers for session list (localized)
-const formatSessionDate = dateString => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffDays = Math.floor(
-    (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  if (diffDays === 0) return t('AI_CHAT.SESSIONS.TODAY');
-  if (diffDays === 1) return t('AI_CHAT.SESSIONS.YESTERDAY');
-  if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'long' });
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+const handleBotSelect = botId => {
+  selectedBotId.value = botId;
 };
-
-const formatSessionTime = dateString => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
-const headerTitle = computed(() => props.title || t('AI_CHAT.HEADER.TITLE'));
 
 // Unwrap chat refs for reactivity (chat properties are Vue refs)
 const chatStatus = computed(() => props.chat.status.value || CHAT_STATUS.READY);
-const chatMessages = computed(() => props.chat.messages.value || []);
+const rawMessages = computed(() => props.chat.messages.value || []);
+const chatMessages = computed(() =>
+  validateAndNormalizeMessages(rawMessages.value)
+);
 const chatError = computed(() => props.chat.error.value);
 
 const isLoading = computed(
@@ -189,48 +149,42 @@ const getAvatarProps = role => {
   };
 };
 
-// Helper to check if a part is a tool part (type starts with 'tool-')
-const isToolPart = part => part?.type?.startsWith('tool-') ?? false;
-
-// Get reasoning parts from message
-const getReasoningParts = message => {
+// Use imported helpers from types.ts for part splitting
+const getMessageReasoningParts = message => {
   if (message.role !== MESSAGE_ROLE.ASSISTANT) return [];
-  return (message.parts || []).filter(p => p.type === PART_TYPES.REASONING);
+  return getReasoningParts(message.parts);
 };
 
-// Get tool parts from message (deduplicated by toolCallId, keep latest)
-const getToolParts = message => {
+const getMessageToolParts = message => {
   if (message.role !== MESSAGE_ROLE.ASSISTANT) return [];
-  const toolParts = (message.parts || []).filter(isToolPart);
-
-  // Dedupe by toolCallId - keep only the latest state for each tool
-  const toolMap = new Map();
-  toolParts.forEach(part => {
-    const callId = part.toolCallId;
-    if (callId) {
-      toolMap.set(callId, part);
-    }
-  });
-
-  return Array.from(toolMap.values());
+  return getDeduplicatedToolParts(message.parts);
 };
 
-// Get text/content parts (everything except reasoning and tools)
-const getTextParts = message => {
+const getMessageTextParts = message => {
   if (message.role !== MESSAGE_ROLE.ASSISTANT) return message.parts || [];
-  return (message.parts || []).filter(
-    p => p.type !== PART_TYPES.REASONING && !isToolPart(p)
-  );
+  return getTextParts(message.parts);
 };
 
 // Check if message has text content to display
 const hasTextContent = message => {
-  const textParts = getTextParts(message);
+  const textParts = getMessageTextParts(message);
   return textParts.some(p => 'text' in p && p.text?.trim());
 };
 
 // Check if this message is the last one (for streaming indicators)
 const isLastMessage = msgIdx => msgIdx === chatMessages.value.length - 1;
+
+// Copy action handler
+const handleCopy = async message => {
+  const text = getMessageTextContent(message);
+  if (text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Clipboard API may be unavailable in non-secure contexts
+    }
+  }
+};
 
 // Provide context to child components
 provideAiChatContext({
@@ -276,198 +230,31 @@ const handleFreshStart = () => {
 <template>
   <div class="relative flex h-full flex-col bg-n-solid-1">
     <!-- Header -->
-    <header
+    <AiChatHeader
       v-if="showHeader"
-      class="flex flex-col gap-1 px-4 py-3 border-b border-n-weak"
-    >
-      <!-- Top row: Bot selector/title + close button -->
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2 min-w-0 flex-1">
-          <!-- Bot Selector or Title -->
-          <template v-if="showBotSelector">
-            <OnClickOutside @trigger="isBotSelectorOpen = false">
-              <div class="relative flex items-center gap-2 min-w-0">
-                <button
-                  :disabled="isLoading || botsLoading"
-                  :aria-label="t('AI_CHAT.BOT_SELECTOR.LABEL')"
-                  class="flex items-center gap-2 min-w-0 hover:bg-n-alpha-1 rounded-lg px-1.5 py-1 -ml-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  @click="toggleBotSelector()"
-                >
-                  <Avatar
-                    :src="currentBot?.avatar_url"
-                    :name="currentBot?.name || 'AI'"
-                    :size="28"
-                    rounded-full
-                    icon-name="i-lucide-bot"
-                    class="flex-shrink-0"
-                  />
-                  <span
-                    class="text-base font-semibold text-n-slate-12 truncate max-w-32"
-                  >
-                    {{
-                      currentBot?.name || t('AI_CHAT.BOT_SELECTOR.PLACEHOLDER')
-                    }}
-                  </span>
-                  <span
-                    v-if="botsLoading"
-                    class="i-lucide-loader-2 size-4 text-n-slate-10 animate-spin flex-shrink-0"
-                  />
-                  <span
-                    v-else
-                    class="i-lucide-chevron-down size-4 text-n-slate-10 flex-shrink-0 transition-transform"
-                    :class="{ 'rotate-180': isBotSelectorOpen }"
-                  />
-                </button>
-                <DropdownMenu
-                  v-if="isBotSelectorOpen"
-                  :menu-items="botMenuItems"
-                  :thumbnail-size="24"
-                  class="top-full mt-1 left-0"
-                  @action="handleBotSelect"
-                />
-              </div>
-            </OnClickOutside>
-          </template>
-          <h2 v-else class="text-lg font-semibold text-n-slate-12 truncate">
-            {{ headerTitle }}
-          </h2>
-        </div>
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <!-- New Chat button -->
-          <button
-            v-tooltip="t('AI_CHAT.SESSIONS.NEW_CHAT')"
-            :aria-label="t('AI_CHAT.SESSIONS.NEW_CHAT')"
-            :disabled="isLoading"
-            class="p-1.5 rounded-md text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="handleNewSession"
-          >
-            <span class="i-lucide-plus size-5" />
-          </button>
-          <!-- Session History toggle -->
-          <button
-            v-tooltip="t('AI_CHAT.SESSIONS.HISTORY')"
-            :aria-label="t('AI_CHAT.SESSIONS.HISTORY')"
-            :disabled="isLoading"
-            class="p-1.5 rounded-md text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            :class="{ 'bg-n-alpha-2 text-n-slate-12': showSessionHistory }"
-            @click="toggleSessionHistory"
-          >
-            <span class="i-lucide-history size-5" />
-          </button>
-          <!-- Close button -->
-          <button
-            v-tooltip="t('AI_CHAT.HEADER.CLOSE')"
-            :aria-label="t('AI_CHAT.HEADER.CLOSE')"
-            class="p-1.5 rounded-md text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2"
-            @click="emit('close')"
-          >
-            <span class="i-lucide-x size-5" />
-          </button>
-        </div>
-      </div>
-      <!-- Status row -->
-      <div class="flex items-center gap-1.5">
-        <span
-          class="size-2 rounded-full"
-          :class="{
-            'bg-n-teal-9': chatStatus === CHAT_STATUS.READY,
-            'bg-n-amber-9 animate-pulse': chatStatus === CHAT_STATUS.SUBMITTED,
-            'bg-n-amber-11 animate-pulse': chatStatus === CHAT_STATUS.STREAMING,
-            'bg-n-ruby-9': chatStatus === CHAT_STATUS.ERROR,
-          }"
-        />
-        <span class="text-xs text-n-slate-11">
-          {{ t(`AI_CHAT.STATUS.${chatStatus.toUpperCase()}`) }}
-        </span>
-      </div>
-    </header>
+      :title="title"
+      :status="chatStatus"
+      :is-loading="isLoading"
+      :bots="bots"
+      :bots-loading="botsLoading"
+      :selected-bot-id="selectedBotId"
+      :show-session-history="showSessionHistory"
+      @update:selected-bot-id="handleBotSelect"
+      @toggle-session-history="toggleSessionHistory"
+      @new-session="handleNewSession"
+      @close="emit('close')"
+    />
 
     <!-- Session History Panel (overlay) -->
-    <div
+    <AiSessionHistoryPanel
       v-if="showSessionHistory"
-      class="absolute inset-x-0 top-[76px] bottom-0 z-10 bg-n-solid-1 flex flex-col"
-    >
-      <!-- Session list header -->
-      <div
-        class="flex items-center justify-between px-4 py-3 border-b border-n-weak"
-      >
-        <h3 class="text-sm font-medium text-n-slate-12">
-          {{ t('AI_CHAT.SESSIONS.TITLE') }}
-        </h3>
-        <button
-          v-tooltip="t('AI_CHAT.HEADER.CLOSE')"
-          :aria-label="t('AI_CHAT.HEADER.CLOSE')"
-          class="p-1 rounded-md text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2"
-          @click="showSessionHistory = false"
-        >
-          <span class="i-lucide-x size-4" />
-        </button>
-      </div>
-
-      <!-- Session list -->
-      <div class="flex-1 overflow-y-auto">
-        <!-- Loading state -->
-        <div
-          v-if="sessionsLoading"
-          class="flex items-center justify-center py-8"
-        >
-          <span class="i-lucide-loader-2 size-6 text-n-slate-10 animate-spin" />
-        </div>
-
-        <!-- Empty state -->
-        <div
-          v-else-if="!hasSessions"
-          class="flex flex-col items-center justify-center py-8 px-4 text-center"
-        >
-          <span
-            class="i-lucide-message-square-dashed size-10 text-n-slate-8 mb-2"
-          />
-          <p class="text-sm text-n-slate-11">
-            {{ t('AI_CHAT.SESSIONS.EMPTY') }}
-          </p>
-        </div>
-
-        <!-- Sessions list -->
-        <ul v-else class="divide-y divide-n-weak">
-          <li
-            v-for="session in sessions"
-            :key="session.chatSessionId"
-            class="group"
-          >
-            <button
-              class="w-full px-4 py-3 text-left hover:bg-n-alpha-2 transition-colors"
-              :class="{
-                'bg-n-alpha-3': session.chatSessionId === activeSessionId,
-              }"
-              @click="handleLoadSession(session.chatSessionId)"
-            >
-              <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0 flex-1">
-                  <p class="text-sm font-medium text-n-slate-12 truncate">
-                    {{
-                      formatSessionDate(session.createdAt || session.created_at)
-                    }}
-                  </p>
-                  <p class="text-xs text-n-slate-10 mt-0.5">
-                    {{
-                      formatSessionTime(session.createdAt || session.created_at)
-                    }}
-                  </p>
-                </div>
-                <button
-                  v-tooltip="t('AI_CHAT.SESSIONS.DELETE')"
-                  :aria-label="t('AI_CHAT.SESSIONS.DELETE')"
-                  class="p-1 rounded text-n-slate-9 hover:text-n-ruby-9 hover:bg-n-ruby-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex-shrink-0"
-                  @click.stop="handleDeleteSession(session.chatSessionId)"
-                >
-                  <span class="i-lucide-trash-2 size-4" />
-                </button>
-              </div>
-            </button>
-          </li>
-        </ul>
-      </div>
-    </div>
+      :sessions="sessions"
+      :active-session-id="activeSessionId"
+      :is-loading="sessionsLoading"
+      @load-session="handleLoadSession"
+      @delete-session="handleDeleteSession"
+      @close="showSessionHistory = false"
+    />
 
     <!-- Conversation -->
     <AiConversation :is-streaming="isStreaming" class="flex-1">
@@ -486,19 +273,19 @@ const handleFreshStart = () => {
             <div class="flex flex-col gap-1 w-full">
               <!-- Reasoning parts - outside bubble -->
               <AiPartRenderer
-                v-for="(part, idx) in getReasoningParts(message)"
+                v-for="(part, idx) in getMessageReasoningParts(message)"
                 :key="`reasoning-${idx}`"
                 :part="part"
                 :role="message.role"
                 :is-streaming="
                   isStreaming &&
                   isLastMessage(msgIdx) &&
-                  idx === getReasoningParts(message).length - 1
+                  idx === getMessageReasoningParts(message).length - 1
                 "
               />
               <!-- Tool parts - outside bubble -->
               <AiPartRenderer
-                v-for="part in getToolParts(message)"
+                v-for="part in getMessageToolParts(message)"
                 :key="`tool-${part.toolCallId}`"
                 :part="part"
                 :role="message.role"
@@ -510,14 +297,14 @@ const handleFreshStart = () => {
                 :from="message.role"
               >
                 <AiPartRenderer
-                  v-for="(part, idx) in getTextParts(message)"
+                  v-for="(part, idx) in getMessageTextParts(message)"
                   :key="`text-${idx}`"
                   :part="part"
                   :role="message.role"
                   :is-streaming="
                     isStreaming &&
                     isLastMessage(msgIdx) &&
-                    idx === getTextParts(message).length - 1
+                    idx === getMessageTextParts(message).length - 1
                   "
                 />
               </AiMessageContent>
@@ -526,7 +313,7 @@ const handleFreshStart = () => {
                 <AiMessageAction
                   icon="i-lucide-copy"
                   :label="t('AI_CHAT.MESSAGE.COPY')"
-                  disabled
+                  @click="handleCopy(message)"
                 />
                 <AiMessageAction
                   icon="i-lucide-refresh-ccw"

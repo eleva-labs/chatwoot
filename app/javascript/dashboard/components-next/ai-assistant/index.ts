@@ -33,6 +33,8 @@ export { default as AiSuggestion } from './suggestions/AiSuggestion.vue';
 
 // Containers
 export { default as AiChatPanel } from './containers/AiChatPanel.vue';
+export { default as AiChatHeader } from './containers/AiChatHeader.vue';
+export { default as AiSessionHistoryPanel } from './containers/AiSessionHistoryPanel.vue';
 
 // Main Component
 export { default as AiAssistant } from './AiAssistant.vue';

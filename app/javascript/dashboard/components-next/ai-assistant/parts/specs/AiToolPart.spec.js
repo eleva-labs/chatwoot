@@ -68,16 +68,30 @@ describe('AiToolPart', () => {
       expect(wrapper.find('.ai-collapsible-stub').exists()).toBe(true);
     });
 
-    it('uses wrench icon', () => {
+    it('uses state-based icon (check-circle for completed tool)', () => {
       const wrapper = createWrapper();
+
+      // Default part has type 'tool-output-available' which is complete state
+      expect(wrapper.find('.i-lucide-check-circle').exists()).toBe(true);
+    });
+
+    it('uses wrench icon for pending tools', () => {
+      const wrapper = createWrapper({
+        part: {
+          type: 'tool-call',
+          toolName: 'search_web',
+          input: { query: 'test' },
+        },
+      });
 
       expect(wrapper.find('.i-lucide-wrench').exists()).toBe(true);
     });
 
-    it('displays tool name as label', () => {
+    it('displays formatted tool name as label', () => {
       const wrapper = createWrapper();
 
-      expect(wrapper.find('.collapsible-label').text()).toBe('search_web');
+      // formatToolName converts 'search_web' to 'Search Web'
+      expect(wrapper.find('.collapsible-label').text()).toBe('Search Web');
     });
   });
 
@@ -85,20 +99,22 @@ describe('AiToolPart', () => {
   // Tool Name
   // =============================================================================
   describe('tool name', () => {
-    it('uses toolName from part', () => {
+    it('uses formatted toolName from part', () => {
       const wrapper = createWrapper({
         part: { toolName: 'custom_tool' },
       });
 
-      expect(wrapper.find('.collapsible-label').text()).toBe('custom_tool');
+      // formatToolName converts 'custom_tool' to 'Custom Tool'
+      expect(wrapper.find('.collapsible-label').text()).toBe('Custom Tool');
     });
 
-    it('falls back to output.tool_name', () => {
+    it('falls back to formatted output.tool_name', () => {
       const wrapper = createWrapper({
         part: { output: { tool_name: 'fallback_tool' } },
       });
 
-      expect(wrapper.find('.collapsible-label').text()).toBe('fallback_tool');
+      // formatToolName converts 'fallback_tool' to 'Fallback Tool'
+      expect(wrapper.find('.collapsible-label').text()).toBe('Fallback Tool');
     });
 
     it('uses default label when no tool name', () => {
@@ -232,10 +248,10 @@ describe('AiToolPart', () => {
   // Collapsible Configuration
   // =============================================================================
   describe('collapsible configuration', () => {
-    it('uses slate accent color', () => {
+    it('uses state-based accent color', () => {
       const wrapper = createWrapper();
 
-      // Check the stubbed component has the correct class indicating accent-color was passed
+      // Default part has type 'tool-output-available' which is complete, so accent should be 'teal'
       const collapsible = wrapper.find('.ai-collapsible-stub');
       expect(collapsible.exists()).toBe(true);
       // The stub template doesn't explicitly show accentColor, but we can verify the component renders
