@@ -78,6 +78,11 @@ vi.mock('dashboard/api/auth', () => ({
   },
 }));
 
+// Mock schemas (parseBotsResponse is now used in useAiAssistant)
+vi.mock('../../schemas', () => ({
+  parseBotsResponse: vi.fn(data => data),
+}));
+
 import { useRoute } from 'vue-router';
 import { useVercelChat } from '../useVercelChat';
 import Auth from 'dashboard/api/auth';

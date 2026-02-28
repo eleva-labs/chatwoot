@@ -36,6 +36,11 @@ vi.mock('dashboard/api/auth', () => ({
   },
 }));
 
+vi.mock('../../schemas', () => ({
+  parseSessionsResponse: vi.fn(data => data),
+  parseMessagesResponse: vi.fn(data => data),
+}));
+
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { toUIMessages } from '../useAiMessageMapper';
 

@@ -1,8 +1,8 @@
 import { Chat } from '@ai-sdk/vue';
 import { DefaultChatTransport } from 'ai';
 import { ref, onUnmounted, getCurrentInstance } from 'vue';
-import Auth from 'dashboard/api/auth';
 import { CHAT_STATUS } from '../constants';
+import { getAuthHeaders } from '../utils/auth';
 
 /**
  * Extract text content from UIMessage parts.
@@ -19,28 +19,6 @@ function extractTextContent(message) {
       .join('');
   }
   return message.content || '';
-}
-
-/**
- * Get authentication headers for API requests.
- * Uses Chatwoot's standard Devise token authentication.
- *
- * @returns {Object} Headers object with auth tokens
- */
-function getAuthHeaders() {
-  if (!Auth.hasAuthCookie()) {
-    return { 'Content-Type': 'application/json' };
-  }
-
-  const authData = Auth.getAuthData();
-  return {
-    'Content-Type': 'application/json',
-    'access-token': authData['access-token'],
-    'token-type': authData['token-type'],
-    client: authData.client,
-    expiry: authData.expiry,
-    uid: authData.uid,
-  };
 }
 
 /**
@@ -145,7 +123,7 @@ export function useVercelChat(options) {
 
   const syncState = () => {
     // Deep clone to ensure Vue detects changes in nested parts
-    messages.value = JSON.parse(JSON.stringify(chat.messages));
+    messages.value = structuredClone(chat.messages);
     status.value = chat.status;
     error.value = chat.error;
   };

@@ -10,7 +10,8 @@ import { useRoute } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import { useVercelChat } from './useVercelChat';
 import { useAiChatSessionManager } from './useAiChatSessionManager';
-import Auth from 'dashboard/api/auth';
+import { getAuthHeaders } from '../utils/auth';
+import { parseBotsResponse } from '../schemas';
 
 export function useAiAssistant() {
   const route = useRoute();
@@ -30,20 +31,6 @@ export function useAiAssistant() {
     }
     return window.chatwootConfig?.accountId || null;
   });
-
-  // Auth headers helper
-  const getAuthHeaders = () => {
-    const headers = { 'Content-Type': 'application/json' };
-    if (Auth.hasAuthCookie()) {
-      const authData = Auth.getAuthData();
-      headers['access-token'] = authData['access-token'];
-      headers['token-type'] = authData['token-type'];
-      headers.client = authData.client;
-      headers.expiry = authData.expiry;
-      headers.uid = authData.uid;
-    }
-    return headers;
-  };
 
   // Bot selection state
   const selectedBotId = ref(null);
@@ -119,7 +106,8 @@ export function useAiAssistant() {
       }
 
       const data = await response.json();
-      availableBots.value = data.bots || [];
+      const parsed = parseBotsResponse(data);
+      availableBots.value = parsed.bots;
 
       if (availableBots.value.length > 0 && !selectedBotId.value) {
         selectedBotId.value = availableBots.value[0].id;

@@ -16,29 +16,12 @@ import { ref } from 'vue';
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import { toUIMessages } from './useAiMessageMapper';
-import Auth from 'dashboard/api/auth';
+import { getAuthHeaders } from '../utils/auth';
+import { parseSessionsResponse, parseMessagesResponse } from '../schemas';
+import { CHAT_STATUS } from '../constants';
 
 // localStorage key for active sessions per bot
 const STORAGE_KEY = 'ai_chat_active_sessions';
-
-/**
- * Get authentication headers for API requests.
- * Uses Chatwoot's standard Devise token authentication.
- *
- * @returns {Object} Headers object with auth tokens
- */
-function getAuthHeaders() {
-  const headers = { 'Content-Type': 'application/json' };
-  if (Auth.hasAuthCookie()) {
-    const authData = Auth.getAuthData();
-    headers['access-token'] = authData['access-token'];
-    headers['token-type'] = authData['token-type'];
-    headers.client = authData.client;
-    headers.expiry = authData.expiry;
-    headers.uid = authData.uid;
-  }
-  return headers;
-}
 
 /**
  * Composable for managing AI chat sessions.
@@ -124,8 +107,12 @@ export function useAiChatSessionManager(accountId) {
       }
 
       const data = await response.json();
-      // Transform keys to camelCase
-      const transformed = useCamelCase(data, { deep: true });
+      const parsed = parseSessionsResponse(data);
+      // Transform keys to camelCase for existing consumers
+      const transformed = useCamelCase(
+        { sessions: parsed.sessions },
+        { deep: true }
+      );
       sessions.value = transformed.sessions || [];
       return sessions.value;
     } catch (e) {
@@ -160,7 +147,8 @@ export function useAiChatSessionManager(accountId) {
       }
 
       const data = await response.json();
-      return data.messages || [];
+      const parsed = parseMessagesResponse(data);
+      return parsed.messages;
     } catch (e) {
       error.value = e.message;
       return [];
@@ -178,6 +166,15 @@ export function useAiChatSessionManager(accountId) {
    * @param {Object} chat - Vercel Chat instance with setMessages()
    */
   const loadSession = async (sessionId, botId, chat) => {
+    // Guard: don't load while streaming (prevents message corruption)
+    const currentStatus = chat.status?.value;
+    if (
+      currentStatus === CHAT_STATUS.STREAMING ||
+      currentStatus === CHAT_STATUS.SUBMITTED
+    ) {
+      return;
+    }
+
     activeSessionId.value = sessionId;
     storeSessionId(botId, sessionId);
 
