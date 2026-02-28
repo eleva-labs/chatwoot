@@ -12,12 +12,32 @@
 import { Chat } from '@ai-sdk/vue';
 import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from 'ai';
-import { ref, onUnmounted, getCurrentInstance, type Ref } from 'vue';
+import { ref, toRaw, onUnmounted, getCurrentInstance, type Ref } from 'vue';
 import { CHAT_STATUS, type ChatStatus } from '../constants';
 import type {
   TransportConfig,
   ChatBehaviorConfig,
 } from '../types/chatConfig';
+
+/**
+ * Recursively unwrap Vue reactive proxies from an object tree.
+ * Unlike toRaw() which only unwraps one level, this walks the entire
+ * structure so that structuredClone can handle it without errors.
+ */
+function deepToRaw<T>(val: T): T {
+  const raw = toRaw(val);
+
+  if (raw instanceof Date) return raw as T;
+  if (Array.isArray(raw)) return raw.map(deepToRaw) as T;
+  if (raw !== null && typeof raw === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(raw as Record<string, unknown>)) {
+      out[key] = deepToRaw((raw as Record<string, unknown>)[key]);
+    }
+    return out as T;
+  }
+  return raw;
+}
 
 /**
  * Extract text content from UIMessage parts.
@@ -172,8 +192,11 @@ export function useAiChat(
   let isPolling = false;
 
   const syncState = (): void => {
-    // Deep clone to ensure Vue detects changes in nested parts
-    messages.value = structuredClone(chat.messages);
+    // Deep clone to ensure Vue detects changes in nested parts.
+    // chat.messages returns a Vue reactive proxy (from SDK's internal ref).
+    // structuredClone cannot clone Proxy objects, so we recursively unwrap
+    // all nested proxies with deepToRaw() before cloning.
+    messages.value = structuredClone(deepToRaw(chat.messages));
     status.value = chat.status as ChatStatus;
     error.value = chat.error ?? null;
   };
