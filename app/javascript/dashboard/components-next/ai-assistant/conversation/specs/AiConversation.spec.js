@@ -1,12 +1,12 @@
 import { mount } from '@vue/test-utils';
 import AiConversation from '../AiConversation.vue';
 
-// Mock useAutoScroll
+// Mock useAiChatScroll
 const mockScrollToBottom = vi.fn();
 const mockScrollToTop = vi.fn();
 
-vi.mock('../../composables/useAutoScroll', () => ({
-  useAutoScroll: vi.fn(() => ({
+vi.mock('../../composables/useAiChatScroll', () => ({
+  useAiChatScroll: vi.fn(() => ({
     containerRef: { value: null },
     isNearBottom: { value: true },
     showScrollToTop: { value: false },

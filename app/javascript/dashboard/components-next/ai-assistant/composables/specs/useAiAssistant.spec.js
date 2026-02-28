@@ -22,12 +22,12 @@ vi.mock('dashboard/composables/store', () => ({
   })),
 }));
 
-// Mock useVercelChat
+// Mock useAiChat
 const mockSendMessage = vi.fn();
 const mockSetMessages = vi.fn();
 const mockClearError = vi.fn();
-vi.mock('../useVercelChat', () => ({
-  useVercelChat: vi.fn(() => ({
+vi.mock('../useAiChat', () => ({
+  useAiChat: vi.fn(() => ({
     messages: ref([]),
     status: ref(CHAT_STATUS.READY),
     error: ref(null),
@@ -38,7 +38,7 @@ vi.mock('../useVercelChat', () => ({
   })),
 }));
 
-// Mock useAiChatSessionManager
+// Mock useAiChatSessions
 const mockFetchSessions = vi.fn().mockResolvedValue([]);
 const mockLoadSession = vi.fn();
 const mockStartNewSession = vi.fn();
@@ -46,8 +46,8 @@ const mockDeleteSession = vi.fn().mockResolvedValue(true);
 const mockSetActiveSessionId = vi.fn();
 const mockGetStoredSessionId = vi.fn();
 
-vi.mock('../useAiChatSessionManager', () => ({
-  useAiChatSessionManager: vi.fn(() => ({
+vi.mock('../useAiChatSessions', () => ({
+  useAiChatSessions: vi.fn(() => ({
     sessions: ref([]),
     activeSessionId: ref(null),
     isLoadingSessions: ref(false),
@@ -105,7 +105,7 @@ vi.mock('../../chatwootChatConfig', () => ({
 }));
 
 import { useRoute } from 'vue-router';
-import { useVercelChat } from '../useVercelChat';
+import { useAiChat } from '../useAiChat';
 import Auth from 'dashboard/api/auth';
 import {
   createChatwootTransportConfig,
@@ -495,7 +495,7 @@ describe('useAiAssistant', () => {
   // Chat Instance
   // =============================================================================
   describe('chat instance', () => {
-    it('returns chat instance from useVercelChat', () => {
+    it('returns chat instance from useAiChat', () => {
       const { chat } = useAiAssistant();
 
       expect(chat).toHaveProperty('messages');
@@ -503,12 +503,12 @@ describe('useAiAssistant', () => {
       expect(chat).toHaveProperty('sendMessage');
     });
 
-    it('configures useVercelChat with transport config for correct account', () => {
+    it('configures useAiChat with transport config for correct account', () => {
       useRoute.mockReturnValue({ params: { accountId: '789' } });
       useAiAssistant();
 
-      // useVercelChat is now called with TransportConfig, BehaviorConfig, Callbacks
-      expect(useVercelChat).toHaveBeenCalledWith(
+      // useAiChat is now called with TransportConfig, BehaviorConfig, Callbacks
+      expect(useAiChat).toHaveBeenCalledWith(
         expect.objectContaining({
           streamEndpoint: '/api/v1/accounts/789/ai_chat/stream',
         }),

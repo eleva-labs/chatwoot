@@ -1,5 +1,5 @@
 /**
- * useVercelChat.ts
+ * useAiChat.ts
  *
  * Composable wrapping the Vercel AI SDK Chat class.
  * Accepts a TransportConfig + ChatBehaviorConfig to decouple from
@@ -36,13 +36,13 @@ function extractTextContent(message: {
   return message.content || '';
 }
 
-export interface VercelChatCallbacks {
+export interface AiChatCallbacks {
   onSessionId?: (sessionId: string) => void;
   onFinish?: (result: unknown) => void;
   onError?: (error: Error) => void;
 }
 
-interface VercelChatReturn {
+interface AiChatReturn {
   messages: Ref<UIMessage[]>;
   status: Ref<ChatStatus>;
   error: Ref<Error | null>;
@@ -66,11 +66,11 @@ interface VercelChatReturn {
  * Uses the SDK's native DefaultChatTransport with configuration
  * injected via interfaces — no hardcoded Chatwoot endpoints or auth.
  */
-export function useVercelChat(
+export function useAiChat(
   transportConfig: TransportConfig,
   behaviorConfig?: ChatBehaviorConfig,
-  callbacks?: VercelChatCallbacks,
-): VercelChatReturn {
+  callbacks?: AiChatCallbacks,
+): AiChatReturn {
   const { onSessionId, onFinish, onError } = callbacks || {};
 
   // Resolve the stream endpoint (can be a string or factory function)
@@ -283,4 +283,4 @@ export function useVercelChat(
   };
 }
 
-export default useVercelChat;
+export default useAiChat;

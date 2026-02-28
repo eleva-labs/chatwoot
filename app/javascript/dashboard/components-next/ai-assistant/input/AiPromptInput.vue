@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useAiI18n } from '../i18n/aiChatI18n';
 import Button from 'dashboard/components-next/button/Button.vue';
 import AiVoiceButton from './AiVoiceButton.vue';
-import { useAutoResizeTextarea } from '../composables/useAutoResizeTextarea';
+import { useAiAutoResizeTextarea } from '../composables/useAiAutoResizeTextarea';
 import { VOICE_INPUT_STATUS } from '../constants';
 
 const props = defineProps({
@@ -21,7 +21,7 @@ const { t } = useAiI18n();
 const inputText = ref('');
 
 // Auto-resize textarea composable
-const { textareaRef, resize, reset } = useAutoResizeTextarea();
+const { textareaRef, resize, reset } = useAiAutoResizeTextarea();
 
 const placeholderText = computed(
   () => props.placeholder || t('AI_CHAT.INPUT.PLACEHOLDER')

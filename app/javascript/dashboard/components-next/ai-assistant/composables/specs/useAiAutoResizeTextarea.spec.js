@@ -1,6 +1,6 @@
-import { useAutoResizeTextarea } from '../useAutoResizeTextarea';
+import { useAiAutoResizeTextarea } from '../useAiAutoResizeTextarea';
 
-describe('useAutoResizeTextarea', () => {
+describe('useAiAutoResizeTextarea', () => {
   let mockTextarea;
 
   beforeEach(() => {
@@ -20,7 +20,7 @@ describe('useAutoResizeTextarea', () => {
   // =============================================================================
   describe('initialization', () => {
     it('returns textareaRef, resize, and reset methods', () => {
-      const result = useAutoResizeTextarea();
+      const result = useAiAutoResizeTextarea();
 
       expect(result).toHaveProperty('textareaRef');
       expect(result).toHaveProperty('resize');
@@ -30,13 +30,13 @@ describe('useAutoResizeTextarea', () => {
     });
 
     it('initializes textareaRef as null', () => {
-      const { textareaRef } = useAutoResizeTextarea();
+      const { textareaRef } = useAiAutoResizeTextarea();
 
       expect(textareaRef.value).toBeNull();
     });
 
     it('accepts custom maxHeight parameter', () => {
-      const { textareaRef, resize } = useAutoResizeTextarea(200);
+      const { textareaRef, resize } = useAiAutoResizeTextarea(200);
 
       // Set up mock textarea with content exceeding maxHeight
       mockTextarea.scrollHeight = 300;
@@ -48,7 +48,7 @@ describe('useAutoResizeTextarea', () => {
     });
 
     it('uses default maxHeight of 128 when not specified', () => {
-      const { textareaRef, resize } = useAutoResizeTextarea();
+      const { textareaRef, resize } = useAiAutoResizeTextarea();
 
       // Set up mock textarea with content exceeding default maxHeight
       mockTextarea.scrollHeight = 200;
@@ -65,14 +65,14 @@ describe('useAutoResizeTextarea', () => {
   // =============================================================================
   describe('resize', () => {
     it('does nothing when textareaRef is null', () => {
-      const { resize } = useAutoResizeTextarea();
+      const { resize } = useAiAutoResizeTextarea();
 
       // Should not throw
       expect(() => resize()).not.toThrow();
     });
 
     it('sets height to auto then to scrollHeight when below maxHeight', () => {
-      const { textareaRef, resize } = useAutoResizeTextarea(128);
+      const { textareaRef, resize } = useAiAutoResizeTextarea(128);
 
       mockTextarea.scrollHeight = 80;
       textareaRef.value = mockTextarea;
@@ -83,7 +83,7 @@ describe('useAutoResizeTextarea', () => {
     });
 
     it('caps height at maxHeight when scrollHeight exceeds it', () => {
-      const { textareaRef, resize } = useAutoResizeTextarea(100);
+      const { textareaRef, resize } = useAiAutoResizeTextarea(100);
 
       mockTextarea.scrollHeight = 150;
       textareaRef.value = mockTextarea;
@@ -94,7 +94,7 @@ describe('useAutoResizeTextarea', () => {
     });
 
     it('handles zero scrollHeight', () => {
-      const { textareaRef, resize } = useAutoResizeTextarea();
+      const { textareaRef, resize } = useAiAutoResizeTextarea();
 
       mockTextarea.scrollHeight = 0;
       textareaRef.value = mockTextarea;
@@ -110,14 +110,14 @@ describe('useAutoResizeTextarea', () => {
   // =============================================================================
   describe('reset', () => {
     it('does nothing when textareaRef is null', () => {
-      const { reset } = useAutoResizeTextarea();
+      const { reset } = useAiAutoResizeTextarea();
 
       // Should not throw
       expect(() => reset()).not.toThrow();
     });
 
     it('resets height to auto', () => {
-      const { textareaRef, reset } = useAutoResizeTextarea();
+      const { textareaRef, reset } = useAiAutoResizeTextarea();
 
       mockTextarea.style.height = '100px';
       textareaRef.value = mockTextarea;

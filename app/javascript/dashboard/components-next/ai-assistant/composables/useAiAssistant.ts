@@ -11,8 +11,8 @@
 import { computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
-import { useVercelChat } from './useVercelChat';
-import { useAiChatSessionManager } from './useAiChatSessionManager';
+import { useAiChat } from './useAiChat';
+import { useAiChatSessions } from './useAiChatSessions';
 import { useAIChatBot } from './useAIChatBot';
 import {
   createChatwootTransportConfig,
@@ -73,7 +73,7 @@ export function useAiAssistant() {
   const persistenceAdapter = createChatwootPersistenceAdapter();
 
   // Session management — uses adapter, no hardcoded fetch
-  const sessionManager = useAiChatSessionManager(
+  const sessionManager = useAiChatSessions(
     sessionsAdapter,
     persistenceAdapter,
   );
@@ -88,7 +88,7 @@ export function useAiAssistant() {
   );
 
   // Initialize Vercel AI SDK Chat via config
-  const chat = useVercelChat(transportConfig, chatwootBehaviorConfig, {
+  const chat = useAiChat(transportConfig, chatwootBehaviorConfig, {
     onSessionId: (id: string) => {
       // Persist session ID when received from backend
       sessionManager.setActiveSessionId(id, selectedBotId.value);

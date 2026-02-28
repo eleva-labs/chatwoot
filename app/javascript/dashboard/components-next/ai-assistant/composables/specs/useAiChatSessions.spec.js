@@ -1,4 +1,4 @@
-import { useAiChatSessionManager } from '../useAiChatSessionManager';
+import { useAiChatSessions } from '../useAiChatSessions';
 
 // Mock dependencies
 vi.mock('../useAiMessageMapper', () => ({
@@ -20,7 +20,7 @@ const createMockPersistence = () => ({
   remove: vi.fn().mockResolvedValue(undefined),
 });
 
-describe('useAiChatSessionManager', () => {
+describe('useAiChatSessions', () => {
   const botId = 456;
   const sessionId = 'session-789';
 
@@ -48,7 +48,7 @@ describe('useAiChatSessionManager', () => {
   // =============================================================================
   describe('initialization', () => {
     it('returns expected state and methods', () => {
-      const manager = useAiChatSessionManager(createMockAdapter());
+      const manager = useAiChatSessions(createMockAdapter());
 
       expect(manager).toHaveProperty('sessions');
       expect(manager).toHaveProperty('activeSessionId');
@@ -68,18 +68,18 @@ describe('useAiChatSessionManager', () => {
     });
 
     it('initializes with empty sessions array', () => {
-      const { sessions } = useAiChatSessionManager(createMockAdapter());
+      const { sessions } = useAiChatSessions(createMockAdapter());
       expect(sessions.value).toEqual([]);
     });
 
     it('initializes with null activeSessionId', () => {
-      const { activeSessionId } = useAiChatSessionManager(createMockAdapter());
+      const { activeSessionId } = useAiChatSessions(createMockAdapter());
       expect(activeSessionId.value).toBeNull();
     });
 
     it('initializes with loading states as false', () => {
       const { isLoadingSessions, isLoadingMessages } =
-        useAiChatSessionManager(createMockAdapter());
+        useAiChatSessions(createMockAdapter());
       expect(isLoadingSessions.value).toBe(false);
       expect(isLoadingMessages.value).toBe(false);
     });
@@ -90,8 +90,7 @@ describe('useAiChatSessionManager', () => {
   // =============================================================================
   describe('persistence methods', () => {
     it('getStoredSessionId returns null when nothing stored', () => {
-      const { getStoredSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+      const { getStoredSessionId } = useAiChatSessions(createMockAdapter());
       const result = getStoredSessionId(botId);
 
       expect(result).toBeNull();
@@ -99,7 +98,7 @@ describe('useAiChatSessionManager', () => {
 
     it('storeSessionId saves to in-memory store', () => {
       const { storeSessionId, getStoredSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+        useAiChatSessions(createMockAdapter());
       storeSessionId(botId, sessionId);
 
       expect(getStoredSessionId(botId)).toBe(sessionId);
@@ -107,7 +106,7 @@ describe('useAiChatSessionManager', () => {
 
     it('storeSessionId delegates to persistence adapter when provided', () => {
       const persistence = createMockPersistence();
-      const { storeSessionId } = useAiChatSessionManager(
+      const { storeSessionId } = useAiChatSessions(
         createMockAdapter(),
         persistence
       );
@@ -121,7 +120,7 @@ describe('useAiChatSessionManager', () => {
 
     it('clearStoredSessionId removes from in-memory store', () => {
       const { storeSessionId, clearStoredSessionId, getStoredSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+        useAiChatSessions(createMockAdapter());
       storeSessionId(botId, sessionId);
       clearStoredSessionId(botId);
 
@@ -130,7 +129,7 @@ describe('useAiChatSessionManager', () => {
 
     it('clearStoredSessionId delegates to persistence adapter when provided', () => {
       const persistence = createMockPersistence();
-      const { clearStoredSessionId } = useAiChatSessionManager(
+      const { clearStoredSessionId } = useAiChatSessions(
         createMockAdapter(),
         persistence
       );
@@ -147,13 +146,13 @@ describe('useAiChatSessionManager', () => {
   // =============================================================================
   describe('fetchSessions', () => {
     it('returns empty array when no adapter provided', async () => {
-      const { fetchSessions } = useAiChatSessionManager();
+      const { fetchSessions } = useAiChatSessions();
       const result = await fetchSessions(botId);
       expect(result).toEqual([]);
     });
 
     it('returns empty array when botId is missing', async () => {
-      const { fetchSessions } = useAiChatSessionManager(createMockAdapter());
+      const { fetchSessions } = useAiChatSessions(createMockAdapter());
       const result = await fetchSessions(null);
       expect(result).toEqual([]);
     });
@@ -169,7 +168,7 @@ describe('useAiChatSessionManager', () => {
       });
 
       const { fetchSessions, sessions, isLoadingSessions } =
-        useAiChatSessionManager(adapter);
+        useAiChatSessions(adapter);
 
       const fetchPromise = fetchSessions(botId);
 
@@ -194,8 +193,7 @@ describe('useAiChatSessionManager', () => {
           .mockRejectedValue(new Error('Failed to fetch sessions: 500')),
       });
 
-      const { fetchSessions, sessions, error } =
-        useAiChatSessionManager(adapter);
+      const { fetchSessions, sessions, error } = useAiChatSessions(adapter);
       const result = await fetchSessions(botId);
 
       expect(result).toEqual([]);
@@ -208,7 +206,7 @@ describe('useAiChatSessionManager', () => {
         fetchSessions: vi.fn().mockRejectedValue(new Error('Network error')),
       });
 
-      const { fetchSessions, error } = useAiChatSessionManager(adapter);
+      const { fetchSessions, error } = useAiChatSessions(adapter);
       await fetchSessions(botId);
 
       expect(error.value).toBe('Network error');
@@ -217,7 +215,7 @@ describe('useAiChatSessionManager', () => {
     it('passes agentBotId to adapter', async () => {
       const adapter = createMockAdapter();
 
-      const { fetchSessions } = useAiChatSessionManager(adapter);
+      const { fetchSessions } = useAiChatSessions(adapter);
       await fetchSessions(botId);
 
       expect(adapter.fetchSessions).toHaveBeenCalledWith({
@@ -232,14 +230,13 @@ describe('useAiChatSessionManager', () => {
   // =============================================================================
   describe('fetchSessionMessages', () => {
     it('returns empty array when no adapter provided', async () => {
-      const { fetchSessionMessages } = useAiChatSessionManager();
+      const { fetchSessionMessages } = useAiChatSessions();
       const result = await fetchSessionMessages(sessionId);
       expect(result).toEqual([]);
     });
 
     it('returns empty array when sessionId is missing', async () => {
-      const { fetchSessionMessages } =
-        useAiChatSessionManager(createMockAdapter());
+      const { fetchSessionMessages } = useAiChatSessions(createMockAdapter());
       const result = await fetchSessionMessages(null);
       expect(result).toEqual([]);
     });
@@ -255,7 +252,7 @@ describe('useAiChatSessionManager', () => {
       });
 
       const { fetchSessionMessages, isLoadingMessages } =
-        useAiChatSessionManager(adapter);
+        useAiChatSessions(adapter);
 
       const fetchPromise = fetchSessionMessages(sessionId);
       expect(isLoadingMessages.value).toBe(true);
@@ -273,7 +270,7 @@ describe('useAiChatSessionManager', () => {
           .mockRejectedValue(new Error('Failed to fetch messages: 404')),
       });
 
-      const { fetchSessionMessages, error } = useAiChatSessionManager(adapter);
+      const { fetchSessionMessages, error } = useAiChatSessions(adapter);
       const result = await fetchSessionMessages(sessionId);
 
       expect(result).toEqual([]);
@@ -289,7 +286,7 @@ describe('useAiChatSessionManager', () => {
       const adapter = createMockAdapter();
 
       const { loadSession, activeSessionId, getStoredSessionId } =
-        useAiChatSessionManager(adapter);
+        useAiChatSessions(adapter);
       await loadSession(sessionId, botId, mockChat);
 
       expect(activeSessionId.value).toBe(sessionId);
@@ -306,7 +303,7 @@ describe('useAiChatSessionManager', () => {
         fetchMessages: vi.fn().mockResolvedValue(mockMessages),
       });
 
-      const { loadSession } = useAiChatSessionManager(adapter);
+      const { loadSession } = useAiChatSessions(adapter);
       await loadSession(sessionId, botId, mockChat);
 
       expect(toUIMessages).toHaveBeenCalledWith(mockMessages);
@@ -319,7 +316,7 @@ describe('useAiChatSessionManager', () => {
   // =============================================================================
   describe('restoreSession', () => {
     it('returns false when no stored session', async () => {
-      const { restoreSession } = useAiChatSessionManager(createMockAdapter());
+      const { restoreSession } = useAiChatSessions(createMockAdapter());
       const result = await restoreSession(botId, mockChat);
 
       expect(result).toBe(false);
@@ -329,7 +326,7 @@ describe('useAiChatSessionManager', () => {
       const adapter = createMockAdapter();
 
       const { restoreSession, activeSessionId, storeSessionId } =
-        useAiChatSessionManager(adapter);
+        useAiChatSessions(adapter);
       // Pre-store a session ID
       storeSessionId(botId, sessionId);
 
@@ -344,7 +341,7 @@ describe('useAiChatSessionManager', () => {
       const persistence = createMockPersistence();
       persistence.get.mockResolvedValue(sessionId);
 
-      const { restoreSession, activeSessionId } = useAiChatSessionManager(
+      const { restoreSession, activeSessionId } = useAiChatSessions(
         adapter,
         persistence
       );
@@ -364,7 +361,7 @@ describe('useAiChatSessionManager', () => {
   describe('startNewSession', () => {
     it('clears activeSessionId', () => {
       const { startNewSession, activeSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+        useAiChatSessions(createMockAdapter());
       activeSessionId.value = sessionId;
 
       startNewSession(botId, mockChat);
@@ -374,7 +371,7 @@ describe('useAiChatSessionManager', () => {
 
     it('clears stored session from memory', () => {
       const { startNewSession, storeSessionId, getStoredSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+        useAiChatSessions(createMockAdapter());
       storeSessionId(botId, sessionId);
       startNewSession(botId, mockChat);
 
@@ -382,7 +379,7 @@ describe('useAiChatSessionManager', () => {
     });
 
     it('clears chat messages', () => {
-      const { startNewSession } = useAiChatSessionManager(createMockAdapter());
+      const { startNewSession } = useAiChatSessions(createMockAdapter());
       startNewSession(botId, mockChat);
 
       expect(mockChat.setMessages).toHaveBeenCalledWith([]);
@@ -396,7 +393,7 @@ describe('useAiChatSessionManager', () => {
     it('deletes session via adapter and removes from state', async () => {
       const adapter = createMockAdapter();
 
-      const { deleteSession, sessions } = useAiChatSessionManager(adapter);
+      const { deleteSession, sessions } = useAiChatSessions(adapter);
       sessions.value = [
         { chat_session_id: sessionId, updated_at: '2025-01-01' },
         { chat_session_id: 'other-session', updated_at: '2025-01-02' },
@@ -414,7 +411,7 @@ describe('useAiChatSessionManager', () => {
       const adapter = createMockAdapter();
 
       const { deleteSession, activeSessionId, sessions, getStoredSessionId } =
-        useAiChatSessionManager(adapter);
+        useAiChatSessions(adapter);
       activeSessionId.value = sessionId;
       sessions.value = [
         { chat_session_id: sessionId, updated_at: '2025-01-01' },
@@ -430,7 +427,7 @@ describe('useAiChatSessionManager', () => {
       const adapter = createMockAdapter();
 
       const { deleteSession, activeSessionId, sessions } =
-        useAiChatSessionManager(adapter);
+        useAiChatSessions(adapter);
       activeSessionId.value = 'different-session';
       sessions.value = [
         { chat_session_id: sessionId, updated_at: '2025-01-01' },
@@ -448,7 +445,7 @@ describe('useAiChatSessionManager', () => {
           .mockRejectedValue(new Error('Failed to delete session: 500')),
       });
 
-      const { deleteSession, error } = useAiChatSessionManager(adapter);
+      const { deleteSession, error } = useAiChatSessions(adapter);
       const result = await deleteSession(sessionId, botId);
 
       expect(result).toBe(false);
@@ -459,7 +456,7 @@ describe('useAiChatSessionManager', () => {
       const adapter = createMockAdapter();
       delete adapter.deleteSession;
 
-      const { deleteSession } = useAiChatSessionManager(adapter);
+      const { deleteSession } = useAiChatSessions(adapter);
       const result = await deleteSession(sessionId, botId);
 
       expect(result).toBe(false);
@@ -472,7 +469,7 @@ describe('useAiChatSessionManager', () => {
   describe('setActiveSessionId', () => {
     it('updates activeSessionId ref', () => {
       const { setActiveSessionId, activeSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+        useAiChatSessions(createMockAdapter());
 
       setActiveSessionId(sessionId, botId);
 
@@ -481,7 +478,7 @@ describe('useAiChatSessionManager', () => {
 
     it('stores session in memory when both ids provided', () => {
       const { setActiveSessionId, getStoredSessionId } =
-        useAiChatSessionManager(createMockAdapter());
+        useAiChatSessions(createMockAdapter());
 
       setActiveSessionId(sessionId, botId);
 
@@ -490,7 +487,7 @@ describe('useAiChatSessionManager', () => {
 
     it('stores session via persistence adapter when both ids provided', () => {
       const persistence = createMockPersistence();
-      const { setActiveSessionId } = useAiChatSessionManager(
+      const { setActiveSessionId } = useAiChatSessions(
         createMockAdapter(),
         persistence
       );
@@ -505,7 +502,7 @@ describe('useAiChatSessionManager', () => {
 
     it('does not store when sessionId is null', () => {
       const persistence = createMockPersistence();
-      const { setActiveSessionId } = useAiChatSessionManager(
+      const { setActiveSessionId } = useAiChatSessions(
         createMockAdapter(),
         persistence
       );
@@ -517,7 +514,7 @@ describe('useAiChatSessionManager', () => {
 
     it('does not store when botId is null', () => {
       const persistence = createMockPersistence();
-      const { setActiveSessionId } = useAiChatSessionManager(
+      const { setActiveSessionId } = useAiChatSessions(
         createMockAdapter(),
         persistence
       );
@@ -533,26 +530,26 @@ describe('useAiChatSessionManager', () => {
   // =============================================================================
   describe('single-session mode (no adapter)', () => {
     it('fetchSessions returns empty array', async () => {
-      const { fetchSessions } = useAiChatSessionManager();
+      const { fetchSessions } = useAiChatSessions();
       const result = await fetchSessions(botId);
       expect(result).toEqual([]);
     });
 
     it('fetchSessionMessages returns empty array', async () => {
-      const { fetchSessionMessages } = useAiChatSessionManager();
+      const { fetchSessionMessages } = useAiChatSessions();
       const result = await fetchSessionMessages(sessionId);
       expect(result).toEqual([]);
     });
 
     it('deleteSession returns false', async () => {
-      const { deleteSession } = useAiChatSessionManager();
+      const { deleteSession } = useAiChatSessions();
       const result = await deleteSession(sessionId, botId);
       expect(result).toBe(false);
     });
 
     it('in-memory persistence methods still work', () => {
       const { getStoredSessionId, storeSessionId, clearStoredSessionId } =
-        useAiChatSessionManager();
+        useAiChatSessions();
 
       expect(getStoredSessionId(botId)).toBeNull();
 

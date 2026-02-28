@@ -1,5 +1,5 @@
 /**
- * useAiChatSessionManager.ts
+ * useAiChatSessions.ts
  *
  * Composable for AI chat session persistence and history management.
  * Accepts an optional SessionsAdapter to decouple from Chatwoot-specific
@@ -72,7 +72,7 @@ interface SessionManagerReturn {
  * @param persistence - Optional PersistenceAdapter for session ID storage.
  *   Falls back to a simple in-memory Map when not provided.
  */
-export function useAiChatSessionManager(
+export function useAiChatSessions(
   adapter?: SessionsAdapter,
   persistence?: PersistenceAdapter,
 ): SessionManagerReturn {
@@ -279,4 +279,4 @@ export function useAiChatSessionManager(
   };
 }
 
-export default useAiChatSessionManager;
+export default useAiChatSessions;

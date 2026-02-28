@@ -1,11 +1,11 @@
 export { useAiAssistant } from './useAiAssistant';
 export { useAIChatBot } from './useAIChatBot';
-export { useVercelChat } from './useVercelChat';
+export { useAiChat } from './useAiChat';
 export {
   toUIMessage,
   toUIMessages,
   toBackendMessage,
 } from './useAiMessageMapper';
-export { useAiChatSessionManager } from './useAiChatSessionManager';
-export { useAutoScroll } from './useAutoScroll';
-export { useAutoResizeTextarea } from './useAutoResizeTextarea';
+export { useAiChatSessions } from './useAiChatSessions';
+export { useAiChatScroll } from './useAiChatScroll';
+export { useAiAutoResizeTextarea } from './useAiAutoResizeTextarea';

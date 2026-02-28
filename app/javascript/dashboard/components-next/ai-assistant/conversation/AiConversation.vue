@@ -1,7 +1,7 @@
 <script setup>
 import { toRef, onMounted } from 'vue';
 import { useAiI18n } from '../i18n/aiChatI18n';
-import { useAutoScroll } from '../composables/useAutoScroll';
+import { useAiChatScroll } from '../composables/useAiChatScroll';
 
 const props = defineProps({
   isStreaming: { type: Boolean, default: false },
@@ -15,7 +15,7 @@ const {
   showScrollToTop,
   scrollToTop,
   scrollToBottom,
-} = useAutoScroll({
+} = useAiChatScroll({
   isStreaming: toRef(props, 'isStreaming'),
 });
 

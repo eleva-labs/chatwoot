@@ -36,7 +36,7 @@ interface AutoScrollReturn {
  * - Scroll-to-top/bottom methods with smooth behavior
  * - Escape hatch: shows scroll-to-top during streaming so user can break free
  */
-export function useAutoScroll(options: AutoScrollOptions = {}): AutoScrollReturn {
+export function useAiChatScroll(options: AutoScrollOptions = {}): AutoScrollReturn {
   const {
     isStreaming: isStreamingOption = false,
     thresholdPx = 150,

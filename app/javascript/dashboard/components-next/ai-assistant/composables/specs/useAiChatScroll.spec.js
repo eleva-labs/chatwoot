@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { useAutoScroll } from '../useAutoScroll';
+import { useAiChatScroll } from '../useAiChatScroll';
 
 // Store scroll handler globally so we can call it from tests
 let scrollHandler = null;
@@ -29,7 +29,7 @@ vi.mock('@vueuse/core', () => ({
   }),
 }));
 
-describe('useAutoScroll', () => {
+describe('useAiChatScroll', () => {
   let mockContainer;
 
   beforeEach(() => {
@@ -62,7 +62,7 @@ describe('useAutoScroll', () => {
   // =============================================================================
   describe('initialization', () => {
     it('returns expected refs and methods', () => {
-      const result = useAutoScroll();
+      const result = useAiChatScroll();
 
       expect(result).toHaveProperty('containerRef');
       expect(result).toHaveProperty('isNearBottom');
@@ -75,22 +75,22 @@ describe('useAutoScroll', () => {
     });
 
     it('initializes isNearBottom as true', () => {
-      const { isNearBottom } = useAutoScroll();
+      const { isNearBottom } = useAiChatScroll();
       expect(isNearBottom.value).toBe(true);
     });
 
     it('initializes isNearTop as true', () => {
-      const { isNearTop } = useAutoScroll();
+      const { isNearTop } = useAiChatScroll();
       expect(isNearTop.value).toBe(true);
     });
 
     it('initializes userScrolledAway as false', () => {
-      const { userScrolledAway } = useAutoScroll();
+      const { userScrolledAway } = useAiChatScroll();
       expect(userScrolledAway.value).toBe(false);
     });
 
     it('accepts custom threshold options', () => {
-      const result = useAutoScroll({
+      const result = useAiChatScroll({
         thresholdPx: 200,
         resumePx: 50,
       });
@@ -104,7 +104,7 @@ describe('useAutoScroll', () => {
   // =============================================================================
   describe('isNearBottom', () => {
     it('is true when scrolled to bottom', () => {
-      const { containerRef, isNearBottom } = useAutoScroll({
+      const { containerRef, isNearBottom } = useAiChatScroll({
         thresholdPx: 150,
       });
       containerRef.value = mockContainer;
@@ -117,7 +117,7 @@ describe('useAutoScroll', () => {
     });
 
     it('is true when within threshold of bottom', () => {
-      const { containerRef, isNearBottom } = useAutoScroll({
+      const { containerRef, isNearBottom } = useAiChatScroll({
         thresholdPx: 150,
       });
       containerRef.value = mockContainer;
@@ -130,7 +130,7 @@ describe('useAutoScroll', () => {
     });
 
     it('is false when scrolled away from bottom', () => {
-      const { containerRef, isNearBottom } = useAutoScroll({
+      const { containerRef, isNearBottom } = useAiChatScroll({
         thresholdPx: 150,
       });
       containerRef.value = mockContainer;
@@ -148,7 +148,7 @@ describe('useAutoScroll', () => {
   // =============================================================================
   describe('isNearTop', () => {
     it('is true when at top', () => {
-      const { containerRef, isNearTop } = useAutoScroll({ thresholdPx: 150 });
+      const { containerRef, isNearTop } = useAiChatScroll({ thresholdPx: 150 });
       containerRef.value = mockContainer;
 
       simulateScroll(mockContainer, 0);
@@ -157,7 +157,7 @@ describe('useAutoScroll', () => {
     });
 
     it('is true when within threshold of top', () => {
-      const { containerRef, isNearTop } = useAutoScroll({ thresholdPx: 150 });
+      const { containerRef, isNearTop } = useAiChatScroll({ thresholdPx: 150 });
       containerRef.value = mockContainer;
 
       simulateScroll(mockContainer, 100); // within 150px threshold
@@ -166,7 +166,7 @@ describe('useAutoScroll', () => {
     });
 
     it('is false when scrolled away from top', () => {
-      const { containerRef, isNearTop } = useAutoScroll({ thresholdPx: 150 });
+      const { containerRef, isNearTop } = useAiChatScroll({ thresholdPx: 150 });
       containerRef.value = mockContainer;
 
       simulateScroll(mockContainer, 200); // outside 150px threshold
@@ -180,7 +180,7 @@ describe('useAutoScroll', () => {
   // =============================================================================
   describe('showScrollToBottom', () => {
     it('is false when near bottom', () => {
-      const { containerRef, showScrollToBottom } = useAutoScroll({
+      const { containerRef, showScrollToBottom } = useAiChatScroll({
         thresholdPx: 150,
       });
       containerRef.value = mockContainer;
@@ -191,7 +191,7 @@ describe('useAutoScroll', () => {
     });
 
     it('is true when scrolled away from bottom', () => {
-      const { containerRef, showScrollToBottom } = useAutoScroll({
+      const { containerRef, showScrollToBottom } = useAiChatScroll({
         thresholdPx: 150,
       });
       containerRef.value = mockContainer;
@@ -207,14 +207,14 @@ describe('useAutoScroll', () => {
   // =============================================================================
   describe('scrollToBottom', () => {
     it('does nothing when containerRef is null', () => {
-      const { scrollToBottom } = useAutoScroll();
+      const { scrollToBottom } = useAiChatScroll();
 
       // Should not throw
       expect(() => scrollToBottom()).not.toThrow();
     });
 
     it('scrolls to bottom with smooth behavior by default', () => {
-      const { containerRef, scrollToBottom } = useAutoScroll();
+      const { containerRef, scrollToBottom } = useAiChatScroll();
       containerRef.value = mockContainer;
 
       scrollToBottom();
@@ -226,7 +226,7 @@ describe('useAutoScroll', () => {
     });
 
     it('accepts custom behavior parameter', () => {
-      const { containerRef, scrollToBottom } = useAutoScroll();
+      const { containerRef, scrollToBottom } = useAiChatScroll();
       containerRef.value = mockContainer;
 
       scrollToBottom('instant');
@@ -243,14 +243,14 @@ describe('useAutoScroll', () => {
   // =============================================================================
   describe('scrollToTop', () => {
     it('does nothing when containerRef is null', () => {
-      const { scrollToTop } = useAutoScroll();
+      const { scrollToTop } = useAiChatScroll();
 
       // Should not throw
       expect(() => scrollToTop()).not.toThrow();
     });
 
     it('scrolls to top with smooth behavior', () => {
-      const { containerRef, scrollToTop } = useAutoScroll();
+      const { containerRef, scrollToTop } = useAiChatScroll();
       containerRef.value = mockContainer;
 
       scrollToTop();
@@ -262,7 +262,7 @@ describe('useAutoScroll', () => {
     });
 
     it('sets userScrolledAway to true', () => {
-      const { containerRef, scrollToTop, userScrolledAway } = useAutoScroll();
+      const { containerRef, scrollToTop, userScrolledAway } = useAiChatScroll();
       containerRef.value = mockContainer;
 
       scrollToTop();
@@ -277,7 +277,7 @@ describe('useAutoScroll', () => {
   describe('userScrolledAway', () => {
     it('is set to true when scrolling up during streaming', async () => {
       const isStreaming = ref(true);
-      const { containerRef, userScrolledAway } = useAutoScroll({
+      const { containerRef, userScrolledAway } = useAiChatScroll({
         isStreaming,
         thresholdPx: 150,
       });
@@ -295,7 +295,7 @@ describe('useAutoScroll', () => {
 
     it('resets when user scrolls back to bottom', async () => {
       const isStreaming = ref(true);
-      const { containerRef, userScrolledAway } = useAutoScroll({
+      const { containerRef, userScrolledAway } = useAiChatScroll({
         isStreaming,
         resumePx: 20,
       });
@@ -317,7 +317,7 @@ describe('useAutoScroll', () => {
   // =============================================================================
   describe('showScrollToTop', () => {
     it('is true when not near top', () => {
-      const { containerRef, showScrollToTop } = useAutoScroll({
+      const { containerRef, showScrollToTop } = useAiChatScroll({
         thresholdPx: 150,
       });
       containerRef.value = mockContainer;
@@ -329,7 +329,7 @@ describe('useAutoScroll', () => {
 
     it('is false when near top and not streaming', () => {
       const isStreaming = ref(false);
-      const { containerRef, showScrollToTop } = useAutoScroll({
+      const { containerRef, showScrollToTop } = useAiChatScroll({
         isStreaming,
         thresholdPx: 150,
       });

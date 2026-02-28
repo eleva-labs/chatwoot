@@ -7,7 +7,7 @@ import { ref, type Ref } from 'vue';
  * @param maxHeight - Maximum height in pixels (default: 128)
  * @returns textareaRef, resize, reset
  */
-export function useAutoResizeTextarea(maxHeight: number = 128): {
+export function useAiAutoResizeTextarea(maxHeight: number = 128): {
   textareaRef: Ref<HTMLTextAreaElement | null>;
   resize: () => void;
   reset: () => void;

@@ -1,9 +1,9 @@
 import { mount } from '@vue/test-utils';
 import AiPromptInput from '../AiPromptInput.vue';
 
-// Mock useAutoResizeTextarea
-vi.mock('../../composables/useAutoResizeTextarea', () => ({
-  useAutoResizeTextarea: vi.fn(() => ({
+// Mock useAiAutoResizeTextarea
+vi.mock('../../composables/useAiAutoResizeTextarea', () => ({
+  useAiAutoResizeTextarea: vi.fn(() => ({
     textareaRef: { value: null },
     resize: vi.fn(),
     reset: vi.fn(),
