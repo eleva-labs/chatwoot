@@ -1,7 +1,8 @@
 <script setup>
-import { onMounted, computed, ref, toRefs, watch } from 'vue';
+import { onMounted, computed, ref, toRefs } from 'vue'; // watch removed (AI feedback disabled)
 import { useTimeoutFn } from '@vueuse/core';
-import { useToggle } from '@vueuse/core';
+// AI feedback (disabled)
+// import { useToggle } from '@vueuse/core';
 import { provideMessageContext } from './provider.js';
 import { useTrack } from 'dashboard/composables';
 import { emitter } from 'shared/helpers/mitt';
@@ -11,8 +12,9 @@ import { LocalStorage } from 'shared/helpers/localStorage';
 import { ACCOUNT_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
-import aiMessageFeedbacksAPI from 'dashboard/api/aiMessageFeedbacks';
-import { useAlert } from 'dashboard/composables';
+// AI feedback (disabled)
+// import aiMessageFeedbacksAPI from 'dashboard/api/aiMessageFeedbacks';
+// import { useAlert } from 'dashboard/composables';
 import {
   MESSAGE_TYPES,
   ATTACHMENT_TYPES,
@@ -24,8 +26,9 @@ import {
 } from './constants';
 
 import Avatar from 'next/avatar/Avatar.vue';
-import ButtonV4 from 'dashboard/components-next/button/Button.vue';
-import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
+// TODO: Re-enable when feedback buttons are ready
+// import ButtonV4 from 'dashboard/components-next/button/Button.vue';
+// import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 
 import TextBubble from './bubbles/Text/Index.vue';
 import ActivityBubble from './bubbles/Activity.vue';
@@ -141,7 +144,8 @@ const emit = defineEmits(['retry']);
 const contextMenuPosition = ref({});
 const showBackgroundHighlight = ref(false);
 const showContextMenu = ref(false);
-const [showAiFeedbackDropdown, toggleAiFeedbackDropdown] = useToggle(false);
+// AI feedback (disabled)
+// const [showAiFeedbackDropdown, toggleAiFeedbackDropdown] = useToggle(false);
 const { t } = useI18n();
 const route = useRoute();
 
@@ -359,24 +363,20 @@ const payloadForContextMenu = computed(() => {
   };
 });
 
-// AI Feedback related computed properties
+/* AI feedback (disabled) — computed properties and reactive state
 const isBotMessage = computed(() => {
-  // Allow feedback on bot messages only
   return variant.value === MESSAGE_VARIANTS.BOT;
 });
 
-// Local reactive state for AI feedback to provide immediate UI updates
 const localAiFeedback = ref(
   props.contentAttributes?.ai_feedback ||
     props.contentAttributes?.aiFeedback ||
     null
 );
 
-// Watch for prop changes to sync with external updates
 watch(
   () => props.contentAttributes,
   newAttributes => {
-    // Support both snake_case and camelCase keys
     const newFeedback =
       newAttributes?.ai_feedback ?? newAttributes?.aiFeedback ?? null;
 
@@ -406,7 +406,6 @@ const thumbsUpSelected = computed(() => {
 });
 
 const thumbsDownSelected = computed(() => {
-  // Check for negative rating (with or without feedback text)
   const selected = aiFeedbackRating.value === -1;
   return selected;
 });
@@ -443,6 +442,7 @@ const aiFeedbackMenuItems = computed(() => [
     value: 'delete',
   },
 ]);
+*/
 
 const contextMenuEnabledOptions = computed(() => {
   const hasText = !!props.content;
@@ -489,30 +489,21 @@ const shouldRenderMessage = computed(() => {
   );
 });
 
-// AI Feedback methods
+/* AI feedback (disabled) — methods
 async function handleThumbsUp() {
   if (isSubmittingFeedback.value) return;
 
   try {
     isSubmittingFeedback.value = true;
 
-    // If thumbs up is already selected, undo the feedback by deleting it
     if (thumbsUpSelected.value) {
       await aiMessageFeedbacksAPI.delete(props.id);
-
-      // Clear local state immediately for instant UI feedback
       localAiFeedback.value = null;
-
-      // Show success notification
       useAlert(t('CONVERSATION.AI_FEEDBACK.POSITIVE_FEEDBACK_REMOVED'));
-
       return;
     }
 
-    // Otherwise, proceed with creating/updating positive feedback
-    const feedbackData = {
-      rating: 1,
-    };
+    const feedbackData = { rating: 1 };
 
     if (aiFeedback.value) {
       await aiMessageFeedbacksAPI.update(props.id, feedbackData);
@@ -520,7 +511,6 @@ async function handleThumbsUp() {
       await aiMessageFeedbacksAPI.create(props.id, feedbackData);
     }
 
-    // Update local state immediately for instant UI feedback
     const updatedFeedback = {
       rating: 1,
       feedbackText: aiFeedback.value?.feedbackText || null,
@@ -529,13 +519,8 @@ async function handleThumbsUp() {
       updatedAt: new Date().toISOString(),
     };
     localAiFeedback.value = updatedFeedback;
-
-    // Show success notification
     useAlert(t('CONVERSATION.AI_FEEDBACK.THUMBS_UP_SUCCESS'));
-
-    // Note: Real-time updates handled automatically via existing MESSAGE_UPDATED event system
   } catch (error) {
-    // Show user-friendly error message
     const errorMessage =
       error?.response?.data?.message ||
       t('CONVERSATION.AI_FEEDBACK.SUBMIT_ERROR');
@@ -549,13 +534,10 @@ async function handleThumbsDown() {
   if (isSubmittingFeedback.value) return;
 
   try {
-    // If feedback already exists with thumbs down, don't do anything
-    // The user can use the edit/delete buttons instead
     if (thumbsDownSelected.value) {
       return;
     }
 
-    // Check if feedback already exists and has text - if so, just update rating
     if (aiFeedback.value && aiFeedback.value.feedbackText) {
       isSubmittingFeedback.value = true;
 
@@ -566,7 +548,6 @@ async function handleThumbsDown() {
 
       await aiMessageFeedbacksAPI.update(props.id, feedbackData);
 
-      // Update local state immediately for instant UI feedback
       const updatedFeedback = {
         ...aiFeedback.value,
         rating: -1,
@@ -574,13 +555,10 @@ async function handleThumbsDown() {
       };
 
       localAiFeedback.value = updatedFeedback;
-
       useAlert(t('CONVERSATION.AI_FEEDBACK.THUMBS_DOWN_SUCCESS'));
-
       return;
     }
 
-    // For new feedback or feedback without text, trigger AI feedback mode
     emitter.emit(BUS_EVENTS.AI_FEEDBACK_TO_MESSAGE, {
       message: {
         id: props.id,
@@ -591,10 +569,8 @@ async function handleThumbsDown() {
       },
     });
 
-    // Show info message about feedback mode
     useAlert(t('CONVERSATION.AI_FEEDBACK.FEEDBACK_MODE_ACTIVATED'));
   } catch (error) {
-    // Show user-friendly error message
     const errorMessage =
       error?.response?.data?.message ||
       t('CONVERSATION.AI_FEEDBACK.SUBMIT_ERROR');
@@ -610,14 +586,9 @@ async function deleteAiFeedback() {
   try {
     isSubmittingFeedback.value = true;
     await aiMessageFeedbacksAPI.delete(props.id);
-
-    // Clear local state immediately for instant UI feedback
     localAiFeedback.value = null;
-
-    // Show success notification
     useAlert(t('CONVERSATION.AI_FEEDBACK.DELETE_SUCCESS'));
   } catch (error) {
-    // Show user-friendly error message
     const errorMessage =
       error?.response?.data?.message ||
       t('CONVERSATION.AI_FEEDBACK.DELETE_ERROR');
@@ -637,8 +608,6 @@ function editAiFeedback() {
       variant: props.variant,
     },
   });
-
-  // Show info message about edit mode
   useAlert(t('CONVERSATION.AI_FEEDBACK.EDIT_MODE_ACTIVATED'));
 }
 
@@ -651,6 +620,7 @@ function handleAiFeedbackAction({ action }) {
     deleteAiFeedback();
   }
 }
+*/
 
 function openContextMenu(e) {
   const shouldSkipContextMenu =
@@ -730,16 +700,14 @@ const setupHighlightTimer = () => {
 
 onMounted(setupHighlightTimer);
 
-// AI feedback state is now fully reactive through props
-// No event listeners needed - props automatically update when the Vuex store changes
-
-// Watch for prop changes to track component lifecycle
+/* AI feedback (disabled) — lifecycle watcher
 watch(
   () => props.id,
   () => {
     // Component lifecycle tracking if needed
   }
 );
+*/
 
 provideMessageContext({
   ...toRefs(props),
@@ -802,7 +770,8 @@ provideMessageContext({
         <Component :is="componentToRender" />
       </div>
 
-      <!-- AI Feedback Icons (for bot messages only) - positioned below bubble -->
+      <!-- TODO: Re-enable feedback buttons when ready -->
+      <!--
       <div
         v-if="isBotMessage"
         class="[grid-area:ai-feedback] flex items-center gap-1 mt-2"
@@ -857,7 +826,6 @@ provideMessageContext({
         </button>
       </div>
 
-      <!-- Display AI Feedback Text (if available) -->
       <div
         v-if="thumbsDownSelected && aiFeedbackText"
         class="[grid-area:ai-feedback-text] mb-6 flex items-start gap-2"
@@ -896,6 +864,7 @@ provideMessageContext({
           />
         </div>
       </div>
+      -->
 
       <MessageError
         v-if="contentAttributes.externalError"
