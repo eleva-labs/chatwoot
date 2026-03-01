@@ -366,12 +366,6 @@ const deleteConversation = () => {
         :class="showMetaSection ? 'top-8' : 'top-4'"
       >
         <div class="flex items-center gap-1 ml-auto">
-          <img
-            v-if="isAiEnabled"
-            src="~dashboard/assets/images/eleva_ai/icon-ai-on.svg"
-            alt="AI Enabled"
-            class="w-3 h-3 flex-shrink-0"
-          />
           <span class="font-normal leading-4 text-xxs">
             <TimeAgo
               :last-activity-timestamp="chat.timestamp"
@@ -380,8 +374,16 @@ const deleteConversation = () => {
           </span>
         </div>
         <div class="flex items-center gap-1 ltr:ml-auto rtl:mr-auto mt-1">
+          <div class="w-3 flex-shrink-0 flex items-center justify-center">
+            <img
+              v-if="isAiEnabled"
+              src="~dashboard/assets/images/eleva_ai/icon-ai-on.svg"
+              alt="AI Enabled"
+              class="w-3 h-3"
+            />
+          </div>
           <span
-            class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
+            class="shadow-lg rounded-full text-sm font-semibold h-5 leading-5 min-w-[1.25rem] px-1 py-0 text-center text-white bg-n-teal-9"
             :class="hasUnread ? 'block' : 'hidden'"
           >
             {{ unreadCount > 9 ? '9+' : unreadCount }}
