@@ -45,17 +45,21 @@ export default {
     },
     articleViewerUrl() {
       const article = this.activeArticle(this.activeId);
-      if (!article) return '';
-      const isDark = document.body.classList.contains('dark');
+      if (!article || !article.url) return '';
+      try {
+        const isDark = document.body.classList.contains('dark');
 
-      const url = new URL(article.url);
-      url.searchParams.set('show_plain_layout', 'true');
+        const url = new URL(article.url);
+        url.searchParams.set('show_plain_layout', 'true');
 
-      if (isDark) {
-        url.searchParams.set('theme', 'dark');
+        if (isDark) {
+          url.searchParams.set('theme', 'dark');
+        }
+
+        return `${url}`;
+      } catch {
+        return article.url;
       }
-
-      return `${url}`;
     },
 
     searchResultsWithUrl() {

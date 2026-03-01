@@ -5,10 +5,14 @@ import MarkdownIt from 'markdown-it';
 const setImageHeight = inlineToken => {
   const imgSrc = inlineToken.attrGet('src');
   if (!imgSrc) return;
-  const url = new URL(imgSrc);
-  const height = url.searchParams.get('cw_image_height');
-  if (!height) return;
-  inlineToken.attrSet('style', `height: ${height};`);
+  try {
+    const url = new URL(imgSrc);
+    const height = url.searchParams.get('cw_image_height');
+    if (!height) return;
+    inlineToken.attrSet('style', `height: ${height};`);
+  } catch {
+    // imgSrc may be a relative path or malformed — skip height extraction
+  }
 };
 
 const processInlineToken = blockToken => {
