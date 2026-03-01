@@ -137,9 +137,9 @@ export default {
   }
 
   &.warning {
-    @apply bg-n-amber-3 text-n-amber-12;
+    @apply bg-n-warning-banner-bg text-n-warning-banner-text;
     a {
-      @apply text-n-amber-11;
+      @apply text-n-warning-banner-text underline;
     }
   }
 
