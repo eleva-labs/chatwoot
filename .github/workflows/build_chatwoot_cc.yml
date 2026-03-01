@@ -30,7 +30,6 @@ on:
   #     - 'v*'
 
 env:
-  AWS_ACCOUNT_ID: "008971651719"
   AWS_REGION: us-east-1
   PROJECT_NAME: chatscomm
 
@@ -38,9 +37,11 @@ jobs:
   build-dev:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev'
     runs-on: ubuntu-latest
+    environment: dev
     env:
       GIT_REF: ${{ github.head_ref || github.ref_name }}
       ENVIRONMENT: dev
+      AWS_ACCOUNT_ID: "570118540562"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -131,6 +132,7 @@ jobs:
     env:
       GIT_REF: ${{ github.head_ref || github.ref_name }}
       ENVIRONMENT: prod
+      AWS_ACCOUNT_ID: "008971651719"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
