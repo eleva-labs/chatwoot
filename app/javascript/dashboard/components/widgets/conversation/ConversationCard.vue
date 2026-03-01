@@ -112,11 +112,7 @@ const showInboxName = computed(() => {
 });
 
 const showMetaSection = computed(() => {
-  return (
-    showInboxName.value ||
-    (props.showAssignee && assignee.value.name) ||
-    props.chat.priority
-  );
+  return showInboxName.value;
 });
 
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
@@ -130,8 +126,6 @@ const messagePreviewClass = computed(() => {
     hasUnread.value ? 'font-medium text-n-slate-12' : 'text-n-slate-11',
     !props.compact && hasUnread.value ? 'ltr:pr-4 rtl:pl-4' : '',
     props.compact && hasUnread.value ? 'ltr:pr-6 rtl:pl-6' : '',
-    // Add extra padding when AI is enabled to prevent overlap with AI icon
-    isAiEnabled.value ? 'ltr:pr-8 rtl:pl-8' : '',
   ];
 });
 
@@ -301,27 +295,35 @@ const deleteConversation = () => {
         }"
       >
         <InboxName v-if="showInboxName" :inbox="inbox" class="flex-1 min-w-0" />
-        <div
-          class="flex items-center gap-2 flex-shrink-0"
-          :class="{
-            'flex-1 justify-between': !showInboxName,
-          }"
-        >
-          <span
-            v-if="showAssignee && assignee.name"
-            class="text-n-slate-11 text-xs font-medium leading-3 py-0.5 px-0 inline-flex items-center truncate"
-          >
-            <fluent-icon icon="person" size="12" class="text-n-slate-11" />
-            {{ assignee.name }}
-          </span>
-          <PriorityMark :priority="chat.priority" class="flex-shrink-0" />
-        </div>
       </div>
       <h4
-        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0 ltr:pr-16 rtl:pl-16 text-n-slate-12"
+        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 flex items-center min-w-0 ltr:pr-16 rtl:pl-16 text-n-slate-12"
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
       >
-        {{ currentContact.name }}
+        <span class="truncate flex-shrink min-w-0">
+          {{ currentContact.name }}
+        </span>
+        <PriorityMark
+          v-if="chat.priority"
+          :priority="chat.priority"
+          class="flex-shrink-0 ltr:ml-1 rtl:mr-1"
+        />
+        <span
+          v-if="showAssignee && assignee.name"
+          class="flex items-center flex-shrink-[2] min-w-0 truncate ltr:ml-1 rtl:mr-1"
+        >
+          <span class="text-n-slate-10 text-xs mx-1">·</span>
+          <fluent-icon
+            icon="person"
+            size="12"
+            class="text-n-slate-10 flex-shrink-0"
+          />
+          <span
+            class="text-xs font-normal text-n-slate-10 truncate ltr:ml-0.5 rtl:mr-0.5"
+          >
+            {{ assignee.name }}
+          </span>
+        </span>
       </h4>
       <div
         v-if="callStatus"
@@ -363,21 +365,21 @@ const deleteConversation = () => {
         class="absolute flex flex-col ltr:right-3 rtl:left-3"
         :class="showMetaSection ? 'top-8' : 'top-4'"
       >
-        <span class="ml-auto font-normal leading-4 text-xxs">
-          <TimeAgo
-            :last-activity-timestamp="chat.timestamp"
-            :created-at-timestamp="chat.created_at"
-          />
-        </span>
-        <div class="flex items-center gap-1 ltr:ml-auto rtl:mr-auto mt-1">
-          <!-- AI Icon - only show when AI is enabled -->
+        <div class="flex items-center gap-1 ml-auto">
           <img
             v-if="isAiEnabled"
             src="~dashboard/assets/images/eleva_ai/icon-ai-on.svg"
             alt="AI Enabled"
-            class="w-4 h-4 flex-shrink-0"
+            class="w-3 h-3 flex-shrink-0"
           />
-          <!-- Unread count -->
+          <span class="font-normal leading-4 text-xxs">
+            <TimeAgo
+              :last-activity-timestamp="chat.timestamp"
+              :created-at-timestamp="chat.created_at"
+            />
+          </span>
+        </div>
+        <div class="flex items-center gap-1 ltr:ml-auto rtl:mr-auto mt-1">
           <span
             class="shadow-lg rounded-full text-xxs font-semibold h-4 leading-4 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
             :class="hasUnread ? 'block' : 'hidden'"
