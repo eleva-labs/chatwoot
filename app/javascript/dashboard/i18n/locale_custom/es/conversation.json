@@ -321,6 +321,58 @@
     "SIDEBAR": {
       "CONTACT": "Contacto",
       "COPILOT": "Copilot"
+    },
+    "ACTIVITY": {
+      "STATUS": {
+        "RESOLVED": "Conversación marcada como resuelta por {user_name}",
+        "CONTACT_RESOLVED": "Conversación resuelta por {contact_name}",
+        "OPEN": "Conversación reabierta por {user_name}",
+        "PENDING": "Conversación marcada como pendiente por {user_name}",
+        "SNOOZED": "Conversación pospuesta por {user_name}",
+        "AUTO_RESOLVED_DAYS": "Conversación marcada como resuelta por el sistema debido a {count} días de inactividad",
+        "AUTO_RESOLVED_HOURS": "Conversación marcada como resuelta por el sistema debido a {count} horas de inactividad",
+        "AUTO_RESOLVED_MINUTES": "Conversación marcada como resuelta por el sistema debido a {count} minutos de inactividad",
+        "SYSTEM_AUTO_OPEN": "El sistema reabrió la conversación debido a un nuevo mensaje entrante.",
+        "CAPTAIN_RESOLVED": "Conversación marcada como resuelta por {user_name} debido a inactividad",
+        "CAPTAIN_OPEN": "Conversación marcada como abierta por {user_name}",
+        "AGENT_BOT_ERROR": "Conversación marcada como abierta por el sistema debido a un error con el bot."
+      },
+      "PRIORITY": {
+        "ADDED": "{user_name} estableció la prioridad a {new_priority}",
+        "UPDATED": "{user_name} cambió la prioridad de {old_priority} a {new_priority}",
+        "REMOVED": "{user_name} eliminó la prioridad"
+      },
+      "ASSIGNEE": {
+        "SELF_ASSIGNED": "{user_name} se autoasignó esta conversación",
+        "ASSIGNED": "Asignada a {assignee_name} por {user_name}",
+        "REMOVED": "Conversación desasignada por {user_name}"
+      },
+      "TEAM": {
+        "ASSIGNED": "Asignada al equipo {team_name} por {user_name}",
+        "ASSIGNED_WITH_ASSIGNEE": "Asignada a {assignee_name} vía {team_name} por {user_name}",
+        "REMOVED": "Desasignada del equipo {team_name} por {user_name}"
+      },
+      "LABELS": {
+        "ADDED": "{user_name} agregó {labels}",
+        "REMOVED": "{user_name} eliminó {labels}"
+      },
+      "SLA": {
+        "ADDED": "{user_name} agregó la política SLA {sla_name}",
+        "REMOVED": "{user_name} eliminó la política SLA {sla_name}"
+      },
+      "LINEAR": {
+        "ISSUE_CREATED": "Issue de Linear {issue_id} fue creado por {user_name}",
+        "ISSUE_LINKED": "Issue de Linear {issue_id} fue vinculado por {user_name}",
+        "ISSUE_UNLINKED": "Issue de Linear {issue_id} fue desvinculado por {user_name}"
+      },
+      "MUTED": "{user_name} silenció la conversación",
+      "UNMUTED": "{user_name} activó la conversación",
+      "CSAT": {
+        "NOT_SENT": "Encuesta CSAT no enviada debido a restricciones de mensajes salientes"
+      },
+      "AUTO_RESOLVE": {
+        "NOT_SENT": "Mensaje de auto-resolución no enviado debido a restricciones de mensajes salientes"
+      }
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -370,7 +422,7 @@
       "ADDING_AGENTS": "Agregando Miembros a {channel}"
     },
     "ADD_AI_AGENT": {
-      "TITLE": "Añadir su asistente de IA",
+      "TITLE": "Añadir su Empleado IA",
       "DESCRIPTION": "Empleado IA que ayudará a responder a las conversaciones",
       "NEW_LINK": "Haga clic aquí para añadir un Empleado IA"
     },

@@ -1,0 +1,103 @@
+{
+  "AI_CHAT": {
+    "HEADER": {
+      "TITLE": "Empleado IA",
+      "CLOSE": "Cerrar chat"
+    },
+    "EMPTY_STATE": {
+      "TITLE": "Inicia una conversación con tu Empleado IA",
+      "DESCRIPTION": "Escribe un mensaje abajo para comenzar",
+      "SUGGESTIONS_LABEL": "Intenta preguntar sobre"
+    },
+    "INPUT": {
+      "PLACEHOLDER": "Escribe un mensaje...",
+      "SEND": "Enviar mensaje",
+      "DISABLED_NO_BOT": "Selecciona un Empleado IA para comenzar a chatear"
+    },
+    "VOICE_INPUT": {
+      "START": "Iniciar entrada de voz",
+      "STOP": "Detener grabación",
+      "CANCEL": "Cancelar grabación",
+      "TRANSCRIBING": "Transcribiendo...",
+      "COMING_SOON": "Entrada de voz (próximamente)",
+      "PERMISSION_REQUIRED": "Se requiere acceso al micrófono",
+      "PERMISSION_DENIED": "Acceso al micrófono denegado. Por favor, habilítalo en la configuración del navegador.",
+      "NOT_SUPPORTED": "Entrada de voz no soportada en este navegador",
+      "RECORDING": "Grabando...",
+      "MAX_DURATION": "Tiempo máximo de grabación alcanzado",
+      "ERROR": {
+        "GENERIC": "La entrada de voz falló. Por favor, intenta de nuevo.",
+        "TRANSCRIPTION": "No se pudo transcribir el audio. Por favor, intenta de nuevo.",
+        "UPLOAD": "Error al subir el audio. Por favor, intenta de nuevo.",
+        "NO_SPEECH": "No se detectó voz. Por favor, intenta de nuevo.",
+        "NETWORK": "Error de red. Por favor, verifica tu conexión."
+      }
+    },
+    "STATUS": {
+      "READY": "Listo",
+      "SUBMITTED": "Enviando...",
+      "STREAMING": "Respondiendo...",
+      "ERROR": "Error"
+    },
+    "MESSAGE": {
+      "COPY": "Copiar mensaje",
+      "COPY_SUCCESS": "Mensaje copiado al portapapeles",
+      "REGENERATE": "Regenerar respuesta"
+    },
+    "REASONING": {
+      "THINKING": "Pensando...",
+      "VIEW": "Ver razonamiento",
+      "HIDE": "Ocultar razonamiento"
+    },
+    "TOOL": {
+      "LABEL": "Herramienta",
+      "INPUT_LABEL": "Entrada",
+      "OUTPUT_LABEL": "Salida"
+    },
+    "SOURCES": {
+      "TITLE": "Fuentes",
+      "VIEW": "Ver fuentes",
+      "HIDE": "Ocultar fuentes"
+    },
+    "ERROR": {
+      "TITLE": "Algo salió mal",
+      "NETWORK": "Error de conexión. Verifica tu internet.",
+      "AUTH": "Sesión expirada. Inicia sesión nuevamente.",
+      "RATE_LIMIT": "Demasiadas solicitudes. Espera {seconds} segundos.",
+      "SERVER": "Error del servidor. Nuestro equipo ha sido notificado.",
+      "UNKNOWN": "Ocurrió un error inesperado.",
+      "RETRY": "Reintentar",
+      "EDIT_RETRY": "Editar y reintentar",
+      "DISMISS": "Descartar",
+      "FRESH_START": "Comenzar de nuevo",
+      "TECHNICAL_DETAILS": "Detalles técnicos"
+    },
+    "SUGGESTIONS": {
+      "LABEL": "Sugerencias"
+    },
+    "LOADER": {
+      "WAITING": "Procesando..."
+    },
+    "SCROLL_TO_TOP": "Ir al inicio",
+    "SCROLL_TO_BOTTOM": "Ir al final",
+    "BOT_SELECTOR": {
+      "LABEL": "Seleccionar Empleado IA",
+      "PLACEHOLDER": "Elige un Empleado IA"
+    },
+    "SESSIONS": {
+      "TITLE": "Historial de chats",
+      "HISTORY": "Ver historial de chats",
+      "NEW_CHAT": "Nuevo chat",
+      "EMPTY": "Sin chats anteriores",
+      "NO_PREVIEW": "Nueva conversación",
+      "MESSAGES": "mensajes",
+      "DELETE": "Eliminar chat",
+      "DELETE_CONFIRM": "¿Estás seguro de que deseas eliminar este chat?",
+      "TODAY": "Hoy",
+      "YESTERDAY": "Ayer"
+    },
+    "COLLAPSIBLE": {
+      "COLLAPSE": "Colapsar"
+    }
+  }
+}

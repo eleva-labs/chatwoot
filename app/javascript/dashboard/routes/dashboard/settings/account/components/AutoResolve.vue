@@ -142,16 +142,13 @@ const toggleAutoResolve = async () => {
         :label="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.DURATION.LABEL')"
         :help-message="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.DURATION.HELP')"
       >
-        <div class="gap-2 w-full grid grid-cols-[3fr_1fr]">
-          <!-- allow 10 mins to 999 days -->
-          <DurationInput
-            v-model="duration"
-            v-model:unit="unit"
-            min="0"
-            max="1438560"
-            class="w-full"
-          />
-        </div>
+        <!-- allow 10 mins to 999 days -->
+        <DurationInput
+          v-model="duration"
+          v-model:unit="unit"
+          :min="0"
+          :max="1438560"
+        />
       </WithLabel>
       <WithLabel
         :label="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.MESSAGE.LABEL')"

@@ -66,6 +66,39 @@ class AiBackendService::AgentSystemService
     true
   end
 
+  # List all agent systems for a store
+  # @param store_id [Integer, String] Chatwoot account ID
+  # @param is_active [Boolean, nil] Filter by active status (default: true for only active bots)
+  # @param page [Integer] Page number (default: 1)
+  # @param limit [Integer] Items per page (default: 100)
+  # @return [Array<Hash>] List of agent systems
+  def list_agent_systems(store_id:, is_active: true, page: 1, limit: 100)
+    query_params = {
+      store_id: store_id.to_s,
+      id_type: @id_type,
+      page: page,
+      limit: limit
+    }
+    query_params[:is_active] = is_active unless is_active.nil?
+
+    Rails.logger.info(
+      "Fetching agent systems from AI Backend: store_id=#{store_id}, id_type=#{@id_type}, is_active=#{is_active}"
+    )
+
+    response = self.class.get(
+      "#{ai_backend_api_url}/api/agent-systems",
+      query: query_params,
+      headers: self.class.headers,
+      timeout: 10
+    )
+
+    handle_response(response)
+    response.parsed_response
+  rescue StandardError => e
+    Rails.logger.error("AI Backend list_agent_systems failed: #{e.message}")
+    raise AgentSystemError, e.message
+  end
+
   private
 
   def handle_response(response)

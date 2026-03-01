@@ -1,0 +1,103 @@
+{
+  "AI_CHAT": {
+    "HEADER": {
+      "TITLE": "AI Employee",
+      "CLOSE": "Close chat"
+    },
+    "EMPTY_STATE": {
+      "TITLE": "Start a conversation with your AI Employee",
+      "DESCRIPTION": "Type a message below to begin",
+      "SUGGESTIONS_LABEL": "Try asking about"
+    },
+    "INPUT": {
+      "PLACEHOLDER": "Type a message...",
+      "SEND": "Send message",
+      "DISABLED_NO_BOT": "Select an AI Employee to start chatting with"
+    },
+    "VOICE_INPUT": {
+      "START": "Start voice input",
+      "STOP": "Stop recording",
+      "CANCEL": "Cancel recording",
+      "TRANSCRIBING": "Transcribing...",
+      "COMING_SOON": "Voice input (coming soon)",
+      "PERMISSION_REQUIRED": "Microphone access required",
+      "PERMISSION_DENIED": "Microphone access denied. Please enable in browser settings.",
+      "NOT_SUPPORTED": "Voice input not supported in this browser",
+      "RECORDING": "Recording...",
+      "MAX_DURATION": "Maximum recording time reached",
+      "ERROR": {
+        "GENERIC": "Voice input failed. Please try again.",
+        "TRANSCRIPTION": "Could not transcribe audio. Please try again.",
+        "UPLOAD": "Failed to upload audio. Please try again.",
+        "NO_SPEECH": "No speech detected. Please try again.",
+        "NETWORK": "Network error. Please check your connection."
+      }
+    },
+    "STATUS": {
+      "READY": "Ready",
+      "SUBMITTED": "Sending...",
+      "STREAMING": "Responding...",
+      "ERROR": "Error"
+    },
+    "MESSAGE": {
+      "COPY": "Copy message",
+      "COPY_SUCCESS": "Message copied to clipboard",
+      "REGENERATE": "Regenerate response"
+    },
+    "REASONING": {
+      "THINKING": "Thinking...",
+      "VIEW": "View reasoning",
+      "HIDE": "Hide reasoning"
+    },
+    "TOOL": {
+      "LABEL": "Tool",
+      "INPUT_LABEL": "Input",
+      "OUTPUT_LABEL": "Output"
+    },
+    "SOURCES": {
+      "TITLE": "Sources",
+      "VIEW": "View sources",
+      "HIDE": "Hide sources"
+    },
+    "ERROR": {
+      "TITLE": "Something went wrong",
+      "NETWORK": "Connection error. Please check your internet.",
+      "AUTH": "Session expired. Please log in again.",
+      "RATE_LIMIT": "Too many requests. Please wait {seconds} seconds.",
+      "SERVER": "Server error. Our team has been notified.",
+      "UNKNOWN": "An unexpected error occurred.",
+      "RETRY": "Retry",
+      "EDIT_RETRY": "Edit & Retry",
+      "DISMISS": "Dismiss",
+      "FRESH_START": "Start over",
+      "TECHNICAL_DETAILS": "Technical details"
+    },
+    "SUGGESTIONS": {
+      "LABEL": "Suggestions"
+    },
+    "LOADER": {
+      "WAITING": "Processing..."
+    },
+    "SCROLL_TO_TOP": "Scroll to top",
+    "SCROLL_TO_BOTTOM": "Scroll to bottom",
+    "BOT_SELECTOR": {
+      "LABEL": "Select AI Employee",
+      "PLACEHOLDER": "Choose an AI Employee"
+    },
+    "SESSIONS": {
+      "TITLE": "Chat History",
+      "HISTORY": "View chat history",
+      "NEW_CHAT": "New chat",
+      "EMPTY": "No previous chats",
+      "NO_PREVIEW": "New conversation",
+      "MESSAGES": "messages",
+      "DELETE": "Delete chat",
+      "DELETE_CONFIRM": "Are you sure you want to delete this chat?",
+      "TODAY": "Today",
+      "YESTERDAY": "Yesterday"
+    },
+    "COLLAPSIBLE": {
+      "COLLAPSE": "Collapse"
+    }
+  }
+}

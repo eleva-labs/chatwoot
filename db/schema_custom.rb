@@ -5,9 +5,9 @@
 # This file documents the schema for custom business-specific tables
 # that are separate from upstream Chatwoot tables.
 #
-# Current custom migration version: none
+# Current custom migration version: 20250701233536
 
-ActiveRecord::Schema[7.1].define(version: 0) do
+ActiveRecord::Schema[7.1].define(version: 20_250_701_233_536) do
   enable_extension 'pgcrypto'
 
   create_table :account_prompts, id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|

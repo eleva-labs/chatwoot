@@ -137,9 +137,9 @@ export default {
   }
 
   &.warning {
-    @apply bg-n-amber-5 text-n-amber-12;
+    @apply bg-n-warning-banner-bg text-n-warning-banner-text;
     a {
-      @apply text-n-amber-12;
+      @apply text-n-warning-banner-text underline;
     }
   }
 
@@ -148,7 +148,7 @@ export default {
   }
 
   a {
-    @apply ml-1 underline text-n-amber-12 text-xs;
+    @apply ml-1 underline text-xs;
   }
 
   .banner-message {

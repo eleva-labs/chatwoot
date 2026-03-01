@@ -370,9 +370,9 @@
       "ADDING_AGENTS": "Agregando Miembros a {channel}"
     },
     "ADD_AI_AGENT": {
-      "TITLE": "Añadir su asistente de IA",
-      "DESCRIPTION": "AI Bot que ayudará a responder a las conversaciones",
-      "NEW_LINK": "Haga clic aquí para añadir un AI Bot"
+      "TITLE": "Añadir su Empleado IA",
+      "DESCRIPTION": "Empleado IA que ayudará a responder a las conversaciones",
+      "NEW_LINK": "Haga clic aquí para añadir un Empleado IA"
     },
     "CANNED_RESPONSES": {
       "TITLE": "Crea respuestas predefinidas",
@@ -385,7 +385,7 @@
       "FINISH": "Finish"
     },
     "ERROR": {
-      "BOT_CONFIGURATION": "Error durante la configuración del AI Bot",
+      "BOT_CONFIGURATION": "Error durante la configuración del Empleado IA",
       "STEP_NOT_COMPLETED": "Por favor, complete los pasos anteriores antes de continuar",
       "STEP_NOT_SAVED": "Error al guardar el paso actual",
       "STEP_NOT_LOADED": "Error al cargar el paso actual"
