@@ -121,7 +121,7 @@ const STYLE_CONFIG = {
     },
     amber: {
       solid:
-        'bg-n-amber-11 text-white hover:enabled:brightness-110 focus-visible:brightness-110 outline-transparent',
+        'bg-n-amber-8 text-white hover:enabled:brightness-110 focus-visible:brightness-110 outline-transparent',
       faded:
         'bg-n-amber-9/10 text-n-slate-12 hover:enabled:bg-n-amber-9/20 focus-visible:bg-n-amber-9/20 outline-transparent',
       outline:
