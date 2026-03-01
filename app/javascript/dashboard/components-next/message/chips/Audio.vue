@@ -24,6 +24,7 @@ defineOptions({
 });
 
 const timeStampURL = computed(() => {
+  if (!attachment.dataUrl) return '';
   return timeStampAppendedURL(attachment.dataUrl);
 });
 

@@ -110,12 +110,16 @@ export const hasValidAvatarUrl = avatarUrl => {
 };
 
 export const timeStampAppendedURL = dataUrl => {
-  const url = new URL(dataUrl);
-  if (!url.searchParams.has('t')) {
-    url.searchParams.append('t', Date.now());
+  if (!dataUrl) return dataUrl;
+  try {
+    const url = new URL(dataUrl);
+    if (!url.searchParams.has('t')) {
+      url.searchParams.append('t', Date.now());
+    }
+    return url.toString();
+  } catch {
+    return dataUrl;
   }
-
-  return url.toString();
 };
 
 export const getHostNameFromURL = url => {
