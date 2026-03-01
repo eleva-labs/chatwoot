@@ -28,8 +28,9 @@ import AiMessageActions from '../message/AiMessageActions.vue';
 import AiMessageAction from '../message/AiMessageAction.vue';
 import AiPartRenderer from '../parts/AiPartRenderer.vue';
 import AiPromptInput from '../input/AiPromptInput.vue';
-import AiSuggestions from '../suggestions/AiSuggestions.vue';
-import AiSuggestion from '../suggestions/AiSuggestion.vue';
+// TODO: Re-enable when suggestion chips are finalized
+// import AiSuggestions from '../suggestions/AiSuggestions.vue';
+// import AiSuggestion from '../suggestions/AiSuggestion.vue';
 import AiLoader from '../feedback/AiLoader.vue';
 import AiChatError from '../feedback/AiChatError.vue';
 
@@ -187,15 +188,16 @@ const handleCopy = async message => {
   }
 };
 
-const suggestionKeys = [
-  'AI_CHAT.SUGGESTIONS.SUMMARIZE',
-  'AI_CHAT.SUGGESTIONS.DRAFT_REPLY',
-  'AI_CHAT.SUGGESTIONS.FIND_SIMILAR',
-];
-
-const handleSuggestionClick = async label => {
-  await props.chat.sendMessage({ text: label });
-};
+// TODO: Re-enable when suggestion chips are finalized
+// const suggestionKeys = [
+//   'AI_CHAT.SUGGESTIONS.SUMMARIZE',
+//   'AI_CHAT.SUGGESTIONS.DRAFT_REPLY',
+//   'AI_CHAT.SUGGESTIONS.FIND_SIMILAR',
+// ];
+//
+// const handleSuggestionClick = async label => {
+//   await props.chat.sendMessage({ text: label });
+// };
 
 const handleSubmit = async text => {
   await props.chat.sendMessage({ text });
@@ -258,6 +260,8 @@ const handleFreshStart = () => {
     <!-- Conversation -->
     <AiConversation :is-streaming="isStreaming" class="flex-1">
       <AiConversationContent>
+        <AiConversationEmptyState v-if="chatMessages.length === 0" />
+        <!-- TODO: Re-enable suggestion chips when prompt list is finalized
         <AiConversationEmptyState v-if="chatMessages.length === 0">
           <template #suggestions>
             <AiSuggestions>
@@ -270,6 +274,7 @@ const handleFreshStart = () => {
             </AiSuggestions>
           </template>
         </AiConversationEmptyState>
+        -->
 
         <AiMessage
           v-for="(message, msgIdx) in chatMessages"
