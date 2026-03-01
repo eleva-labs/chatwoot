@@ -9,10 +9,11 @@ import { VOICE_INPUT_STATUS } from '../constants';
 const props = defineProps({
   disabled: { type: Boolean, default: false },
   isLoading: { type: Boolean, default: false },
+  isStreaming: { type: Boolean, default: false },
   placeholder: { type: String, default: null },
 });
 
-const emit = defineEmits(['submit']);
+const emit = defineEmits(['submit', 'stop']);
 
 // Voice input is disabled for Phase 1 (visual only)
 const voiceStatus = ref(VOICE_INPUT_STATUS.DISABLED);
@@ -65,8 +66,19 @@ const handleKeydown = e => {
       <!-- Voice input button -->
       <AiVoiceButton :status="voiceStatus" disabled />
 
+      <!-- Stop button (during streaming) -->
+      <button
+        v-if="isStreaming"
+        type="button"
+        :aria-label="t('AI_CHAT.INPUT.STOP')"
+        class="flex-shrink-0 bg-n-slate-9 hover:bg-n-slate-10 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+        @click="emit('stop')"
+      >
+        <span class="i-lucide-square size-3.5" />
+      </button>
       <!-- Submit button -->
       <slot
+        v-else
         name="send-button"
         :disabled="!canSubmit"
         :is-loading="isLoading"

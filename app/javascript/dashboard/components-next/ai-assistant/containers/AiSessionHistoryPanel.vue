@@ -88,18 +88,24 @@ const getSessionTime = dateString => {
           <button
             class="w-full px-4 py-3 text-left hover:bg-n-alpha-2 transition-colors"
             :class="{
-              'bg-n-alpha-3': session.chat_session_id === activeSessionId,
+              'bg-n-iris-3': session.chat_session_id === activeSessionId,
             }"
             @click="emit('loadSession', session.chat_session_id)"
           >
             <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-n-slate-12 truncate">
-                  {{ getSessionDate(session.created_at) }}
-                </p>
-                <p class="text-xs text-n-slate-10 mt-0.5">
-                  {{ getSessionTime(session.created_at) }}
-                </p>
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span
+                  v-if="session.chat_session_id === activeSessionId"
+                  class="size-2 rounded-full bg-n-iris-9 flex-shrink-0"
+                />
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-n-slate-12 truncate">
+                    {{ getSessionDate(session.created_at) }}
+                  </p>
+                  <p class="text-xs text-n-slate-10 mt-0.5">
+                    {{ getSessionTime(session.created_at) }}
+                  </p>
+                </div>
               </div>
               <button
                 v-tooltip="t('AI_CHAT.SESSIONS.DELETE')"

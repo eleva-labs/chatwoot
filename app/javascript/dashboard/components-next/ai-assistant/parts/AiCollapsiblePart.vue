@@ -16,7 +16,7 @@ const props = defineProps({
   accentColor: {
     type: String,
     default: 'slate',
-    validator: v => ['violet', 'slate', 'amber', 'teal', 'ruby'].includes(v),
+    validator: v => ['iris', 'slate', 'amber', 'teal', 'ruby'].includes(v),
   },
   isStreaming: { type: Boolean, default: false },
   autoExpandOnStream: { type: Boolean, default: true },
@@ -40,7 +40,7 @@ watch(
 
 // Dynamic color classes based on accent color
 const colorMap = {
-  violet: {
+  iris: {
     iconActive: 'animate-pulse text-n-iris-9',
     labelActive: 'text-n-iris-11',
     spinner: 'text-n-iris-9',

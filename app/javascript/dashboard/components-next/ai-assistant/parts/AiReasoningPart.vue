@@ -36,7 +36,7 @@ const label = computed(() =>
   <AiCollapsiblePart
     icon="i-lucide-brain"
     :label="label"
-    accent-color="violet"
+    accent-color="iris"
     :is-streaming="isStreaming"
     :auto-expand-on-stream="false"
   >

@@ -171,7 +171,7 @@ const headerTitle = computed(() => props.title || t('AI_CHAT.HEADER.TITLE'));
         :class="{
           'bg-n-teal-9': status === CHAT_STATUS.READY,
           'bg-n-amber-9 animate-pulse': status === CHAT_STATUS.SUBMITTED,
-          'bg-n-amber-11 animate-pulse': status === CHAT_STATUS.STREAMING,
+          'bg-n-teal-9 animate-pulse': status === CHAT_STATUS.STREAMING,
           'bg-n-ruby-9': status === CHAT_STATUS.ERROR,
         }"
       />

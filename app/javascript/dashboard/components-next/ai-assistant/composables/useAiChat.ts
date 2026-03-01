@@ -67,6 +67,7 @@ interface AiChatReturn {
   status: Ref<ChatStatus>;
   error: Ref<Error | null>;
   sendMessage: (...args: unknown[]) => Promise<void>;
+  stop: () => Promise<void>;
   setMessages: (msgs: UIMessage[]) => void;
   clearError: () => void;
   regenerate: ((...args: unknown[]) => Promise<void>) | undefined;
@@ -290,6 +291,11 @@ export function useAiChat(
 
     // Methods
     sendMessage,
+    stop: async (): Promise<void> => {
+      if (chat.stop) await chat.stop();
+      stopPolling();
+      syncState();
+    },
     setMessages: (msgs: UIMessage[]): void => {
       chat.messages = msgs; // Use setter, not method
       syncState();
