@@ -71,7 +71,7 @@ describe('AiCollapsiblePart', () => {
     it('applies active color classes to icon when streaming', () => {
       const wrapper = createWrapper({
         isStreaming: true,
-        accentColor: 'violet',
+        accentColor: 'iris',
       });
 
       const icon = wrapper.find('.i-lucide-brain');
@@ -84,9 +84,9 @@ describe('AiCollapsiblePart', () => {
   // Accent Colors
   // =============================================================================
   describe('accent colors', () => {
-    it('applies violet accent classes when streaming', () => {
+    it('applies iris accent classes when streaming', () => {
       const wrapper = createWrapper({
-        accentColor: 'violet',
+        accentColor: 'iris',
         isStreaming: true,
       });
 
@@ -129,7 +129,7 @@ describe('AiCollapsiblePart', () => {
   // =============================================================================
   describe('props', () => {
     it('accepts valid accent colors', () => {
-      const validColors = ['violet', 'slate', 'amber', 'teal', 'ruby'];
+      const validColors = ['iris', 'slate', 'amber', 'teal', 'ruby'];
 
       validColors.forEach(color => {
         const wrapper = createWrapper({

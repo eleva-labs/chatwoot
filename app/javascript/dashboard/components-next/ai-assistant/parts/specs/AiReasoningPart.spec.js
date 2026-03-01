@@ -173,7 +173,7 @@ describe('AiReasoningPart', () => {
   // Collapsible Configuration
   // =============================================================================
   describe('collapsible configuration', () => {
-    it('uses violet accent color', () => {
+    it('uses iris accent color', () => {
       const wrapper = createWrapper();
 
       // Verify the component renders with the AiCollapsiblePart wrapper

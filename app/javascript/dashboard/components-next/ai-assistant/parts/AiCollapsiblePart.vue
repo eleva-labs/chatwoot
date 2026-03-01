@@ -77,7 +77,9 @@ const colorMap = {
   },
 };
 
-const accentClasses = computed(() => colorMap[props.accentColor]);
+const accentClasses = computed(
+  () => colorMap[props.accentColor] || colorMap.slate
+);
 </script>
 
 <template>

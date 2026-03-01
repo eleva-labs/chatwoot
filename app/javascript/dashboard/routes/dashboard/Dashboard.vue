@@ -83,8 +83,8 @@ export default {
       return showSecondarySidebar;
     },
     canUseAI() {
-      // // We will let all users use the AI assistant for now
-      return true;
+      // AI assistant disabled — not yet ready for production
+      return false;
       // Uncomment this if you want to restrict AI assistant to only certain users
       // return window.chatwootConfig?.features?.includes('ai_assistant') &&
       //        window.chatwootConfig?.aiAssistantEnabled &&
