@@ -321,6 +321,58 @@
     "SIDEBAR": {
       "CONTACT": "Contact",
       "COPILOT": "Copilot"
+    },
+    "ACTIVITY": {
+      "STATUS": {
+        "RESOLVED": "Conversation was marked resolved by {user_name}",
+        "CONTACT_RESOLVED": "Conversation was resolved by {contact_name}",
+        "OPEN": "Conversation was reopened by {user_name}",
+        "PENDING": "Conversation was marked as pending by {user_name}",
+        "SNOOZED": "Conversation was snoozed by {user_name}",
+        "AUTO_RESOLVED_DAYS": "Conversation was marked resolved by system due to {count} days of inactivity",
+        "AUTO_RESOLVED_HOURS": "Conversation was marked resolved by system due to {count} hours of inactivity",
+        "AUTO_RESOLVED_MINUTES": "Conversation was marked resolved by system due to {count} minutes of inactivity",
+        "SYSTEM_AUTO_OPEN": "System reopened the conversation due to a new incoming message.",
+        "CAPTAIN_RESOLVED": "Conversation was marked resolved by {user_name} due to inactivity",
+        "CAPTAIN_OPEN": "Conversation was marked open by {user_name}",
+        "AGENT_BOT_ERROR": "Conversation was marked open by system due to an error with the agent bot."
+      },
+      "PRIORITY": {
+        "ADDED": "{user_name} set the priority to {new_priority}",
+        "UPDATED": "{user_name} changed the priority from {old_priority} to {new_priority}",
+        "REMOVED": "{user_name} removed the priority"
+      },
+      "ASSIGNEE": {
+        "SELF_ASSIGNED": "{user_name} self-assigned this conversation",
+        "ASSIGNED": "Assigned to {assignee_name} by {user_name}",
+        "REMOVED": "Conversation unassigned by {user_name}"
+      },
+      "TEAM": {
+        "ASSIGNED": "Assigned to {team_name} by {user_name}",
+        "ASSIGNED_WITH_ASSIGNEE": "Assigned to {assignee_name} via {team_name} by {user_name}",
+        "REMOVED": "Unassigned from {team_name} by {user_name}"
+      },
+      "LABELS": {
+        "ADDED": "{user_name} added {labels}",
+        "REMOVED": "{user_name} removed {labels}"
+      },
+      "SLA": {
+        "ADDED": "{user_name} added SLA policy {sla_name}",
+        "REMOVED": "{user_name} removed SLA policy {sla_name}"
+      },
+      "LINEAR": {
+        "ISSUE_CREATED": "Linear issue {issue_id} was created by {user_name}",
+        "ISSUE_LINKED": "Linear issue {issue_id} was linked by {user_name}",
+        "ISSUE_UNLINKED": "Linear issue {issue_id} was unlinked by {user_name}"
+      },
+      "MUTED": "{user_name} has muted the conversation",
+      "UNMUTED": "{user_name} has unmuted the conversation",
+      "CSAT": {
+        "NOT_SENT": "CSAT survey not sent due to outgoing message restrictions"
+      },
+      "AUTO_RESOLVE": {
+        "NOT_SENT": "Auto-resolve message not sent due to outgoing message restrictions"
+      }
     }
   },
   "EMAIL_TRANSCRIPT": {
