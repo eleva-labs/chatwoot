@@ -10,6 +10,7 @@ const props = defineProps({
   part: { type: Object, required: true },
   role: { type: String, required: true },
   isStreaming: { type: Boolean, default: false },
+  renderMarkdown: { type: Function, default: null },
 });
 
 // Lazy load less common parts
@@ -46,5 +47,6 @@ const component = computed(() => {
     :part="part"
     :role="role"
     :is-streaming="isStreaming"
+    :render-markdown="renderMarkdown"
   />
 </template>

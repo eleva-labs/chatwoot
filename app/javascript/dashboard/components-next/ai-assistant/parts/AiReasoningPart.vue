@@ -7,7 +7,6 @@
  */
 import { computed } from 'vue';
 import { useAiI18n } from '../i18n/aiChatI18n';
-import MessageFormatter from 'shared/helpers/MessageFormatter.js';
 import AiCollapsiblePart from './AiCollapsiblePart.vue';
 
 const props = defineProps({
@@ -22,7 +21,7 @@ const text = computed(() => props.part?.text || '');
 
 const formattedContent = computed(() => {
   if (props.renderMarkdown) return props.renderMarkdown(text.value);
-  return new MessageFormatter(text.value).formattedMessage;
+  return text.value;
 });
 
 const label = computed(() =>
