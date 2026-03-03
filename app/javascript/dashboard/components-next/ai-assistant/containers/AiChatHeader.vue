@@ -146,7 +146,7 @@ const headerTitle = computed(() => props.title || t('AI_CHAT.HEADER.TITLE'));
                       v-else
                       class="size-6 rounded-full bg-n-alpha-3 flex items-center justify-center text-xs font-semibold text-n-slate-11 flex-shrink-0"
                     >
-                      {{ item.label.charAt(0).toUpperCase() }}
+                      {{ (item.label || '?').charAt(0).toUpperCase() }}
                     </span>
                     {{ item.label }}
                   </li>

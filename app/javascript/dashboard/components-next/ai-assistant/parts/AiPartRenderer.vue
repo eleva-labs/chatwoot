@@ -38,6 +38,16 @@ const component = computed(() => {
   // 3. Hardcoded defaults
   return partTypeMap[props.part.type] || null;
 });
+
+// Only text and reasoning parts declare and use renderMarkdown
+const isTextOrReasoningPart = computed(
+  () =>
+    props.part.type === PART_TYPES.TEXT ||
+    props.part.type === PART_TYPES.REASONING
+);
+
+// Only AiTextPart declares and uses role; avoid leaking it to reasoning/tool parts
+const isTextPart = computed(() => props.part.type === PART_TYPES.TEXT);
 </script>
 
 <template>
@@ -45,8 +55,10 @@ const component = computed(() => {
     :is="component"
     v-if="component"
     :part="part"
-    :role="role"
     :is-streaming="isStreaming"
-    :render-markdown="renderMarkdown"
+    v-bind="{
+      ...(isTextPart ? { role } : {}),
+      ...(isTextOrReasoningPart ? { 'render-markdown': renderMarkdown } : {}),
+    }"
   />
 </template>

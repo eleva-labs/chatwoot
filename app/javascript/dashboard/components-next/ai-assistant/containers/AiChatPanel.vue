@@ -380,7 +380,7 @@ const handleFreshStart = () => {
       :is-loading="isLoading"
       :is-streaming="isStreaming"
       @submit="handleSubmit"
-      @stop="chat.stop()"
+      @stop="chat.stop?.()"
     />
   </div>
 </template>
