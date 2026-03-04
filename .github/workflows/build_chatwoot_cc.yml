@@ -129,13 +129,16 @@ jobs:
   build-prod:
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod') || github.event_name == 'push'
     runs-on: ubuntu-latest
+    environment: prod
     env:
       GIT_REF: ${{ github.head_ref || github.ref_name }}
       ENVIRONMENT: prod
-      AWS_ACCOUNT_ID: "008971651719"
+      AWS_ACCOUNT_ID: "570118540562"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Strip enterprise code
         run: |
@@ -160,7 +163,7 @@ jobs:
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             VERSION_TAG="${{ github.ref_name }}"
           else
-            VERSION_TAG="${{ github.sha }}"
+            VERSION_TAG="$(git rev-parse HEAD)"
           fi
           echo "VERSION_TAG=${VERSION_TAG}" >> $GITHUB_ENV
 
