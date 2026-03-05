@@ -78,7 +78,8 @@ const isDelivered = computed(() => {
     isAWhatsAppChannel.value ||
     isATwilioChannel.value ||
     isASmsInbox.value ||
-    isAFacebookInbox.value
+    isAFacebookInbox.value ||
+    isAnInstagramChannel.value
   ) {
     return sourceId.value && status.value === MESSAGE_STATUS.DELIVERED;
   }

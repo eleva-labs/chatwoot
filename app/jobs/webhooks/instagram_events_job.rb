@@ -3,7 +3,7 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   retry_on LockAcquisitionError, wait: 1.second, attempts: 8
 
   # @return [Array] We will support further events like reaction or seen in future
-  SUPPORTED_EVENTS = [:message, :read].freeze
+  SUPPORTED_EVENTS = [:message, :read, :delivery].freeze
 
   def perform(entries)
     @entries = entries
@@ -91,7 +91,7 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def event_name(messaging)
-    @event_name ||= SUPPORTED_EVENTS.find { |key| messaging.key?(key) }
+    SUPPORTED_EVENTS.find { |key| messaging.key?(key) }
   end
 
   def message(messaging, channel)
@@ -105,6 +105,35 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   def read(messaging, channel)
     # Use a single service to handle read status for both channel types since the params are same
     ::Instagram::ReadStatusService.new(params: messaging, channel: channel).perform
+  end
+
+  def delivery(messaging, channel)
+    delivery_data = messaging[:delivery]
+    watermark_raw = delivery_data[:watermark]
+
+    # NOTE: Verify watermark units empirically from a real delivery webhook payload.
+    # Facebook's delivery_status.rb uses Time.zone.at(watermark.to_i) (seconds).
+    # Instagram may use milliseconds. Confirm before production deploy.
+    #   seconds:      Time.zone.at(watermark_raw.to_i)
+    #   milliseconds: Time.zone.at(watermark_raw.to_i / 1000.0)
+    timestamp = Time.zone.at(watermark_raw.to_i).to_datetime.utc
+
+    conversation = find_conversation_for_delivery(messaging, channel)
+    return unless conversation
+
+    ::Conversations::UpdateMessageStatusJob.perform_later(conversation.id, timestamp, :delivered)
+  end
+
+  def find_conversation_for_delivery(messaging, channel)
+    sender_id = messaging[:sender][:id]
+    contact_inbox = ::ContactInbox.find_by(source_id: sender_id, inbox_id: channel.inbox.id)
+    return unless contact_inbox
+
+    contact_inbox.conversations
+                 .where(status: %w[open pending])
+                 .order(created_at: :desc)
+                 .first ||
+      contact_inbox.conversations.order(created_at: :desc).first
   end
 
   def messages(entry)
