@@ -1,0 +1,25 @@
+{
+  "GENERAL": {
+    "SHOWING_RESULTS": "Mostrando {firstIndex}-{lastIndex} de {totalCount} elementos",
+    "PHONE_INPUT": {
+      "PLACEHOLDER": "Buscar",
+      "EMPTY_STATE": "No se encontraron resultados"
+    },
+    "CLOSE": "Cerrar",
+    "AI_ASSISTANT": "Asistente IA",
+    "AI_ASSISTANT_WELCOME": "¡Hola! ¿En qué puedo ayudarte hoy?",
+    "AI_TYPING": "IA está escribiendo...",
+    "AI_GENERATING": "Generando respuesta...",
+    "AI_THOUGHTS_TITLE": "Pensamientos...",
+    "AI_INPUT_PLACEHOLDER": "Pregúntame cualquier cosa...",
+    "AI_CONVERSATIONS": "Conversaciones",
+    "AI_NEW_CONVERSATION": "Nueva conversación",
+    "AI_NO_CONVERSATIONS": "Sin conversaciones aún. ¡Comienza una nueva!",
+    "AI_START_CONVERSATION": "Iniciar una nueva conversación",
+    "AI_ASK_ANYTHING": "Pregúntame cualquier cosa para comenzar",
+    "SEND": "Enviar",
+    "RETRY": "Reintentar",
+    "BETA": "Beta",
+    "BETA_DESCRIPTION": "Esta función está en beta y puede cambiar a medida que la mejoremos."
+  }
+}

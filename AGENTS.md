@@ -1,168 +1,152 @@
 # Chatwoot Development Guidelines
 
-## Architecture Overview
+## Build / Test / Lint
 
-**Stack**: Ruby on Rails 7.1+ (backend) + Vue 3 (frontend) + PostgreSQL + Redis + Sidekiq
-**Style**: Monolithic Rails app with service-oriented architecture
-**Real-time**: ActionCable (WebSockets)
-**Multi-tenancy**: Account-based isolation (no schema separation)
+- **Setup**: `bundle install && pnpm install`
+- **Run Dev**: `pnpm dev` or `overmind start -f ./Procfile.dev`
+- **Lint JS/Vue**: `pnpm eslint` / `pnpm eslint:fix`
+- **Lint Ruby**: `bundle exec rubocop -a`
+- **Test JS**: `pnpm test` or `pnpm test:watch`
+- **Test Ruby**: `bundle exec rspec spec/path/to/file_spec.rb`
+- **Single Test**: `bundle exec rspec spec/path/to/file_spec.rb:LINE_NUMBER`
+- **Run Project**: `overmind start -f Procfile.dev`
 
-### Key Patterns
+## Code Style
 
-- **Services** (`app/services/`) - Business logic layer (e.g., `Whatsapp::IncomingMessageService`)
-- **Finders** (`app/finders/`) - Complex database queries (e.g., `ConversationsFinder`)
-- **Builders** (`app/builders/`) - Object construction (e.g., `Messages::MessageBuilder`)
-- **Listeners** (`app/listeners/`) - Event-driven reactions (subscribe to domain events)
-- **Event Dispatcher** - Pub/sub pattern (`Rails.configuration.dispatcher.dispatch(...)`)
-- **Jobs** (`app/jobs/`) - Background processing via Sidekiq
+- **Ruby**: Follow RuboCop rules (150 character max line length)
+- **Vue/JS**: Use ESLint (Airbnb base + Vue 3 recommended)
+- **Vue Components**: Use PascalCase
+- **Events**: Use camelCase
+- **I18n**: No bare strings in templates; use i18n
+- **Error Handling**: Use custom exceptions (`lib/custom_exceptions/`)
+- **Models**: Validate presence/uniqueness, add proper indexes
+- **Type Safety**: Use PropTypes in Vue, strong params in Rails
+- **Naming**: Use clear, descriptive names with consistent casing
+- **Vue API**: Always use Composition API with `<script setup>` at the top
 
-### Directory Structure
+## Styling
 
-```
-app/
-├── controllers/api/    # REST API endpoints (JSON)
-├── services/           # Business logic
-├── finders/            # Query objects
-├── builders/           # Object builders
-├── listeners/          # Event handlers
-├── jobs/               # Background jobs
-└── models/             # ActiveRecord models
-
-app/javascript/dashboard/
-├── components/         # Vue components
-├── components-next/    # New architecture (preferred for message bubbles)
-├── store/              # Vuex state management
-├── api/                # API client wrappers
-└── i18n/               # Translations (en.json, es.json)
-```
-
-See `docs/ARCHITECTURE.md` for full details.
-
-## Commands
-
-**See Taskfile.yml first** - Most commands are there
-
-### Docker Development Setup
-
-**From Scratch (First Time)**
-```bash
-# 1. Build Docker images
-task docker-build
-
-# 2. Start containers
-docker compose up -d
-
-# 3. Prepare development database
-task docker-setup-dev
-
-# 4. Access app at http://localhost:3000
-```
-
-**After Code Changes (Quick Reload)**
-```bash
-# For Ruby/service changes - restart containers
-docker compose restart
-
-# For env variable changes - reload without rebuild
-task docker-reload-env
-```
-
-**After DB Schema Changes or docker-down**
-```bash
-# Re-prepare database (required after docker compose down)
-task docker-setup-dev
-```
-
-**Full Rebuild (When Needed)**
-```bash
-# Complete rebuild and setup
-task docker-chatwoot-build
-```
-
-### Unit Testing
-
-**IMPORTANT: Always use Taskfile commands for tests - they handle RAILS_ENV=test automatically**
-
-**Backend Tests (RSpec)**
-```bash
-# First time setup - starts test DB and runs tests
-SETUP_DB=true task test-backend-file -- spec/path/to/file_spec.rb
-
-# Subsequent runs - no DB setup needed
-task test-backend-file -- spec/path/to/file_spec.rb
-
-# Run specific test module
-task test-backend-module -- spec/models
-
-# Run all backend tests
-task test-backend-all
-
-# Cleanup after tests
-task test-cleanup
-```
-
-**⚠️ NEVER run `bundle exec rspec` directly - always use task commands!**
-- Task commands automatically set `RAILS_ENV=test`
-- Running rspec directly defaults to development environment and tests will fail
-
-**Frontend Tests (Vitest)**
-```bash
-# Run all tests
-pnpm test
-
-# Watch mode
-pnpm test:watch
-
-# Coverage report
-pnpm test:coverage
-```
-
-### Quick Reference
-- **Lint**: `pnpm eslint:fix` (JS/Vue) | `bundle exec rubocop -a` (Ruby)
-- **Run Dev (Non-Docker)**: `pnpm dev` or `overmind start -f ./Procfile.dev`
-
-## Critical Code Style Rules
-
-### Styling
-- **Tailwind Only**: Do not write custom CSS, scoped CSS, or inline styles - use Tailwind utility classes only
+- **Tailwind Only**:  
+  - Do not write custom CSS  
+  - Do not use scoped CSS  
+  - Do not use inline styles  
+  - Always use Tailwind utility classes  
 - **Colors**: Refer to `tailwind.config.js` for color definitions
-
-### Vue/Frontend
-- **Composition API**: Always use `<script setup>` at the top (never Options API)
-- **Components**: PascalCase for names, camelCase for events
-- **I18n**: No bare strings in templates - use i18n
-- **State**: Use Vuex store modules via `useStore()`
-
-### Ruby/Backend
-- **Service Objects**: Extract complex business logic to `app/services/`
-- **Finders**: Use for complex queries instead of scopes/model methods
-- **Error Handling**: Use custom exceptions from `lib/custom_exceptions/`
-- **Module/Class**: Use compact definitions (avoid nested styles)
-- **Line Length**: 150 character max (RuboCop enforced)
 
 ## General Guidelines
 
 - MVP focus: Least code change, happy-path only
 - No unnecessary defensive programming
 - Break down complex tasks into small, testable units
+- Iterate after confirmation
 - Avoid writing specs unless explicitly asked
 - Remove dead/unreachable/unused code
-- Don't write multiple versions or backups - pick the best approach and implement it
+- Don’t write multiple versions or backups for the same logic — pick the best approach and implement it
 - Don't reference Claude in commit messages
 
-## Project-Specific Conventions
+## Project-Specific
 
-### Translations
-- Update both `en/es.yml` and `en/es.json`
-- Backend i18n → `en/es.yml`, Frontend i18n → `en/es.json`
-- Other languages handled by community
+- **Translations**:
+  - Only update `en.yml` and `en.json`
+  - Other languages are handled by the community
+  - Backend i18n → `en.yml`, Frontend i18n → `en.json`
+- **Frontend**:
+  - Use `components-next/` for message bubbles (the rest is being deprecated)
 
-### Frontend
-- Use `components-next/` for message bubbles (rest is being deprecated)
+## Custom Migrations
 
-### Domain Concepts
-- **INBOXES**: Referred to as "Channels" in locales/UI labels
-- **AGENTS**: Referred to as "Members" in locales/UI labels
+This fork uses a **dual migration system** to avoid conflicts during upstream Chatwoot syncs.
+
+### Overview
+
+- **Upstream migrations**: `db/migrate/` - **Never modify these**
+- **Custom migrations**: `db/migrate_custom/` - Our business-specific changes
+- Both run automatically when you use `rails db:migrate`
+
+### Directory Structure
+
+```
+db/
+├── migrate/              # Upstream Chatwoot (pristine, never touch)
+├── migrate_custom/       # Our custom migrations (timestamps: 20251104120000_*)
+├── schema.rb            # Upstream tables only
+└── schema_custom.rb     # Custom tables only (both committed to git)
+```
+
+### Creating Custom Migrations
+
+**Step 1:** Generate migration using custom generator
+```bash
+rails generate custom_migration AddMetadataToKnowledgeBases
+# Creates: db/migrate_custom/20251104120000_add_metadata_to_knowledge_bases.rb
+```
+
+**Step 2:** Edit the generated migration file
+```ruby
+class AddMetadataToKnowledgeBases < ActiveRecord::Migration[7.1]
+  def change
+    add_column :knowledge_bases, :metadata, :jsonb, default: {}, if_not_exists: true
+  end
+end
+```
+
+**Step 3:** Run migration
+```bash
+rails db:migrate
+# This automatically runs both upstream and custom migrations
+```
+
+### Common Commands
+
+```bash
+# Generate a new custom migration
+rails generate custom_migration MigrationName
+
+# Run all migrations (upstream + custom)
+rails db:migrate
+
+# Check migration status
+rails db:migrate:status          # Upstream migrations
+rails db:migrate:custom:status   # Custom migrations
+
+# Rollback custom migrations only
+rails db:rollback:custom STEP=1
+
+# Dump schemas (both are auto-dumped)
+rails db:schema:dump
+
+# Fresh database setup
+rails db:setup                   # Loads both schemas automatically
+```
+
+### Important Rules
+
+1. **Never edit files in `db/migrate/`** - These are upstream Chatwoot migrations
+2. **Use `rails generate custom_migration`** to create new custom migrations
+3. **Always run `rails db:migrate`** (not `db:migrate:custom`) for normal workflow
+4. **Both schema files are tracked in git** (`schema.rb` and `schema_custom.rb`)
+5. **Custom migrations run AFTER upstream** - Dependencies are guaranteed
+6. **Use `if_not_exists: true`** option to make migrations idempotent
+
+### Troubleshooting
+
+**Problem:** "Cannot run custom migrations: X upstream migrations pending"
+- **Solution:** Run `rails db:migrate` first (this runs both upstream then custom)
+
+**Problem:** Custom tables missing after `db:setup`
+- **Solution:** Ensure `db/schema_custom.rb` exists and is committed to git
+
+**Problem:** Merge conflict in `db/migrate/` or `db/schema.rb`
+- **Solution:** This shouldn't happen! Custom migrations are separate. If it does, custom files may have been added to wrong directory.
+
+### Full Documentation
+
+For complete documentation including architecture, troubleshooting, and best practices, see:
+**[docs/db/CUSTOM_MIGRATIONS.md](docs/db/CUSTOM_MIGRATIONS.md)**
+
+## Ruby Best Practices
+
+- Use compact `module/class` definitions; avoid nested styles
 
 ### Git Branches
 - **Base branch**: `development` (NOT `develop`)

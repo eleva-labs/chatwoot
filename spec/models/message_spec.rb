@@ -4,6 +4,12 @@ require 'rails_helper'
 require Rails.root.join 'spec/models/concerns/liquidable_shared.rb'
 
 RSpec.describe Message do
+  before do
+    # rubocop:disable RSpec/AnyInstance
+    allow_any_instance_of(described_class).to receive(:reindex_for_search).and_return(true)
+    # rubocop:enable RSpec/AnyInstance
+  end
+
   context 'with validations' do
     it { is_expected.to validate_presence_of(:inbox_id) }
     it { is_expected.to validate_presence_of(:conversation_id) }
@@ -310,43 +316,52 @@ RSpec.describe Message do
     end
 
     context 'with conversation continuity' do
-      it 'calls notify email method on after save for outgoing messages in website channel' do
-        allow(ConversationReplyEmailWorker).to receive(:perform_in).and_return(true)
-        message.message_type = 'outgoing'
-        message.save!
-        expect(ConversationReplyEmailWorker).to have_received(:perform_in)
+      let(:inbox_with_continuity) do
+        create(:inbox, account: message.account,
+                       channel: build(:channel_widget, account: message.account, continuity_via_email: true))
       end
 
-      it 'does not call notify email for website channel if continuity is disabled' do
-        message.inbox = create(:inbox, account: message.account,
-                                       channel: build(:channel_widget, account: message.account, continuity_via_email: false))
-        allow(ConversationReplyEmailWorker).to receive(:perform_in).and_return(true)
+      it 'schedules email notification for outgoing messages in website channel' do
+        message.inbox = inbox_with_continuity
+        message.conversation.update!(inbox: inbox_with_continuity)
+        message.conversation.contact.update!(email: 'test@example.com')
         message.message_type = 'outgoing'
-        message.save!
-        expect(ConversationReplyEmailWorker).not_to have_received(:perform_in)
+
+        ActiveJob::Base.queue_adapter = :test
+        allow(Redis::Alfred).to receive(:set).and_return(true)
+        perform_enqueued_jobs(only: SendReplyJob) do
+          expect { message.save! }.to have_enqueued_job(ConversationReplyEmailJob).with(message.conversation.id, kind_of(Integer)).on_queue('mailers')
+        end
       end
 
-      it 'wont call notify email method for private notes' do
+      it 'does not schedule email for website channel if continuity is disabled' do
+        inbox_without_continuity = create(:inbox, account: message.account,
+                                                  channel: build(:channel_widget, account: message.account, continuity_via_email: false))
+        message.inbox = inbox_without_continuity
+        message.conversation.update!(inbox: inbox_without_continuity)
+        message.conversation.contact.update!(email: 'test@example.com')
+        message.message_type = 'outgoing'
+
+        ActiveJob::Base.queue_adapter = :test
+        expect { message.save! }.not_to have_enqueued_job(ConversationReplyEmailJob)
+      end
+
+      it 'does not schedule email for private notes' do
+        message.inbox = inbox_with_continuity
+        message.conversation.update!(inbox: inbox_with_continuity)
+        message.conversation.contact.update!(email: 'test@example.com')
         message.private = true
-        allow(ConversationReplyEmailWorker).to receive(:perform_in).and_return(true)
-        message.save!
-        expect(ConversationReplyEmailWorker).not_to have_received(:perform_in)
-      end
-
-      it 'calls EmailReply worker if the channel is email' do
-        message.inbox = create(:inbox, account: message.account, channel: build(:channel_email, account: message.account))
-        allow(EmailReplyWorker).to receive(:perform_in).and_return(true)
         message.message_type = 'outgoing'
-        message.content_attributes = { email: { text_content: { quoted: 'quoted text' } } }
-        message.save!
-        expect(EmailReplyWorker).to have_received(:perform_in).with(1.second, message.id)
+
+        ActiveJob::Base.queue_adapter = :test
+        expect { message.save! }.not_to have_enqueued_job(ConversationReplyEmailJob)
       end
 
-      it 'wont call notify email method unless its website or email channel' do
-        message.inbox = create(:inbox, account: message.account, channel: build(:channel_api, account: message.account))
-        allow(ConversationReplyEmailWorker).to receive(:perform_in).and_return(true)
+      it 'calls SendReplyJob for all channels' do
+        allow(SendReplyJob).to receive(:perform_later).and_return(true)
+        message.message_type = 'outgoing'
         message.save!
-        expect(ConversationReplyEmailWorker).not_to have_received(:perform_in)
+        expect(SendReplyJob).to have_received(:perform_later).with(message.id)
       end
     end
   end
@@ -927,38 +942,49 @@ RSpec.describe Message do
       allow(forward_service_double).to receive(:send_notification)
     end
 
-    describe '#notification_format?' do
-      context 'when message matches notification format' do
-        it 'returns true for valid notification format' do
-          message = build(:message, content: '[urgent] This is urgent', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be true
+    describe '#is_notification?' do
+      context 'when message has is_notification flag' do
+        it 'returns true when is_notification is true' do
+          message = build(:message,
+                          content: 'This is a notification',
+                          conversation: conversation,
+                          account: account,
+                          additional_attributes: { 'is_notification' => true })
+          expect(message.send(:is_notification?)).to be true
         end
 
-        it 'returns true for different notification types' do
-          message = build(:message, content: '[alert] System alert', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be true
-        end
-
-        it 'returns true for notification with spaces in type' do
-          message = build(:message, content: '[system alert] Important message', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be true
+        it 'returns true for different message content' do
+          message = build(:message,
+                          content: 'Another notification message',
+                          conversation: conversation,
+                          account: account,
+                          additional_attributes: { 'is_notification' => true })
+          expect(message.send(:is_notification?)).to be true
         end
       end
 
-      context 'when message does not match notification format' do
+      context 'when message does not have is_notification flag' do
         it 'returns false for regular messages' do
           message = build(:message, content: 'This is a regular message', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be false
+          expect(message.send(:is_notification?)).to be false
         end
 
-        it 'returns false for malformed notification format' do
-          message = build(:message, content: '[incomplete notification', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be false
+        it 'returns false when is_notification is false' do
+          message = build(:message,
+                          content: 'This is not a notification',
+                          conversation: conversation,
+                          account: account,
+                          additional_attributes: { 'is_notification' => false })
+          expect(message.send(:is_notification?)).to be false
         end
 
-        it 'returns false for empty brackets' do
-          message = build(:message, content: '[]: Empty brackets', conversation: conversation, account: account)
-          expect(message.send(:notification_format?)).to be false
+        it 'returns false when additional_attributes is nil' do
+          message = build(:message,
+                          content: 'Message without attributes',
+                          conversation: conversation,
+                          account: account,
+                          additional_attributes: nil)
+          expect(message.send(:is_notification?)).to be false
         end
       end
     end
@@ -967,11 +993,12 @@ RSpec.describe Message do
       context 'when all conditions are met' do
         let(:notification_message) do
           create(:message,
-                 content: '[test] This is a test notification',
+                 content: 'This is a test notification',
                  conversation: conversation,
                  account: account,
                  message_type: 'outgoing',
                  private: true,
+                 additional_attributes: { 'is_notification' => true },
                  sender: user)
         end
 
@@ -986,11 +1013,12 @@ RSpec.describe Message do
       context 'when message is not private' do
         let(:public_message) do
           create(:message,
-                 content: '[test] This is a test notification',
+                 content: 'This is a test notification',
                  conversation: conversation,
                  account: account,
                  message_type: 'outgoing',
                  private: false,
+                 additional_attributes: { 'is_notification' => true },
                  sender: user)
         end
 
@@ -1002,10 +1030,10 @@ RSpec.describe Message do
         end
       end
 
-      context 'when message is not outgoing' do
+      context 'when message is incoming (without is_notification flag)' do
         let(:incoming_message) do
           create(:message,
-                 content: '[test] This is a test notification',
+                 content: 'This is an incoming message',
                  conversation: conversation,
                  account: account,
                  message_type: 'incoming',
@@ -1020,7 +1048,7 @@ RSpec.describe Message do
         end
       end
 
-      context 'when message does not match notification format' do
+      context 'when message does not have is_notification flag' do
         let(:regular_message) do
           create(:message,
                  content: 'This is a regular private message',
@@ -1047,11 +1075,12 @@ RSpec.describe Message do
 
         let(:error_message) do
           create(:message,
-                 content: '[test] This will cause an error',
+                 content: 'This will cause an error',
                  conversation: conversation,
                  account: account,
                  message_type: 'outgoing',
                  private: true,
+                 additional_attributes: { 'is_notification' => true },
                  sender: user)
         end
 
@@ -1085,7 +1114,7 @@ RSpec.describe Message do
 
     before do
       allow(ChatwootApp).to receive(:advanced_search_allowed?).and_return(true)
-      account.enable_features('advanced_search')
+      account.enable_features('advanced_search_indexing')
     end
 
     context 'when advanced search is not allowed globally' do
@@ -1098,13 +1127,25 @@ RSpec.describe Message do
       end
     end
 
-    context 'when advanced search feature is not enabled for account' do
+    context 'when advanced search feature is not enabled for account on chatwoot cloud' do
       before do
-        account.disable_features('advanced_search')
+        allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(true)
+        account.disable_features('advanced_search_indexing')
       end
 
       it 'returns false' do
         expect(message.should_index?).to be false
+      end
+    end
+
+    context 'when advanced search feature is not enabled for account on self-hosted' do
+      before do
+        allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(false)
+        account.disable_features('advanced_search_indexing')
+      end
+
+      it 'returns true' do
+        expect(message.should_index?).to be true
       end
     end
 
@@ -1127,6 +1168,56 @@ RSpec.describe Message do
       it 'returns true for outgoing message' do
         message.message_type = 'outgoing'
         expect(message.should_index?).to be true
+      end
+    end
+  end
+
+  describe '#reindex_for_search callback' do
+    let(:account) { create(:account) }
+    let(:conversation) { create(:conversation, account: account) }
+
+    before do
+      allow(ChatwootApp).to receive(:advanced_search_allowed?).and_return(true)
+      account.enable_features('advanced_search_indexing')
+    end
+
+    context 'when message should be indexed' do
+      it 'calls reindex_for_search for incoming message on create' do
+        message = build(:message, conversation: conversation, account: account, message_type: :incoming)
+        expect(message).to receive(:reindex_for_search)
+        message.save!
+      end
+
+      it 'calls reindex_for_search for outgoing message on update' do
+        # rubocop:disable RSpec/AnyInstance
+        allow_any_instance_of(described_class).to receive(:reindex_for_search).and_return(true)
+        # rubocop:enable RSpec/AnyInstance
+        message = create(:message, conversation: conversation, account: account, message_type: :outgoing)
+        expect(message).to receive(:reindex_for_search).and_return(true)
+        message.update!(content: 'Updated content')
+      end
+    end
+
+    context 'when message should not be indexed' do
+      it 'does not call reindex_for_search for activity message' do
+        message = build(:message, conversation: conversation, account: account, message_type: :activity)
+        expect(message).not_to receive(:reindex_for_search)
+        message.save!
+      end
+
+      it 'does not call reindex_for_search for unpaid account on cloud' do
+        allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(true)
+        account.disable_features('advanced_search_indexing')
+        message = build(:message, conversation: conversation, account: account, message_type: :incoming)
+        expect(message).not_to receive(:reindex_for_search)
+        message.save!
+      end
+
+      it 'does not call reindex_for_search when advanced search is not allowed' do
+        allow(ChatwootApp).to receive(:advanced_search_allowed?).and_return(false)
+        message = build(:message, conversation: conversation, account: account, message_type: :incoming)
+        expect(message).not_to receive(:reindex_for_search)
+        message.save!
       end
     end
   end

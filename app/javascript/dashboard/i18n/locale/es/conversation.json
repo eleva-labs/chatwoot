@@ -83,6 +83,17 @@
       "THEY_ANSWERED": "They answered",
       "YOU_ANSWERED": "You answered"
     },
+    "VOICE_CALL": {
+      "INCOMING_CALL": "Incoming call",
+      "OUTGOING_CALL": "Outgoing call",
+      "CALL_IN_PROGRESS": "Call in progress",
+      "NO_ANSWER": "No answer",
+      "MISSED_CALL": "Missed call",
+      "CALL_ENDED": "Call ended",
+      "NOT_ANSWERED_YET": "Not answered yet",
+      "THEY_ANSWERED": "They answered",
+      "YOU_ANSWERED": "You answered"
+    },
     "HEADER": {
       "RESOLVE_ACTION": "Resolver",
       "REOPEN_ACTION": "Reabrir",
@@ -232,6 +243,13 @@
           "YES": "Enviar",
           "CANCEL": "Cancelar"
         }
+      },
+      "QUOTED_REPLY": {
+        "ENABLE_TOOLTIP": "Include quoted email thread",
+        "DISABLE_TOOLTIP": "Don't include quoted email thread",
+        "REMOVE_PREVIEW": "Remove quoted email thread",
+        "COLLAPSE": "Collapse preview",
+        "EXPAND": "Expand preview"
       }
     },
     "AI_FEEDBACK": {
@@ -278,6 +296,8 @@
     "EXTERNAL": "Externo",
     "SEND_FAILED": "¡No se pudo enviar el mensaje! Inténtalo de nuevo",
     "TRY_AGAIN": "reintentar",
+    "AI_TOGGLE_SUCCESS": "AI actualizado exitosamente",
+    "AI_TOGGLE_ERROR": "¡No se pudo actualizar AI! Inténtalo de nuevo",
     "ASSIGNMENT": {
       "SELECT_AGENT": "Seleccionar miembro",
       "REMOVE": "Eliminar",
@@ -350,9 +370,9 @@
       "ADDING_AGENTS": "Agregando Miembros a {channel}"
     },
     "ADD_AI_AGENT": {
-      "TITLE": "Añadir su asistente de IA",
-      "DESCRIPTION": "AI Bot que ayudará a responder a las conversaciones",
-      "NEW_LINK": "Haga clic aquí para añadir un AI Bot"
+      "TITLE": "Añadir su Empleado IA",
+      "DESCRIPTION": "Empleado IA que ayudará a responder a las conversaciones",
+      "NEW_LINK": "Haga clic aquí para añadir un Empleado IA"
     },
     "CANNED_RESPONSES": {
       "TITLE": "Crea respuestas predefinidas",
@@ -365,7 +385,7 @@
       "FINISH": "Finish"
     },
     "ERROR": {
-      "BOT_CONFIGURATION": "Error durante la configuración del AI Bot",
+      "BOT_CONFIGURATION": "Error durante la configuración del Empleado IA",
       "STEP_NOT_COMPLETED": "Por favor, complete los pasos anteriores antes de continuar",
       "STEP_NOT_SAVED": "Error al guardar el paso actual",
       "STEP_NOT_LOADED": "Error al cargar el paso actual"

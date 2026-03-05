@@ -24,9 +24,6 @@ export const state = {
     isUpdatingIMAP: false,
     isUpdatingSMTP: false,
   },
-  onboarding: {
-    onboardingConcluded: false,
-  },
 };
 
 export const getters = {
@@ -79,6 +76,11 @@ export const getters = {
 
       // Only show approved templates
       if (template.status.toLowerCase() !== 'approved') {
+        return false;
+      }
+
+      // Filter out authentication templates
+      if (template.category === 'AUTHENTICATION') {
         return false;
       }
 
@@ -367,10 +369,6 @@ export const mutations = {
   [types.default.ADD_INBOXES]: MutationHelpers.create,
   [types.default.EDIT_INBOXES]: MutationHelpers.update,
   [types.default.DELETE_INBOXES]: MutationHelpers.destroy,
-  // Update only attributes for an inbox (used by websocket status updates)
-  UPDATE_INBOX_ATTRIBUTES($state, data) {
-    MutationHelpers.updateAttributes($state, data);
-  },
 };
 
 export default {

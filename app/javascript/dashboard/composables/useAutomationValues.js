@@ -78,6 +78,11 @@ export default function useAutomationValues() {
     }))
   );
 
+  const aiEnabledOptions = computed(() => [
+    { id: true, name: t('AUTOMATION.AI_ENABLED_OPTIONS.ENABLED') },
+    { id: false, name: t('AUTOMATION.AI_ENABLED_OPTIONS.DISABLED') },
+  ]);
+
   /**
    * Adds a translated "None" option to the beginning of a list
    * @param {Array} list - The list to add "None" to
@@ -104,6 +109,7 @@ export default function useAutomationValues() {
       contacts: contacts.value,
       customAttributes: getters['attributes/getAttributes'].value,
       inboxes: inboxes.value,
+      labels: labels.value,
       statusFilterOptions: statusFilterOptions.value,
       priorityOptions: priorityOptions.value,
       messageTypeOptions: messageTypeOptions.value,
@@ -129,6 +135,7 @@ export default function useAutomationValues() {
       type,
       addNoneToListFn: addNoneToList,
       priorityOptions: priorityOptions.value,
+      aiEnabledOptions: aiEnabledOptions.value,
     });
   };
 

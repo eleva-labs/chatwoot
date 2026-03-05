@@ -14,22 +14,13 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['update:mode', 'toggleMode']);
+defineEmits(['toggleMode']);
 
 const wootEditorReplyMode = useTemplateRef('wootEditorReplyMode');
 const wootEditorPrivateMode = useTemplateRef('wootEditorPrivateMode');
-const wootEditorAiFeedbackMode = useTemplateRef('wootEditorAiFeedbackMode');
 
 const replyModeSize = useElementSize(wootEditorReplyMode);
 const privateModeSize = useElementSize(wootEditorPrivateMode);
-const aiFeedbackModeSize = useElementSize(wootEditorAiFeedbackMode);
-
-/**
- * Handle mode click
- */
-const handleModeClick = mode => {
-  emit('update:mode', mode);
-};
 
 /**
  * Computed boolean indicating if the editor is in private note mode
@@ -41,26 +32,14 @@ const isPrivate = computed(() => {
 });
 
 /**
- * Computed boolean indicating if the editor is in AI feedback mode
- * @type {ComputedRef<boolean>}
- */
-const isAiFeedback = computed(
-  () => props.mode === REPLY_EDITOR_MODES.AI_FEEDBACK
-);
-
-/**
  * Computes the width of the sliding background chip in pixels
  * Includes 16px of padding in the calculation
  * @type {ComputedRef<string>}
  */
 const width = computed(() => {
-  let widthToUse = replyModeSize.width.value;
-
-  if (isAiFeedback.value) {
-    widthToUse = aiFeedbackModeSize.width.value;
-  } else if (isPrivate.value) {
-    widthToUse = privateModeSize.width.value;
-  }
+  const widthToUse = isPrivate.value
+    ? privateModeSize.width.value
+    : replyModeSize.width.value;
 
   const widthWithPadding = widthToUse + 16;
   return `${widthWithPadding}px`;
@@ -68,21 +47,11 @@ const width = computed(() => {
 
 /**
  * Computes the X translation value for the sliding background chip
- * Translates based on the current mode position
+ * Translates by the width of reply mode + padding when in private mode
  * @type {ComputedRef<string>}
  */
 const translateValue = computed(() => {
-  let xTranslate = 0;
-
-  if (isAiFeedback.value) {
-    // AI Feedback: Move past Reply + Private Note modes
-    xTranslate =
-      replyModeSize.width.value + 16 + privateModeSize.width.value + 16;
-  } else if (isPrivate.value) {
-    // Private Note: Move past Reply mode
-    xTranslate = replyModeSize.width.value + 16;
-  }
-  // Reply mode: xTranslate = 0
+  const xTranslate = isPrivate.value ? replyModeSize.width.value + 16 : 0;
 
   return `${xTranslate}px`;
 });
@@ -97,27 +66,12 @@ const translateValue = computed(() => {
     }"
     @click="$emit('toggleMode')"
   >
-    <button
-      ref="wootEditorReplyMode"
-      class="flex items-center gap-1 px-2 z-20 cursor-pointer"
-      @click="() => handleModeClick(REPLY_EDITOR_MODES.REPLY)"
-    >
+    <div ref="wootEditorReplyMode" class="flex items-center gap-1 px-2 z-20">
       {{ $t('CONVERSATION.REPLYBOX.REPLY') }}
-    </button>
-    <button
-      ref="wootEditorPrivateMode"
-      class="flex items-center gap-1 px-2 z-20 cursor-pointer"
-      @click="() => handleModeClick(REPLY_EDITOR_MODES.NOTE)"
-    >
+    </div>
+    <div ref="wootEditorPrivateMode" class="flex items-center gap-1 px-2 z-20">
       {{ $t('CONVERSATION.REPLYBOX.PRIVATE_NOTE') }}
-    </button>
-    <button
-      ref="wootEditorAiFeedbackMode"
-      class="flex items-center gap-1 px-2 z-20 cursor-pointer"
-      @click="() => handleModeClick(REPLY_EDITOR_MODES.AI_FEEDBACK)"
-    >
-      {{ $t('CONVERSATION.REPLYBOX.AI_FEEDBACK_MODE') }}
-    </button>
+    </div>
     <div
       class="absolute shadow-sm rounded-full h-6 w-[var(--chip-width)] ease-in-out translate-x-[var(--translate-x)] rtl:translate-x-[var(--rtl-translate-x)] bg-n-solid-1"
       :class="{

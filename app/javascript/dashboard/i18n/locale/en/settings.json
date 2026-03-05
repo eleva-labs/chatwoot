@@ -62,7 +62,7 @@
       },
       "MESSAGE_SIGNATURE_SECTION": {
         "TITLE": "Personal message signature",
-        "NOTE": "Create a unique message signature to appear at the end of every message you send from any channel.",
+        "NOTE": "Create a unique message signature to appear at the end of every message you send from any inbox. You can also include an inline image, which is supported in live-chat, email, and API inboxes.",
         "BTN_TEXT": "Save message signature",
         "API_ERROR": "Couldn't save signature! Try again",
         "API_SUCCESS": "Signature saved successfully",
@@ -79,6 +79,11 @@
         "TITLE": "Password",
         "NOTE": "Updating your password would reset your logins in multiple devices.",
         "BTN_TEXT": "Change password"
+      },
+      "SECURITY_SECTION": {
+        "TITLE": "Security",
+        "NOTE": "Manage additional security features for your account.",
+        "MFA_BUTTON": "Manage Two-Factor Authentication"
       },
       "ACCESS_TOKEN": {
         "TITLE": "Access Token",
@@ -156,7 +161,7 @@
           "SLA_MISSED_NEXT_RESPONSE": "A conversation misses next response SLA",
           "SLA_MISSED_RESOLUTION": "A conversation misses resolution SLA"
         },
-        "BROWSER_PERMISSION": "Enable push notifications for your browser so you're able to receive them"
+        "BROWSER_PERMISSION": "Enable push notifications for your browser so you’re able to receive them"
       },
       "API": {
         "UPDATE_SUCCESS": "Your notification preferences are updated successfully",
@@ -240,9 +245,9 @@
     "TRIAL_MESSAGE": "days trial remaining.",
     "TRAIL_BUTTON": "Buy Now",
     "DELETED_USER": "Deleted User",
-    "EMAIL_VERIFICATION_PENDING": "It seems that you haven't verified your email address yet. Please check your email for the verification email.",
+    "EMAIL_VERIFICATION_PENDING": "It seems that you haven't verified your email address yet. Please check your inbox for the verification email.",
     "RESEND_VERIFICATION_MAIL": "Resend verification email",
-    "EMAIL_VERIFICATION_SENT": "Verification email has been sent. Please check your email.",
+    "EMAIL_VERIFICATION_SENT": "Verification email has been sent. Please check your inbox.",
     "ACCOUNT_SUSPENDED": {
       "TITLE": "Account Suspended",
       "MESSAGE": "Your account is suspended. Please reach out to the support team for more information."
@@ -277,16 +282,16 @@
   "CONFIRM_EMAIL": "Verifying...",
   "SETTINGS": {
     "INBOXES": {
-      "NEW_INBOX": "Add Channel"
+      "NEW_INBOX": "Add Inbox"
     }
   },
   "SIDEBAR": {
     "NO_ITEMS": "No items",
     "CURRENTLY_VIEWING_ACCOUNT": "Currently viewing:",
     "SWITCH": "Switch",
-    "INBOX_VIEW": "Channel View",
+    "INBOX_VIEW": "Inbox View",
     "CONVERSATIONS": "Conversations",
-    "INBOX": "My Channel",
+    "INBOX": "My Inbox",
     "ALL_CONVERSATIONS": "All Conversations",
     "MENTIONED_CONVERSATIONS": "Mentions",
     "PARTICIPATING_CONVERSATIONS": "Participating",
@@ -299,11 +304,12 @@
     "CAPTAIN_ASSISTANTS": "Assistants",
     "CAPTAIN_DOCUMENTS": "Documents",
     "CAPTAIN_RESPONSES": "FAQs",
+    "CAPTAIN_TOOLS": "Tools",
     "HOME": "Home",
-    "AGENTS": "Members",
-    "AGENT_BOTS": "AI Bots",
+    "AGENTS": "Agents",
+    "AGENT_BOTS": "Bots",
     "AUDIT_LOGS": "Audit Logs",
-    "INBOXES": "Channels",
+    "INBOXES": "Inboxes",
     "NOTIFICATIONS": "Notifications",
     "CANNED_RESPONSES": "Canned Responses",
     "INTEGRATIONS": "Integrations",
@@ -314,16 +320,15 @@
     "CUSTOM_ATTRIBUTES": "Custom Attributes",
     "AUTOMATION": "Automation",
     "MACROS": "Macros",
-    "PROMPTS": "Prompts",
     "TEAMS": "Teams",
     "BILLING": "Billing",
-    "CUSTOM_VIEWS_FOLDER": "Filters",
+    "CUSTOM_VIEWS_FOLDER": "Folders",
     "CUSTOM_VIEWS_SEGMENTS": "Segments",
     "ALL_CONTACTS": "All Contacts",
     "TAGGED_WITH": "Tagged with",
     "NEW_LABEL": "New label",
     "NEW_TEAM": "New team",
-    "NEW_INBOX": "New channel",
+    "NEW_INBOX": "New inbox",
     "REPORTS_CONVERSATION": "Conversations",
     "CSAT": "CSAT",
     "LIVE_CHAT": "Live Chat",
@@ -333,10 +338,10 @@
     "ONGOING": "Ongoing",
     "ONE_OFF": "One off",
     "REPORTS_SLA": "SLA",
-    "REPORTS_BOT": "AI Bots",
-    "REPORTS_AGENT": "Members",
+    "REPORTS_BOT": "Bot",
+    "REPORTS_AGENT": "Agents",
     "REPORTS_LABEL": "Labels",
-    "REPORTS_INBOX": "Channel",
+    "REPORTS_INBOX": "Inbox",
     "REPORTS_TEAM": "Team",
     "AGENT_ASSIGNMENT": "Agent Assignment",
     "SET_AVAILABILITY_TITLE": "Set yourself as",
@@ -345,7 +350,7 @@
     "CUSTOM_ROLES": "Custom Roles",
     "BETA": "Beta",
     "REPORTS_OVERVIEW": "Overview",
-    "REAUTHORIZE": "Your channel connection has expired, please reconnect\n to continue receiving and sending messages",
+    "REAUTHORIZE": "Your inbox connection has expired, please reconnect\n to continue receiving and sending messages",
     "HELP_CENTER": {
       "TITLE": "Help Center",
       "ARTICLES": "Articles",
@@ -369,18 +374,13 @@
       "TITLE": "Current Plan",
       "PLAN_NOTE": "You are currently subscribed to the **{plan}** plan with **{quantity}** licenses",
       "SEAT_COUNT": "Number of seats",
-      "RENEWS_ON": "Renews on",
-      "ENDS_ON": "Ends on",
-      "STATUS": "Status"
+      "RENEWS_ON": "Renews on"
     },
     "VIEW_PRICING": "View Pricing",
     "MANAGE_SUBSCRIPTION": {
       "TITLE": "Manage your subscription",
       "DESCRIPTION": "View your previous invoices, edit your billing details, or cancel your subscription.",
-      "BUTTON_TXT": "Go to billing portal"
-    },
-    "SETUP_IN_PROGRESS": {
-      "MESSAGE": "Subscription setup in progress..."
+      "BUTTON_TXT": "Go to the billing portal"
     },
     "CAPTAIN": {
       "TITLE": "Captain",
@@ -395,26 +395,7 @@
       "DESCRIPTION": "Do you face any issues in billing? We are here to help.",
       "BUTTON_TXT": "Chat with us"
     },
-    "NO_BILLING_USER": "Your billing account is being configured. Please refresh the page and try again.",
-    "PLANS": {
-      "community": "Community",
-      "free_trial": "Free trial",
-      "starter": "Starter",
-      "professional": "Professional",
-      "enterprise": "Enterprise"
-    },
-    "SUBSCRIPTION_STATUS": {
-      "active": "Active",
-      "cancelled": "Cancelled",
-      "canceled": "Cancelled",
-      "inactive": "Inactive",
-      "past_due": "Past Due",
-      "unpaid": "Unpaid",
-      "incomplete": "Incomplete",
-      "incomplete_expired": "Incomplete Expired",
-      "trialing": "Trialing",
-      "paused": "Paused"
-    }
+    "NO_BILLING_USER": "Your billing account is being configured. Please refresh the page and try again."
   },
   "SECURITY_SETTINGS": {
     "TITLE": "Security",
@@ -522,52 +503,6 @@
       "SWITCH_TO_PRIVATE_NOTE": "Switch to Private Note",
       "SWITCH_TO_REPLY": "Switch to Reply",
       "TOGGLE_SNOOZE_DROPDOWN": "Toggle snooze dropdown"
-    }
-  },
-  "PROMPTS_PAGE": {
-    "TITLE": "Prompts",
-    "DESCRIPTION": "Configure prompts for your account. These prompts can be used in the composer to quickly write a message.",
-    "EMPTY_STATE": "No prompts found. Create your first prompt to get started.",
-    "LOADING": "Loading prompts...",
-    "DELETE": "Delete",
-    "ADD": {
-      "TITLE": "Add Prompt",
-      "DESC": "Create a new prompt template",
-      "SUCCESS_MESSAGE": "Prompt created successfully",
-      "ERROR_MESSAGE": "Failed to create prompt",
-      "VALIDATION_ERROR": "Please fill in all required fields"
-    },
-    "EDIT": {
-      "TITLE": "Edit Prompt",
-      "DESC": "Update the prompt template",
-      "SUCCESS_MESSAGE": "Prompt updated successfully",
-      "ERROR_MESSAGE": "Failed to update prompt",
-      "VALIDATION_ERROR": "Please fill in all required fields"
-    },
-    "EDITOR": {
-      "SAVING": "Saving...",
-      "SAVED": "Saved"
-    },
-    "DELETE_CONFIRM": {
-      "TITLE": "Delete Prompt",
-      "MESSAGE": "Are you sure you want to delete this prompt?",
-      "YES": "Delete",
-      "NO": "Cancel"
-    },
-    "FORM": {
-      "PROMPT_KEY": {
-        "LABEL": "Prompt Key",
-        "PLACEHOLDER": "Enter a unique identifier for this prompt",
-        "ERROR": "Prompt key is required"
-      },
-      "TEXT": {
-        "LABEL": "Prompt Text",
-        "PLACEHOLDER": "Enter the prompt content",
-        "ERROR": "Prompt text is required"
-      },
-      "CANCEL": "Cancel",
-      "SUBMIT": "Create Prompt",
-      "UPDATE": "Update Prompt"
     }
   },
   "ASSIGNMENT_POLICY": {

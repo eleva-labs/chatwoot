@@ -68,7 +68,7 @@ const showMessagePreviewWithoutMeta = computed(() => {
 });
 
 const isAiEnabled = computed(() => {
-  return !!currentContact.value?.custom_attributes?.ai_enabled;
+  return !!props.conversation?.custom_attributes?.ai_enabled;
 });
 
 const onCardClick = e => {

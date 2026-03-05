@@ -90,7 +90,7 @@ RSpec.describe ForwardNotificationService do
 
       it 'logs the error and does not re-raise' do
         expect { service.perform_notification_sending }.not_to raise_error
-        expect(Rails.logger).to have_received(:error).with('Error in ForwardNotificationService.perform_notification_sending: Test error')
+        expect(Rails.logger).to have_received(:error).with('Notification Failed: Error in ForwardNotificationService.perform_notification_sending: Test error')
       end
     end
   end
@@ -194,7 +194,7 @@ RSpec.describe ForwardNotificationService do
 
         service.perform_notification_sending
 
-        expect(Rails.logger).to have_received(:error).with("Account #{account.id} with no whapi channel and no default whapi channel token defined")
+        expect(Rails.logger).to have_received(:error).with("Notification Failed: Account #{account.id} with no whapi channel and no default whapi channel token defined")
         expect(service).not_to have_received(:send_via_whatsapp_channel)
       end
     end
@@ -209,7 +209,7 @@ RSpec.describe ForwardNotificationService do
 
         service.perform_notification_sending
 
-        expect(Rails.logger).to have_received(:error).with("Account #{account.id} with no whapi channel and no default whapi channel token defined")
+        expect(Rails.logger).to have_received(:error).with("Notification Failed: Account #{account.id} with no whapi channel and no default whapi channel token defined")
         expect(service).not_to have_received(:send_via_whatsapp_channel)
       end
     end
