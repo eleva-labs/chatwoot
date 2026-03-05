@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 namespace :instagram do
-  desc 'Re-subscribe all active Instagram channels to include messaging_deliveries'
+  desc 'Re-subscribe all active Instagram channels to messaging_seen and other supported fields'
   task resubscribe: :environment do
     channels = Channel::Instagram.all
     puts "Re-subscribing #{channels.count} channel(s)..."
