@@ -7,12 +7,8 @@ class Instagram::ReadStatusService
     ::Conversations::UpdateMessageStatusJob.perform_later(message.conversation.id, message.created_at) if message.present?
   end
 
-  def instagram_id
-    params[:recipient][:id]
-  end
-
   def message
-    mid = params[:read][:mid]
+    mid = params[:read]&.[](:mid)
     return unless mid
 
     msg = @channel.inbox.messages.find_by(source_id: mid)
