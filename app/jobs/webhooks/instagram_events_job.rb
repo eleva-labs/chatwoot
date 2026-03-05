@@ -109,14 +109,13 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
 
   def delivery(messaging, channel)
     delivery_data = messaging[:delivery]
-    watermark_raw = delivery_data[:watermark]
+    watermark_raw = delivery_data&.dig(:watermark)
+    return unless watermark_raw
 
-    # NOTE: Verify watermark units empirically from a real delivery webhook payload.
-    # Facebook's delivery_status.rb uses Time.zone.at(watermark.to_i) (seconds).
-    # Instagram may use milliseconds. Confirm before production deploy.
-    #   seconds:      Time.zone.at(watermark_raw.to_i)
-    #   milliseconds: Time.zone.at(watermark_raw.to_i / 1000.0)
-    timestamp = Time.zone.at(watermark_raw.to_i).to_datetime.utc
+    # Instagram webhook timestamps are in milliseconds (13-digit epoch).
+    # Using milliseconds interpretation consistent with observed production payloads.
+    # NOTE: Verify empirically from a real delivery webhook payload after deploying.
+    timestamp = Time.zone.at(watermark_raw.to_i / 1000.0).to_datetime.utc
 
     conversation = find_conversation_for_delivery(messaging, channel)
     return unless conversation
@@ -125,7 +124,9 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def find_conversation_for_delivery(messaging, channel)
-    sender_id = messaging[:sender][:id]
+    sender_id = messaging.dig(:sender, :id)
+    return unless sender_id
+
     contact_inbox = ::ContactInbox.find_by(source_id: sender_id, inbox_id: channel.inbox.id)
     return unless contact_inbox
 
