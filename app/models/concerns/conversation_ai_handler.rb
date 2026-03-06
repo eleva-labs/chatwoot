@@ -21,6 +21,7 @@ module ConversationAiHandler
   # Enable AI for conversation (with prerequisite check)
   # @return [Boolean] true if successful, false if prerequisites not met
   def enable_ai!
+    Rails.logger.info "[AI_TOGGLE] enable_ai! called. ai_enabled?=#{ai_enabled?}, Current.user=#{Current.user&.class}:#{Current.user&.id}"
     return true if ai_enabled?
     return false unless inbox_has_active_bot?
 
@@ -34,6 +35,7 @@ module ConversationAiHandler
   # Disable AI for conversation
   # @return [Boolean] true if successful
   def disable_ai!
+    Rails.logger.info "[AI_TOGGLE] disable_ai! called. ai_disabled?=#{ai_disabled?}, Current.user=#{Current.user&.class}:#{Current.user&.id}"
     return true if ai_disabled?
 
     self.custom_attributes ||= {}
