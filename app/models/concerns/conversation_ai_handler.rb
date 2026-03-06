@@ -62,13 +62,10 @@ module ConversationAiHandler
   end
 
   def create_ai_toggle_activity(change_type)
-    Rails.logger.info "[AI_TOGGLE] create_ai_toggle_activity(#{change_type}) Current.user=#{Current.user&.class}:#{Current.user&.id}"
     return unless Current.user
 
     content = I18n.t("conversations.activity.ai.#{change_type}", user_name: Current.user.name)
-    Rails.logger.info "[AI_TOGGLE] content=#{content.inspect}, params=#{activity_message_params(content).inspect}"
     ::Conversations::ActivityMessageJob.perform_later(self, activity_message_params(content)) if content
-    Rails.logger.info '[AI_TOGGLE] ActivityMessageJob enqueued'
   end
 end
 
