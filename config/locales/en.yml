@@ -232,6 +232,9 @@ en:
       sla:
         added: '%{user_name} added SLA policy %{sla_name}'
         removed: '%{user_name} removed SLA policy %{sla_name}'
+      ai:
+        enabled: '%{user_name} enabled AI for this conversation'
+        disabled: '%{user_name} disabled AI for this conversation'
       linear:
         issue_created: 'Linear issue %{issue_id} was created by %{user_name}'
         issue_linked: 'Linear issue %{issue_id} was linked by %{user_name}'

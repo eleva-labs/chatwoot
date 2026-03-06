@@ -372,6 +372,10 @@
       },
       "AUTO_RESOLVE": {
         "NOT_SENT": "Auto-resolve message not sent due to outgoing message restrictions"
+      },
+      "AI": {
+        "ENABLED": "{user_name} enabled AI for this conversation",
+        "DISABLED": "{user_name} disabled AI for this conversation"
       }
     }
   },

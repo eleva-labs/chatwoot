@@ -1,10 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useStore } from 'vuex';
-import { getInboxIconByType } from 'dashboard/helper/inbox';
+import { useI18n } from 'vue-i18n';
 import { useRouter, useRoute } from 'vue-router';
+import { getInboxIconByType } from 'dashboard/helper/inbox';
 import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper.js';
 import { dynamicTime, shortTimestamp } from 'shared/helpers/timeHelper';
+import { useAlert } from 'dashboard/composables';
+import ConversationApi from 'dashboard/api/conversations.js';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -32,9 +34,9 @@ const props = defineProps({
   },
 });
 
+const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
-const store = useStore();
 
 const cardMessagePreviewWithMetaRef = ref(null);
 
@@ -91,14 +93,15 @@ const onCardClick = e => {
 };
 
 const onToggleAi = async () => {
-  const contactId = currentContact.value?.id;
-  if (!contactId) return;
+  const conversationId = props.conversation?.id;
+  if (!conversationId) return;
   const next = !isAiEnabled.value;
 
-  await store.dispatch('contacts/toggleAi', {
-    id: contactId,
-    aiEnabled: next,
-  });
+  try {
+    await ConversationApi.toggleAi(conversationId, next);
+  } catch {
+    useAlert(t('CONVERSATION.AI_TOGGLE_ERROR'));
+  }
 };
 </script>
 

@@ -27,6 +27,8 @@ module ConversationAiHandler
     self.custom_attributes ||= {}
     self.custom_attributes['ai_enabled'] = true
     save!
+    create_ai_toggle_activity('enabled')
+    true
   end
 
   # Disable AI for conversation
@@ -37,6 +39,8 @@ module ConversationAiHandler
     self.custom_attributes ||= {}
     self.custom_attributes['ai_enabled'] = false
     save!
+    create_ai_toggle_activity('disabled')
+    true
   end
 
   private
@@ -53,6 +57,13 @@ module ConversationAiHandler
 
   def inbox_has_active_bot?
     inbox&.agent_bot_inbox&.active? || false
+  end
+
+  def create_ai_toggle_activity(change_type)
+    return unless Current.user
+
+    content = I18n.t("conversations.activity.ai.#{change_type}", user_name: Current.user.name)
+    ::Conversations::ActivityMessageJob.perform_later(self, activity_message_params(content)) if content
   end
 end
 
