@@ -2,15 +2,6 @@ import { mount } from '@vue/test-utils';
 import AiTextPart from '../AiTextPart.vue';
 import { PART_TYPES } from '../../constants';
 
-// Mock MessageFormatter - needs to be a class constructor
-vi.mock('shared/helpers/MessageFormatter.js', () => ({
-  default: class MockMessageFormatter {
-    constructor(text) {
-      this.formattedMessage = `<p>${text || ''}</p>`;
-    }
-  },
-}));
-
 describe('AiTextPart', () => {
   const defaultProps = {
     part: { type: PART_TYPES.TEXT, text: 'Hello world' },
@@ -107,9 +98,10 @@ describe('AiTextPart', () => {
   // Text Formatting
   // =============================================================================
   describe('text formatting', () => {
-    it('uses MessageFormatter to format text', () => {
+    it('uses renderMarkdown to format text when provided', () => {
       const wrapper = createWrapper({
         part: { type: PART_TYPES.TEXT, text: 'Formatted text' },
+        renderMarkdown: text => `<p>${text}</p>`,
       });
 
       expect(wrapper.html()).toContain('<p>Formatted text</p>');

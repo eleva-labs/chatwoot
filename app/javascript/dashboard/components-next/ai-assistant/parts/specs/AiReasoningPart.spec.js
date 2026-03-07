@@ -1,15 +1,6 @@
 import { mount } from '@vue/test-utils';
 import AiReasoningPart from '../AiReasoningPart.vue';
 
-// Mock MessageFormatter - needs to be a class constructor
-vi.mock('shared/helpers/MessageFormatter.js', () => ({
-  default: class MockMessageFormatter {
-    constructor(text) {
-      this.formattedMessage = `<p>${text || ''}</p>`;
-    }
-  },
-}));
-
 // Mock @vueuse/core for AiCollapsiblePart
 vi.mock('@vueuse/core', () => ({
   useToggle: vi.fn(initial => {
@@ -144,9 +135,10 @@ describe('AiReasoningPart', () => {
   // Text Handling
   // =============================================================================
   describe('text handling', () => {
-    it('formats text using MessageFormatter', () => {
+    it('formats text using renderMarkdown when provided', () => {
       const wrapper = createWrapper({
         part: { text: 'Formatted reasoning' },
+        renderMarkdown: text => `<p>${text}</p>`,
       });
 
       expect(wrapper.html()).toContain('<p>Formatted reasoning</p>');
