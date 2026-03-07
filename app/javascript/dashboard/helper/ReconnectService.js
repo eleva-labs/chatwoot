@@ -139,8 +139,13 @@ class ReconnectService {
   };
 
   onReconnect = async () => {
-    await this.handleRouteSpecificFetch();
-    await this.revalidateCaches();
+    try {
+      await this.handleRouteSpecificFetch();
+      await this.revalidateCaches();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[ReconnectService:onReconnect]', error);
+    }
     emitter.emit(BUS_EVENTS.WEBSOCKET_RECONNECT_COMPLETED);
   };
 }

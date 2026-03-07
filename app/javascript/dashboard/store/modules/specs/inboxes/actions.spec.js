@@ -31,12 +31,28 @@ describe('#actions', () => {
       ]);
     });
     it('sends correct actions if API is error', async () => {
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
       axios.get.mockRejectedValue({ message: 'Incorrect header' });
       await actions.get({ commit });
       expect(commit.mock.calls).toEqual([
         [types.default.SET_INBOXES_UI_FLAG, { isFetching: true }],
         [types.default.SET_INBOXES_UI_FLAG, { isFetching: false }],
       ]);
+      consoleSpy.mockRestore();
+    });
+    it('logs error to console when API fails', async () => {
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      axios.get.mockRejectedValue(new Error('Network error'));
+      await actions.get({ commit });
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[inboxes:get]',
+        expect.any(Error)
+      );
+      consoleSpy.mockRestore();
     });
   });
 

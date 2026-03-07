@@ -30,7 +30,8 @@ export const actions = {
         commit(SET_TEAMS, response.data);
       }
     } catch (error) {
-      // Ignore error
+      // eslint-disable-next-line no-console
+      console.error('[revalidate:teams]', error);
     }
   },
   get: async ({ commit }) => {

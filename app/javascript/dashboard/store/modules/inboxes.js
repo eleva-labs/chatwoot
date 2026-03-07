@@ -183,7 +183,8 @@ export const actions = {
         commit(types.default.SET_INBOXES, response.data.payload);
       }
     } catch (error) {
-      // Ignore error
+      // eslint-disable-next-line no-console
+      console.error('[revalidate:inboxes]', error);
     }
   },
   get: async ({ commit }) => {
@@ -193,6 +194,8 @@ export const actions = {
       commit(types.default.SET_INBOXES_UI_FLAG, { isFetching: false });
       commit(types.default.SET_INBOXES, response.data.payload);
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[inboxes:get]', error);
       commit(types.default.SET_INBOXES_UI_FLAG, { isFetching: false });
     }
   },
