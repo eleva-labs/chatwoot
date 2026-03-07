@@ -79,7 +79,6 @@ const conversationCustomViews = useMapGetter(
 
 onMounted(() => {
   store.dispatch('labels/get');
-  store.dispatch('inboxes/get');
   store.dispatch('notifications/unReadCount');
   store.dispatch('teams/get');
   store.dispatch('attributes/get');
