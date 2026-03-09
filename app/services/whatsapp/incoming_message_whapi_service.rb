@@ -72,6 +72,15 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   end
 
   def process_outgoing_message(message)
+    # Skip echoes of messages sent via the WHAPI API (i.e., sent by Chatwoot itself).
+    # These echoes arrive with a different message ID than the send response, so
+    # source_id dedup fails. The original message is already recorded.
+    # WHAPI source field docs: https://support.whapi.cloud/help-desk/receiving/webhooks/incoming-webhooks-format/incoming-message
+    if sent_via_api?(message)
+      Rails.logger.info { "[WhapiEcho] Skipping API-originated echo: id=#{message[:id]} type=#{message[:type]} chat=#{message[:chat_id]}" }
+      return
+    end
+
     # This is an echo of a message sent from the business's WhatsApp account,
     # potentially from a device outside of Chatwoot. We record it in the conversation.
     return if message_already_processed?(message[:id])
@@ -197,14 +206,13 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
     attachment_file = download_attachment_file(attachment_payload)
     return if attachment_file.blank?
 
+    # Convert inbound OGG voice messages to M4A for iOS playback compatibility
+    file_attrs = Whatsapp::InboundAudioConversionService.convert_if_voice(attachment_file, message_type)
+
     @message.attachments.new(
       account_id: @message.account_id,
       file_type: file_content_type(message_type),
-      file: {
-        io: attachment_file,
-        filename: attachment_file.original_filename,
-        content_type: attachment_file.content_type
-      }
+      file: file_attrs
     )
   end
 
@@ -298,6 +306,10 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def outgoing_message?(message)
     message[:from_me] == true
+  end
+
+  def sent_via_api?(message)
+    message[:source].to_s.downcase == 'api'
   end
 
   def message_already_processed?(source_id)
