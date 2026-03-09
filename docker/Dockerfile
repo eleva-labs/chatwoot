@@ -35,6 +35,7 @@ RUN apk update && apk add --no-cache \
   curl \
   xz \
   ffmpeg \
+  libheif-dev \
   && mkdir -p /var/app \
   && gem install bundler
 
@@ -142,6 +143,7 @@ RUN apk update && apk add --no-cache \
   imagemagick \
   git \
   vips \
+  vips-heif \
   ffmpeg \
   && gem install bundler
 
