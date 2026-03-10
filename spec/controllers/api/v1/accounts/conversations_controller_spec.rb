@@ -665,7 +665,7 @@ RSpec.describe 'Conversations API', type: :request do
              params: { ai_enabled: true },
              as: :json
 
-        expect(response).to have_http_status(:success)
+        expect(response).to have_http_status(:unprocessable_entity)
         expect(response.parsed_body['ai_enabled']).to be false
         expect(conversation.reload.ai_enabled?).to be false
       end

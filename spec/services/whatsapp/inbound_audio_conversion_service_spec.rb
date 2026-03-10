@@ -17,18 +17,10 @@ RSpec.describe Whatsapp::InboundAudioConversionService do
   describe '#convert_if_voice' do
     context 'when file is OGG voice message' do
       let(:downloaded_file) do
-        file = Tempfile.new(['test_voice', '.oga'])
-        file.binmode
-        file.write('fake ogg data')
-        file.rewind
-        allow(file).to receive(:original_filename).and_return('audio.oga')
-        allow(file).to receive(:content_type).and_return('audio/ogg; codecs=opus')
-        file
-      end
-
-      after do
-        downloaded_file.close
-        downloaded_file.unlink
+        double('downloaded_file',
+               original_filename: 'audio.oga',
+               content_type: 'audio/ogg; codecs=opus',
+               rewind: nil)
       end
 
       it 'attempts conversion and returns M4A attributes on success' do
@@ -49,7 +41,8 @@ RSpec.describe Whatsapp::InboundAudioConversionService do
       end
 
       it 'falls back to original file when FFmpeg fails' do
-        # FFmpeg will fail on fake data, triggering fallback
+        allow(service).to receive(:convert_ogg_to_m4a).and_raise(StandardError.new('FFmpeg failed'))
+
         result = service.convert_if_voice(downloaded_file, 'voice')
         expect(result[:content_type]).to eq('audio/ogg; codecs=opus')
         expect(result[:io]).to eq(downloaded_file)
@@ -58,17 +51,9 @@ RSpec.describe Whatsapp::InboundAudioConversionService do
 
     context 'when file has audio/ogg content type' do
       let(:downloaded_file) do
-        file = Tempfile.new(['test', '.ogg'])
-        file.write('fake ogg data')
-        file.rewind
-        allow(file).to receive(:original_filename).and_return('voice.ogg')
-        allow(file).to receive(:content_type).and_return('audio/ogg')
-        file
-      end
-
-      after do
-        downloaded_file.close
-        downloaded_file.unlink
+        double('downloaded_file',
+               original_filename: 'voice.ogg',
+               content_type: 'audio/ogg')
       end
 
       it 'detects OGG content type as needing conversion' do
@@ -120,22 +105,14 @@ RSpec.describe Whatsapp::InboundAudioConversionService do
 
     context 'when FFmpeg times out' do
       let(:downloaded_file) do
-        file = Tempfile.new(['test', '.ogg'])
-        file.write('fake ogg data')
-        file.rewind
-        allow(file).to receive(:original_filename).and_return('voice.oga')
-        allow(file).to receive(:content_type).and_return('audio/ogg')
-        file
-      end
-
-      after do
-        downloaded_file.close
-        downloaded_file.unlink
+        double('downloaded_file',
+               original_filename: 'voice.oga',
+               content_type: 'audio/ogg',
+               rewind: nil)
       end
 
       it 'falls back to original file on timeout' do
-        allow(service).to receive(:verify_ffmpeg_availability)
-        allow(Timeout).to receive(:timeout).and_raise(Timeout::Error)
+        allow(service).to receive(:convert_ogg_to_m4a).and_raise(Timeout::Error)
 
         result = service.convert_if_voice(downloaded_file, 'voice')
         expect(result[:content_type]).to eq('audio/ogg')
@@ -263,11 +240,12 @@ RSpec.describe Whatsapp::InboundAudioConversionService do
       allow(temp_file).to receive(:respond_to?).with(:close).and_return(true)
       allow(temp_file).to receive(:respond_to?).with(:unlink).and_return(true)
       allow(temp_file).to receive(:closed?).and_return(true)
+      allow(temp_file).to receive(:close)
       allow(temp_file).to receive(:unlink)
 
       service.send(:cleanup_temp_file, temp_file)
 
-      expect(temp_file).not_to have_received(:close) if temp_file.respond_to?(:close)
+      expect(temp_file).not_to have_received(:close)
     end
 
     it 'handles cleanup errors gracefully' do

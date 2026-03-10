@@ -60,27 +60,22 @@ describe Whatsapp::ImageConversionService do
 
       before do
         allow(service).to receive(:should_convert?).and_return(true)
-        allow(service).to receive(:download_attachment).and_return(double('temp_file', path: '/tmp/test_file'))
-        converted_file = double('converted_file', path: '/tmp/converted_file')
-        allow(service).to receive(:convert_heic_to_jpeg).and_return(converted_file)
-        allow(File).to receive(:binread).with('/tmp/converted_file').and_return('fake_jpeg_bytes')
         allow(service).to receive(:cleanup_temp_files)
       end
 
       it 'converts and returns JPEG content with correct content type' do
-        allow(service).to receive(:should_convert?).and_call_original
-        allow(service).to receive(:download_attachment).and_call_original
-        allow(service).to receive(:convert_heic_to_jpeg).and_call_original
-        allow(service).to receive(:cleanup_temp_files).and_call_original
+        temp_file = double('temp_file', path: '/tmp/test_file')
+        converted_file = double('converted_file', path: '/tmp/converted_file')
+        allow(service).to receive(:download_attachment).and_return(temp_file)
+        allow(service).to receive(:convert_heic_to_jpeg).and_return(converted_file)
+        allow(File).to receive(:binread).with('/tmp/converted_file').and_return('fake_jpeg_bytes')
 
-        # Since we can't actually convert HEIC without a real HEIC file,
-        # we test the fallback behavior when conversion fails
         result = service.convert_if_needed(attachment)
 
         expect(result).to be_an(Array)
         expect(result.length).to eq(2)
-        # Falls back to original on conversion failure (no real HEIC data)
-        expect(result[1]).to eq('image/heic').or eq('image/jpeg')
+        expect(result[0]).to eq('fake_jpeg_bytes')
+        expect(result[1]).to eq('image/jpeg')
       end
 
       it 'falls back to original on conversion error' do
@@ -272,10 +267,18 @@ describe Whatsapp::ImageConversionService do
     end
 
     it 'raises error when vips produces empty file' do
-      allow(ImageProcessing::Vips).to receive(:source).and_return(ImageProcessing::Vips)
-      allow(ImageProcessing::Vips).to receive(:convert).and_return(ImageProcessing::Vips)
-      allow(ImageProcessing::Vips).to receive(:saver).and_return(ImageProcessing::Vips)
-      allow(ImageProcessing::Vips).to receive(:call)
+      # ImageProcessing::Vips may not be available in CI (requires libvips)
+      vips_module = begin
+        ImageProcessing::Vips
+      rescue LoadError
+        skip 'libvips not available in this environment'
+      end
+
+      pipeline = double('vips_pipeline')
+      allow(vips_module).to receive(:source).and_return(pipeline)
+      allow(pipeline).to receive(:convert).and_return(pipeline)
+      allow(pipeline).to receive(:saver).and_return(pipeline)
+      allow(pipeline).to receive(:call)
       allow(File).to receive(:size?).and_return(nil)
 
       expect { service.send(:convert_with_vips, input_file) }
@@ -370,8 +373,10 @@ describe Whatsapp::ImageConversionService do
     it 'cleans up valid temporary files' do
       allow(temp_file1).to receive(:respond_to?).with(:close).and_return(true)
       allow(temp_file1).to receive(:respond_to?).with(:unlink).and_return(true)
+      allow(temp_file1).to receive(:closed?).and_return(false)
       allow(temp_file2).to receive(:respond_to?).with(:close).and_return(true)
       allow(temp_file2).to receive(:respond_to?).with(:unlink).and_return(true)
+      allow(temp_file2).to receive(:closed?).and_return(false)
 
       service.send(:cleanup_temp_files, [temp_file1, temp_file2, nil])
 
@@ -383,6 +388,7 @@ describe Whatsapp::ImageConversionService do
 
     it 'handles cleanup errors gracefully' do
       allow(temp_file1).to receive(:respond_to?).with(:close).and_return(true)
+      allow(temp_file1).to receive(:closed?).and_return(false)
       allow(temp_file1).to receive(:close).and_raise(StandardError.new('Cleanup failed'))
       expect(Rails.logger).to receive(:warn).with(/WHAPI: Failed to cleanup temp file/)
 
