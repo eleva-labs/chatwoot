@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useAiI18n } from '../i18n/aiChatI18n';
-import Button from 'dashboard/components-next/button/Button.vue';
 import AiVoiceButton from './AiVoiceButton.vue';
 import { useAiAutoResizeTextarea } from '../composables/useAiAutoResizeTextarea';
 import { VOICE_INPUT_STATUS } from '../constants';
@@ -84,17 +83,18 @@ const handleKeydown = e => {
         :is-loading="isLoading"
         :label="t('AI_CHAT.INPUT.SEND')"
       >
-        <Button
+        <button
           type="submit"
           :disabled="!canSubmit"
-          :is-loading="isLoading"
           :aria-label="t('AI_CHAT.INPUT.SEND')"
-          icon="i-lucide-send"
-          sm
-          solid
-          blue
-          class="flex-shrink-0"
-        />
+          class="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-n-brand hover:bg-n-brand/90 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span
+            v-if="isLoading"
+            class="i-lucide-loader-2 size-4 animate-spin"
+          />
+          <span v-else class="i-lucide-send size-4" />
+        </button>
       </slot>
     </form>
   </div>

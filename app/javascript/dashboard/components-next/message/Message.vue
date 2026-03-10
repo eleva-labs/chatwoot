@@ -149,6 +149,11 @@ const showContextMenu = ref(false);
 const { t } = useI18n();
 const route = useRoute();
 
+const accountId = window.location.pathname.split('/')[3] || '';
+const replyStorageKey = accountId
+  ? `${LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO}::${accountId}`
+  : LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
+
 /**
  * Computes the message variant based on props
  * @type {import('vue').ComputedRef<'user'|'agent'|'activity'|'private'|'bot'|'template'>}
@@ -647,7 +652,6 @@ function closeContextMenu() {
 }
 
 function handleReplyTo() {
-  const replyStorageKey = LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
   const { conversationId, id: replyTo } = props;
 
   LocalStorage.updateJsonStore(replyStorageKey, conversationId, replyTo);

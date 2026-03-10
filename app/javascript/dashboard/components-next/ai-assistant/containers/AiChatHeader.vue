@@ -14,9 +14,6 @@ import { useToggle } from '@vueuse/core';
 import { OnClickOutside } from '@vueuse/components';
 import { CHAT_STATUS } from '../constants';
 
-import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
-import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
-
 const props = defineProps({
   title: { type: String, default: null },
   status: { type: String, required: true },
@@ -84,14 +81,22 @@ const headerTitle = computed(() => props.title || t('AI_CHAT.HEADER.TITLE'));
                 @click="toggleBotSelector()"
               >
                 <slot name="bot-avatar" :bot="currentBot" :size="28">
-                  <Avatar
-                    :src="currentBot?.avatar_url"
-                    :name="currentBot?.name || 'AI'"
-                    :size="28"
-                    rounded-full
-                    icon-name="i-lucide-bot"
-                    class="flex-shrink-0"
-                  />
+                  <span
+                    v-if="currentBot?.avatar_url"
+                    class="flex-shrink-0 size-7 rounded-full overflow-hidden"
+                  >
+                    <img
+                      :src="currentBot.avatar_url"
+                      :alt="currentBot.name"
+                      class="w-full h-full object-cover"
+                    />
+                  </span>
+                  <span
+                    v-else
+                    class="flex-shrink-0 size-7 rounded-full bg-n-alpha-3 flex items-center justify-center text-xs font-semibold text-n-slate-11"
+                  >
+                    {{ (currentBot?.name || 'AI').charAt(0).toUpperCase() }}
+                  </span>
                 </slot>
                 <span
                   class="text-base font-semibold text-n-slate-12 truncate max-w-32"
@@ -116,13 +121,36 @@ const headerTitle = computed(() => props.title || t('AI_CHAT.HEADER.TITLE'));
                 :items="botMenuItems"
                 :on-select="handleBotSelect"
               >
-                <DropdownMenu
+                <ul
                   v-if="isBotSelectorOpen"
-                  :menu-items="botMenuItems"
-                  :thumbnail-size="24"
-                  class="top-full mt-1 left-0"
-                  @action="handleBotSelect"
-                />
+                  class="absolute top-full mt-1 left-0 z-50 min-w-40 rounded-lg border border-n-weak bg-n-solid-1 shadow-lg py-1"
+                >
+                  <li
+                    v-for="item in botMenuItems"
+                    :key="item.value"
+                    class="flex items-center gap-2 px-3 py-2 text-sm text-n-slate-12 hover:bg-n-alpha-1 cursor-pointer"
+                    :class="{ 'bg-n-alpha-2 font-medium': item.isSelected }"
+                    @click="handleBotSelect({ value: item.value })"
+                  >
+                    <span
+                      v-if="item.thumbnail?.src"
+                      class="size-6 rounded-full overflow-hidden flex-shrink-0"
+                    >
+                      <img
+                        :src="item.thumbnail.src"
+                        :alt="item.label"
+                        class="w-full h-full object-cover"
+                      />
+                    </span>
+                    <span
+                      v-else
+                      class="size-6 rounded-full bg-n-alpha-3 flex items-center justify-center text-xs font-semibold text-n-slate-11 flex-shrink-0"
+                    >
+                      {{ (item.label || '?').charAt(0).toUpperCase() }}
+                    </span>
+                    {{ item.label }}
+                  </li>
+                </ul>
               </slot>
             </div>
           </OnClickOutside>

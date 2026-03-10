@@ -51,7 +51,24 @@ export const clearBrowserSessionCookies = () => {
 };
 
 export const clearLocalStorageOnLogout = () => {
+  // Clear unscoped keys (legacy) — LocalStorage.remove also removes the :ts key
   LocalStorage.remove(LOCAL_STORAGE_KEYS.DRAFT_MESSAGES);
+  LocalStorage.remove(LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO);
+
+  // Clear account-scoped keys
+  const keysToClean = [
+    LOCAL_STORAGE_KEYS.DRAFT_MESSAGES,
+    LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO,
+    'ai_backend_onboarding_current_step',
+  ];
+  const allKeys = Object.keys(window.localStorage);
+  allKeys
+    .filter(key => !key.endsWith(':ts'))
+    .forEach(key => {
+      if (keysToClean.some(prefix => key.startsWith(`${prefix}::`))) {
+        LocalStorage.remove(key);
+      }
+    });
 };
 
 export const clearSessionStorageOnLogout = () => {

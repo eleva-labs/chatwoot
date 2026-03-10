@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue';
-import MessageFormatter from 'shared/helpers/MessageFormatter.js';
 
 const props = defineProps({
   part: { type: Object, required: true },
@@ -15,7 +14,7 @@ const text = computed(() => props.part?.text || '');
 
 const formattedContent = computed(() => {
   if (props.renderMarkdown) return props.renderMarkdown(text.value);
-  return new MessageFormatter(text.value).formattedMessage;
+  return text.value;
 });
 
 const showCursor = computed(

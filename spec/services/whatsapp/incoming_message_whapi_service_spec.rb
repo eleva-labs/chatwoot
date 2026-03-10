@@ -9,7 +9,7 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
     # Explicitly bypass validation to prevent provider config validation errors
     ch.define_singleton_method(:validate_provider_config) { true }
     ch.define_singleton_method(:sync_templates) { nil }
-    
+
     # Mock the provider_config_object to prevent real API calls during channel operations
     mock_config = double('MockProviderConfig')
     allow(mock_config).to receive(:validate_config?).and_return(true)
@@ -18,7 +18,7 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
     allow(mock_config).to receive(:whapi_channel_id).and_return('test_channel_id')
     allow(mock_config).to receive(:cleanup_on_destroy)
     allow(ch).to receive(:provider_config_object).and_return(mock_config)
-    
+
     ch.save!(validate: false)
     ch
   end
@@ -27,20 +27,20 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
   # Add WebMock stubs for WHAPI API calls to prevent external requests during tests
   before do
     # Stub WHAPI health check - this was the missing stub causing all test failures
-    stub_request(:get, "https://gate.whapi.cloud/health")
+    stub_request(:get, 'https://gate.whapi.cloud/health')
       .with(headers: {
-        'Accept' => '*/*',
-        'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
-        'Authorization' => 'Bearer test_api_key',
-        'Content-Type' => 'application/json',
-        'User-Agent' => 'Ruby'
-      })
+              'Accept' => '*/*',
+              'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
+              'Authorization' => 'Bearer test_api_key',
+              'Content-Type' => 'application/json',
+              'User-Agent' => 'Ruby'
+            })
       .to_return(status: 200, body: '{}', headers: { 'Content-Type' => 'application/json' })
-    
+
     # Default stub for WHAPI contact fetch (returns empty response)
     stub_request(:get, %r{https://gate\.whapi\.cloud/contacts/\d+})
       .to_return(status: 404, body: '{"error": "Contact not found"}', headers: { 'Content-Type' => 'application/json' })
-      
+
     # Stub WHAPI contact profile endpoint
     stub_request(:get, %r{https://gate\.whapi\.cloud/contacts/.*/profile})
       .to_return(status: 200, body: '{"pushname": "Test User"}', headers: { 'Content-Type' => 'application/json' })
@@ -207,6 +207,86 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
       end
     end
 
+    context 'when receiving API-originated outgoing echoes' do
+      let!(:contact) { create(:contact, account: account, phone_number: '+987654321') }
+      let!(:contact_inbox) { create(:contact_inbox, inbox: inbox, contact: contact, source_id: '987654321') }
+      let!(:conversation) { create(:conversation, contact_inbox: contact_inbox, inbox: inbox, contact: contact) }
+
+      # Simulate: agent sent a message, Chatwoot stored it with source_id from send response
+      let!(:original_message) do
+        create(:message,
+               conversation: conversation,
+               inbox: inbox,
+               message_type: :outgoing,
+               source_id: 'original_send_id_123',
+               content: 'Hello from agent')
+      end
+
+      let(:api_echo_params) do
+        {
+          'messages' => [
+            {
+              'id' => 'different_echo_id_456',
+              'to' => '987654321',
+              'chat_id' => '987654321@c.us',
+              'from_me' => true,
+              'source' => 'api',
+              'type' => 'text',
+              'text' => { 'body' => 'Hello from agent' },
+              'timestamp' => Time.now.to_i
+            }
+          ]
+        }
+      end
+
+      it 'does NOT create a duplicate message for API-originated echoes' do
+        expect { described_class.new(inbox: inbox, params: api_echo_params).perform }
+          .not_to change(Message, :count)
+      end
+
+      it 'logs when an API echo is skipped' do
+        allow(Rails.logger).to receive(:info)
+        described_class.new(inbox: inbox, params: api_echo_params).perform
+        expect(Rails.logger).to have_received(:info) do |&block|
+          expect(block.call).to include('[WhapiEcho] Skipping API-originated echo')
+        end
+      end
+
+      it 'still creates messages for WhatsApp Web echoes (source: web)' do
+        web_echo_params = api_echo_params.deep_dup
+        web_echo_params['messages'].first['source'] = 'web'
+
+        expect { described_class.new(inbox: inbox, params: web_echo_params).perform }
+          .to change(conversation.messages, :count).by(1)
+      end
+
+      it 'still creates messages for mobile echoes (source: mobile)' do
+        mobile_echo_params = api_echo_params.deep_dup
+        mobile_echo_params['messages'].first['source'] = 'mobile'
+
+        expect { described_class.new(inbox: inbox, params: mobile_echo_params).perform }
+          .to change(conversation.messages, :count).by(1)
+      end
+
+      it 'still creates messages for echoes with no source field' do
+        no_source_params = api_echo_params.deep_dup
+        no_source_params['messages'].first.delete('source')
+
+        expect { described_class.new(inbox: inbox, params: no_source_params).perform }
+          .to change(conversation.messages, :count).by(1)
+      end
+
+      it 'filters API echoes for all message types' do
+        %w[text image video document audio voice].each do |msg_type|
+          echo_params = api_echo_params.deep_dup
+          echo_params['messages'].first['type'] = msg_type
+
+          expect { described_class.new(inbox: inbox, params: echo_params).perform }
+            .not_to change(Message, :count), "Expected #{msg_type} API echo to be filtered"
+        end
+      end
+    end
+
     context 'when receiving status updates' do
       let!(:message) { create(:message, source_id: 'status_message_id', inbox: inbox) }
       let(:status_params) do
@@ -274,7 +354,7 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
         # Override the default stub for this specific test context
         stub_request(:get, 'https://gate.whapi.cloud/contacts/1234567890/profile')
           .to_return(status: 200, body: whapi_profile_response.to_json, headers: { 'Content-Type' => 'application/json' })
-        
+
         # Stub avatar image download
         stub_request(:get, 'https://example.com/avatar.jpg')
           .to_return(status: 200, body: File.read('spec/assets/sample.png'), headers: { 'Content-Type' => 'image/jpeg' })

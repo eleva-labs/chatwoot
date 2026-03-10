@@ -146,6 +146,15 @@ export default {
       accountId: 'getCurrentAccountId',
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
     }),
+    scopedReplyStorageKey() {
+      const acctId =
+        this.$route?.params?.accountId ||
+        window.location.pathname.split('/')[3] ||
+        '';
+      return acctId
+        ? `${LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO}::${acctId}`
+        : LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
+    },
     currentContact() {
       return this.$store.getters['contacts/getContact'](
         this.currentChat.meta.sender.id
@@ -1110,9 +1119,8 @@ export default {
       this.bccEmails = bcc.join(', ');
     },
     fetchAndSetReplyTo() {
-      const replyStorageKey = LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
       const replyToMessageId = LocalStorage.getFromJsonStore(
-        replyStorageKey,
+        this.scopedReplyStorageKey,
         this.conversationId
       );
 
@@ -1124,8 +1132,10 @@ export default {
       });
     },
     resetReplyToMessage() {
-      const replyStorageKey = LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
-      LocalStorage.deleteFromJsonStore(replyStorageKey, this.conversationId);
+      LocalStorage.deleteFromJsonStore(
+        this.scopedReplyStorageKey,
+        this.conversationId
+      );
       emitter.emit(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE);
     },
     onNewConversationModalActive(isActive) {

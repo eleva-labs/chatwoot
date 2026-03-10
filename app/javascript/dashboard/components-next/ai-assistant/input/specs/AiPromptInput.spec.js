@@ -16,19 +16,6 @@ describe('AiPromptInput', () => {
       props,
       global: {
         stubs: {
-          Button: {
-            template:
-              '<button class="submit-button" :disabled="disabled" type="submit"><slot /></button>',
-            props: [
-              'disabled',
-              'isLoading',
-              'type',
-              'icon',
-              'sm',
-              'solid',
-              'blue',
-            ],
-          },
           AiVoiceButton: {
             template: '<button class="voice-button" disabled></button>',
             props: ['status', 'disabled'],
@@ -55,7 +42,7 @@ describe('AiPromptInput', () => {
     it('renders a submit button', () => {
       const wrapper = createWrapper();
 
-      expect(wrapper.find('.submit-button').exists()).toBe(true);
+      expect(wrapper.find('button[type="submit"]').exists()).toBe(true);
     });
 
     it('renders a voice button', () => {
@@ -122,7 +109,7 @@ describe('AiPromptInput', () => {
       const wrapper = createWrapper();
 
       expect(
-        wrapper.find('.submit-button').attributes('disabled')
+        wrapper.find('button[type="submit"]').attributes('disabled')
       ).toBeDefined();
     });
 
@@ -132,7 +119,7 @@ describe('AiPromptInput', () => {
       await wrapper.find('textarea').setValue('Hello');
 
       expect(
-        wrapper.find('.submit-button').attributes('disabled')
+        wrapper.find('button[type="submit"]').attributes('disabled')
       ).toBeDefined();
     });
 
@@ -142,7 +129,7 @@ describe('AiPromptInput', () => {
       await wrapper.find('textarea').setValue('Hello');
 
       expect(
-        wrapper.find('.submit-button').attributes('disabled')
+        wrapper.find('button[type="submit"]').attributes('disabled')
       ).toBeDefined();
     });
 
@@ -152,7 +139,7 @@ describe('AiPromptInput', () => {
       await wrapper.find('textarea').setValue('Hello');
 
       expect(
-        wrapper.find('.submit-button').attributes('disabled')
+        wrapper.find('button[type="submit"]').attributes('disabled')
       ).toBeUndefined();
     });
   });

@@ -9,6 +9,10 @@ class Instagram::BaseSendService < Base::SendOnChannelService
     send_attachments if message.attachments.present?
     send_content if message.content.present?
   rescue StandardError => e
+    Rails.logger.error(
+      "[Instagram::BaseSendService] perform_reply failed for message_id=#{message.id}: " \
+      "#{e.class} #{e.message}"
+    )
     handle_error(e)
   end
 

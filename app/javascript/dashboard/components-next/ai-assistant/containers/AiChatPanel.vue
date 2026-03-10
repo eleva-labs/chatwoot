@@ -7,6 +7,7 @@
  */
 import { computed } from 'vue';
 import { useAiI18n } from '../i18n/aiChatI18n';
+import MessageFormatter from 'shared/helpers/MessageFormatter.js';
 import { useToggle } from '@vueuse/core';
 import { CHAT_STATUS, MESSAGE_ROLE } from '../constants';
 import {
@@ -57,6 +58,8 @@ const emit = defineEmits([
   'deleteSession',
   'fetchSessions',
 ]);
+
+const renderMarkdown = text => new MessageFormatter(text).formattedMessage;
 
 // v-model for bot selection
 const selectedBotId = defineModel('selectedBotId', {
@@ -297,6 +300,7 @@ const handleFreshStart = () => {
                   isLastMessage(msgIdx) &&
                   idx === getMessageReasoningParts(message).length - 1
                 "
+                :render-markdown="renderMarkdown"
               />
               <!-- Tool parts - outside bubble -->
               <AiPartRenderer
@@ -305,6 +309,7 @@ const handleFreshStart = () => {
                 :part="part"
                 :role="message.role"
                 :is-streaming="isStreaming && isLastMessage(msgIdx)"
+                :render-markdown="renderMarkdown"
               />
               <!-- Text content - inside bubble (only show when there's content) -->
               <AiMessageContent
@@ -321,6 +326,7 @@ const handleFreshStart = () => {
                     isLastMessage(msgIdx) &&
                     idx === getMessageTextParts(message).length - 1
                   "
+                  :render-markdown="renderMarkdown"
                 />
               </AiMessageContent>
               <!-- Message Actions (Copy, Regenerate) -->
@@ -347,6 +353,7 @@ const handleFreshStart = () => {
                 :part="part"
                 :role="message.role"
                 :is-streaming="isStreaming && idx === message.parts.length - 1"
+                :render-markdown="renderMarkdown"
               />
             </AiMessageContent>
           </template>
@@ -373,7 +380,7 @@ const handleFreshStart = () => {
       :is-loading="isLoading"
       :is-streaming="isStreaming"
       @submit="handleSubmit"
-      @stop="chat.stop()"
+      @stop="chat.stop?.()"
     />
   </div>
 </template>
