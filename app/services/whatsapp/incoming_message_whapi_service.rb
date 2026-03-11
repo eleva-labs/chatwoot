@@ -128,13 +128,14 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   # Contact and Conversation helpers
 
   def set_contact(message)
-    waid = processed_waid(message[:from])
+    waid = processed_waid(contact_source_id(message[:from]))
 
     # Build basic contact attributes
     contact_attributes = {
-      phone_number: "+#{message[:from]}",
       name: message[:from_name] || message[:from]
     }
+    phone_number = contact_phone_number(message[:from])
+    contact_attributes[:phone_number] = phone_number if phone_number.present?
 
     # Create or find contact first
     contact_inbox_builder = ::ContactInboxWithContactBuilder.new(
@@ -150,6 +151,24 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
     # Schedule contact info sync in background
     Whatsapp::Whapi::ContactSyncJob.perform_later(@contact.id, message[:from])
+  end
+
+  def contact_source_id(sender_id)
+    sender_id.to_s.split('@').first
+  end
+
+  def contact_phone_number(sender_id)
+    normalized_sender_id = contact_source_id(sender_id)
+    return unless bare_numeric_sender_id?(sender_id)
+
+    "+#{normalized_sender_id}"
+  end
+
+  # Only bare numeric sender ids should populate phone_number.
+  # Handles like 12345@lid still reuse the normalized source id, but they are
+  # not treated as a verified phone number on the contact record.
+  def bare_numeric_sender_id?(normalized_sender_id)
+    normalized_sender_id.to_s.match?(/\A\d{1,15}\z/)
   end
 
   def find_contact_inbox_for_outgoing(message)

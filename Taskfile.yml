@@ -3,6 +3,8 @@ silent: true
 
 env:
   COMPOSE_FILE: docker-compose.yaml
+  TEST_POSTGRES_HOST: localhost
+  TEST_POSTGRES_PORT: '5430'
 
 tasks:
   # =====================================================================
@@ -151,7 +153,7 @@ tasks:
     cmds:
       - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "🧪 Running all RSpec tests"
-      - RAILS_ENV=test POSTGRES_HOST=localhost bundle exec rspec --format documentation
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rspec --format documentation
       - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-module:
@@ -159,7 +161,7 @@ tasks:
     cmds:
       - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "🧪 Running RSpec tests for {{.CLI_ARGS}}"
-      - RAILS_ENV=test POSTGRES_HOST=localhost bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rspec {{.CLI_ARGS}} --format documentation
       - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-file:
@@ -167,14 +169,14 @@ tasks:
     cmds:
       - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "🧪 Running RSpec test file {{.CLI_ARGS}}"
-      - RAILS_ENV=test POSTGRES_HOST=localhost bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rspec {{.CLI_ARGS}} --format documentation
       - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-local:
     desc: 'Run RSpec tests locally (requires local postgres/redis)'
     cmds:
       - echo "🧪 Running RSpec tests locally"
-      - RAILS_ENV=test POSTGRES_HOST=localhost bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rspec {{.CLI_ARGS}} --format documentation
 
   # Frontend Testing (Vitest)
   # -------------------------
@@ -208,29 +210,29 @@ tasks:
       - docker compose up -d postgres redis
       - sleep 5
       - echo "📦 Preparing test database schema..."
-      - RAILS_ENV=test POSTGRES_HOST=localhost bundle exec rails db:chatwoot_prepare
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rails db:chatwoot_prepare
       - echo "✅ Test database ready"
 
   test-check-db:
-    desc: 'Check for running databases on port 5431'
+    desc: 'Check for running databases on port {{.TEST_POSTGRES_PORT}}'
     cmds:
       - |
-        if lsof -Pi :5431 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-          echo "⚠️  Database is running on port 5431"
-          lsof -Pi :5431 -sTCP:LISTEN
+        if lsof -Pi :{{.TEST_POSTGRES_PORT}} -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+          echo "⚠️  Database is running on port {{.TEST_POSTGRES_PORT}}"
+          lsof -Pi :{{.TEST_POSTGRES_PORT}} -sTCP:LISTEN
           exit 1
         else
-          echo "✅ No database running on port 5431"
+          echo "✅ No database running on port {{.TEST_POSTGRES_PORT}}"
         fi
     silent: false
 
   test-stop-db:
-    desc: 'Stop any running databases on port 5431'
+    desc: 'Stop any running databases on port {{.TEST_POSTGRES_PORT}}'
     cmds:
       - |
-        if lsof -Pi :5431 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-          echo "🛑 Stopping database on port 5431..."
-          docker ps -q --filter "publish=5431" | xargs -r docker stop
+        if lsof -Pi :{{.TEST_POSTGRES_PORT}} -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+          echo "🛑 Stopping database on port {{.TEST_POSTGRES_PORT}}..."
+          docker ps -q --filter "publish={{.TEST_POSTGRES_PORT}}" | xargs -r docker stop
           brew services list | grep postgresql | grep started && brew services stop postgresql || true
           sleep 2
           echo "✅ Database stopped"
@@ -398,4 +400,3 @@ tasks:
     cmds:
       - task: lint-backend
       - task: lint-frontend
-
