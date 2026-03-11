@@ -59,6 +59,10 @@ class CacheEnabledApiClient extends ApiClient {
       return this.getFromNetwork();
     }
 
+    if (!this.isUsableCacheKey(cacheKeyFromApi)) {
+      return this.refetchAndCommit(null);
+    }
+
     const isCacheValid = await this.validateCacheKey(cacheKeyFromApi);
 
     let localData = [];
@@ -103,7 +107,29 @@ class CacheEnabledApiClient extends ApiClient {
     return response;
   }
 
+  // eslint-disable-next-line class-methods-use-this
+  isUsableCacheKey(cacheKey) {
+    if (cacheKey === null || cacheKey === undefined) {
+      return false;
+    }
+
+    if (typeof cacheKey === 'number') {
+      return cacheKey !== 0;
+    }
+
+    if (typeof cacheKey === 'string') {
+      const normalizedCacheKey = cacheKey.trim();
+      return normalizedCacheKey !== '' && !/^0+$/.test(normalizedCacheKey);
+    }
+
+    return true;
+  }
+
   async validateCacheKey(cacheKeyFromApi) {
+    if (!this.isUsableCacheKey(cacheKeyFromApi)) {
+      return false;
+    }
+
     if (!this.dataManager.db) {
       await this.dataManager.initDb();
     }

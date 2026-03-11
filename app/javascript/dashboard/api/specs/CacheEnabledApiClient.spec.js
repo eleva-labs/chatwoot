@@ -82,6 +82,35 @@ describe('CacheEnabledApiClient', () => {
       expect(result).toEqual({ data: { payload: [{ id: 3 }, { id: 4 }] } });
     });
 
+    it.each([undefined, '', '   ', '0000000000', 0])(
+      'refetches from network when API cache key is unusable: %p',
+      async invalidCacheKey => {
+        mockDataManager.initDb.mockResolvedValue();
+        mockDataManager.getCacheKey.mockResolvedValue(invalidCacheKey);
+        mockDataManager.get.mockResolvedValue([{ id: 99 }]);
+        mockDataManager.replace.mockResolvedValue();
+        mockDataManager.setCacheKeys.mockResolvedValue();
+
+        axios.get
+          .mockResolvedValueOnce({
+            data: { cache_keys: { test_model: invalidCacheKey } },
+          })
+          .mockResolvedValueOnce({ data: { payload: [{ id: 6 }] } });
+
+        const result = await client.getFromCache();
+
+        expect(mockDataManager.get).not.toHaveBeenCalled();
+        expect(mockDataManager.replace).toHaveBeenCalledWith({
+          modelName: 'test_model',
+          data: [{ id: 6 }],
+        });
+        expect(mockDataManager.setCacheKeys).toHaveBeenCalledWith({
+          test_model: null,
+        });
+        expect(result.data.payload).toEqual([{ id: 6 }]);
+      }
+    );
+
     it('refetches from network when cache key is invalid', async () => {
       mockDataManager.initDb.mockResolvedValue();
 
