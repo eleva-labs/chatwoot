@@ -159,7 +159,7 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def contact_phone_number(sender_id)
     normalized_sender_id = contact_source_id(sender_id)
-    return unless bare_numeric_sender_id?(normalized_sender_id)
+    return unless bare_numeric_sender_id?(sender_id)
 
     "+#{normalized_sender_id}"
   end
