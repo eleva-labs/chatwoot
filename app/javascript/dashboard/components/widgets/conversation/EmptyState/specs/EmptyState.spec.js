@@ -1,14 +1,15 @@
 import { shallowMount } from '@vue/test-utils';
 import { createStore } from 'vuex';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 import EmptyState from '../EmptyState.vue';
 
 // ─── Mock router ────────────────────────────────────────────────────────────────
 const mockRouterPush = vi.fn();
+const mockRoute = ref({ params: { accountId: '1' }, name: 'dashboard' });
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockRouterPush }),
-  useRoute: () => ({ params: { accountId: '1' } }),
+  useRoute: () => mockRoute.value,
 }));
 
 // ─── Mock composables ───────────────────────────────────────────────────────────
@@ -108,6 +109,8 @@ const createWrapper = (storeOptions = {}) => {
 describe('EmptyState.vue — onboarding redirect guard', () => {
   afterEach(() => {
     mockIsAdminRef.value = true; // reset default
+    mockRoute.value = { params: { accountId: '1' }, name: 'dashboard' };
+    mockRouterPush.mockClear();
   });
 
   // =============================================================================
@@ -134,6 +137,46 @@ describe('EmptyState.vue — onboarding redirect guard', () => {
     it('does not redirect when inboxes are still being fetched (race condition guard)', () => {
       mockIsAdminRef.value = true;
       createWrapper({ inboxes: [], isFetching: true });
+
+      expect(mockRouterPush).not.toHaveBeenCalled();
+    });
+
+    it('redirects after inbox fetching completes with no inboxes', async () => {
+      mockIsAdminRef.value = true;
+      const store = createMockStore({ inboxes: [], isFetching: true });
+      shallowMount(EmptyState, {
+        props: { isOnExpandedLayout: false },
+        global: {
+          plugins: [store],
+          mocks: { $t: key => key },
+          stubs: {
+            EmptyStateMessage: {
+              template: '<div class="empty-state-message">{{ message }}</div>',
+              props: ['message'],
+            },
+          },
+        },
+      });
+
+      expect(mockRouterPush).not.toHaveBeenCalled();
+
+      store.state.inboxes.uiFlags.isFetching = false;
+      await nextTick();
+
+      expect(mockRouterPush).toHaveBeenCalledWith({
+        name: 'settings_inbox_new',
+        query: { onboarding: 'true' },
+      });
+    });
+
+    it('does not redirect when already on onboarding route', () => {
+      mockIsAdminRef.value = true;
+      mockRoute.value = {
+        params: { accountId: '1' },
+        name: 'settings_inbox_new',
+      };
+
+      createWrapper({ inboxes: [], isFetching: false });
 
       expect(mockRouterPush).not.toHaveBeenCalled();
     });
