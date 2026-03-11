@@ -1,6 +1,6 @@
 shared: &shared
   version: '4.7.0'
-  custom_version: '0.4.0'
+  custom_version: '0.4.1'
 
 development:
   <<: *shared
