@@ -306,6 +306,25 @@ describe Webhooks::InstagramEventsJob do
   describe 'lock mechanism' do
     let(:lock_manager) { instance_double(Redis::LockManager) }
     let(:dm_event) { build(:instagram_message_create_event).with_indifferent_access }
+    let(:sender_id) { dm_event[:entry][0][:messaging][0][:sender][:id] }
+    let(:ig_account_id) { dm_event[:entry][0][:id] }
+    let(:expected_key) { format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: sender_id, ig_account_id: ig_account_id) }
+    let(:released_log_message) do
+      "[Webhooks::InstagramEventsJob] event=lock_released lock_key=#{expected_key} " \
+        "sender_id=#{sender_id} ig_account_id=#{ig_account_id} " \
+        'lock_attempt_ms=50 lock_hold_ms=150 total_elapsed_ms=200'
+    end
+    let(:contention_log_message) do
+      "[Webhooks::InstagramEventsJob] event=lock_retry_scheduled lock_key=#{expected_key} " \
+        "sender_id=#{sender_id} ig_account_id=#{ig_account_id} " \
+        'lock_attempt_ms=200 retry_attempt=3'
+    end
+    let(:base_contention_log_message) do
+      "[Webhooks::InstagramEventsJob] Failed to acquire lock on attempt 3: #{expected_key}"
+    end
+    let(:acquired_log_message) do
+      "[Webhooks::InstagramEventsJob] Acquired lock for: #{expected_key} on attempt 0"
+    end
 
     before do
       allow(Redis::LockManager).to receive(:new).and_return(lock_manager)
@@ -314,16 +333,51 @@ describe Webhooks::InstagramEventsJob do
     end
 
     it 'acquires lock with 30 second timeout' do
-      sender_id = dm_event[:entry][0][:messaging][0][:sender][:id]
-      ig_account_id = dm_event[:entry][0][:id]
-      expected_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: sender_id, ig_account_id: ig_account_id)
-
       expect(lock_manager).to receive(:lock).with(expected_key, 30.seconds).and_return(true)
 
       job_instance = described_class.new
       allow(job_instance).to receive(:process_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
 
       job_instance.perform(dm_event[:entry])
+    end
+
+    it 'uses exponential lock retry backoff with jitter' do
+      allow(described_class).to receive(:rand).and_return(0.5)
+
+      expect(described_class::LOCK_RETRY_WAIT.call(1)).to eq(2.15)
+      expect(described_class::LOCK_RETRY_WAIT.call(2)).to eq(4.3)
+      expect(described_class::LOCK_RETRY_WAIT.call(5)).to eq(32.25)
+    end
+
+    it 'logs one structured lock timing event on success' do
+      job_instance = described_class.new
+
+      allow(job_instance).to receive(:process_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(dm_event[:entry])
+
+      expect(Rails.logger).to have_received(:info).with(released_log_message).once
+      expect(Rails.logger).not_to have_received(:info).with(acquired_log_message)
+    end
+
+    it 'logs retry timing and backoff details before retrying' do
+      job_instance = described_class.new
+
+      allow(lock_manager).to receive(:lock).and_return(false)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.2)
+      allow(job_instance).to receive(:executions).and_return(3)
+      allow(Rails.logger).to receive(:warn)
+
+      expect do
+        job_instance.perform(dm_event[:entry])
+      end.to raise_error(MutexApplicationJob::LockAcquisitionError, "Failed to acquire lock for key: #{expected_key}")
+
+      expect(Rails.logger).to have_received(:warn).with(contention_log_message).once
+      expect(Rails.logger).not_to have_received(:warn).with(base_contention_log_message)
     end
   end
 end

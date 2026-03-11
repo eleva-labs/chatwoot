@@ -132,6 +132,86 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
           .not_to change(Message, :count)
       end
 
+      context 'with non-phone sender ids' do
+        let(:lid_sender_id) { '12799338115149@lid' }
+        let(:normalized_lid_sender_id) { '12799338115149' }
+        let(:lid_message_params) do
+          {
+            'messages' => [
+              {
+                'id' => 'whapi_lid_message_1',
+                'from' => lid_sender_id,
+                'from_name' => contact_name,
+                'from_me' => false,
+                'type' => 'text',
+                'text' => { 'body' => 'Hello from lid' },
+                'timestamp' => Time.now.to_i
+              }
+            ]
+          }
+        end
+
+        it 'creates the inbound records without writing a non-phone contact number' do
+          expect { described_class.new(inbox: inbox, params: lid_message_params).perform }
+            .to change(Contact, :count).by(1)
+            .and change(Conversation, :count).by(1)
+            .and change(Message, :count).by(1)
+
+          contact = Contact.last
+          expect(contact.name).to eq(contact_name)
+          expect(contact.phone_number).to be_blank
+
+          contact_inbox = ContactInbox.last
+          expect(contact_inbox.source_id).to eq(normalized_lid_sender_id)
+
+          message = Message.last
+          expect(message.content).to eq('Hello from lid')
+          expect(message.incoming?).to be(true)
+        end
+
+        it 'reuses an existing ContactInbox keyed by the normalized numeric prefix' do
+          contact = create(:contact, account: account, name: 'Existing LID Contact')
+          contact_inbox = create(:contact_inbox, inbox: inbox, contact: contact, source_id: normalized_lid_sender_id)
+
+          expect { described_class.new(inbox: inbox, params: lid_message_params).perform }
+            .to change(Contact, :count).by(0)
+            .and change(ContactInbox, :count).by(0)
+            .and change(Conversation, :count).by(1)
+            .and change(Message, :count).by(1)
+
+          expect(ContactInbox.last).to eq(contact_inbox)
+          expect(Message.last.conversation.contact_inbox).to eq(contact_inbox)
+          expect(contact.reload.phone_number).to be_blank
+        end
+
+        it 'keeps reply continuity for a conversation that started from a lid sender' do
+          described_class.new(inbox: inbox, params: lid_message_params).perform
+
+          conversation = Conversation.last
+          outgoing_params = {
+            'messages' => [
+              {
+                'id' => 'whapi_lid_echo_1',
+                'to' => normalized_lid_sender_id,
+                'chat_id' => lid_sender_id,
+                'from_me' => true,
+                'source' => 'web',
+                'type' => 'text',
+                'text' => { 'body' => 'Reply to lid contact' },
+                'timestamp' => Time.now.to_i
+              }
+            ]
+          }
+
+          expect { described_class.new(inbox: inbox, params: outgoing_params).perform }
+            .to change(conversation.messages, :count).by(1)
+
+          message = conversation.messages.last
+          expect(message.content).to eq('Reply to lid contact')
+          expect(message.outgoing?).to be(true)
+        end
+      end
+
       context 'with attachments' do
         let(:media_message_params) do
           {
