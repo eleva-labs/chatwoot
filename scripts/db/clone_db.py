@@ -30,6 +30,8 @@ DEFAULT_EXCLUDES = [
     "notifications",
 ]
 
+POSTGRES_CLIENT_IMAGE = "postgres:18"
+
 
 def run_command(cmd: list, description: str, check=True, capture_output=False):
     """
@@ -101,6 +103,44 @@ def check_postgres_container():
         return False
 
 
+def get_postgres_network() -> str | None:
+    """Get the Docker network name used by the local postgres service."""
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "ps", "-q", "postgres"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        container_id = result.stdout.strip()
+        if not container_id:
+            return None
+
+        inspect = subprocess.run(
+            [
+                "docker",
+                "inspect",
+                container_id,
+                "--format",
+                "{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        networks = inspect.stdout.strip().split()
+        if not networks:
+            return None
+
+        for network in networks:
+            if network.endswith("_default"):
+                return network
+
+        return networks[0]
+    except subprocess.CalledProcessError:
+        return None
+
+
 def validate_localhost_target():
     """
     Safety check: Ensure we're always writing to localhost.
@@ -131,6 +171,20 @@ def validate_localhost_target():
 
     print("[SUCCESS] Target database validated as local Docker container")
     return True
+
+
+def get_local_postgres_password() -> str | None:
+    """Read the local Postgres password from the repo .env file."""
+    env_file = Path(".env")
+    if not env_file.exists():
+        return None
+
+    with open(env_file, "r", encoding="utf-8") as file:
+        for line in file:
+            if line.startswith("POSTGRES_PASSWORD="):
+                return line.split("=", 1)[1].strip()
+
+    return None
 
 
 def confirm_operation(env: str, excludes: list, auto_confirm: bool = False):
@@ -171,7 +225,18 @@ def dump_remote_database(remote_creds: dict, dump_file: str, excludes: list):
     """
     print("[INFO] Dumping remote database...")
 
-    # Build pg_dump command (runs inside Docker container)
+    network_name = get_postgres_network()
+    if not network_name:
+        print("[ERROR] Could not determine Docker network for postgres service")
+        return False
+
+    dump_path = Path(dump_file).resolve()
+    local_password = get_local_postgres_password()
+    if not local_password:
+        print("[ERROR] Could not read POSTGRES_PASSWORD from .env")
+        return False
+
+    # Build pg_dump command (runs inside a matching Postgres client container)
     pg_dump_args = [
         "pg_dump",
         f"--host={remote_creds['host']}",
@@ -181,25 +246,26 @@ def dump_remote_database(remote_creds: dict, dump_file: str, excludes: list):
         "--format=custom",  # Custom format for pg_restore
         "--no-owner",  # Don't dump ownership
         "--no-acl",  # Don't dump access privileges
-        f"--file=/tmp/remote_dump.dump",  # Dump to container's /tmp
+        f"--file=/dump/{dump_path.name}",
     ]
 
     # Add table data exclusions (keep schema, exclude data)
     for table in excludes:
         pg_dump_args.append(f"--exclude-table-data={table}")
 
-    # Build docker exec command
+    # Build docker run command with a Postgres 18 client to match the remote DB
     cmd = [
         "docker",
-        "compose",
-        "exec",
-        "-T",
+        "run",
+        "--rm",
+        "--network",
+        network_name,
+        "-v",
+        f"{dump_path.parent}:/dump",
         "-e",
         f"PGPASSWORD={remote_creds['password']}",
-        "postgres",
-        "sh",
-        "-c",
-        " ".join(pg_dump_args),
+        POSTGRES_CLIENT_IMAGE,
+        *pg_dump_args,
     ]
 
     print(f"[INFO] Connecting to {remote_creds['host']}:{remote_creds['port']}")
@@ -209,31 +275,6 @@ def dump_remote_database(remote_creds: dict, dump_file: str, excludes: list):
 
     try:
         subprocess.run(cmd, check=True)
-        print(f"[SUCCESS] Database dumped to container /tmp/remote_dump.dump")
-
-        # Copy dump file from container to host
-        print(f"[INFO] Copying dump file to host...")
-        copy_cmd = [
-            "docker",
-            "compose",
-            "cp",
-            "postgres:/tmp/remote_dump.dump",
-            dump_file,
-        ]
-        subprocess.run(copy_cmd, check=True)
-
-        # Clean up container dump file
-        cleanup_cmd = [
-            "docker",
-            "compose",
-            "exec",
-            "-T",
-            "postgres",
-            "rm",
-            "/tmp/remote_dump.dump",
-        ]
-        subprocess.run(cleanup_cmd, check=False)  # Don't fail if cleanup fails
-
         print(f"[SUCCESS] Database dumped to {dump_file}")
         return True
     except subprocess.CalledProcessError as e:
@@ -283,62 +324,46 @@ def restore_local_database(dump_file: str, local_db: str = "chatwoot_dev"):
     ]
     run_command(create_cmd, f"Create database '{local_db}'")
 
-    # Step 3: Restore dump
+    network_name = get_postgres_network()
+    if not network_name:
+        print("[ERROR] Could not determine Docker network for postgres service")
+        return False
+
+    dump_path = Path(dump_file).resolve()
+    local_password = get_local_postgres_password()
+    if not local_password:
+        print("[ERROR] Could not read POSTGRES_PASSWORD from .env")
+        return False
+
+    # Step 3: Restore dump using a Postgres 18 client container
     print(f"[INFO] Restoring dump to '{local_db}'...")
     restore_cmd = [
         "docker",
-        "compose",
-        "exec",
-        "-T",
-        "postgres",
+        "run",
+        "--rm",
+        "--network",
+        network_name,
+        "-v",
+        f"{dump_path.parent}:/dump",
+        "-e",
+        f"PGPASSWORD={local_password}",
+        POSTGRES_CLIENT_IMAGE,
         "pg_restore",
-        "--username=postgres",
-        f"--dbname={local_db}",
-        "--no-owner",
-        "--no-acl",
-        "--clean",  # Clean before restore
-        "--if-exists",  # Don't error if objects don't exist
-    ]
-
-    # Copy dump file into container and restore
-    # First, copy dump file to a location accessible by container
-    print("[INFO] Copying dump file to Docker container...")
-    copy_cmd = ["docker", "compose", "cp", dump_file, f"postgres:/tmp/dump.sql"]
-    run_command(copy_cmd, "Copy dump to container")
-
-    # Restore from inside container
-    restore_cmd = [
-        "docker",
-        "compose",
-        "exec",
-        "-T",
-        "postgres",
-        "pg_restore",
+        "--host=postgres",
+        "--port=5432",
         "--username=postgres",
         f"--dbname={local_db}",
         "--no-owner",
         "--no-acl",
         "--clean",
         "--if-exists",
-        "/tmp/dump.sql",
+        f"/dump/{dump_path.name}",
     ]
 
     # Note: pg_restore may show warnings for missing objects during --clean
     # This is expected and not an error
     print("[INFO] Running pg_restore (warnings about missing objects are normal)...")
     result = run_command(restore_cmd, f"Restore to '{local_db}'", check=False)
-
-    # Clean up dump file from container
-    cleanup_cmd = [
-        "docker",
-        "compose",
-        "exec",
-        "-T",
-        "postgres",
-        "rm",
-        "/tmp/dump.sql",
-    ]
-    run_command(cleanup_cmd, "Clean up container dump file", check=False)
 
     if result.returncode in [0, 1]:  # 0 = success, 1 = warnings (acceptable)
         print(f"[SUCCESS] Database restored to '{local_db}'")
