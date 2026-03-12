@@ -395,6 +395,8 @@ RSpec.describe 'Conversations API', type: :request do
 
         it 'creates a new conversation with assignee and team' do
           allow(Rails.configuration.dispatcher).to receive(:dispatch)
+          inbox.update!(enable_auto_assignment: true)
+          team.update!(allow_auto_assign: true)
           post "/api/v1/accounts/#{account.id}/conversations",
                headers: agent.create_new_auth_token,
                params: { source_id: contact_inbox.source_id, contact_id: contact.id, inbox_id: inbox.id, assignee_id: agent.id, team_id: team.id },

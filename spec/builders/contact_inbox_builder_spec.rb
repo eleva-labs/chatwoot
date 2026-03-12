@@ -371,6 +371,38 @@ describe ContactInboxBuilder do
           ).perform
         end.to raise_error(ActiveRecord::RecordNotUnique)
       end
+
+      it 're-raises for whapi whatsapp so callers can retry outside the failed transaction' do
+        whatsapp_channel = create(:channel_whatsapp, account: account, provider: 'whapi', sync_templates: false, validate_provider_config: false)
+        whatsapp_source_id = '5215551234567'
+        create(:contact_inbox, contact: contact2, inbox: whatsapp_channel.inbox, source_id: whatsapp_source_id)
+
+        expect_any_instance_of(described_class).not_to receive(:update_old_contact_inbox)
+
+        expect do
+          described_class.new(
+            contact: contact,
+            inbox: whatsapp_channel.inbox,
+            source_id: whatsapp_source_id
+          ).perform
+        end.to raise_error(ActiveRecord::RecordNotUnique)
+      end
+
+      it 're-raises for twilio whatsapp so callers can retry outside the failed transaction' do
+        twilio_whatsapp = create(:channel_twilio_sms, medium: :whatsapp, account: account)
+        whatsapp_source_id = 'whatsapp:+5215551234567'
+        create(:contact_inbox, contact: contact2, inbox: twilio_whatsapp.inbox, source_id: whatsapp_source_id)
+
+        expect_any_instance_of(described_class).not_to receive(:update_old_contact_inbox)
+
+        expect do
+          described_class.new(
+            contact: contact,
+            inbox: twilio_whatsapp.inbox,
+            source_id: whatsapp_source_id
+          ).perform
+        end.to raise_error(ActiveRecord::RecordNotUnique)
+      end
     end
   end
 end
