@@ -6,7 +6,7 @@ shared_examples_for 'auto_assignment_handler' do
   describe '#auto assignment' do
     let(:account) { create(:account) }
     let(:agent) { create(:user, email: 'agent1@example.com', account: account, auto_offline: false) }
-    let(:inbox) { create(:inbox, account: account) }
+    let(:inbox) { create(:inbox, account: account, enable_auto_assignment: true) }
     let(:conversation) do
       create(
         :conversation,
