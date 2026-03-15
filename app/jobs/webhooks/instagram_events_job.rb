@@ -14,7 +14,7 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   def perform(entries)
     @entries = entries
 
-    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: sender_id, ig_account_id: ig_account_id)
+    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: lock_participant_id, ig_account_id: ig_account_id)
     lock_started_at = monotonic_time
     @lock_acquired_at = nil
 
@@ -65,7 +65,7 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def agent_message_via_echo?(messaging)
-    messaging[:message].present? && messaging[:message][:is_echo].present?
+    messaging&.dig(:message, :is_echo).present?
   end
 
   def test_event?(entry)
@@ -96,6 +96,28 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
 
   def sender_id
     @entries&.dig(0, :messaging, 0, :sender, :id)
+  end
+
+  def lock_participant_id
+    echo_recipient_id = nil
+
+    lock_messages.each do |messaging|
+      return messaging.dig(:sender, :id) unless echo_self_message?(messaging)
+
+      echo_recipient_id ||= messaging.dig(:recipient, :id)
+    end
+
+    echo_recipient_id
+  end
+
+  def echo_self_message?(messaging)
+    agent_message_via_echo?(messaging) && messaging&.dig(:sender, :id) == ig_account_id
+  end
+
+  def lock_messages
+    Array(@entries).flat_map do |entry|
+      messages(entry.with_indifferent_access)
+    end
   end
 
   def find_channel(instagram_id)
