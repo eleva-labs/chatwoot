@@ -217,6 +217,75 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
         end
       end
 
+      context 'with blank sender inbound payloads' do
+        [nil, '', '   '].each do |blank_from|
+          it "skips inbound payloads with blank from=#{blank_from.inspect} before contact creation or normalization" do
+            blank_sender_params = {
+              'messages' => [
+                {
+                  'id' => 'whapi_blank_sender_message',
+                  'from' => blank_from,
+                  'from_name' => contact_name,
+                  'from_me' => false,
+                  'type' => 'text',
+                  'text' => { 'body' => 'Should be skipped' },
+                  'timestamp' => Time.now.to_i
+                }
+              ]
+            }
+
+            service = described_class.new(inbox: inbox, params: blank_sender_params)
+            allow(Rails.logger).to receive(:info)
+            expect(service).not_to receive(:set_contact)
+            clear_enqueued_jobs
+
+            aggregate_failures do
+              expect { service.perform }.not_to have_enqueued_job(Whatsapp::Whapi::ContactSyncJob)
+              expect(Conversation.count).to eq(0)
+              expect(Message.count).to eq(0)
+              expect(Contact.count).to eq(0)
+              expect(Rails.logger).to have_received(:info) do |&block|
+                expect(block.call).to include('provider=whapi reason=blank_from id=whapi_blank_sender_message type=text')
+              end
+            end
+          end
+        end
+
+        it 'skips blank sender items and continues processing later valid messages in the same batch' do
+          mixed_batch_params = {
+            'messages' => [
+              {
+                'id' => 'whapi_blank_sender_message',
+                'from' => nil,
+                'from_name' => contact_name,
+                'from_me' => false,
+                'type' => 'text',
+                'text' => { 'body' => 'Should be skipped' },
+                'timestamp' => Time.now.to_i
+              },
+              {
+                'id' => 'whapi_valid_text_after_blank_sender',
+                'from' => phone_number,
+                'from_name' => contact_name,
+                'from_me' => false,
+                'type' => 'text',
+                'text' => { 'body' => 'Hello after blank sender skip' },
+                'timestamp' => Time.now.to_i
+              }
+            ]
+          }
+
+          expect { described_class.new(inbox: inbox, params: mixed_batch_params).perform }
+            .to change(Contact, :count).by(1)
+            .and change(Conversation, :count).by(1)
+            .and change(Message, :count).by(1)
+
+          message = Message.last
+          expect(message.content).to eq('Hello after blank sender skip')
+          expect(message.source_id).to eq('whapi_valid_text_after_blank_sender')
+        end
+      end
+
       context 'with non-phone sender ids' do
         let(:lid_sender_id) { '12799338115149@lid' }
         let(:normalized_lid_sender_id) { '12799338115149' }

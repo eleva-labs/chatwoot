@@ -60,6 +60,7 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def process_incoming_message(message)
     return if unsupported_incoming_message?(message)
+    return if missing_sender_for_incoming_message?(message)
 
     # Prevent processing duplicate messages
     return if message_already_processed?(message[:id])
@@ -335,6 +336,15 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def unsupported_incoming_message?(message)
     %w[action ephemeral].include?(message[:type].to_s)
+  end
+
+  def missing_sender_for_incoming_message?(message)
+    return false if message[:from].present?
+
+    Rails.logger.info do
+      "[WhapiInbound] Skipping incoming message: provider=whapi reason=blank_from id=#{message[:id]} type=#{message[:type]}"
+    end
+    true
   end
 
   def message_already_processed?(source_id)
