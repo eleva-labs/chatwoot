@@ -308,11 +308,22 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   end
 
   def update_message_with_status(message, status)
-    # WHAPI status can be a descriptive string or a code.
-    status_string = status[:status] || map_whapi_status_code(status[:code])
+    status_string = normalized_whapi_status(status)
+    return unless status_string
+
     message.status = status_string
     message.external_error = status[:reason] if status_string == 'failed' && status[:reason].present?
     message.save!
+  end
+
+  def normalized_whapi_status(status)
+    raw_status = status[:status].presence
+    raw_status ||= map_whapi_status_code(status[:code]) unless status[:code].nil?
+    normalized_status = raw_status == 'played' ? 'read' : raw_status
+    return normalized_status if Message.statuses.key?(normalized_status)
+
+    log_unknown_whapi_status(status, raw_status)
+    nil
   end
 
   def map_whapi_status_code(code)
@@ -320,8 +331,14 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
     when 2 then 'sent'
     when 3 then 'delivered'
     when 4 then 'read'
-    else 'failed'
     end
+  end
+
+  def log_unknown_whapi_status(status, raw_status)
+    log_message = "[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=#{status[:id]} status=#{raw_status}"
+    log_message += " code=#{status[:code]}" unless status[:code].nil?
+
+    Rails.logger.info(log_message)
   end
 
   # Utility methods

@@ -523,6 +523,7 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
 
     context 'when receiving status updates' do
       let!(:message) { create(:message, source_id: 'status_message_id', inbox: inbox) }
+      let!(:second_message) { create(:message, source_id: 'second_status_message_id', inbox: inbox) }
       let(:status_params) do
         {
           'statuses' => [
@@ -537,6 +538,18 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
 
       it 'updates the status of the corresponding message' do
         described_class.new(inbox: inbox, params: status_params).perform
+        expect(message.reload.status).to eq('read')
+      end
+
+      it 'normalizes played status to read' do
+        played_status_params = {
+          'statuses' => [
+            { 'id' => 'status_message_id', 'status' => 'played' }
+          ]
+        }
+
+        described_class.new(inbox: inbox, params: played_status_params).perform
+
         expect(message.reload.status).to eq('read')
       end
 
@@ -556,6 +569,88 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
         non_existent_status_params = { 'statuses' => [{ 'id' => 'non_existent' }] }
         expect { described_class.new(inbox: inbox, params: non_existent_status_params).perform }
           .not_to raise_error
+      end
+
+      it 'logs and skips unknown status strings' do
+        unknown_status_params = {
+          'statuses' => [
+            { 'id' => 'status_message_id', 'status' => 'buffered' }
+          ]
+        }
+        allow(Rails.logger).to receive(:info)
+
+        expect { described_class.new(inbox: inbox, params: unknown_status_params).perform }
+          .not_to raise_error
+
+        aggregate_failures do
+          expect(message.reload.status).to eq('sent')
+          expect(Rails.logger).to have_received(:info).with(
+            '[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=status_message_id status=buffered'
+          )
+        end
+      end
+
+      it 'continues processing later valid statuses after an unknown one' do
+        mixed_status_params = {
+          'statuses' => [
+            { 'id' => 'status_message_id', 'status' => 'buffered' },
+            { 'id' => 'second_status_message_id', 'status' => 'delivered' }
+          ]
+        }
+        allow(Rails.logger).to receive(:info)
+
+        expect { described_class.new(inbox: inbox, params: mixed_status_params).perform }
+          .not_to raise_error
+
+        aggregate_failures do
+          expect(message.reload.status).to eq('sent')
+          expect(second_message.reload.status).to eq('delivered')
+          expect(Rails.logger).to have_received(:info).with(
+            '[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=status_message_id status=buffered'
+          )
+        end
+      end
+
+      it 'logs and skips unknown numeric status codes' do
+        unknown_numeric_code_params = {
+          'statuses' => [
+            { 'id' => 'status_message_id', 'code' => 99 }
+          ]
+        }
+        allow(Rails.logger).to receive(:info)
+
+        expect { described_class.new(inbox: inbox, params: unknown_numeric_code_params).perform }
+          .not_to raise_error
+
+        aggregate_failures do
+          expect(message.reload.status).to eq('sent')
+          expect(message.external_error).to be_nil
+          expect(Rails.logger).to have_received(:info).with(
+            '[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=status_message_id status= code=99'
+          )
+        end
+      end
+
+      it 'continues processing later valid statuses after an unknown numeric code' do
+        mixed_numeric_code_params = {
+          'statuses' => [
+            { 'id' => 'status_message_id', 'code' => 99 },
+            { 'id' => 'second_status_message_id', 'code' => 3 }
+          ]
+        }
+        allow(Rails.logger).to receive(:info)
+
+        expect { described_class.new(inbox: inbox, params: mixed_numeric_code_params).perform }
+          .not_to raise_error
+
+        aggregate_failures do
+          expect(message.reload.status).to eq('sent')
+          expect(message.external_error).to be_nil
+          expect(second_message.reload.status).to eq('delivered')
+          expect(Rails.logger).to have_received(:info).with(
+            '[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=status_message_id status= code=99'
+          )
+        end
       end
     end
 
