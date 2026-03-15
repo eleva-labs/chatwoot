@@ -123,9 +123,9 @@ const onToggleAi = async () => {
       <!-- Unread counter positioned at bottom-right of avatar -->
       <div
         v-if="conversation.unreadCount > 0"
-        class="absolute -bottom-1 -right-1 inline-flex items-center justify-center rounded-full size-5 bg-n-brand border-2 border-white"
+        class="absolute -bottom-0.5 -right-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-n-brand border-[1.5px] border-white px-0.5"
       >
-        <span class="text-xs font-semibold text-white">
+        <span class="text-[10px] font-semibold leading-none text-white">
           {{
             conversation.unreadCount > 9
               ? $t('COMBOBOX.MORE', { count: 9 })
