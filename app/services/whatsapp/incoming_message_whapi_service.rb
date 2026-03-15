@@ -59,6 +59,8 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   # Message type processors
 
   def process_incoming_message(message)
+    return if unsupported_incoming_message?(message)
+
     # Prevent processing duplicate messages
     return if message_already_processed?(message[:id])
 
@@ -329,6 +331,10 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def sent_via_api?(message)
     message[:source].to_s.downcase == 'api'
+  end
+
+  def unsupported_incoming_message?(message)
+    %w[action ephemeral].include?(message[:type].to_s)
   end
 
   def message_already_processed?(source_id)
