@@ -845,7 +845,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_19_161025) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.string "channel_type"
-    t.boolean "enable_auto_assignment", default: true
+    t.boolean "enable_auto_assignment", default: false
     t.boolean "greeting_enabled", default: false
     t.string "greeting_message"
     t.string "email_address"
@@ -1176,7 +1176,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_19_161025) do
   create_table "teams", force: :cascade do |t|
     t.string "name", null: false
     t.text "description"
-    t.boolean "allow_auto_assign", default: true
+    t.boolean "allow_auto_assign", default: false
     t.bigint "account_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false

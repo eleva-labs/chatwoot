@@ -306,6 +306,28 @@ describe Webhooks::InstagramEventsJob do
   describe 'lock mechanism' do
     let(:lock_manager) { instance_double(Redis::LockManager) }
     let(:dm_event) { build(:instagram_message_create_event).with_indifferent_access }
+    let(:standby_event) { build(:instagram_message_standby_event, ig_entry_id: ig_account_id).with_indifferent_access }
+    let(:read_event) { build(:messaging_seen_event, ig_entry_id: ig_account_id).with_indifferent_access }
+    let(:test_event) { build(:instagram_test_event).with_indifferent_access }
+    let(:echo_event) do
+      [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: ig_account_id },
+              recipient: { id: 'customer-ig-user-id-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              message: {
+                mid: 'echo-message-id-1',
+                text: 'Echo message',
+                is_echo: true
+              }
+            }
+          ]
+        }
+      ]
+    end
     let(:sender_id) { dm_event[:entry][0][:messaging][0][:sender][:id] }
     let(:ig_account_id) { dm_event[:entry][0][:id] }
     let(:expected_key) { format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: sender_id, ig_account_id: ig_account_id) }
@@ -378,6 +400,94 @@ describe Webhooks::InstagramEventsJob do
 
       expect(Rails.logger).to have_received(:warn).with(contention_log_message).once
       expect(Rails.logger).not_to have_received(:warn).with(base_contention_log_message)
+    end
+
+    it 'uses the echo recipient to scope the lock key' do
+      echo_recipient_id = echo_event[0][:messaging][0][:recipient][:id]
+      expected_echo_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: echo_recipient_id, ig_account_id: ig_account_id)
+
+      expect(lock_manager).to receive(:lock).with(expected_echo_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(echo_event)
+    end
+
+    it 'logs the narrowed echo lock key on contention' do
+      echo_recipient_id = echo_event[0][:messaging][0][:recipient][:id]
+      expected_echo_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: echo_recipient_id, ig_account_id: ig_account_id)
+      expected_log_message = "[Webhooks::InstagramEventsJob] event=lock_retry_scheduled lock_key=#{expected_echo_key} " \
+                             "sender_id=#{ig_account_id} ig_account_id=#{ig_account_id} lock_attempt_ms=200 retry_attempt=3"
+
+      job_instance = described_class.new
+
+      allow(lock_manager).to receive(:lock).and_return(false)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.2)
+      allow(job_instance).to receive(:executions).and_return(3)
+      allow(Rails.logger).to receive(:warn)
+
+      expect do
+        job_instance.perform(echo_event)
+      end.to raise_error(MutexApplicationJob::LockAcquisitionError, "Failed to acquire lock for key: #{expected_echo_key}")
+
+      expect(Rails.logger).to have_received(:warn).with(expected_log_message).once
+    end
+
+    it 'uses the standby sender for the lock key' do
+      standby_sender_id = standby_event[:entry][0][:standby][0][:sender][:id]
+      expected_standby_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: standby_sender_id, ig_account_id: ig_account_id)
+
+      expect(lock_manager).to receive(:lock).with(expected_standby_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(standby_event[:entry])
+    end
+
+    it 'keeps the read-event lock key scoped to the sender' do
+      read_sender_id = read_event[:entry][0][:messaging][0][:sender][:id]
+      expected_read_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: read_sender_id, ig_account_id: ig_account_id)
+
+      expect(lock_manager).to receive(:lock).with(expected_read_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(read_event[:entry])
+    end
+
+    it 'derives a lock key safely for test events without messaging payloads' do
+      expected_test_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: nil, ig_account_id: test_event[:entry][0][:id])
+
+      expect(lock_manager).to receive(:lock).with(expected_test_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(test_event[:entry])
+    end
+
+    it 'does not narrow the lock key when a mixed batch includes inbound messages' do
+      mixed_entries = [echo_event[0], dm_event[:entry][0]]
+
+      expect(lock_manager).to receive(:lock).with(expected_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(mixed_entries)
     end
   end
 end
