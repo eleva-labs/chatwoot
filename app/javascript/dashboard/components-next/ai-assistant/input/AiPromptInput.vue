@@ -1,0 +1,101 @@
+<script setup>
+import { ref, computed } from 'vue';
+import { useAiI18n } from '../i18n/aiChatI18n';
+import AiVoiceButton from './AiVoiceButton.vue';
+import { useAiAutoResizeTextarea } from '../composables/useAiAutoResizeTextarea';
+import { VOICE_INPUT_STATUS } from '../constants';
+
+const props = defineProps({
+  disabled: { type: Boolean, default: false },
+  isLoading: { type: Boolean, default: false },
+  isStreaming: { type: Boolean, default: false },
+  placeholder: { type: String, default: null },
+});
+
+const emit = defineEmits(['submit', 'stop']);
+
+// Voice input is disabled for Phase 1 (visual only)
+const voiceStatus = ref(VOICE_INPUT_STATUS.DISABLED);
+
+const { t } = useAiI18n();
+const inputText = ref('');
+
+// Auto-resize textarea composable
+const { textareaRef, resize, reset } = useAiAutoResizeTextarea();
+
+const placeholderText = computed(
+  () => props.placeholder || t('AI_CHAT.INPUT.PLACEHOLDER')
+);
+
+const isDisabled = computed(() => props.disabled || props.isLoading);
+const canSubmit = computed(() => inputText.value.trim() && !isDisabled.value);
+
+const handleSubmit = () => {
+  const text = inputText.value.trim();
+  if (!text || isDisabled.value) return;
+
+  emit('submit', text);
+  inputText.value = '';
+  reset();
+};
+
+const handleKeydown = e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSubmit();
+  }
+};
+</script>
+
+<template>
+  <div class="p-4 border-t border-n-weak bg-n-solid-1">
+    <form class="flex items-start gap-2" @submit.prevent="handleSubmit">
+      <textarea
+        ref="textareaRef"
+        v-model="inputText"
+        :placeholder="placeholderText"
+        :disabled="isDisabled"
+        rows="1"
+        :aria-label="placeholderText"
+        class="flex-1 resize-none rounded-lg border border-n-weak bg-n-solid-2 px-3 py-2 h-9 min-h-9 text-sm text-n-slate-12 placeholder-n-slate-9 focus:border-n-brand focus:outline-none focus:ring-1 focus:ring-n-brand disabled:opacity-50 disabled:cursor-not-allowed max-h-32"
+        @keydown="handleKeydown"
+        @input="resize"
+      />
+
+      <!-- Voice input button -->
+      <AiVoiceButton :status="voiceStatus" disabled />
+
+      <!-- Stop button (during streaming) -->
+      <button
+        v-if="isStreaming"
+        type="button"
+        :aria-label="t('AI_CHAT.INPUT.STOP')"
+        class="flex-shrink-0 bg-n-slate-9 hover:bg-n-slate-10 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+        @click="emit('stop')"
+      >
+        <span class="i-lucide-square size-3.5" />
+      </button>
+      <!-- Submit button -->
+      <slot
+        v-else
+        name="send-button"
+        :disabled="!canSubmit"
+        :is-loading="isLoading"
+        :label="t('AI_CHAT.INPUT.SEND')"
+      >
+        <button
+          type="submit"
+          :disabled="!canSubmit"
+          :aria-label="t('AI_CHAT.INPUT.SEND')"
+          class="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-n-brand hover:bg-n-brand/90 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span
+            v-if="isLoading"
+            class="i-lucide-loader-2 size-4 animate-spin"
+          />
+          <span v-else class="i-lucide-send size-4" />
+        </button>
+      </slot>
+    </form>
+  </div>
+</template>

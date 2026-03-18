@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-// import { useMapGetter } from 'dashboard/composables/store'; // Commented out - used by API channel
+// import { useMapGetter } from 'dashboard/composables/store';
 
 import { useAccount } from 'dashboard/composables/useAccount';
 
@@ -12,44 +12,31 @@ const { t } = useI18n();
 const router = useRouter();
 const { accountId, currentAccount } = useAccount();
 
-// const globalConfig = useMapGetter('globalConfig/get'); // Commented out - used by API channel
+// const globalConfig = useMapGetter('globalConfig/get');
 
 const enabledFeatures = ref({});
 
 const channelList = computed(() => {
-  // const { apiChannelName } = globalConfig.value; // Commented out - used by API channel
+  // const { apiChannelName } = globalConfig.value;
   return [
+    // {
+    //   key: 'website',
+    //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WEBSITE.TITLE'),
+    //   description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WEBSITE.DESCRIPTION'),
+    //   icon: 'i-woot-website',
+    // },
+    // {
+    //   key: 'facebook',
+    //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.FACEBOOK.TITLE'),
+    //   description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.FACEBOOK.DESCRIPTION'),
+    //   icon: 'i-woot-messenger',
+    // },
     {
       key: 'whatsapp',
       title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WHATSAPP.TITLE'),
       description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WHATSAPP.DESCRIPTION'),
       icon: 'i-woot-whatsapp',
     },
-    {
-      key: 'instagram',
-      title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.INSTAGRAM.TITLE'),
-      description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.INSTAGRAM.DESCRIPTION'),
-      icon: 'i-woot-instagram',
-    },
-    {
-      key: 'facebook',
-      title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.FACEBOOK.TITLE'),
-      description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.FACEBOOK.DESCRIPTION'),
-      icon: 'i-woot-messenger',
-    },
-    {
-      key: 'telegram',
-      title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.TELEGRAM.TITLE'),
-      description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.TELEGRAM.DESCRIPTION'),
-      icon: 'i-woot-telegram',
-    },
-    // Commented out - to be enabled later
-    // {
-    //   key: 'email',
-    //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.EMAIL.TITLE'),
-    //   description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.EMAIL.DESCRIPTION'),
-    //   icon: 'i-woot-mail',
-    // },
     // {
     //   key: 'sms',
     //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.SMS.TITLE'),
@@ -57,10 +44,10 @@ const channelList = computed(() => {
     //   icon: 'i-woot-sms',
     // },
     // {
-    //   key: 'website',
-    //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WEBSITE.TITLE'),
-    //   description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WEBSITE.DESCRIPTION'),
-    //   icon: 'i-woot-website',
+    //   key: 'email',
+    //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.EMAIL.TITLE'),
+    //   description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.EMAIL.DESCRIPTION'),
+    //   icon: 'i-woot-mail',
     // },
     // {
     //   key: 'api',
@@ -69,11 +56,23 @@ const channelList = computed(() => {
     //   icon: 'i-woot-api',
     // },
     // {
+    //   key: 'telegram',
+    //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.TELEGRAM.TITLE'),
+    //   description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.TELEGRAM.DESCRIPTION'),
+    //   icon: 'i-woot-telegram',
+    // },
+    // {
     //   key: 'line',
     //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.LINE.TITLE'),
     //   description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.LINE.DESCRIPTION'),
     //   icon: 'i-woot-line',
     // },
+    {
+      key: 'instagram',
+      title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.INSTAGRAM.TITLE'),
+      description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.INSTAGRAM.DESCRIPTION'),
+      icon: 'i-woot-instagram',
+    },
     // {
     //   key: 'voice',
     //   title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.VOICE.TITLE'),

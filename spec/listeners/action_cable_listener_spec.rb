@@ -117,13 +117,37 @@ describe ActionCableListener do
   describe '#contact_deleted' do
     let(:event_name) { :'contact.deleted' }
     let!(:contact) { create(:contact, account: account) }
-    let!(:event) { Events::Base.new(event_name, Time.zone.now, contact: contact) }
+    let!(:event) do
+      Events::Base.new(event_name, Time.zone.now,
+                       contact_id: contact.id,
+                       account_id: account.id,
+                       email: contact.email,
+                       name: contact.name,
+                       phone_number: contact.phone_number,
+                       identifier: contact.identifier,
+                       thumbnail: contact.avatar_url,
+                       additional_attributes: contact.additional_attributes,
+                       custom_attributes: contact.custom_attributes,
+                       blocked: contact.blocked)
+    end
 
     it 'sends message to account admins, inbox agents' do
       expect(ActionCableBroadcastJob).to receive(:perform_later).with(
         ["account_#{account.id}"],
         'contact.deleted',
-        contact.push_event_data.merge(account_id: account.id)
+        {
+          additional_attributes: contact.additional_attributes,
+          custom_attributes: contact.custom_attributes,
+          email: contact.email,
+          id: contact.id,
+          identifier: contact.identifier,
+          name: contact.name,
+          phone_number: contact.phone_number,
+          thumbnail: contact.avatar_url,
+          blocked: contact.blocked,
+          type: 'contact',
+          account_id: account.id
+        }
       )
       listener.contact_deleted(event)
     end
@@ -132,7 +156,12 @@ describe ActionCableListener do
   describe '#notification_deleted' do
     let(:event_name) { :'notification.deleted' }
     let!(:notification) { create(:notification, account: account, user: agent) }
-    let!(:event) { Events::Base.new(event_name, Time.zone.now, notification: notification) }
+    let!(:event) do
+      Events::Base.new(event_name, Time.zone.now,
+                       notification_id: notification.id,
+                       account_id: account.id,
+                       user_id: agent.id)
+    end
 
     it 'sends message to account admins, inbox agents' do
       expect(ActionCableBroadcastJob).to receive(:perform_later).with(

@@ -19,6 +19,7 @@
       "OR": "O"
     },
     "INPUT_PLACEHOLDER": "Introducir valor",
+    "COMMA_SEPARATED_PLACEHOLDER": "Introduzca valores separados por comas (ej: comprar, ayuda, precio)",
     "OPERATOR_LABELS": {
       "equal_to": "Igual a",
       "not_equal_to": "No igual a",
@@ -27,6 +28,7 @@
       "is_not_present": "No está presente",
       "is_greater_than": "Es mayor que",
       "is_less_than": "Es menor que",
+      "percentage_is_less_than": "Es",
       "days_before": "Es X días antes",
       "starts_with": "Empieza con",
       "equalTo": "Igual a",

@@ -1,5 +1,3 @@
-import wootConstants from 'dashboard/constants/globals';
-
 export const frontendURL = (path, params) => {
   const stringifiedParams = params ? `?${new URLSearchParams(params)}` : '';
   return `/app/${path}${stringifiedParams}`;
@@ -23,13 +21,11 @@ export const conversationUrl = ({
     url = `accounts/${accountId}/team/${teamId}/conversations/${id}`;
   } else if (foldersId && foldersId !== 0) {
     url = `accounts/${accountId}/custom_view/${foldersId}/conversations/${id}`;
-  } else if (conversationType === wootConstants.CONVERSATION_TYPE.MENTION) {
+  } else if (conversationType === 'mention') {
     url = `accounts/${accountId}/mentions/conversations/${id}`;
-  } else if (
-    conversationType === wootConstants.CONVERSATION_TYPE.PARTICIPATING
-  ) {
+  } else if (conversationType === 'participating') {
     url = `accounts/${accountId}/participating/conversations/${id}`;
-  } else if (conversationType === wootConstants.CONVERSATION_TYPE.UNATTENDED) {
+  } else if (conversationType === 'unattended') {
     url = `accounts/${accountId}/unattended/conversations/${id}`;
   }
   return url;
@@ -114,12 +110,16 @@ export const hasValidAvatarUrl = avatarUrl => {
 };
 
 export const timeStampAppendedURL = dataUrl => {
-  const url = new URL(dataUrl);
-  if (!url.searchParams.has('t')) {
-    url.searchParams.append('t', Date.now());
+  if (!dataUrl) return dataUrl;
+  try {
+    const url = new URL(dataUrl);
+    if (!url.searchParams.has('t')) {
+      url.searchParams.append('t', Date.now());
+    }
+    return url.toString();
+  } catch {
+    return dataUrl;
   }
-
-  return url.toString();
 };
 
 export const getHostNameFromURL = url => {
@@ -148,4 +148,35 @@ export const extractFilenameFromUrl = url => {
     const match = url.match(/\/([^/?#]+)(?:[?#]|$)/);
     return match ? match[1] : url;
   }
+};
+
+/**
+ * Normalizes a comma/newline separated list of domains
+ * @param {string} domains - The comma/newline separated list of domains
+ * @returns {string} - The normalized list of domains
+ * - Converts newlines to commas
+ * - Trims whitespace
+ * - Lowercases entries
+ * - Removes empty values
+ * - De-duplicates while preserving original order
+ */
+export const sanitizeAllowedDomains = domains => {
+  if (!domains) return '';
+
+  const tokens = domains
+    .replace(/\r\n/g, '\n')
+    .replace(/\s*\n\s*/g, ',')
+    .split(',')
+    .map(d => d.trim().toLowerCase())
+    .filter(d => d.length > 0);
+
+  // De-duplicate while preserving order using Set and filter index
+  const seen = new Set();
+  const unique = tokens.filter(d => {
+    if (seen.has(d)) return false;
+    seen.add(d);
+    return true;
+  });
+
+  return unique.join(',');
 };

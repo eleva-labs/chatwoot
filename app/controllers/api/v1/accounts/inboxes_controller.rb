@@ -4,7 +4,8 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   before_action :fetch_agent_bot, only: [:set_agent_bot]
   before_action :validate_limit, only: [:create]
   # we are already handling the authorization in fetch inbox
-  before_action :check_authorization, except: [:show]
+  before_action :check_authorization, except: [:show, :health]
+  before_action :validate_whatsapp_cloud_channel, only: [:health]
 
   def index
     @inboxes = policy_scope(Current.account.inboxes.order_by_name.includes(:channel, :members, { avatar_attachment: [:blob] }))
@@ -71,13 +72,23 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def set_agent_bot
-    if @agent_bot
-      agent_bot_inbox = @inbox.agent_bot_inbox || AgentBotInbox.new(inbox: @inbox)
-      agent_bot_inbox.agent_bot = @agent_bot
-      agent_bot_inbox.save!
-    elsif @inbox.agent_bot_inbox.present?
-      @inbox.agent_bot_inbox.destroy!
+    old_bot_id = @inbox.agent_bot_inbox&.agent_bot_id
+
+    ActiveRecord::Base.transaction do
+      # Destroy triggers after_destroy_commit → AI Backend unassignment
+      @inbox.agent_bot_inbox&.destroy!
+
+      # Create triggers after_create_commit → AI Backend assignment
+      if @agent_bot
+        AgentBotInbox.create!(
+          inbox: @inbox,
+          agent_bot: @agent_bot,
+          account_id: @inbox.account_id
+        )
+      end
     end
+
+    log_bot_assignment_change(old_bot_id, @agent_bot&.id)
     head :ok
   end
 
@@ -93,6 +104,14 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
     render status: :ok, json: { message: 'Template sync initiated successfully' }
   rescue StandardError => e
     render status: :internal_server_error, json: { error: e.message }
+  end
+
+  def health
+    health_data = Whatsapp::HealthService.new(@inbox.channel).fetch_health_status
+    render json: health_data
+  rescue StandardError => e
+    Rails.logger.error "[INBOX HEALTH] Error fetching health data: #{e.message}"
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private
@@ -127,6 +146,12 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
 
   def fetch_agent_bot
     @agent_bot = AgentBot.find(params[:agent_bot]) if params[:agent_bot]
+  end
+
+  def validate_whatsapp_cloud_channel
+    return if @inbox.channel.is_a?(Channel::Whatsapp) && @inbox.channel.provider == 'whatsapp_cloud'
+
+    render json: { error: 'Health data only available for WhatsApp Cloud API channels' }, status: :bad_request
   end
 
   def create_channel
@@ -239,6 +264,16 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
       Channels::Whatsapp::TemplatesSyncJob.perform_later(@inbox.channel)
     elsif @inbox.twilio? && @inbox.channel.whatsapp?
       Channels::Twilio::TemplatesSyncJob.perform_later(@inbox.channel)
+    end
+  end
+
+  def log_bot_assignment_change(old_bot_id, new_bot_id)
+    if old_bot_id.present? && new_bot_id.present?
+      Rails.logger.info("Bot reassignment: Channel #{@inbox.id} changed from Bot #{old_bot_id} to Bot #{new_bot_id}")
+    elsif new_bot_id.present?
+      Rails.logger.info("Bot assignment: Channel #{@inbox.id} assigned to Bot #{new_bot_id}")
+    elsif old_bot_id.present?
+      Rails.logger.info("Bot unassignment: Channel #{@inbox.id} unassigned from Bot #{old_bot_id}")
     end
   end
 end

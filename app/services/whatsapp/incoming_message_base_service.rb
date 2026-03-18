@@ -32,9 +32,11 @@ class Whatsapp::IncomingMessageBaseService
     set_contact
     return unless @contact
 
-    set_conversation
-    create_messages
-    clear_message_source_id_from_redis
+    ActiveRecord::Base.transaction do
+      set_conversation
+      create_messages
+      clear_message_source_id_from_redis
+    end
   end
 
   def process_statuses
@@ -119,14 +121,13 @@ class Whatsapp::IncomingMessageBaseService
     attachment_file = download_attachment_file(attachment_payload)
     return if attachment_file.blank?
 
+    # Convert inbound OGG voice messages to M4A for iOS playback compatibility
+    file_attrs = Whatsapp::InboundAudioConversionService.convert_if_voice(attachment_file, message_type)
+
     @message.attachments.new(
       account_id: @message.account_id,
       file_type: file_content_type(message_type),
-      file: {
-        io: attachment_file,
-        filename: attachment_file.original_filename,
-        content_type: attachment_file.content_type
-      }
+      file: file_attrs
     )
   end
 

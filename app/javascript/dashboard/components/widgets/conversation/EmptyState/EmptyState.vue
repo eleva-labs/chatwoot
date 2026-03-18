@@ -1,10 +1,10 @@
 <script>
-import { computed, onMounted } from 'vue';
+import { computed, watch } from 'vue';
 import { mapGetters } from 'vuex';
 import { useStore } from 'vuex';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useAccount } from 'dashboard/composables/useAccount';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import EmptyStateMessage from './EmptyStateMessage.vue';
 
 export default {
@@ -20,6 +20,7 @@ export default {
   setup() {
     const { isAdmin } = useAdmin();
     const { accountScopedUrl } = useAccount();
+    const route = useRoute();
     const router = useRouter();
     const store = useStore();
 
@@ -27,25 +28,35 @@ export default {
       store.getters['accounts/isOnboardingCompleted']()
     );
 
+    // Get inbox loading state to prevent race condition
+    const inboxesUIFlags = computed(() => store.getters['inboxes/getUIFlags']);
+
     const shouldRedirectToOnboarding = computed(
-      () => !isOnboardingCompleted.value && isAdmin.value
+      () =>
+        !isOnboardingCompleted.value &&
+        isAdmin.value &&
+        !inboxesUIFlags.value.isFetching // Guard: don't redirect while loading
     );
 
-    // Redirect to Standard Inbox flow for onboarding
-    onMounted(() => {
-      if (shouldRedirectToOnboarding.value) {
-        router.push({
-          name: 'settings_inbox_new',
-          query: { onboarding: 'true' },
-        });
-      }
-    });
+    watch(
+      shouldRedirectToOnboarding,
+      shouldRedirect => {
+        if (shouldRedirect && route.name !== 'settings_inbox_new') {
+          router.push({
+            name: 'settings_inbox_new',
+            query: { onboarding: 'true' },
+          });
+        }
+      },
+      { immediate: true }
+    );
 
     return {
       isAdmin,
       accountScopedUrl,
       isOnboardingCompleted,
       shouldRedirectToOnboarding,
+      inboxesUIFlags,
     };
   },
   computed: {

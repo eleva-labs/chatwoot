@@ -88,7 +88,7 @@ const handleSignupSuccess = inboxData => {
   if (inboxData && inboxData.id) {
     useAlert(t('INBOX_MGMT.FINISH.MESSAGE'));
     router.replace({
-      name: 'settings_inboxes_invite_team',
+      name: 'settings_inboxes_add_agents',
       params: {
         page: 'new',
         inbox_id: inboxData.id,

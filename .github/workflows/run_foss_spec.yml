@@ -1,10 +1,5 @@
 name: Run Chatwoot CE spec
 on:
-  push:
-    branches:
-      - development
-      - main
-  # pull_request:
   workflow_dispatch:
 
 jobs:
@@ -13,6 +8,11 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
+
+    env:
+      RAILS_ENV: test
+      POSTGRES_HOST: localhost
+
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -64,8 +64,10 @@ jobs:
       - name: Create database
         run: bundle exec rake db:create
 
-      - name: Seed database
-        run: bundle exec rake db:schema:load
+      - name: Load database schema
+        run: |
+          bundle exec rake db:schema:load
+          bundle exec rake db:schema:load:custom
 
       - name: Run frontend tests
         run: pnpm run test:coverage

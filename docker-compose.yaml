@@ -86,10 +86,10 @@ services:
     command: bin/vite dev
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg18
     restart: always
     ports:
-      - '5432:5432'
+      - '5430:5432'
     volumes:
       - postgres:/data/postgres
     env_file: .env

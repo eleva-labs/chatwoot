@@ -83,6 +83,17 @@
       "THEY_ANSWERED": "They answered",
       "YOU_ANSWERED": "You answered"
     },
+    "VOICE_CALL": {
+      "INCOMING_CALL": "Incoming call",
+      "OUTGOING_CALL": "Outgoing call",
+      "CALL_IN_PROGRESS": "Call in progress",
+      "NO_ANSWER": "No answer",
+      "MISSED_CALL": "Missed call",
+      "CALL_ENDED": "Call ended",
+      "NOT_ANSWERED_YET": "Not answered yet",
+      "THEY_ANSWERED": "They answered",
+      "YOU_ANSWERED": "You answered"
+    },
     "HEADER": {
       "RESOLVE_ACTION": "Resolver",
       "REOPEN_ACTION": "Reabrir",
@@ -232,6 +243,13 @@
           "YES": "Enviar",
           "CANCEL": "Cancelar"
         }
+      },
+      "QUOTED_REPLY": {
+        "ENABLE_TOOLTIP": "Include quoted email thread",
+        "DISABLE_TOOLTIP": "Don't include quoted email thread",
+        "REMOVE_PREVIEW": "Remove quoted email thread",
+        "COLLAPSE": "Collapse preview",
+        "EXPAND": "Expand preview"
       }
     },
     "AI_FEEDBACK": {
@@ -278,6 +296,8 @@
     "EXTERNAL": "Externo",
     "SEND_FAILED": "¡No se pudo enviar el mensaje! Inténtalo de nuevo",
     "TRY_AGAIN": "reintentar",
+    "AI_TOGGLE_SUCCESS": "AI actualizado exitosamente",
+    "AI_TOGGLE_ERROR": "¡No se pudo actualizar AI! Inténtalo de nuevo",
     "ASSIGNMENT": {
       "SELECT_AGENT": "Seleccionar miembro",
       "REMOVE": "Eliminar",
@@ -301,6 +321,62 @@
     "SIDEBAR": {
       "CONTACT": "Contacto",
       "COPILOT": "Copilot"
+    },
+    "ACTIVITY": {
+      "STATUS": {
+        "RESOLVED": "La conversación fue marcada como resuelta por {user_name}",
+        "CONTACT_RESOLVED": "La conversación fue resuelta por {contact_name}",
+        "OPEN": "La conversación fue reabierta por {user_name}",
+        "PENDING": "La conversación fue marcada como pendiente por {user_name}",
+        "SNOOZED": "La conversación fue pospuesta por {user_name}",
+        "AUTO_RESOLVED_DAYS": "La conversación fue marcada como resuelta por el sistema debido a {count} días de inactividad",
+        "AUTO_RESOLVED_HOURS": "La conversación fue marcada como resuelta por el sistema debido a {count} horas de inactividad",
+        "AUTO_RESOLVED_MINUTES": "La conversación fue marcada como resuelta por el sistema debido a {count} minutos de inactividad",
+        "SYSTEM_AUTO_OPEN": "El sistema reabrió la conversación debido a un nuevo mensaje entrante.",
+        "CAPTAIN_RESOLVED": "La conversación fue marcada como resuelta por {user_name} debido a inactividad",
+        "CAPTAIN_OPEN": "La conversación fue marcada como abierta por {user_name}",
+        "AGENT_BOT_ERROR": "La conversación fue marcada como abierta por el sistema debido a un error con el bot."
+      },
+      "PRIORITY": {
+        "ADDED": "{user_name} estableció la prioridad a {new_priority}",
+        "UPDATED": "{user_name} cambió la prioridad de {old_priority} a {new_priority}",
+        "REMOVED": "{user_name} eliminó la prioridad"
+      },
+      "ASSIGNEE": {
+        "SELF_ASSIGNED": "{user_name} se autoasignó esta conversación",
+        "ASSIGNED": "Asignada a {assignee_name} por {user_name}",
+        "REMOVED": "Conversación desasignada por {user_name}"
+      },
+      "TEAM": {
+        "ASSIGNED": "Asignada al equipo {team_name} por {user_name}",
+        "ASSIGNED_WITH_ASSIGNEE": "Asignada a {assignee_name} vía {team_name} por {user_name}",
+        "REMOVED": "Desasignada del equipo {team_name} por {user_name}"
+      },
+      "LABELS": {
+        "ADDED": "{user_name} agregó {labels}",
+        "REMOVED": "{user_name} eliminó {labels}"
+      },
+      "SLA": {
+        "ADDED": "{user_name} agregó la política SLA {sla_name}",
+        "REMOVED": "{user_name} eliminó la política SLA {sla_name}"
+      },
+      "LINEAR": {
+        "ISSUE_CREATED": "Issue de Linear {issue_id} fue creado por {user_name}",
+        "ISSUE_LINKED": "Issue de Linear {issue_id} fue vinculado por {user_name}",
+        "ISSUE_UNLINKED": "Issue de Linear {issue_id} fue desvinculado por {user_name}"
+      },
+      "MUTED": "{user_name} silenció la conversación",
+      "UNMUTED": "{user_name} activó la conversación",
+      "CSAT": {
+        "NOT_SENT": "Encuesta CSAT no enviada debido a restricciones de mensajes salientes"
+      },
+      "AUTO_RESOLVE": {
+        "NOT_SENT": "Mensaje de auto-resolución no enviado debido a restricciones de mensajes salientes"
+      },
+      "AI": {
+        "ENABLED": "{user_name} habilitó la IA para esta conversación",
+        "DISABLED": "{user_name} deshabilitó la IA para esta conversación"
+      }
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -350,9 +426,9 @@
       "ADDING_AGENTS": "Agregando Miembros a {channel}"
     },
     "ADD_AI_AGENT": {
-      "TITLE": "Añadir su asistente de IA",
-      "DESCRIPTION": "AI Bot que ayudará a responder a las conversaciones",
-      "NEW_LINK": "Haga clic aquí para añadir un AI Bot"
+      "TITLE": "Añadir su Empleado IA",
+      "DESCRIPTION": "Empleado IA que ayudará a responder a las conversaciones",
+      "NEW_LINK": "Haga clic aquí para añadir un Empleado IA"
     },
     "CANNED_RESPONSES": {
       "TITLE": "Crea respuestas predefinidas",
@@ -365,7 +441,7 @@
       "FINISH": "Finish"
     },
     "ERROR": {
-      "BOT_CONFIGURATION": "Error durante la configuración del AI Bot",
+      "BOT_CONFIGURATION": "Error durante la configuración del Empleado IA",
       "STEP_NOT_COMPLETED": "Por favor, complete los pasos anteriores antes de continuar",
       "STEP_NOT_SAVED": "Error al guardar el paso actual",
       "STEP_NOT_LOADED": "Error al cargar el paso actual"

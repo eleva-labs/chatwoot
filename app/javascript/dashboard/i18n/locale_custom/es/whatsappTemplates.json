@@ -1,0 +1,47 @@
+{
+  "WHATSAPP_TEMPLATES": {
+    "MODAL": {
+      "TITLE": "Plantillas de Whatsapp",
+      "SUBTITLE": "Seleccione la plantilla de Whatsapp que desea enviar",
+      "TEMPLATE_SELECTED_SUBTITLE": "Configurar plantilla: {templateName}"
+    },
+    "PICKER": {
+      "SEARCH_PLACEHOLDER": "Buscar plantillas",
+      "NO_TEMPLATES_FOUND": "No se encontraron plantillas para",
+      "HEADER": "Encabezado",
+      "BODY": "Cuerpo",
+      "FOOTER": "Pie de página",
+      "BUTTONS": "Botones",
+      "CATEGORY": "Categoría",
+      "MEDIA_CONTENT": "Contenido multimedia",
+      "MEDIA_CONTENT_FALLBACK": "contenido multimedia",
+      "NO_TEMPLATES_AVAILABLE": "No hay plantillas de WhatsApp disponibles. Haga clic en actualizar para sincronizar plantillas desde WhatsApp.",
+      "REFRESH_BUTTON": "Actualizar plantillas",
+      "REFRESH_SUCCESS": "Actualización de plantillas iniciada. Puede tomar un par de minutos en actualizarse.",
+      "REFRESH_ERROR": "Error al actualizar las plantillas. Por favor intente de nuevo.",
+      "LABELS": {
+        "LANGUAGE": "Idioma",
+        "TEMPLATE_BODY": "Cuerpo de plantilla",
+        "CATEGORY": "Categoría"
+      }
+    },
+    "PARSER": {
+      "VARIABLES_LABEL": "Variables",
+      "LANGUAGE": "Idioma",
+      "CATEGORY": "Categoría",
+      "VARIABLE_PLACEHOLDER": "Introduzca el valor de {variable}",
+      "GO_BACK_LABEL": "Volver",
+      "SEND_MESSAGE_LABEL": "Enviar mensaje",
+      "FORM_ERROR_MESSAGE": "Por favor, rellene todas las variables antes de enviar",
+      "MEDIA_HEADER_LABEL": "Encabezado {type}",
+      "OTP_CODE": "Ingrese código OTP de 4-8 dígitos",
+      "EXPIRY_MINUTES": "Ingrese minutos de expiración",
+      "BUTTON_PARAMETERS": "Parámetros de botón",
+      "BUTTON_LABEL": "Botón {index}",
+      "COUPON_CODE": "Ingrese código de cupón (máx. 15 caracteres)",
+      "MEDIA_URL_LABEL": "Ingrese URL de {type}",
+      "DOCUMENT_NAME_PLACEHOLDER": "Ingrese nombre de archivo de documento (ej., Factura_2025.pdf)",
+      "BUTTON_PARAMETER": "Ingrese parámetro de botón"
+    }
+  }
+}

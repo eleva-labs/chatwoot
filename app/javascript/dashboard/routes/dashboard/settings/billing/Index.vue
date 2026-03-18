@@ -1,11 +1,14 @@
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useMapGetter, useStore } from 'dashboard/composables/store.js';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
 import { format, parseISO } from 'date-fns';
+import { useCaptain } from 'dashboard/composables/useCaptain';
+import sessionStorage from 'shared/helpers/sessionStorage';
 
+import BillingMeter from './components/BillingMeter.vue';
 import BillingCard from './components/BillingCard.vue';
 import BillingHeader from './components/BillingHeader.vue';
 import BillingLimitsCard from './components/BillingLimitsCard.vue';
@@ -17,12 +20,25 @@ import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import ButtonV4 from 'next/button/Button.vue';
 
-const { currentAccount } = useAccount();
-const { t } = useI18n();
-const route = useRoute();
+const router = useRouter();
+const { currentAccount, isOnChatwootCloud } = useAccount();
+const {
+  captainEnabled,
+  captainLimits,
+  documentLimits,
+  responseLimits,
+  fetchLimits,
+} = useCaptain();
 
 const uiFlags = useMapGetter('accounts/getUIFlags');
 const store = useStore();
+const { t } = useI18n();
+
+const BILLING_REFRESH_ATTEMPTED = 'billing_refresh_attempted';
+
+// State for handling refresh attempts and loading
+const isWaitingForBilling = ref(false);
+
 const customAttributes = computed(() => {
   return currentAccount.value.custom_attributes || {};
 });
@@ -53,8 +69,10 @@ const convertIsoDate = value => {
 };
 
 const billingDate = computed(() => {
-  const { current_period_end: currentPeriodEnd, subscription_ends_on: subscriptionEndsOn } =
-    customAttributes.value;
+  const {
+    current_period_end: currentPeriodEnd,
+    subscription_ends_on: subscriptionEndsOn,
+  } = customAttributes.value;
 
   const timestampDate = convertTimestampToDate(currentPeriodEnd);
   if (timestampDate) {
@@ -65,8 +83,10 @@ const billingDate = computed(() => {
 });
 
 const subscriptionEndDate = computed(() => {
-  const { current_period_end: currentPeriodEnd, subscription_ends_on: subscriptionEndsOn } =
-    customAttributes.value;
+  const {
+    current_period_end: currentPeriodEnd,
+    subscription_ends_on: subscriptionEndsOn,
+  } = customAttributes.value;
 
   const subscriptionEnd = convertIsoDate(subscriptionEndsOn);
   if (subscriptionEnd) {
@@ -77,7 +97,7 @@ const subscriptionEndDate = computed(() => {
 });
 
 /**
- * Computed property for plan name with translation
+ * Computed property for plan name
  * @returns {string|undefined}
  */
 const planName = computed(() => {
@@ -91,11 +111,68 @@ const planName = computed(() => {
   return translatedName !== planTranslationKey ? translatedName : rawPlanName;
 });
 
+/**
+ * Computed property for subscribed quantity
+ * @returns {number|undefined}
+ */
+const subscribedQuantity = computed(() => {
+  return customAttributes.value.subscribed_quantity;
+});
+
+const cancelAtPeriodEnd = computed(() => {
+  const flag = customAttributes.value.cancel_at_period_end;
+  const normalizedFlag = typeof flag === 'string' ? flag.toLowerCase() : flag;
+
+  // Check if cancel_at_period_end is explicitly true
+  if (normalizedFlag === true || normalizedFlag === 'true') {
+    return true;
+  }
+
+  // Also check if cancel_at exists and is in the future
+  // When using cancel_at parameter, cancel_at_period_end might be false
+  // but the subscription is still scheduled to cancel
+  const cancelAtValue = customAttributes.value.cancel_at;
+  if (cancelAtValue) {
+    const cancelAtDate = convertTimestampToDate(cancelAtValue);
+    if (cancelAtDate && cancelAtDate > new Date()) {
+      return true;
+    }
+  }
+
+  return false;
+});
+
+const scheduledCancellationDate = computed(() => {
+  // Check if cancel_at_period_end is explicitly true
+  // In this case, cancellation happens at period end, so use subscriptionEndDate
+  const flag = customAttributes.value.cancel_at_period_end;
+  const normalizedFlag = typeof flag === 'string' ? flag.toLowerCase() : flag;
+
+  if (normalizedFlag === true || normalizedFlag === 'true') {
+    return subscriptionEndDate.value;
+  }
+
+  // If cancel_at is set (specific cancellation timestamp), use that date
+  // This is different from cancel_at_period_end - it's a specific future date
+  const cancelAtValue = customAttributes.value.cancel_at;
+  if (cancelAtValue) {
+    const cancelAtDate = convertTimestampToDate(cancelAtValue);
+    if (cancelAtDate && cancelAtDate > new Date()) {
+      return cancelAtDate;
+    }
+  }
+
+  return null;
+});
+
+const scheduledCancellationLabel = computed(() => {
+  const date = scheduledCancellationDate.value;
+  return date ? format(date, 'dd MMM, yyyy') : null;
+});
+
 const subscriptionRenewsOn = computed(() => {
   // Return '-' if subscription is not active or no end date
-  if (
-    customAttributes.value.subscription_status !== 'active'
-  ) {
+  if (customAttributes.value.subscription_status !== 'active') {
     return '-';
   }
 
@@ -134,59 +211,6 @@ const subscriptionEndsOn = computed(() => {
   return date ? format(date, 'dd MMM, yyyy') : '-';
 });
 
-const cancelAtPeriodEnd = computed(() => {
-  const flag = customAttributes.value.cancel_at_period_end;
-  const normalizedFlag =
-    typeof flag === 'string' ? flag.toLowerCase() : flag;
-
-  // Check if cancel_at_period_end is explicitly true
-  if (normalizedFlag === true || normalizedFlag === 'true') {
-    return true;
-  }
-
-  // Also check if cancel_at exists and is in the future
-  // When using cancel_at parameter, cancel_at_period_end might be false
-  // but the subscription is still scheduled to cancel
-  const cancelAtValue = customAttributes.value.cancel_at;
-  if (cancelAtValue) {
-    const cancelAtDate = convertTimestampToDate(cancelAtValue);
-    if (cancelAtDate && cancelAtDate > new Date()) {
-      return true;
-    }
-  }
-
-  return false;
-});
-
-const scheduledCancellationDate = computed(() => {
-  // Check if cancel_at_period_end is explicitly true
-  // In this case, cancellation happens at period end, so use subscriptionEndDate
-  const flag = customAttributes.value.cancel_at_period_end;
-  const normalizedFlag =
-    typeof flag === 'string' ? flag.toLowerCase() : flag;
-  
-  if (normalizedFlag === true || normalizedFlag === 'true') {
-    return subscriptionEndDate.value;
-  }
-  
-  // If cancel_at is set (specific cancellation timestamp), use that date
-  // This is different from cancel_at_period_end - it's a specific future date
-  const cancelAtValue = customAttributes.value.cancel_at;
-  if (cancelAtValue) {
-    const cancelAtDate = convertTimestampToDate(cancelAtValue);
-    if (cancelAtDate && cancelAtDate > new Date()) {
-      return cancelAtDate;
-    }
-  }
-  
-  return null;
-});
-
-const scheduledCancellationLabel = computed(() => {
-  const date = scheduledCancellationDate.value;
-  return date ? format(date, 'dd MMM, yyyy') : null;
-});
-
 /**
  * Computed property indicating if user has a billing plan
  * @returns {boolean}
@@ -195,10 +219,6 @@ const hasABillingPlan = computed(() => {
   return !!planName.value;
 });
 
-/**
- * Computed property indicating if user has a fully set up billing (with Stripe customer)
- * @returns {boolean}
- */
 const hasStripeCustomer = computed(() => {
   return !!customAttributes.value.stripe_customer_id;
 });
@@ -230,10 +250,41 @@ const fetchAccountDetails = async () => {
   await store.dispatch('accounts/subscription');
   // Fetch limits after subscription data is loaded
   await store.dispatch('accounts/limits');
+  fetchLimits();
 };
 
-const onClickBillingPortal = async () => {
-  await store.dispatch('accounts/checkout');
+const handleBillingPageLogic = async () => {
+  // If self-hosted, redirect to dashboard
+  if (!isOnChatwootCloud.value) {
+    router.push({ name: 'home' });
+    return;
+  }
+
+  // Check if we've already attempted a refresh for billing setup
+  const billingRefreshAttempted = sessionStorage.get(BILLING_REFRESH_ATTEMPTED);
+
+  // If cloud user, fetch account details first
+  await fetchAccountDetails();
+
+  // If still no billing plan after fetch
+  if (!hasABillingPlan.value) {
+    // If we haven't attempted refresh yet, do it once
+    if (!billingRefreshAttempted) {
+      isWaitingForBilling.value = true;
+      sessionStorage.set(BILLING_REFRESH_ATTEMPTED, true);
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+    } else {
+      // We've already tried refreshing, so just show the no billing message
+      // Clear the flag for future visits
+      sessionStorage.remove(BILLING_REFRESH_ATTEMPTED);
+    }
+  } else {
+    // Billing plan found, clear any existing refresh flag
+    sessionStorage.remove(BILLING_REFRESH_ATTEMPTED);
+  }
 };
 
 const onCreateSubscription = async (planNameParam = 'starter') => {
@@ -248,11 +299,11 @@ const onCreateSubscription = async (planNameParam = 'starter') => {
   }
 };
 
-const onBillingButtonClick = async () => {
+const onClickBillingPortal = async () => {
   if (billingButtonConfig.value.action === 'create_new') {
     await onCreateSubscription('starter');
   } else {
-    await onClickBillingPortal();
+    await store.dispatch('accounts/checkout');
   }
 };
 
@@ -260,25 +311,19 @@ const onToggleChatWindow = () => {
   window.open('https://wa.me/50672925075', '_blank', 'noopener,noreferrer');
 };
 
-const checkForCheckoutSuccess = () => {
-  if (route.query.success === 'true') {
-    setTimeout(async () => {
-      await fetchAccountDetails();
-    }, 2000);
-  }
-};
-
-onMounted(() => {
-  fetchAccountDetails();
-  checkForCheckoutSuccess();
-});
+onMounted(handleBillingPageLogic);
 </script>
 
 <template>
   <SettingsLayout
-    :is-loading="uiFlags.isFetchingItem"
-    :loading-message="$t('ATTRIBUTES_MGMT.LOADING')"
-    :no-records-found="false"
+    :is-loading="uiFlags.isFetchingItem || isWaitingForBilling"
+    :loading-message="
+      isWaitingForBilling
+        ? $t('BILLING_SETTINGS.NO_BILLING_USER')
+        : $t('ATTRIBUTES_MGMT.LOADING')
+    "
+    :no-records-found="!hasABillingPlan && !isWaitingForBilling"
+    :no-records-message="$t('BILLING_SETTINGS.NO_BILLING_USER')"
   >
     <template #header>
       <BaseSettingsHeader
@@ -299,53 +344,27 @@ onMounted(() => {
             :has-stripe-customer="hasStripeCustomer"
           />
         </div>
-
-        <!-- Setup Subscription Card (for users without billing plans) -->
         <BillingCard
-          v-if="!hasABillingPlan"
           :title="$t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.TITLE')"
           :description="$t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.DESCRIPTION')"
         >
           <template #action>
-            <ButtonV4 sm solid blue @click="onCreateSubscription('starter')">
+            <ButtonV4 sm solid blue @click="onClickBillingPortal">
               {{ $t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.BUTTON_TXT') }}
             </ButtonV4>
           </template>
-        </BillingCard>
-
-        <!-- Manage Subscription Card (for users with billing plans) -->
-        <BillingCard
-          v-if="hasABillingPlan"
-          :title="$t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.TITLE')"
-          :description="$t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.DESCRIPTION')"
-        >
-          <template #action>
-            <ButtonV4
-              v-if="hasStripeCustomer"
-              sm
-              solid
-              blue
-              @click="onBillingButtonClick"
-            >
-              {{ billingButtonConfig.text }}
-            </ButtonV4>
-            <ButtonV4
-              v-else
-              sm
-              solid
-              blue
-              @click="onCreateSubscription('starter')"
-            >
-              {{ t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.BUTTON_TXT') }}
-            </ButtonV4>
-          </template>
           <div
-            v-if="planName || subscriptionRenewsOn"
-            class="grid lg:grid-cols-5 sm:grid-cols-5 grid-cols-1 gap-2 divide-x divide-n-weak"
+            v-if="planName || subscribedQuantity || subscriptionRenewsOn"
+            class="grid lg:grid-cols-4 sm:grid-cols-3 grid-cols-1 gap-2 divide-x divide-n-weak"
           >
             <DetailItem
               :label="$t('BILLING_SETTINGS.CURRENT_PLAN.TITLE')"
               :value="planName"
+            />
+            <DetailItem
+              v-if="subscribedQuantity"
+              :label="$t('BILLING_SETTINGS.CURRENT_PLAN.SEAT_COUNT')"
+              :value="subscribedQuantity"
             />
             <DetailItem
               v-if="subscriptionRenewsOn"
@@ -353,14 +372,50 @@ onMounted(() => {
               :value="subscriptionRenewsOn"
             />
             <DetailItem
-              :label="$t('BILLING_SETTINGS.CURRENT_PLAN.ENDS_ON')"
-              :value="subscriptionEndsOn"
-            />
-            <DetailItem
+              v-if="subscriptionStatus"
               :label="$t('BILLING_SETTINGS.CURRENT_PLAN.STATUS')"
               :value="subscriptionStatus"
             />
+            <DetailItem
+              v-if="subscriptionEndsOn"
+              :label="$t('BILLING_SETTINGS.CURRENT_PLAN.ENDS_ON')"
+              :value="subscriptionEndsOn"
+            />
           </div>
+        </BillingCard>
+        <BillingCard
+          v-if="captainEnabled"
+          :title="$t('BILLING_SETTINGS.CAPTAIN.TITLE')"
+          :description="$t('BILLING_SETTINGS.CAPTAIN.DESCRIPTION')"
+        >
+          <template #action>
+            <ButtonV4 sm faded slate disabled>
+              {{ $t('BILLING_SETTINGS.CAPTAIN.BUTTON_TXT') }}
+            </ButtonV4>
+          </template>
+          <div v-if="captainLimits && responseLimits" class="px-5">
+            <BillingMeter
+              :title="$t('BILLING_SETTINGS.CAPTAIN.RESPONSES')"
+              v-bind="responseLimits"
+            />
+          </div>
+          <div v-if="captainLimits && documentLimits" class="px-5">
+            <BillingMeter
+              :title="$t('BILLING_SETTINGS.CAPTAIN.DOCUMENTS')"
+              v-bind="documentLimits"
+            />
+          </div>
+        </BillingCard>
+        <BillingCard
+          v-else
+          :title="$t('BILLING_SETTINGS.CAPTAIN.TITLE')"
+          :description="$t('BILLING_SETTINGS.CAPTAIN.UPGRADE')"
+        >
+          <template #action>
+            <ButtonV4 sm solid slate @click="onClickBillingPortal">
+              {{ $t('CAPTAIN.PAYWALL.UPGRADE_NOW') }}
+            </ButtonV4>
+          </template>
         </BillingCard>
 
         <!-- Usage Limits Card (for users with billing plans) -->
@@ -382,7 +437,7 @@ onMounted(() => {
             solid
             slate
             icon="i-lucide-life-buoy"
-            @click="onToggleChatWindow"
+            @open="onToggleChatWindow"
           >
             {{ $t('BILLING_SETTINGS.CHAT_WITH_US.BUTTON_TXT') }}
           </ButtonV4>

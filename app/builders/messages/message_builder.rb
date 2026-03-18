@@ -7,6 +7,7 @@ class Messages::MessageBuilder
     @private = params[:private] || false
     @conversation = conversation
     @user = user
+    @account = conversation.account
     @message_type = params[:message_type] || 'outgoing'
     @attachments = params[:attachments]
     @automation_rule = content_attributes&.dig(:automation_rule_id)
@@ -20,6 +21,9 @@ class Messages::MessageBuilder
     @message = @conversation.messages.build(message_params)
     process_attachments
     process_emails
+    # When the message has no quoted content, it will just be rendered as a regular message
+    # The frontend is equipped to handle this case
+    process_email_content
     @message.save!
     @message
   end
@@ -92,6 +96,14 @@ class Messages::MessageBuilder
     @message.content_attributes[:to_emails] = to_emails
   end
 
+  def process_email_content
+    return unless should_process_email_content?
+
+    @message.content_attributes ||= {}
+    email_attributes = build_email_attributes
+    @message.content_attributes[:email] = email_attributes
+  end
+
   def process_email_string(email_string)
     return [] if email_string.blank?
 
@@ -132,6 +144,24 @@ class Messages::MessageBuilder
     @params[:template_params].present? ? { additional_attributes: { template_params: JSON.parse(@params[:template_params].to_json) } } : {}
   end
 
+  def is_notification
+    @params[:is_notification].present? ? { additional_attributes: { is_notification: @params[:is_notification] } } : {}
+  end
+
+  def additional_attributes
+    return {} unless @params[:additional_attributes].present?
+
+    attrs = @params[:additional_attributes]
+    # Parse if it's a JSON string
+    attrs = JSON.parse(attrs) if attrs.is_a?(String)
+    # Convert ActionController::Parameters to hash if needed
+    attrs = attrs.to_unsafe_h if attrs.instance_of?(ActionController::Parameters)
+
+    { additional_attributes: attrs }
+  rescue JSON::ParserError
+    {}
+  end
+
   def message_sender
     return if @params[:sender_type] != 'AgentBot'
 
@@ -151,6 +181,73 @@ class Messages::MessageBuilder
       in_reply_to: @in_reply_to,
       echo_id: @params[:echo_id],
       source_id: @params[:source_id]
-    }.merge(external_created_at).merge(automation_rule_id).merge(campaign_id).merge(template_params)
+    }.merge(external_created_at).merge(automation_rule_id).merge(campaign_id).merge(template_params).merge(is_notification).merge(additional_attributes)
+  end
+
+  def email_inbox?
+    @conversation.inbox&.inbox_type == 'Email'
+  end
+
+  def should_process_email_content?
+    email_inbox? && !@private && @message.content.present?
+  end
+
+  def build_email_attributes
+    email_attributes = ensure_indifferent_access(@message.content_attributes[:email] || {})
+    normalized_content = normalize_email_body(@message.content)
+
+    # Use custom HTML content if provided, otherwise generate from message content
+    email_attributes[:html_content] = if custom_email_content_provided?
+                                        build_custom_html_content
+                                      else
+                                        build_html_content(normalized_content)
+                                      end
+
+    email_attributes[:text_content] = build_text_content(normalized_content)
+    email_attributes
+  end
+
+  def build_html_content(normalized_content)
+    html_content = ensure_indifferent_access(@message.content_attributes.dig(:email, :html_content) || {})
+    rendered_html = render_email_html(normalized_content)
+    html_content[:full] = rendered_html
+    html_content[:reply] = rendered_html
+    html_content
+  end
+
+  def build_text_content(normalized_content)
+    text_content = ensure_indifferent_access(@message.content_attributes.dig(:email, :text_content) || {})
+    text_content[:full] = normalized_content
+    text_content[:reply] = normalized_content
+    text_content
+  end
+
+  def ensure_indifferent_access(hash)
+    return {} if hash.blank?
+
+    hash.respond_to?(:with_indifferent_access) ? hash.with_indifferent_access : hash
+  end
+
+  def normalize_email_body(content)
+    content.to_s.gsub("\r\n", "\n")
+  end
+
+  def render_email_html(content)
+    return '' if content.blank?
+
+    ChatwootMarkdownRenderer.new(content).render_message.to_s
+  end
+
+  def custom_email_content_provided?
+    @params[:email_html_content].present?
+  end
+
+  def build_custom_html_content
+    html_content = ensure_indifferent_access(@message.content_attributes.dig(:email, :html_content) || {})
+
+    html_content[:full] = @params[:email_html_content]
+    html_content[:reply] = @params[:email_html_content]
+
+    html_content
   end
 end

@@ -1,0 +1,38 @@
+<script setup>
+import { computed } from 'vue';
+
+const props = defineProps({
+  part: { type: Object, required: true },
+  role: { type: String, required: true },
+  isStreaming: { type: Boolean, default: false },
+  renderMarkdown: { type: Function, default: null },
+});
+
+// The adapter now handles deep cloning during streaming,
+// so props.part.text will be reactive
+const text = computed(() => props.part?.text || '');
+
+const formattedContent = computed(() => {
+  if (props.renderMarkdown) return props.renderMarkdown(text.value);
+  return text.value;
+});
+
+const showCursor = computed(
+  () => props.isStreaming && props.role === 'assistant'
+);
+</script>
+
+<template>
+  <div class="ai-text-part animate-fade-in-up">
+    <slot name="content" :text="text" :formatted="formattedContent">
+      <span
+        v-dompurify-html="formattedContent"
+        class="prose prose-bubble text-n-slate-12"
+      />
+    </slot>
+    <span
+      v-if="showCursor"
+      class="inline-block w-2 h-4 ml-0.5 bg-n-slate-11 animate-pulse"
+    />
+  </div>
+</template>

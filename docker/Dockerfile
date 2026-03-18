@@ -35,6 +35,7 @@ RUN apk update && apk add --no-cache \
   curl \
   xz \
   ffmpeg \
+  libheif-dev \
   && mkdir -p /var/app \
   && gem install bundler
 
@@ -142,6 +143,7 @@ RUN apk update && apk add --no-cache \
   imagemagick \
   git \
   vips \
+  vips-heif \
   ffmpeg \
   && gem install bundler
 
@@ -163,5 +165,9 @@ COPY --from=pre-builder /app /app
 COPY --from=pre-builder /app/.git_sha /app/.git_sha
 
 WORKDIR /app
+
+# Set production entrypoint for automatic migrations
+COPY docker/entrypoints/production.sh /usr/local/bin/
+ENTRYPOINT ["production.sh"]
 
 EXPOSE 3000

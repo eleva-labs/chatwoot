@@ -9,26 +9,30 @@ describe Whatsapp::WebhookSetupService do
              'webhook_verify_token' => 'test_verify_token'
            },
            provider: 'whatsapp_cloud',
-           sync_templates: false)
+           sync_templates: false,
+           validate_provider_config: false)
   end
   let(:waba_id) { 'test_waba_id' }
   let(:access_token) { 'test_access_token' }
   let(:service) { described_class.new(channel, waba_id, access_token) }
   let(:api_client) { instance_double(Whatsapp::FacebookApiClient) }
+  let(:health_service) { instance_double(Whatsapp::HealthService) }
 
   before do
     # Stub webhook teardown to prevent HTTP calls during cleanup
     stub_request(:delete, /graph.facebook.com/).to_return(status: 200, body: '{}', headers: {})
 
-    # Stub WhatsApp Cloud provider config validation (called during channel creation)
-    stub_request(:get, %r{https://graph\.facebook\.com/v\d+\.\d+/\d+/message_templates})
-      .to_return(status: 200, body: '{"data": []}', headers: { 'Content-Type' => 'application/json' })
-
     # Clean up any existing channels to avoid phone number conflicts
     Channel::Whatsapp.destroy_all
     allow(Whatsapp::FacebookApiClient).to receive(:new).and_return(api_client)
-    # Default stub for phone_number_verified? with any argument
+    allow(Whatsapp::HealthService).to receive(:new).and_return(health_service)
+
+    # Default stubs for phone_number_verified? and health service
     allow(api_client).to receive(:phone_number_verified?).and_return(false)
+    allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                        platform_type: 'APPLICABLE',
+                                                                        throughput: { level: 'APPLICABLE' }
+                                                                      })
   end
 
   describe '#perform' do
@@ -52,9 +56,13 @@ describe Whatsapp::WebhookSetupService do
       end
     end
 
-    context 'when phone number IS verified (should NOT register)' do
+    context 'when phone number IS verified AND fully provisioned (should NOT register)' do
       before do
         allow(api_client).to receive(:phone_number_verified?).with('123456789').and_return(true)
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'APPLICABLE',
+                                                                            throughput: { level: 'APPLICABLE' }
+                                                                          })
         allow(api_client).to receive(:subscribe_waba_webhook)
           .with(waba_id, anything, 'test_verify_token').and_return({ 'success' => true })
       end
@@ -69,18 +77,86 @@ describe Whatsapp::WebhookSetupService do
       end
     end
 
+    context 'when phone number IS verified BUT needs registration (pending provisioning)' do
+      before do
+        allow(api_client).to receive(:phone_number_verified?).with('123456789').and_return(true)
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'NOT_APPLICABLE',
+                                                                            throughput: { level: 'APPLICABLE' }
+                                                                          })
+        allow(SecureRandom).to receive(:random_number).with(900_000).and_return(123_456)
+        allow(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+        allow(api_client).to receive(:subscribe_waba_webhook)
+          .with(waba_id, anything, 'test_verify_token').and_return({ 'success' => true })
+        allow(channel).to receive(:save!)
+      end
+
+      it 'registers the phone number due to pending provisioning state' do
+        with_modified_env FRONTEND_URL: 'https://app.chatwoot.com' do
+          expect(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+          expect(api_client).to receive(:subscribe_waba_webhook)
+            .with(waba_id, 'https://app.chatwoot.com/webhooks/whatsapp/+1234567890', 'test_verify_token')
+          service.perform
+        end
+      end
+    end
+
+    context 'when phone number needs registration due to throughput level' do
+      before do
+        allow(api_client).to receive(:phone_number_verified?).with('123456789').and_return(true)
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'APPLICABLE',
+                                                                            throughput: { level: 'NOT_APPLICABLE' }
+                                                                          })
+        allow(SecureRandom).to receive(:random_number).with(900_000).and_return(123_456)
+        allow(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+        allow(api_client).to receive(:subscribe_waba_webhook)
+          .with(waba_id, anything, 'test_verify_token').and_return({ 'success' => true })
+        allow(channel).to receive(:save!)
+      end
+
+      it 'registers the phone number due to throughput not applicable' do
+        with_modified_env FRONTEND_URL: 'https://app.chatwoot.com' do
+          expect(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+          expect(api_client).to receive(:subscribe_waba_webhook)
+            .with(waba_id, 'https://app.chatwoot.com/webhooks/whatsapp/+1234567890', 'test_verify_token')
+          service.perform
+        end
+      end
+    end
+
     context 'when phone_number_verified? raises error' do
       before do
         allow(api_client).to receive(:phone_number_verified?).with('123456789').and_raise('API down')
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'APPLICABLE',
+                                                                            throughput: { level: 'APPLICABLE' }
+                                                                          })
         allow(SecureRandom).to receive(:random_number).with(900_000).and_return(123_456)
         allow(api_client).to receive(:register_phone_number)
         allow(api_client).to receive(:subscribe_waba_webhook).and_return({ 'success' => true })
         allow(channel).to receive(:save!)
       end
 
-      it 'tries to register phone and proceeds with webhook setup' do
+      it 'tries to register phone (due to verification error) and proceeds with webhook setup' do
         with_modified_env FRONTEND_URL: 'https://app.chatwoot.com' do
           expect(api_client).to receive(:register_phone_number)
+          expect(api_client).to receive(:subscribe_waba_webhook)
+          expect { service.perform }.not_to raise_error
+        end
+      end
+    end
+
+    context 'when health service raises error' do
+      before do
+        allow(api_client).to receive(:phone_number_verified?).with('123456789').and_return(true)
+        allow(health_service).to receive(:fetch_health_status).and_raise('Health API down')
+        allow(api_client).to receive(:subscribe_waba_webhook).and_return({ 'success' => true })
+      end
+
+      it 'does not register phone (conservative approach) and proceeds with webhook setup' do
+        with_modified_env FRONTEND_URL: 'https://app.chatwoot.com' do
+          expect(api_client).not_to receive(:register_phone_number)
           expect(api_client).to receive(:subscribe_waba_webhook)
           expect { service.perform }.not_to raise_error
         end
@@ -178,7 +254,7 @@ describe Whatsapp::WebhookSetupService do
     end
 
     context 'when used during reauthorization flow' do
-      let(:channel) do
+      let(:existing_channel) do
         create(:channel_whatsapp,
                phone_number: '+1234567890',
                provider_config: {
@@ -188,16 +264,18 @@ describe Whatsapp::WebhookSetupService do
                  'waba_id' => 'existing_waba_id'
                },
                provider: 'whatsapp_cloud',
-               sync_templates: false).tap do |chan|
-          chan.prompt_reauthorization!
-        end
+               sync_templates: false,
+               validate_provider_config: false)
       end
-      let(:new_access_token) { 'new_test_access_token' }
-      let(:new_waba_id) { 'new_test_waba_id' }
-      let(:service_reauth) { described_class.new(channel, waba_id, new_access_token) }
+      let(:new_access_token) { 'new_access_token' }
+      let(:service_reauth) { described_class.new(existing_channel, waba_id, new_access_token) }
 
       before do
         allow(api_client).to receive(:phone_number_verified?).with('123456789').and_return(true)
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'APPLICABLE',
+                                                                            throughput: { level: 'APPLICABLE' }
+                                                                          })
         allow(api_client).to receive(:subscribe_waba_webhook)
           .with(waba_id, anything, 'existing_verify_token').and_return({ 'success' => true })
       end
@@ -223,6 +301,10 @@ describe Whatsapp::WebhookSetupService do
     context 'when webhook setup is successful in creation flow' do
       before do
         allow(api_client).to receive(:phone_number_verified?).with('123456789').and_return(true)
+        allow(health_service).to receive(:fetch_health_status).and_return({
+                                                                            platform_type: 'APPLICABLE',
+                                                                            throughput: { level: 'APPLICABLE' }
+                                                                          })
         allow(api_client).to receive(:subscribe_waba_webhook)
           .with(waba_id, anything, 'test_verify_token').and_return({ 'success' => true })
       end

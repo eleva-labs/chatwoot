@@ -2,6 +2,8 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
   include EmailHelper
 
   def omniauth_success
+    return redirect_to_auth_failure if invalid_auth_hash?
+
     get_resource_from_auth_hash
 
     @resource.present? ? sign_in_user : sign_up_user
@@ -17,6 +19,19 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
     # that will log them in
     encoded_email = ERB::Util.url_encode(@resource.email)
     redirect_to login_page_url(email: encoded_email, sso_auth_token: @resource.generate_sso_auth_token), allow_other_host: true
+  end
+
+  def sign_in_user_on_mobile
+    @resource.skip_confirmation! if confirmable_enabled?
+
+    # once the resource is found and verified
+    # we can just send them to the login page again with the SSO params
+    # that will log them in
+    encoded_email = ERB::Util.url_encode(@resource.email)
+    params = { email: encoded_email, sso_auth_token: @resource.generate_sso_auth_token }.to_query
+
+    mobile_deep_link_base = GlobalConfigService.load('MOBILE_DEEP_LINK_BASE', 'chatwootapp')
+    redirect_to "#{mobile_deep_link_base}://auth/saml?#{params}", allow_other_host: true
   end
 
   def sign_up_user
@@ -47,13 +62,25 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
   end
 
   def get_resource_from_auth_hash # rubocop:disable Naming/AccessorMethodName
-    email = auth_hash.dig('info', 'email')
+    email = auth_hash_email
     @resource = resource_class.from_email(email)
+  end
+
+  def invalid_auth_hash?
+    auth_hash.blank? || auth_hash_email.blank?
+  end
+
+  def auth_hash_email
+    auth_hash&.dig('info', 'email')
+  end
+
+  def redirect_to_auth_failure
+    redirect_to login_page_url(error: 'authentication-failed')
   end
 
   def validate_signup_email_is_business_domain?
     # return true if the user is a business account, false if it is a blocked domain account
-    Account::SignUpEmailValidationService.new(auth_hash['info']['email']).perform
+    Account::SignUpEmailValidationService.new(auth_hash_email).perform
   rescue CustomExceptions::Account::InvalidEmail
     false
   end
@@ -62,9 +89,9 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
     @resource, @account = AccountBuilder.new(
       # Grab the account name from the auth hash, if it's not present, use the domain without the tld
       # Specifically for Google sign in, since the account name would be gmail instead of the user's name
-      account_name: auth_hash['info']['name'] || extract_domain_without_tld(auth_hash['info']['email']),
+      account_name: auth_hash['info']['name'] || extract_domain_without_tld(auth_hash_email),
       user_full_name: auth_hash['info']['name'],
-      email: auth_hash['info']['email'],
+      email: auth_hash_email,
       locale: I18n.locale,
       confirmed: auth_hash['info']['email_verified']
     ).perform

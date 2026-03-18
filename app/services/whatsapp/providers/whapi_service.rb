@@ -273,9 +273,10 @@ class Whatsapp::Providers::WhapiService < Whatsapp::Providers::BaseService
     # Build query parameters as required by Whapi
     query_params = build_whapi_send_params(phone_number, message, attachment, whapi_type)
 
-    # Download the file content for the request body
-    file_content = download_attachment_content(attachment)
-    content_type = get_whapi_content_type(attachment, whapi_type)
+    # Download the file content for the request body (may convert HEIC->JPEG)
+    file_content, content_type = download_attachment_content(attachment)
+    # Fall back to original content type resolution for non-tuple legacy paths
+    content_type ||= get_whapi_content_type(attachment, whapi_type)
 
     if Rails.env.development?
       Rails.logger.debug { "WHAPI content type: #{content_type}" }
@@ -332,24 +333,27 @@ class Whatsapp::Providers::WhapiService < Whatsapp::Providers::BaseService
     params
   end
 
+  # Returns [file_content_bytes, content_type_string]
   def download_attachment_content(attachment)
     if attachment.file.content_type&.include?('audio/')
       # For audio, we might need conversion - get the converted file URL and download it
       converted_url = Whatsapp::AudioConversionService.convert_to_whatsapp_format(attachment)
 
-      # If it's a local URL, read the file directly
-      if converted_url.include?('rails/active_storage')
-        # Download from Rails blob
-        attachment.file.download
-      else
-        # Download from external URL
-        safe_http_request_with_retry('whapi_download_media') do
-          HTTParty.get(converted_url, timeout: whapi_timeout).body  # Configurable timeout for file downloads
-        end
-      end
+      audio_content = if converted_url.include?('rails/active_storage')
+                        attachment.file.download
+                      else
+                        safe_http_request_with_retry('whapi_download_media') do
+                          HTTParty.get(converted_url, timeout: whapi_timeout).body
+                        end
+                      end
+
+      [audio_content, 'audio/ogg']
+    elsif Whatsapp::ImageConversionService::HEIC_CONTENT_TYPES.include?(attachment.file.content_type&.downcase)
+      # HEIC images need conversion to JPEG for WHAPI compatibility
+      Whatsapp::ImageConversionService.convert_if_needed(attachment)
     else
       # For other file types, download directly
-      attachment.file.download
+      [attachment.file.download, attachment.file.content_type]
     end
   end
 

@@ -1,10 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useStore } from 'vuex';
-import { getInboxIconByType } from 'dashboard/helper/inbox';
+import { useI18n } from 'vue-i18n';
 import { useRouter, useRoute } from 'vue-router';
+import { getInboxIconByType } from 'dashboard/helper/inbox';
 import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper.js';
 import { dynamicTime, shortTimestamp } from 'shared/helpers/timeHelper';
+import { useAlert } from 'dashboard/composables';
+import ConversationApi from 'dashboard/api/conversations.js';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -32,9 +34,9 @@ const props = defineProps({
   },
 });
 
+const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
-const store = useStore();
 
 const cardMessagePreviewWithMetaRef = ref(null);
 
@@ -68,7 +70,7 @@ const showMessagePreviewWithoutMeta = computed(() => {
 });
 
 const isAiEnabled = computed(() => {
-  return !!currentContact.value?.custom_attributes?.ai_enabled;
+  return !!props.conversation?.custom_attributes?.ai_enabled;
 });
 
 const onCardClick = e => {
@@ -91,14 +93,15 @@ const onCardClick = e => {
 };
 
 const onToggleAi = async () => {
-  const contactId = currentContact.value?.id;
-  if (!contactId) return;
+  const conversationId = props.conversation?.id;
+  if (!conversationId) return;
   const next = !isAiEnabled.value;
 
-  await store.dispatch('contacts/toggleAi', {
-    id: contactId,
-    aiEnabled: next,
-  });
+  try {
+    await ConversationApi.toggleAi(conversationId, next);
+  } catch {
+    useAlert(t('CONVERSATION.AI_TOGGLE_ERROR'));
+  }
 };
 </script>
 
@@ -120,9 +123,9 @@ const onToggleAi = async () => {
       <!-- Unread counter positioned at bottom-right of avatar -->
       <div
         v-if="conversation.unreadCount > 0"
-        class="absolute -bottom-1 -right-1 inline-flex items-center justify-center rounded-full size-5 bg-n-brand border-2 border-white"
+        class="absolute -bottom-0.5 -right-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-n-brand border-[1.5px] border-white px-0.5"
       >
-        <span class="text-xs font-semibold text-white">
+        <span class="text-[10px] font-semibold leading-none text-white">
           {{
             conversation.unreadCount > 9
               ? $t('COMBOBOX.MORE', { count: 9 })

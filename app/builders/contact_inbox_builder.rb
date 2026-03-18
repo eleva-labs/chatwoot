@@ -83,6 +83,8 @@ class ContactInboxBuilder
     contact_inbox
   rescue ActiveRecord::RecordNotUnique => e
     Rails.logger.warn "[ContactInboxBuilder] RecordNotUnique detected - source_id: #{@source_id}, contact_id: #{@contact.id}, inbox_id: #{@inbox.id}, error: #{e.message}"
+    raise e if whatsapp_channel?
+
     update_old_contact_inbox
     retry
   rescue ActiveRecord::RecordInvalid => e
@@ -119,5 +121,9 @@ class ContactInboxBuilder
 
   def allowed_channels?
     @inbox.email? || @inbox.sms? || @inbox.twilio? || @inbox.whatsapp?
+  end
+
+  def whatsapp_channel?
+    @inbox.whatsapp? || (@inbox.twilio? && @inbox.channel.whatsapp?)
   end
 end

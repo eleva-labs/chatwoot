@@ -35,7 +35,11 @@ const stepOrder = shallowRef({
   addChannelStep: 2,
   addAIAgentStep: 3,
 });
-const ONBOARDING_STEP_KEY = 'ai_backend_onboarding_current_step';
+const ONBOARDING_STEP_KEY_BASE = 'ai_backend_onboarding_current_step';
+const onboardingStepKey = computed(() => {
+  const id = currentAccount.value?.id;
+  return id ? `${ONBOARDING_STEP_KEY_BASE}::${id}` : ONBOARDING_STEP_KEY_BASE;
+});
 
 const onboardingSteps = shallowRef({
   [stepOrder.value.addAgentsStep]: {
@@ -102,7 +106,7 @@ const greetingMessage = computed(() => {
 
 function loadSavedStep() {
   try {
-    const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY);
+    const savedStep = localStorage.getItem(onboardingStepKey.value);
     if (savedStep !== null) {
       const stepNumber = parseInt(savedStep, 10);
       if (stepNumber >= 1 && stepNumber <= 3) {
@@ -117,10 +121,10 @@ function loadSavedStep() {
 
 function saveCurrentStep(step) {
   try {
-    localStorage.setItem(ONBOARDING_STEP_KEY, step.toString());
+    localStorage.setItem(onboardingStepKey.value, step.toString());
   } catch (error) {
     useAlert(t('ONBOARDING.ERROR.STEP_NOT_SAVED'));
-    localStorage.setItem(ONBOARDING_STEP_KEY, '1');
+    localStorage.setItem(onboardingStepKey.value, '1');
   }
 }
 
@@ -161,7 +165,7 @@ async function finishHandler() {
       })
     );
 
-    localStorage.removeItem(ONBOARDING_STEP_KEY);
+    localStorage.removeItem(onboardingStepKey.value);
   } catch (error) {
     useAlert(t('ONBOARDING.ERROR.BOT_CONFIGURATION'));
   }

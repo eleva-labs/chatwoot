@@ -34,7 +34,7 @@ export default {
     const {
       description = '',
       name: title = '',
-      allow_auto_assign: allowAutoAssign = true,
+      allow_auto_assign: allowAutoAssign = false,
     } = formData;
 
     const state = reactive({

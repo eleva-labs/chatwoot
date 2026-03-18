@@ -1,4 +1,7 @@
 class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseService
+  RENDERABLE_MESSAGE_TYPES = %w[text image video audio voice document sticker location contacts button interactive].freeze
+  UNSUPPORTED_BENIGN_MESSAGE_TYPES = %w[action ephemeral].freeze
+
   # This service is a complete override of the base service to handle the specific
   # webhook structure of WHAPI. It handles incoming messages, outgoing message
   # echoes, and status updates.
@@ -51,8 +54,19 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def process_messages
     params['messages'].each do |message_params|
+      unless message_params.is_a?(Hash)
+        log_malformed_message_item(message_params)
+        next
+      end
+
       # Ensure we have a consistent hash with symbols as keys
       message = message_params.with_indifferent_access
+
+      classification = classify_message(message)
+      unless classification[:outcome] == :renderable_message
+        log_message_skip(message, classification)
+        next
+      end
 
       # Ignore messages that are sent as part of a campaign
       next if message[:from_campaign] == true
@@ -70,6 +84,11 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def process_statuses
     params['statuses'].each do |status_params|
+      unless status_params.is_a?(Hash)
+        log_malformed_status_item(status_params)
+        next
+      end
+
       status = status_params.with_indifferent_access
       message = find_message_by_source_id(status[:id])
       next unless message
@@ -81,6 +100,8 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   # Message type processors
 
   def process_incoming_message(message)
+    return if missing_sender_for_incoming_message?(message)
+
     # Prevent processing duplicate messages
     return if message_already_processed?(message[:id])
 
@@ -94,6 +115,15 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   end
 
   def process_outgoing_message(message)
+    # Skip echoes of messages sent via the WHAPI API (i.e., sent by Chatwoot itself).
+    # These echoes arrive with a different message ID than the send response, so
+    # source_id dedup fails. The original message is already recorded.
+    # WHAPI source field docs: https://support.whapi.cloud/help-desk/receiving/webhooks/incoming-webhooks-format/incoming-message
+    if sent_via_api?(message)
+      Rails.logger.info { "[WhapiEcho] Skipping API-originated echo: id=#{message[:id]} type=#{message[:type]} chat=#{message[:chat_id]}" }
+      return
+    end
+
     # This is an echo of a message sent from the business's WhatsApp account,
     # potentially from a device outside of Chatwoot. We record it in the conversation.
     return if message_already_processed?(message[:id])
@@ -141,13 +171,14 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   # Contact and Conversation helpers
 
   def set_contact(message)
-    waid = processed_waid(message[:from])
+    waid = processed_waid(contact_source_id(message[:from]))
 
     # Build basic contact attributes
     contact_attributes = {
-      phone_number: "+#{message[:from]}",
       name: message[:from_name] || message[:from]
     }
+    phone_number = contact_phone_number(message[:from])
+    contact_attributes[:phone_number] = phone_number if phone_number.present?
 
     # Create or find contact first
     contact_inbox_builder = ::ContactInboxWithContactBuilder.new(
@@ -163,6 +194,24 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
     # Schedule contact info sync in background
     Whatsapp::Whapi::ContactSyncJob.perform_later(@contact.id, message[:from])
+  end
+
+  def contact_source_id(sender_id)
+    sender_id.to_s.split('@').first
+  end
+
+  def contact_phone_number(sender_id)
+    normalized_sender_id = contact_source_id(sender_id)
+    return unless bare_numeric_sender_id?(sender_id)
+
+    "+#{normalized_sender_id}"
+  end
+
+  # Only bare numeric sender ids should populate phone_number.
+  # Handles like 12345@lid still reuse the normalized source id, but they are
+  # not treated as a verified phone number on the contact record.
+  def bare_numeric_sender_id?(normalized_sender_id)
+    normalized_sender_id.to_s.match?(/\A\d{1,15}\z/)
   end
 
   def find_contact_inbox_for_outgoing(message)
@@ -219,14 +268,13 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
     attachment_file = download_attachment_file(attachment_payload)
     return if attachment_file.blank?
 
+    # Convert inbound OGG voice messages to M4A for iOS playback compatibility
+    file_attrs = Whatsapp::InboundAudioConversionService.convert_if_voice(attachment_file, message_type)
+
     @message.attachments.new(
       account_id: @message.account_id,
       file_type: file_content_type(message_type),
-      file: {
-        io: attachment_file,
-        filename: attachment_file.original_filename,
-        content_type: attachment_file.content_type
-      }
+      file: file_attrs
     )
   end
 
@@ -300,11 +348,22 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   end
 
   def update_message_with_status(message, status)
-    # WHAPI status can be a descriptive string or a code.
-    status_string = status[:status] || map_whapi_status_code(status[:code])
+    status_string = normalized_whapi_status(status)
+    return unless status_string
+
     message.status = status_string
     message.external_error = status[:reason] if status_string == 'failed' && status[:reason].present?
     message.save!
+  end
+
+  def normalized_whapi_status(status)
+    raw_status = status[:status].presence
+    raw_status ||= map_whapi_status_code(status[:code]) unless status[:code].nil?
+    normalized_status = raw_status == 'played' ? 'read' : raw_status
+    return normalized_status if Message.statuses.key?(normalized_status)
+
+    log_unknown_whapi_status(status, raw_status)
+    nil
   end
 
   def map_whapi_status_code(code)
@@ -312,7 +371,24 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
     when 2 then 'sent'
     when 3 then 'delivered'
     when 4 then 'read'
-    else 'failed'
+    end
+  end
+
+  def log_unknown_whapi_status(status, raw_status)
+    Rails.logger.info do
+      display_status = raw_status.presence || '<none>'
+      log_msg = "[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=#{status[:id]} status=#{display_status}"
+      log_msg += " code=#{status[:code]}" unless status[:code].nil?
+      log_msg += " channel_id=#{inbox.channel_id} correlation_id=#{params['correlation_id'] || 'missing'}"
+      log_msg
+    end
+  end
+
+  def log_malformed_status_item(status_item)
+    Rails.logger.info do
+      '[WhapiStatus] Skipping status update: provider=whapi reason=non_hash_item ' \
+        "channel_id=#{inbox.channel_id} correlation_id=#{params['correlation_id'] || 'missing'} " \
+        "item_class=#{status_item.class}"
     end
   end
 
@@ -320,6 +396,60 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def outgoing_message?(message)
     message[:from_me] == true
+  end
+
+  def sent_via_api?(message)
+    message[:source].to_s.downcase == 'api'
+  end
+
+  def unsupported_incoming_message?(message)
+    UNSUPPORTED_BENIGN_MESSAGE_TYPES.include?(message[:type].to_s)
+  end
+
+  def missing_sender_for_incoming_message?(message)
+    return false if message[:from].present?
+
+    log_message_skip(message, outcome: :malformed, reason: 'blank_from')
+    true
+  end
+
+  def classify_message(message)
+    message_type = message[:type].to_s
+
+    return { outcome: :malformed, reason: 'missing_type' } if message_type.blank?
+    return { outcome: :unknown_future, reason: 'unknown_type' } if message_type == 'unknown'
+    return { outcome: :unsupported_benign, reason: 'unsupported_benign_type' } if unsupported_incoming_message?(message)
+    return { outcome: :unknown_future, reason: 'unrenderable_type' } unless RENDERABLE_MESSAGE_TYPES.include?(message_type)
+    return { outcome: :malformed, reason: 'missing_nested_payload' } if missing_declared_payload?(message, message_type)
+
+    { outcome: :renderable_message, reason: 'renderable_message' }
+  end
+
+  def missing_declared_payload?(message, message_type)
+    case message_type
+    when 'text'
+      message[:text].blank?
+    when 'contacts'
+      message[:contacts].blank?
+    else
+      message[message_type].blank?
+    end
+  end
+
+  def log_message_skip(message, classification)
+    Rails.logger.info do
+      "[WhapiMessage] Skipping message: provider=whapi outcome=#{classification[:outcome]} reason=#{classification[:reason]} " \
+        "message_id=#{message[:id]} message_type=#{message[:type].presence || 'missing'} channel_id=#{inbox.channel_id} " \
+        "correlation_id=#{params['correlation_id'] || 'missing'}"
+    end
+  end
+
+  def log_malformed_message_item(message_item)
+    Rails.logger.info do
+      '[WhapiMessage] Skipping message: provider=whapi outcome=malformed reason=non_hash_item ' \
+        "message_id=missing message_type=missing channel_id=#{inbox.channel_id} correlation_id=#{params['correlation_id'] || 'missing'} " \
+        "item_class=#{message_item.class}"
+    end
   end
 
   def message_already_processed?(source_id)

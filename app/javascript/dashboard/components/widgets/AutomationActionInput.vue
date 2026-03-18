@@ -86,6 +86,17 @@ export default {
         this.action_params = value;
       },
     },
+    castSearchSelectVmodel: {
+      get() {
+        if (Array.isArray(this.action_params)) {
+          return this.action_params[0];
+        }
+        return this.action_params;
+      },
+      set(value) {
+        this.action_params = [value];
+      },
+    },
   },
   methods: {
     removeAction() {
@@ -122,7 +133,7 @@ export default {
             class="multiselect-wrap--small"
           >
             <multiselect
-              v-model="action_params"
+              v-model="castSearchSelectVmodel"
               track-by="id"
               label="name"
               :placeholder="$t('FORMS.MULTISELECT.SELECT')"

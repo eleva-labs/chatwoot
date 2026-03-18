@@ -110,6 +110,23 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     head :ok
   end
 
+  def toggle_ai
+    return render json: { error: 'ai_enabled parameter is required' }, status: :unprocessable_entity if params[:ai_enabled].nil?
+
+    result = if params[:ai_enabled]
+               @conversation.enable_ai!
+             else
+               @conversation.disable_ai!
+             end
+
+    unless result
+      return render json: { error: 'No active AI bot configured for this inbox', ai_enabled: @conversation.ai_enabled? },
+                    status: :unprocessable_entity
+    end
+
+    render json: { ai_enabled: @conversation.ai_enabled? }, status: :ok
+  end
+
   def toggle_typing_status
     typing_status_manager = ::Conversations::TypingStatusManager.new(@conversation, current_user, params)
     typing_status_manager.toggle_typing_status
@@ -190,7 +207,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def conversation
     @conversation ||= Current.account.conversations.find_by!(display_id: params[:id])
-    authorize @conversation.inbox, :show?
+    authorize @conversation, :show?
   end
 
   def inbox

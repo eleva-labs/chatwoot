@@ -115,7 +115,24 @@ export default {
       this.$root.$i18n.locale = locale;
     },
     async initializeAccount() {
+      // Pre-arm inboxes isFetching BEFORE accounts/get resolves.
+      // When accounts/get completes, isFetchingItem becomes false, the template
+      // gate opens, and Vue flushes child components into the DOM. EmptyState's
+      // onMounted checks inboxes.isFetching — if it's still false (default), it
+      // incorrectly redirects to onboarding. By committing isFetching=true now
+      // (synchronously, before the await), the flag is already armed when
+      // children mount during the post-await reactivity flush.
+      this.$store.commit('inboxes/SET_INBOXES_UI_FLAG', { isFetching: true });
       await this.$store.dispatch('accounts/get');
+      // Load inboxes early to prevent race condition in onboarding check
+      try {
+        await this.$store.dispatch('inboxes/get');
+      } catch (error) {
+        // Don't block initialization if inboxes fail to load
+        // Sidebar will retry on mount (existing behavior)
+        // eslint-disable-next-line no-console
+        console.error('Failed to load inboxes during initialization:', error);
+      }
       this.$store.dispatch('setActiveAccount', {
         accountId: this.currentAccountId,
       });

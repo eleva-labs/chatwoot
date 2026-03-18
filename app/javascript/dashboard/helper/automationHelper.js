@@ -102,6 +102,7 @@ export const getActionOptions = ({
   type,
   addNoneToListFn,
   priorityOptions,
+  aiEnabledOptions,
 }) => {
   const actionsMap = {
     assign_agent: addNoneToListFn ? addNoneToListFn(agents) : agents,
@@ -111,6 +112,7 @@ export const getActionOptions = ({
     remove_label: generateConditionOptions(labels, 'title'),
     change_priority: priorityOptions,
     add_sla: slaPolicies,
+    set_ai_enabled: aiEnabledOptions,
   };
   return actionsMap[type];
 };
@@ -124,6 +126,7 @@ export const getConditionOptions = ({
   customAttributes,
   inboxes,
   languages,
+  labels,
   statusFilterOptions,
   teams,
   type,
@@ -150,6 +153,8 @@ export const getConditionOptions = ({
     country_code: countries,
     message_type: messageTypeOptions,
     priority: priorityOptions,
+    labels: generateConditionOptions(labels, 'title'),
+    has_agent_bot: booleanFilterOptions,
   };
 
   return conditionFilterMaps[type];

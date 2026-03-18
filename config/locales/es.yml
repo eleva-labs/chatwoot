@@ -196,6 +196,9 @@ es:
       sla:
         added: '%{user_name} agregó la política de SLA %{sla_name}'
         removed: '%{user_name} eliminó la política de SLA %{sla_name}'
+      ai:
+        enabled: '%{user_name} habilitó la IA para esta conversación'
+        disabled: '%{user_name} deshabilitó la IA para esta conversación'
       linear:
         issue_created: 'El issue de Linear %{issue_id} fue creado por %{user_name}'
         issue_linked: 'El issue de Linear %{issue_id} fue enlazado por %{user_name}'
@@ -377,7 +380,7 @@ es:
       one: '%{count} segundo'
       other: '%{count} segundos'
   automation:
-    system_name: 'Sistema de Automatización'
+    system_name: 'Sistema de Automatizaciones'
   crm:
     no_message: 'No hay mensajes en la conversación'
     attachment: '[Adjunto: %{type}]'

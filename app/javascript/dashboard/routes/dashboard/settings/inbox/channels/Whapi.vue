@@ -7,18 +7,18 @@ import {
   onBeforeUnmount,
   nextTick,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { required, minLength } from '@vuelidate/validators';
+import { isPhoneE164OrEmpty } from 'shared/helpers/Validators';
 import router from '../../../../index';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { DotLottieVue } from '@lottiefiles/dotlottie-vue';
-import { useI18n } from 'vue-i18n';
 import { useChannelPurchaseManager } from '../composables/useChannelPurchaseManager';
-
 const props = defineProps({
   disabledAutoRoute: {
     type: Boolean,
@@ -28,12 +28,20 @@ const props = defineProps({
 
 const emit = defineEmits(['stepChanged']);
 
+const SetupMode = {
+  MANUAL: 'manual',
+  QR: 'qr',
+};
+
 const store = useStore();
 const { t } = useI18n();
 
 // State (replaces data())
+const setupMode = ref(SetupMode.QR); // 'qr' | 'manual'
 const step = ref('name'); // name | waiting | qr | success
 const inboxName = ref('');
+const phoneNumber = ref('');
+const apiKey = ref('');
 const createdInbox = ref(null);
 const lottieTimer = ref(null);
 const isInitiatingConnection = ref(false);
@@ -126,36 +134,44 @@ const clearQrCode = () => {
   }
 };
 
-// Validation setup
-const rules = {
+// Validation setup for QR mode
+const qrRules = {
   inboxName: {
     required,
-    minLength: minLength(2), // Minimum 2 characters for a valid name
+    minLength: minLength(2),
   },
 };
 
-const v$ = useVuelidate(rules, { inboxName });
+// Validation setup for manual mode
+const manualRules = {
+  inboxName: {
+    required,
+    minLength: minLength(2),
+  },
+  phoneNumber: {
+    required,
+    isPhoneE164OrEmpty,
+  },
+  apiKey: {
+    required,
+  },
+};
+
+const qrV$ = useVuelidate(qrRules, { inboxName });
+const manualV$ = useVuelidate(manualRules, { inboxName, phoneNumber, apiKey });
 
 const isContinueButtonDisabled = computed(() => {
-  // Button is disabled if validation fails or if creating/purchasing is in progress
+  if (setupMode.value === SetupMode.MANUAL) {
+    return manualV$.value.$invalid || uiFlags.value.isCreating;
+  }
   return (
-    v$.value.inboxName.$invalid ||
+    qrV$.value.inboxName.$invalid ||
     uiFlags.value.isCreating ||
     isPurchasingExtraChannel.value ||
     isChannelInfoLoading.value ||
     isTrialLimitReached.value
   );
 });
-
-// Watch for webhook configuration success
-watch(
-  () => currentInbox.value.provider_config?.webhook_configured,
-  (isConfigured, wasConfigured) => {
-    if (isConfigured && !wasConfigured && step.value === 'waiting') {
-      initiateConnection();
-    }
-  }
-);
 
 // Initiate connection via websocket after channel creation
 const initiateConnection = async () => {
@@ -189,7 +205,6 @@ const initiateConnection = async () => {
     // If already connected, show success immediately
     if (response.status === 'connected') {
       step.value = 'success';
-      return;
     }
 
     // Otherwise, wait for QR via websocket - no polling
@@ -200,10 +215,20 @@ const initiateConnection = async () => {
   }
 };
 
-// Methods (converted to functions)
-const createChannel = async () => {
-  v$.value.$touch();
-  if (v$.value.$invalid) return;
+// Watch for webhook configuration success
+watch(
+  () => currentInbox.value.provider_config?.webhook_configured,
+  (isConfigured, wasConfigured) => {
+    if (isConfigured && !wasConfigured && step.value === 'waiting') {
+      initiateConnection();
+    }
+  }
+);
+
+// Methods for QR code flow
+const createQrChannel = async () => {
+  qrV$.value.$touch();
+  if (qrV$.value.$invalid) return;
   try {
     const created = await handleChannelCreation(() =>
       store.dispatch('inboxes/createWhapiChannel', {
@@ -215,9 +240,37 @@ const createChannel = async () => {
     // The watcher will trigger initiateConnection()
     step.value = 'waiting';
   } catch (error) {
-    useAlert(
-      error?.message || 'An error occurred while creating the channel'
+    useAlert(error?.message || 'An error occurred while creating the channel');
+  }
+};
+
+// Methods for manual API key flow
+const createManualChannel = async () => {
+  manualV$.value.$touch();
+  if (manualV$.value.$invalid) return;
+  try {
+    const created = await handleChannelCreation(() =>
+      store.dispatch('inboxes/createChannel', {
+        name: inboxName.value?.trim(),
+        channel: {
+          type: 'whatsapp',
+          phone_number: phoneNumber.value,
+          provider: 'whapi',
+          provider_config: {
+            api_key: apiKey.value,
+          },
+        },
+      })
     );
+    createdInbox.value = created;
+    // For manual mode, go directly to invite team (no QR step needed)
+    if (props.disabledAutoRoute) return;
+    router.replace({
+      name: 'settings_inboxes_invite_team',
+      params: { page: 'new', inbox_id: created.id },
+    });
+  } catch (error) {
+    useAlert(error.message || t('INBOX_MGMT.ADD.WHAPI.CHANNEL_CREATE_ERROR'));
   }
 };
 
@@ -239,7 +292,10 @@ watch(qrFromWebsocket, qr => {
 
 // Watch for connection success via websocket
 watch(connectionStatus, newVal => {
-  if ((step.value === 'waiting' || step.value === 'qr') && newVal === 'connected') {
+  if (
+    (step.value === 'waiting' || step.value === 'qr') &&
+    newVal === 'connected'
+  ) {
     clearQrCode();
     step.value = 'success';
   }
@@ -271,29 +327,96 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex flex-col mx-0">
+    <!-- Setup Mode Selector (only show on name step) -->
+    <div v-if="step === 'name'" class="mb-6">
+      <p class="text-sm text-n-slate-11 mb-3">
+        {{ $t('INBOX_MGMT.ADD.WHAPI.SETUP_MODE.TITLE') }}
+      </p>
+
+      <!-- Segmented Toggle Container -->
+      <div
+        class="relative flex w-full items-center p-1 rounded-lg border border-n-weak bg-n-alpha-1"
+      >
+        <!-- Sliding background indicator -->
+        <div
+          class="absolute top-1 bottom-1 w-[calc(50%-6px)] rounded-md bg-n-brand transition-all duration-300 ease-in-out"
+          :class="
+            setupMode === SetupMode.QR ? 'left-1' : 'left-[calc(50%+2px)]'
+          "
+        />
+        <button
+          type="button"
+          class="relative z-10 flex-1 px-6 py-3 text-left rounded-md transition-colors duration-300"
+          :class="
+            setupMode === SetupMode.QR
+              ? 'text-white'
+              : 'text-n-slate-11 hover:text-n-slate-12'
+          "
+          @click="setupMode = SetupMode.QR"
+        >
+          <span class="block text-sm font-medium">
+            {{ $t('INBOX_MGMT.ADD.WHAPI.SETUP_MODE.QR_CODE') }}
+          </span>
+          <span
+            class="block text-xs mt-1 transition-colors duration-300"
+            :class="
+              setupMode === SetupMode.QR ? 'text-white/80' : 'text-n-slate-10'
+            "
+          >
+            {{ $t('INBOX_MGMT.ADD.WHAPI.SETUP_MODE.QR_CODE_DESC') }}
+          </span>
+        </button>
+        <button
+          type="button"
+          class="relative z-10 flex-1 px-6 py-3 text-left rounded-md transition-colors duration-300"
+          :class="
+            setupMode === SetupMode.MANUAL
+              ? 'text-white'
+              : 'text-n-slate-11 hover:text-n-slate-12'
+          "
+          @click="setupMode = SetupMode.MANUAL"
+        >
+          <span class="block text-sm font-medium">
+            {{ $t('INBOX_MGMT.ADD.WHAPI.SETUP_MODE.MANUAL') }}
+          </span>
+          <span
+            class="block text-xs mt-1 transition-colors duration-300"
+            :class="
+              setupMode === SetupMode.MANUAL
+                ? 'text-white/80'
+                : 'text-n-slate-10'
+            "
+          >
+            {{ $t('INBOX_MGMT.ADD.WHAPI.SETUP_MODE.MANUAL_DESC') }}
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- QR Code Flow Form -->
     <form
-      v-if="step === 'name'"
+      v-if="step === 'name' && setupMode === SetupMode.QR"
       class="flex flex-wrap flex-col mx-0"
-      @submit.prevent="createChannel()"
+      @submit.prevent="createQrChannel()"
     >
       <div class="flex-shrink-0 flex-grow-0">
-        <label :class="{ error: v$.inboxName.$error }">
+        <label :class="{ error: qrV$.inboxName.$error }">
           {{ $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.LABEL') }}
           <input
             v-model="inboxName"
             type="text"
             :placeholder="$t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.PLACEHOLDER')"
-            @blur="v$.inboxName.$touch"
+            @blur="qrV$.inboxName.$touch"
           />
-          <span v-if="v$.inboxName.$error" class="message">
+          <span v-if="qrV$.inboxName.$error" class="message">
             {{
-              v$.inboxName.$errors[0].$validator === 'required'
+              qrV$.inboxName.$errors[0].$validator === 'required'
                 ? $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.ERROR')
                 : $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.MIN_LENGTH_ERROR')
             }}
           </span>
           <p
-            v-if="!v$.inboxName.$error && inboxName.length > 0"
+            v-if="!qrV$.inboxName.$error && inboxName.length > 0"
             class="help-text text-green-600"
           >
             {{ $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.VALID') }}
@@ -328,6 +451,77 @@ onBeforeUnmount(() => {
       </div>
     </form>
 
+    <!-- Manual API Key Flow Form -->
+    <form
+      v-if="step === 'name' && setupMode === SetupMode.MANUAL"
+      class="flex flex-wrap flex-col mx-0"
+      @submit.prevent="createManualChannel()"
+    >
+      <div class="flex-shrink-0 flex-grow-0">
+        <label :class="{ error: manualV$.inboxName.$error }">
+          {{ $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.LABEL') }}
+          <input
+            v-model="inboxName"
+            type="text"
+            :placeholder="$t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.PLACEHOLDER')"
+            @blur="manualV$.inboxName.$touch"
+          />
+          <span v-if="manualV$.inboxName.$error" class="message">
+            {{
+              manualV$.inboxName.$errors[0].$validator === 'required'
+                ? $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.ERROR')
+                : $t('INBOX_MGMT.ADD.WHATSAPP.INBOX_NAME.MIN_LENGTH_ERROR')
+            }}
+          </span>
+        </label>
+      </div>
+
+      <div class="flex-shrink-0 flex-grow-0">
+        <label :class="{ error: manualV$.phoneNumber.$error }">
+          {{ $t('INBOX_MGMT.ADD.WHAPI.PHONE_NUMBER.LABEL') }}
+          <input
+            v-model="phoneNumber"
+            type="text"
+            :placeholder="$t('INBOX_MGMT.ADD.WHAPI.PHONE_NUMBER.PLACEHOLDER')"
+            @blur="manualV$.phoneNumber.$touch"
+          />
+          <span v-if="manualV$.phoneNumber.$error" class="message">
+            {{ $t('INBOX_MGMT.ADD.WHAPI.PHONE_NUMBER.ERROR') }}
+          </span>
+        </label>
+      </div>
+
+      <div class="flex-shrink-0 flex-grow-0">
+        <label :class="{ error: manualV$.apiKey.$error }">
+          <span>{{ $t('INBOX_MGMT.ADD.WHAPI.API_KEY.LABEL') }}</span>
+          <p class="text-sm text-slate-11 mb-1">
+            {{ $t('INBOX_MGMT.ADD.WHAPI.API_KEY.SUBTITLE') }}
+          </p>
+          <input
+            v-model="apiKey"
+            type="text"
+            :placeholder="$t('INBOX_MGMT.ADD.WHAPI.API_KEY.PLACEHOLDER')"
+            @blur="manualV$.apiKey.$touch"
+          />
+          <span v-if="manualV$.apiKey.$error" class="message">
+            {{ $t('INBOX_MGMT.ADD.WHAPI.API_KEY.ERROR') }}
+          </span>
+        </label>
+      </div>
+
+      <div class="w-full mt-4">
+        <NextButton
+          :is-loading="uiFlags.isCreating"
+          type="submit"
+          solid
+          blue
+          :label="$t('INBOX_MGMT.ADD.WHAPI.MANUAL_SUBMIT_BUTTON')"
+          :disabled="isContinueButtonDisabled"
+          :class="{ 'opacity-50 cursor-not-allowed': isContinueButtonDisabled }"
+        />
+      </div>
+    </form>
+
     <!-- Waiting for QR via websocket -->
     <div
       v-else-if="step === 'waiting'"
@@ -341,7 +535,7 @@ onBeforeUnmount(() => {
 
     <!-- QR Code display -->
     <div
-      v-else-if="step === 'qr'"
+      v-else-if="step === SetupMode.QR"
       class="flex flex-col items-center justify-center"
     >
       <img

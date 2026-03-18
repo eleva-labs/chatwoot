@@ -395,6 +395,8 @@ RSpec.describe 'Conversations API', type: :request do
 
         it 'creates a new conversation with assignee and team' do
           allow(Rails.configuration.dispatcher).to receive(:dispatch)
+          inbox.update!(enable_auto_assignment: true)
+          team.update!(allow_auto_assign: true)
           post "/api/v1/accounts/#{account.id}/conversations",
                headers: agent.create_new_auth_token,
                params: { source_id: contact_inbox.source_id, contact_id: contact.id, inbox_id: inbox.id, assignee_id: agent.id, team_id: team.id },
@@ -600,6 +602,74 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(conversation.reload.priority).to eq('high')
+      end
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/conversations/:id/toggle_ai' do
+    let(:inbox) { create(:inbox, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:agent_bot) { create(:agent_bot, account: account) }
+
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/toggle_ai"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated user' do
+      before do
+        create(:inbox_member, user: agent, inbox: conversation.inbox)
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, status: :active)
+      end
+
+      it 'toggles AI enabled to true' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/toggle_ai",
+             headers: agent.create_new_auth_token,
+             params: { ai_enabled: true },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['ai_enabled']).to be true
+        expect(conversation.reload.custom_attributes['ai_enabled']).to be true
+      end
+
+      it 'toggles AI enabled to false' do
+        conversation.enable_ai!
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/toggle_ai",
+             headers: agent.create_new_auth_token,
+             params: { ai_enabled: false },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['ai_enabled']).to be false
+        expect(conversation.reload.custom_attributes['ai_enabled']).to be false
+      end
+
+      it 'returns error when ai_enabled parameter is missing' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/toggle_ai",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('ai_enabled parameter is required')
+      end
+
+      it 'does not enable AI when inbox has no active bot' do
+        conversation.inbox.agent_bot_inbox.update!(status: :inactive)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/toggle_ai",
+             headers: agent.create_new_auth_token,
+             params: { ai_enabled: true },
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['ai_enabled']).to be false
+        expect(conversation.reload.ai_enabled?).to be false
       end
     end
   end

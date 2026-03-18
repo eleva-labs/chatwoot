@@ -19,7 +19,7 @@ from botocore.exceptions import (
 
 
 def get_db_credentials(
-    project_name: str, env: str, profile_name: str = "chatscomm"
+    project_name: str, env: str, profile_name: str = "chatscommerce-admin"
 ) -> Optional[Dict[str, str]]:
     """
     Get database credentials from AWS SSM Parameter Store.
@@ -31,7 +31,7 @@ def get_db_credentials(
     Args:
         project_name: Project name for parameter path (e.g., "chatscomm")
         env: Environment (dev/prod)
-        profile_name: AWS profile name (default: "chatscomm")
+        profile_name: AWS profile name (default: "chatscommerce-admin")
 
     Returns:
         Dictionary with keys: host, port, database, username, password

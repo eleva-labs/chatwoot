@@ -40,7 +40,8 @@ export const actions = {
         commit(types.SET_LABELS, response.data.payload);
       }
     } catch (error) {
-      // Ignore error
+      // eslint-disable-next-line no-console
+      console.error('[revalidate:labels]', error);
     }
   },
 
@@ -53,7 +54,8 @@ export const actions = {
       );
       commit(types.SET_LABELS, sortedLabels);
     } catch (error) {
-      // Ignore error
+      // eslint-disable-next-line no-console
+      console.error('[labels:get]', error);
     } finally {
       commit(types.SET_LABEL_UI_FLAG, { isFetching: false });
     }

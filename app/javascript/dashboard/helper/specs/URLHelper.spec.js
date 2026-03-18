@@ -8,6 +8,7 @@ import {
   timeStampAppendedURL,
   getHostNameFromURL,
   extractFilenameFromUrl,
+  sanitizeAllowedDomains,
 } from '../URLHelper';
 
 describe('#URL Helpers', () => {
@@ -235,9 +236,21 @@ describe('#URL Helpers', () => {
       expect(timeStampAppendedURL(input)).toBe(expected);
     });
 
-    it('should throw an error for invalid URLs', () => {
+    it('should return the input unchanged for invalid URLs', () => {
       const input = 'not a valid url';
-      expect(() => timeStampAppendedURL(input)).toThrow();
+      expect(timeStampAppendedURL(input)).toBe(input);
+    });
+
+    it('should return null for null input', () => {
+      expect(timeStampAppendedURL(null)).toBe(null);
+    });
+
+    it('should return undefined for undefined input', () => {
+      expect(timeStampAppendedURL(undefined)).toBe(undefined);
+    });
+
+    it('should return empty string for empty string input', () => {
+      expect(timeStampAppendedURL('')).toBe('');
     });
   });
 
@@ -316,6 +329,34 @@ describe('#URL Helpers', () => {
       expect(
         extractFilenameFromUrl('https://example.com/file.doc?v=1#section')
       ).toBe('file.doc');
+    });
+  });
+
+  describe('sanitizeAllowedDomains', () => {
+    it('returns empty string for falsy input', () => {
+      expect(sanitizeAllowedDomains('')).toBe('');
+      expect(sanitizeAllowedDomains(null)).toBe('');
+      expect(sanitizeAllowedDomains(undefined)).toBe('');
+    });
+
+    it('trims whitespace and converts newlines to commas', () => {
+      const input = '  example.com  \n  foo.bar\nbar.baz  ';
+      expect(sanitizeAllowedDomains(input)).toBe('example.com,foo.bar,bar.baz');
+    });
+
+    it('handles Windows newlines and mixed spacing', () => {
+      const input = ' example.com\r\n\tfoo.bar  ,  bar.baz ';
+      expect(sanitizeAllowedDomains(input)).toBe('example.com,foo.bar,bar.baz');
+    });
+
+    it('removes empty values from repeated commas', () => {
+      const input = ',,example.com,,foo.bar,,';
+      expect(sanitizeAllowedDomains(input)).toBe('example.com,foo.bar');
+    });
+
+    it('lowercases entries and de-duplicates preserving order', () => {
+      const input = 'Example.com,FOO.bar,example.com,Bar.Baz,foo.BAR';
+      expect(sanitizeAllowedDomains(input)).toBe('example.com,foo.bar,bar.baz');
     });
   });
 });

@@ -32,9 +32,7 @@ export default {
     const v$ = useVuelidate();
     const store = useStore();
     const { t } = useI18n();
-    const baseLabel = computed(() =>
-      t('INBOX_MGMT.ADD.FB.CREATE_INBOX')
-    );
+    const baseLabel = computed(() => t('INBOX_MGMT.ADD.FB.CREATE_INBOX'));
 
     const {
       primaryButtonLabel,
@@ -209,7 +207,7 @@ export default {
         user_access_token: this.user_access_token,
         page_access_token: this.selectedPage.access_token,
         page_id: this.selectedPage.id,
-        inbox_name: this.selectedPage.name,
+        inbox_name: this.selectedPage.name?.trim(),
       };
     },
 
@@ -220,7 +218,10 @@ export default {
         this.isCreating = true;
         try {
           const data = await this.handleChannelCreation(() =>
-            this.$store.dispatch('inboxes/createFBChannel', this.channelParams())
+            this.$store.dispatch(
+              'inboxes/createFBChannel',
+              this.channelParams()
+            )
           );
           router.replace({
             name: 'settings_inboxes_invite_team',

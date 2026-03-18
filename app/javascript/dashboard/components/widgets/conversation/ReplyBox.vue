@@ -5,6 +5,7 @@ import { useAlert } from 'dashboard/composables';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useTrack } from 'dashboard/composables';
 import keyboardEventListenerMixins from 'shared/mixins/keyboardEventListenerMixins';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import CannedResponse from './CannedResponse.vue';
 import ReplyToMessage from './ReplyToMessage.vue';
@@ -16,6 +17,7 @@ import ReplyBottomPanel from 'dashboard/components/widgets/WootWriter/ReplyBotto
 import ArticleSearchPopover from 'dashboard/routes/dashboard/helpcenter/components/ArticleSearch/SearchPopover.vue';
 import MessageSignatureMissingAlert from './MessageSignatureMissingAlert.vue';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
+import QuotedEmailPreview from './QuotedEmailPreview.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import AudioRecorder from 'dashboard/components/widgets/WootWriter/AudioRecorder.vue';
@@ -32,6 +34,12 @@ import { MESSAGE_MAX_LENGTH } from 'shared/helpers/MessageTypeHelper';
 import inboxMixin, { INBOX_FEATURES } from 'shared/mixins/inboxMixin';
 import { trimContent, debounce, getRecipients } from '@chatwoot/utils';
 import wootConstants from 'dashboard/constants/globals';
+import {
+  extractQuotedEmailText,
+  buildQuotedEmailHeader,
+  truncatePreviewText,
+  appendQuotedTextToMessage,
+} from 'dashboard/helper/quotedEmailHelper';
 import { CONVERSATION_EVENTS } from '../../../helper/AnalyticsHelper/events';
 import fileUploadMixin from 'dashboard/mixins/fileUploadMixin';
 import {
@@ -44,7 +52,6 @@ import {
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { emitter } from 'shared/helpers/mitt';
-import aiMessageFeedbacksAPI from 'dashboard/api/aiMessageFeedbacks';
 const EmojiInput = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiInput.vue')
 );
@@ -66,6 +73,7 @@ export default {
     ContentTemplates,
     WhatsappTemplates,
     WootMessageEditor,
+    QuotedEmailPreview,
   },
   mixins: [inboxMixin, fileUploadMixin, keyboardEventListenerMixins],
   props: {
@@ -81,6 +89,8 @@ export default {
       updateUISettings,
       isEditorHotKeyEnabled,
       fetchSignatureFlagFromUISettings,
+      setQuotedReplyFlagForInbox,
+      fetchQuotedReplyFlagFromUISettings,
     } = useUISettings();
 
     const replyEditor = useTemplateRef('replyEditor');
@@ -90,8 +100,9 @@ export default {
       updateUISettings,
       isEditorHotKeyEnabled,
       fetchSignatureFlagFromUISettings,
+      setQuotedReplyFlagForInbox,
+      fetchQuotedReplyFlagFromUISettings,
       replyEditor,
-      useAlert,
     };
   },
   data() {
@@ -123,8 +134,6 @@ export default {
       newConversationModalActive: false,
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
-      aiFeedbackMessage: null,
-      isSubmittingAiFeedback: false,
     };
   },
   computed: {
@@ -134,7 +143,18 @@ export default {
       currentUser: 'getCurrentUser',
       lastEmail: 'getLastEmailInSelectedChat',
       globalConfig: 'globalConfig/get',
+      accountId: 'getCurrentAccountId',
+      isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
     }),
+    scopedReplyStorageKey() {
+      const acctId =
+        this.$route?.params?.accountId ||
+        window.location.pathname.split('/')[3] ||
+        '';
+      return acctId
+        ? `${LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO}::${acctId}`
+        : LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
+    },
     currentContact() {
       return this.$store.getters['contacts/getContact'](
         this.currentChat.meta.sender.id
@@ -184,9 +204,6 @@ export default {
       return this.$store.getters['inboxes/getInbox'](this.inboxId);
     },
     messagePlaceHolder() {
-      if (this.isOnAiFeedback) {
-        return this.$t('CONVERSATION.REPLYBOX.AI_FEEDBACK_INPUT');
-      }
       return this.isPrivate
         ? this.$t('CONVERSATION.FOOTER.PRIVATE_MSG_INPUT')
         : this.$t('CONVERSATION.FOOTER.MSG_INPUT');
@@ -200,18 +217,6 @@ export default {
     isReplyButtonDisabled() {
       if (this.isATwitterInbox) return true;
       if (this.hasAttachments || this.hasRecordedAudio) return false;
-
-      // Add loading state for AI feedback
-      if (this.isOnAiFeedback && this.isSubmittingAiFeedback) return true;
-
-      // For AI feedback mode, require message and feedback target
-      if (this.isOnAiFeedback) {
-        return (
-          !this.aiFeedbackMessage ||
-          this.isMessageEmpty ||
-          this.message.length === 0
-        );
-      }
 
       return (
         this.isMessageEmpty ||
@@ -275,11 +280,7 @@ export default {
     },
     replyButtonLabel() {
       let sendMessageText = this.$t('CONVERSATION.REPLYBOX.SEND');
-      if (this.isOnAiFeedback) {
-        sendMessageText = this.isSubmittingAiFeedback
-          ? this.$t('CONVERSATION.REPLYBOX.SUBMITTING_FEEDBACK')
-          : this.$t('CONVERSATION.REPLYBOX.SUBMIT_FEEDBACK');
-      } else if (this.isPrivate) {
+      if (this.isPrivate) {
         sendMessageText = this.$t('CONVERSATION.REPLYBOX.CREATE');
       }
       const keyLabel = this.isEditorHotKeyEnabled('cmd_enter')
@@ -307,12 +308,6 @@ export default {
     },
     isOnPrivateNote() {
       return this.replyType === REPLY_EDITOR_MODES.NOTE;
-    },
-    isOnAiFeedback() {
-      return this.replyType === REPLY_EDITOR_MODES.AI_FEEDBACK;
-    },
-    isOnAIFeedback() {
-      return this.replyType === REPLY_EDITOR_MODES.AI_FEEDBACK;
     },
     isOnExpandedLayout() {
       const {
@@ -395,6 +390,51 @@ export default {
       const { help_center: portal = {} } = this.inbox;
       const { slug = '' } = portal;
       return slug;
+    },
+    isQuotedEmailReplyEnabled() {
+      return this.isFeatureEnabledonAccount(
+        this.accountId,
+        FEATURE_FLAGS.QUOTED_EMAIL_REPLY
+      );
+    },
+    quotedReplyPreference() {
+      if (!this.isAnEmailChannel || !this.isQuotedEmailReplyEnabled) {
+        return false;
+      }
+
+      return !!this.fetchQuotedReplyFlagFromUISettings(this.channelType);
+    },
+    lastEmailWithQuotedContent() {
+      if (!this.isAnEmailChannel) {
+        return null;
+      }
+
+      const lastEmail = this.lastEmail;
+      if (!lastEmail || lastEmail.private) {
+        return null;
+      }
+
+      return lastEmail;
+    },
+    quotedEmailText() {
+      return extractQuotedEmailText(this.lastEmailWithQuotedContent);
+    },
+    quotedEmailPreviewText() {
+      return truncatePreviewText(this.quotedEmailText, 80);
+    },
+    shouldShowQuotedReplyToggle() {
+      return (
+        this.isAnEmailChannel &&
+        !this.isOnPrivateNote &&
+        this.isQuotedEmailReplyEnabled
+      );
+    },
+    shouldShowQuotedPreview() {
+      return (
+        this.shouldShowQuotedReplyToggle &&
+        this.quotedReplyPreference &&
+        !!this.quotedEmailText
+      );
     },
   },
   watch: {
@@ -483,10 +523,6 @@ export default {
 
     this.fetchAndSetReplyTo();
     emitter.on(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.fetchAndSetReplyTo);
-    emitter.on(
-      BUS_EVENTS.AI_FEEDBACK_TO_MESSAGE,
-      this.handleAiFeedbackToMessage
-    );
 
     // A hacky fix to solve the drag and drop
     // Is showing on top of new conversation modal drag and drop
@@ -501,10 +537,6 @@ export default {
     document.removeEventListener('paste', this.onPaste);
     document.removeEventListener('keydown', this.handleKeyEvents);
     emitter.off(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.fetchAndSetReplyTo);
-    emitter.off(
-      BUS_EVENTS.AI_FEEDBACK_TO_MESSAGE,
-      this.handleAiFeedbackToMessage
-    );
     emitter.off(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
     emitter.off(
       BUS_EVENTS.NEW_CONVERSATION_MODAL,
@@ -552,6 +584,36 @@ export default {
           this.messageSignature
         );
       }
+    },
+    toggleQuotedReply() {
+      if (!this.isAnEmailChannel) {
+        return;
+      }
+
+      const nextValue = !this.quotedReplyPreference;
+      this.setQuotedReplyFlagForInbox(this.channelType, nextValue);
+    },
+    shouldIncludeQuotedEmail() {
+      return (
+        this.isQuotedEmailReplyEnabled &&
+        this.quotedReplyPreference &&
+        this.shouldShowQuotedReplyToggle &&
+        !!this.quotedEmailText
+      );
+    },
+    getMessageWithQuotedEmailText(message) {
+      if (!this.shouldIncludeQuotedEmail()) {
+        return message;
+      }
+
+      const quotedText = this.quotedEmailText || '';
+      const header = buildQuotedEmailHeader(
+        this.lastEmailWithQuotedContent,
+        this.currentContact,
+        this.inbox
+      );
+
+      return appendQuotedTextToMessage(message, quotedText, header);
     },
     resetRecorderAndClearAttachments() {
       // Reset audio recorder UI state
@@ -686,13 +748,6 @@ export default {
       if (this.isReplyButtonDisabled) {
         return;
       }
-
-      // Handle AI feedback submission
-      if (this.isOnAiFeedback) {
-        this.submitAiFeedback();
-        return;
-      }
-
       if (!this.showMentions) {
         const isOnWhatsApp =
           this.isATwilioWhatsAppChannel ||
@@ -815,36 +870,14 @@ export default {
       this.$store.dispatch('draftMessages/setReplyEditorMode', {
         mode,
       });
-
-      // Handle AI feedback mode specifically
-      if (mode === REPLY_EDITOR_MODES.AI_FEEDBACK) {
-        // Only allow AI feedback mode if we have a message to provide feedback for
-        if (this.aiFeedbackMessage) {
-          this.replyType = mode;
-        } else {
-          // If no AI feedback message, show a message and don't switch
-          this.useAlert(
-            this.$t('CONVERSATION.AI_FEEDBACK.NO_MESSAGE_SELECTED'),
-            {
-              duration: 5000,
-            }
-          );
-        }
-        return;
-      }
-
-      // Handle other modes (Reply and Private Note)
-      if (canReply || this.isAWhatsAppChannel) {
-        this.replyType = mode;
-      }
-
+      if (canReply || this.isAWhatsAppChannel) this.replyType = mode;
       if (this.showRichContentEditor) {
         if (this.isRecordingAudio) {
           this.toggleAudioRecorder();
         }
         return;
       }
-      this.$nextTick(() => this.$refs.messageInput?.focus());
+      this.$nextTick(() => this.$refs.messageInput.focus());
     },
     clearEditorSelection() {
       this.updateEditorSelectionWith = '';
@@ -1031,9 +1064,11 @@ export default {
       return multipleMessagePayload;
     },
     getMessagePayload(message) {
+      const messageWithQuote = this.getMessageWithQuotedEmailText(message);
+
       let messagePayload = {
         conversationId: this.currentChat.id,
-        message,
+        message: messageWithQuote,
         private: this.isPrivate,
         sender: this.sender,
       };
@@ -1061,7 +1096,6 @@ export default {
       if (this.toEmails && !this.isOnPrivateNote) {
         messagePayload.toEmails = this.toEmails;
       }
-
       return messagePayload;
     },
     setCcEmails(value) {
@@ -1085,9 +1119,8 @@ export default {
       this.bccEmails = bcc.join(', ');
     },
     fetchAndSetReplyTo() {
-      const replyStorageKey = LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
       const replyToMessageId = LocalStorage.getFromJsonStore(
-        replyStorageKey,
+        this.scopedReplyStorageKey,
         this.conversationId
       );
 
@@ -1099,8 +1132,10 @@ export default {
       });
     },
     resetReplyToMessage() {
-      const replyStorageKey = LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
-      LocalStorage.deleteFromJsonStore(replyStorageKey, this.conversationId);
+      LocalStorage.deleteFromJsonStore(
+        this.scopedReplyStorageKey,
+        this.conversationId
+      );
       emitter.emit(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE);
     },
     onNewConversationModalActive(isActive) {
@@ -1130,111 +1165,6 @@ export default {
     togglePopout() {
       this.$emit('update:popOutReplyBox', !this.popOutReplyBox);
     },
-    async handleAiFeedbackToMessage(data) {
-      try {
-        // Store the message we're providing feedback for
-        this.aiFeedbackMessage = data.message;
-
-        // Save current draft before switching
-        this.setToDraft(this.conversationIdByRoute, this.replyType);
-
-        // Switch to AI feedback mode
-        this.replyType = REPLY_EDITOR_MODES.AI_FEEDBACK;
-
-        // Clear any existing message and set placeholder
-        this.message = '';
-
-        // Focus the editor
-        this.$nextTick(() => {
-          if (this.showRichContentEditor) {
-            this.onFocus();
-          } else {
-            this.$refs.messageInput?.focus();
-          }
-        });
-      } catch (error) {
-        // Failed to handle AI feedback mode switch
-      }
-    },
-    async submitAiFeedback() {
-      if (this.isSubmittingAiFeedback) return;
-
-      try {
-        if (!this.aiFeedbackMessage || !this.message.trim()) {
-          useAlert(this.$t('CONVERSATION.AI_FEEDBACK.EMPTY_FEEDBACK_ERROR'));
-          return;
-        }
-
-        this.isSubmittingAiFeedback = true;
-
-        const feedbackData = {
-          rating: -1,
-          feedback_text: this.message.trim(),
-        };
-
-        // Check if feedback already exists (for update) or create new
-        const existingFeedback =
-          this.aiFeedbackMessage.content_attributes?.ai_feedback;
-
-        if (existingFeedback) {
-          // Update existing feedback
-          await aiMessageFeedbacksAPI.update(
-            this.aiFeedbackMessage.id,
-            feedbackData
-          );
-        } else {
-          // Create new feedback
-          await aiMessageFeedbacksAPI.create(
-            this.aiFeedbackMessage.id,
-            feedbackData
-          );
-        }
-
-        useAlert(this.$t('CONVERSATION.AI_FEEDBACK.SUBMIT_SUCCESS'));
-
-        // Exit AI feedback mode
-        this.exitAiFeedbackMode();
-      } catch (error) {
-        // Failed to submit AI feedback
-
-        // Provide specific error messages based on error type
-        let errorMessage = this.$t('CONVERSATION.AI_FEEDBACK.SUBMIT_ERROR');
-
-        if (error?.response?.status === 404) {
-          errorMessage = this.$t(
-            'CONVERSATION.AI_FEEDBACK.MESSAGE_NOT_FOUND_ERROR'
-          );
-        } else if (error?.response?.status === 403) {
-          errorMessage = this.$t('CONVERSATION.AI_FEEDBACK.PERMISSION_ERROR');
-        } else if (error?.response?.status === 422) {
-          errorMessage =
-            error?.response?.data?.message ||
-            this.$t('CONVERSATION.AI_FEEDBACK.VALIDATION_ERROR');
-        } else if (error?.response?.data?.message) {
-          errorMessage = error.response.data.message;
-        }
-
-        useAlert(errorMessage);
-      } finally {
-        this.isSubmittingAiFeedback = false;
-      }
-    },
-    exitAiFeedbackMode() {
-      // Clear AI feedback state
-      this.aiFeedbackMessage = null;
-      this.isSubmittingAiFeedback = false;
-
-      // Return to appropriate mode based on conversation permissions
-      const { can_reply: canReply } = this.currentChat;
-      if (canReply || this.isAWhatsAppChannel) {
-        this.replyType = REPLY_EDITOR_MODES.REPLY;
-      } else {
-        this.replyType = REPLY_EDITOR_MODES.NOTE;
-      }
-
-      // Restore draft message
-      this.getFromDraft();
-    },
   },
 };
 </script>
@@ -1263,33 +1193,6 @@ export default {
         :message="inReplyTo"
         @dismiss="resetReplyToMessage"
       />
-      <!-- AI Feedback context display -->
-      <div
-        v-if="isOnAiFeedback && aiFeedbackMessage"
-        class="ai-feedback-context bg-amber-50 dark:bg-amber-900/20 rounded-md py-2 pl-3 pr-2 text-xs tracking-wide mt-2 flex items-center gap-2 -mx-2"
-      >
-        <i
-          class="i-lucide-message-square-text text-amber-600 dark:text-amber-400 flex-shrink-0"
-        />
-        <div class="flex-grow gap-1 mt-px text-xs">
-          <span class="text-amber-800 dark:text-amber-200 font-medium">
-            {{ $t('CONVERSATION.AI_FEEDBACK.PROVIDING_FEEDBACK_FOR') }}
-          </span>
-          <div class="text-amber-700 dark:text-amber-300 truncate mt-1">
-            {{
-              aiFeedbackMessage.content ||
-              $t('CONVERSATION.AI_FEEDBACK.NO_CONTENT')
-            }}
-          </div>
-        </div>
-        <button
-          v-tooltip="$t('CONVERSATION.AI_FEEDBACK.CANCEL_FEEDBACK')"
-          class="flex-shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 p-1 rounded transition-colors"
-          @click.stop="exitAiFeedbackMode"
-        >
-          <i class="i-lucide-x w-4 h-4" />
-        </button>
-      </div>
       <CannedResponse
         v-if="showMentions && hasSlashCommand"
         v-on-clickaway="hideMentions"
@@ -1358,6 +1261,12 @@ export default {
         @toggle-variables-menu="toggleVariablesMenu"
         @clear-selection="clearEditorSelection"
       />
+      <QuotedEmailPreview
+        v-if="shouldShowQuotedPreview"
+        :quoted-email-text="quotedEmailText"
+        :preview-text="quotedEmailPreviewText"
+        @toggle="toggleQuotedReply"
+      />
     </div>
     <div
       v-if="hasAttachments && !showAudioRecorderEditor"
@@ -1393,6 +1302,8 @@ export default {
       :show-editor-toggle="isAPIInbox && !isOnPrivateNote"
       :show-emoji-picker="showEmojiPicker"
       :show-file-upload="showFileUpload"
+      :show-quoted-reply-toggle="shouldShowQuotedReplyToggle"
+      :quoted-reply-enabled="quotedReplyPreference"
       :toggle-audio-recorder-play-pause="toggleAudioRecorderPlayPause"
       :toggle-audio-recorder="toggleAudioRecorder"
       :toggle-emoji-picker="toggleEmojiPicker"
@@ -1404,6 +1315,7 @@ export default {
       @toggle-editor="toggleRichContentEditor"
       @replace-text="replaceText"
       @toggle-insert-article="toggleInsertArticle"
+      @toggle-quoted-reply="toggleQuotedReply"
     />
     <WhatsappTemplates
       :inbox-id="inbox.id"

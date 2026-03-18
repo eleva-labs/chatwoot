@@ -200,7 +200,7 @@ const removeExtraAgentSeat = async (skipValidation = false) => {
   }
 };
 
-const deleteAgent = async (id) => {
+const deleteAgent = async id => {
   // Check if we need to remove from Stripe based on preview result
   // Preview is always fetched when opening delete modal - if it succeeded, there's a subscription item
   const hadExtraSeat = !!removalPreview.value?.estimated_credit;
@@ -422,6 +422,7 @@ const openDeletePopup = async agent => {
         v-if="showEditPopup"
         :id="currentAgent.id"
         :name="currentAgent.name"
+        :provider="currentAgent.provider"
         :type="currentAgent.role"
         :email="currentAgent.email"
         :availability="currentAgent.availability_status"

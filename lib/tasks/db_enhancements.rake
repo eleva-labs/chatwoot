@@ -6,6 +6,21 @@ Rake::Task['db:migrate'].enhance do
   end
 end
 
+# Auto-run custom migrations after standard migrations
+Rake::Task['db:migrate'].enhance do
+  Rake::Task['db:migrate:custom'].invoke
+end
+
+# Auto-dump custom schema after standard schema dump
+Rake::Task['db:schema:dump'].enhance do
+  Rake::Task['db:schema:dump:custom'].invoke
+end
+
+# Auto-load custom schema after standard schema load
+Rake::Task['db:schema:load'].enhance do
+  Rake::Task['db:schema:load:custom'].invoke
+end
+
 # we are creating a custom database prepare task
 # the default rake db:prepare task isn't ideal for environments like heroku
 # In heroku the database is already created before the first run of db:prepare
@@ -20,12 +35,27 @@ db_namespace = namespace :db do
       unless ActiveRecord::Base.connection.table_exists? 'ar_internal_metadata'
         db_namespace['load_config'].invoke if ActiveRecord.schema_format == :ruby
         ActiveRecord::Tasks::DatabaseTasks.load_schema_current(:ruby, ENV.fetch('SCHEMA', nil))
+
+        # Load custom schema for fresh database
+        Rake::Task['db:schema:load:custom'].invoke
+
         db_namespace['seed'].invoke
       end
 
       db_namespace['migrate'].invoke
+      # Custom migrations run automatically via db:migrate hook
     rescue ActiveRecord::NoDatabaseError
       db_namespace['setup'].invoke
     end
   end
+end
+
+# Enhance db:setup to load custom schema
+Rake::Task['db:setup'].enhance do
+  Rake::Task['db:schema:load:custom'].invoke
+end
+
+# Enhance db:reset to include custom schema
+Rake::Task['db:reset'].enhance do
+  Rake::Task['db:schema:load:custom'].invoke
 end

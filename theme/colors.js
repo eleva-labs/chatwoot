@@ -228,6 +228,10 @@ export const colors = {
       blue: 'rgb(var(--solid-blue) / <alpha-value>)',
       iris: 'rgb(var(--solid-iris) / <alpha-value>)',
     },
+    'warning-banner': {
+      bg: 'rgb(var(--warning-banner-bg) / <alpha-value>)',
+      text: 'rgb(var(--warning-banner-text) / <alpha-value>)',
+    },
     alpha: {
       1: 'rgba(var(--alpha-1))',
       2: 'rgba(var(--alpha-2))',

@@ -15,7 +15,7 @@ task setup-db -- prod
 ## Requirements
 
 1. **Docker** running with PostgreSQL container up
-2. **AWS Credentials** configured (profile `chatscomm` or environment variables)
+2. **AWS Credentials** configured (profile `chatscommerce-admin` or environment variables)
 3. **Python 3** with `boto3` installed: `pip3 install boto3`
 
 ## Usage
@@ -112,7 +112,7 @@ Configure AWS profile or set environment variables:
 
 ```bash
 # Option 1: AWS Profile (recommended for local dev)
-aws configure --profile chatscomm
+aws configure --profile chatscommerce-admin
 
 # Option 2: Environment variables (for CI/CD)
 export AWS_ACCESS_KEY_ID=your_key

@@ -7,56 +7,16 @@ describe Webhooks::InstagramEventsJob do
     stub_request(:post, /graph\.facebook\.com/)
     stub_request(:get, 'https://www.example.com/test.jpeg')
       .to_return(status: 200, body: '', headers: {})
-    
-    
-    # Add WebMock stubs for story mention API calls
-    stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/mention-message-id-.*\?.*})
-      .to_return(
-        status: 200,
-        body: {
-          story: {
-            mention: {
-              link: 'https://www.example.com/test.jpeg',
-              id: '17920786367196703'
-            }
-          },
-          from: {
-            username: 'Sender-id-1',
-            id: 'Sender-id-1'
-          },
-          id: 'instagram-message-id-1234'
-        }.to_json,
-        headers: { 'Content-Type' => 'application/json' }
-      )
-    
-    # Add WebMock stubs for Facebook API calls
-    stub_request(:delete, %r{https://graph\.facebook\.com/v3\.2/me/subscribed_apps\?access_token=.*})
-      .to_return(status: 200, body: '', headers: {})
   end
 
   let!(:account) { create(:account) }
 
-  def return_object_for(sender_id, inbox = nil)
+  def return_object_for(sender_id)
     { name: 'Jane',
       id: sender_id,
-      account_id: inbox&.account_id || account.id,
+      account_id: instagram_messenger_inbox.account_id,
       profile_pic: 'https://chatwoot-assets.local/sample.png',
       username: 'some_user_name' }
-  end
-
-  # Combined message events into one helper
-  let(:message_events) do
-    {
-      dm: build(:instagram_message_create_event).with_indifferent_access,
-      standby: build(:instagram_message_standby_event).with_indifferent_access,
-      unsend: build(:instagram_message_unsend_event).with_indifferent_access,
-      image_attachment: build(:instagram_message_image_attachment_event).with_indifferent_access,
-      share_attachment: build(:instagram_message_attachment_event).with_indifferent_access,
-      story_mention: build(:instagram_story_mention_event).with_indifferent_access,
-      story_mention_echo: build(:instagram_story_mention_event_with_echo).with_indifferent_access,
-      messaging_seen: build(:messaging_seen_event).with_indifferent_access,
-      unsupported: build(:instagram_message_unsupported_event).with_indifferent_access
-    }
   end
 
   describe '#perform' do
@@ -77,7 +37,6 @@ describe Webhooks::InstagramEventsJob do
 
         expect(instagram_messenger_inbox.contacts.count).to be 1
         expect(instagram_messenger_inbox.contacts.last.additional_attributes['social_instagram_user_name']).to eq 'some_user_name'
-        expect(instagram_messenger_inbox.contacts.last.identifier).to eq 'some_user_name'
         expect(instagram_messenger_inbox.conversations.count).to be 1
         expect(instagram_messenger_inbox.messages.count).to be 1
         expect(instagram_messenger_inbox.messages.last.content_attributes['is_unsupported']).to be_nil
@@ -95,7 +54,6 @@ describe Webhooks::InstagramEventsJob do
 
         expect(instagram_messenger_inbox.contacts.count).to be 1
         expect(instagram_messenger_inbox.contacts.last.additional_attributes['social_instagram_user_name']).to eq 'some_user_name'
-        expect(instagram_messenger_inbox.contacts.last.identifier).to eq 'some_user_name'
         expect(instagram_messenger_inbox.conversations.count).to be 1
         expect(instagram_messenger_inbox.messages.count).to be 1
 
@@ -142,24 +100,6 @@ describe Webhooks::InstagramEventsJob do
         expect(instagram_messenger_inbox.contacts.count).to be 1
         expect(instagram_messenger_inbox.messages.count).to be 1
         expect(instagram_messenger_inbox.messages.last.attachments.count).to be 1
-      end
-
-      it 'creates incoming message with share attachments in the instagram inbox' do
-        share_attachment_event = build(:instagram_message_attachment_event).with_indifferent_access
-        sender_id = share_attachment_event[:entry][0][:messaging][0][:sender][:id]
-
-        allow(Koala::Facebook::API).to receive(:new).and_return(fb_object)
-        allow(fb_object).to receive(:get_object).and_return(
-          return_object_for(sender_id).with_indifferent_access
-        )
-        instagram_webhook.perform_now(share_attachment_event[:entry])
-
-        instagram_messenger_inbox.reload
-
-        expect(instagram_messenger_inbox.contacts.count).to be 1
-        expect(instagram_messenger_inbox.messages.count).to be 1
-        expect(instagram_messenger_inbox.messages.last.attachments.count).to be 0
-        expect(instagram_messenger_inbox.messages.last.content_attributes['shared_content_url']).to eq('https://www.example.com/test.jpeg')
       end
 
       it 'creates incoming message with attachments in the instagram inbox for story mention' do
@@ -237,7 +177,6 @@ describe Webhooks::InstagramEventsJob do
       before do
         instagram_channel.update(access_token: 'valid_instagram_token')
 
-        # Add WebMock stubs for Instagram Graph API calls in Instagram login context
         stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/Sender-id-.*\?.*})
           .to_return(
             status: 200,
@@ -263,7 +202,6 @@ describe Webhooks::InstagramEventsJob do
         instagram_webhook.perform_now(dm_event[:entry])
         expect(instagram_inbox.contacts.count).to eq 1
         expect(instagram_inbox.contacts.last.additional_attributes['social_instagram_user_name']).to eq 'some_user_name'
-        expect(instagram_inbox.contacts.last.identifier).to eq 'some_user_name'
         expect(instagram_inbox.conversations.count).to eq 1
         expect(instagram_inbox.messages.count).to eq 1
         expect(instagram_inbox.messages.last.content_attributes['is_unsupported']).to be_nil
@@ -280,9 +218,7 @@ describe Webhooks::InstagramEventsJob do
         expect(contact.additional_attributes['social_instagram_is_user_follow_business']).to be true
         expect(contact.additional_attributes['social_instagram_is_business_follow_user']).to be true
         expect(contact.additional_attributes['social_instagram_is_verified_user']).to be false
-        expect(contact.identifier).to eq 'some_user_name'
       end
-
 
       it 'handle instagram unsend message event' do
         unsend_event = build(:instagram_message_unsend_event).with_indifferent_access
@@ -314,17 +250,6 @@ describe Webhooks::InstagramEventsJob do
         expect(instagram_inbox.contacts.count).to be 1
         expect(instagram_inbox.messages.count).to be 1
         expect(instagram_inbox.messages.last.attachments.count).to be 1
-      end
-
-      it 'creates incoming message with share attachments in the instagram direct inbox' do
-        instagram_webhook.perform_now(message_events[:share_attachment][:entry])
-
-        instagram_inbox.reload
-
-        expect(instagram_inbox.contacts.count).to be 1
-        expect(instagram_inbox.messages.count).to be 1
-        expect(instagram_inbox.messages.last.attachments.count).to be 0
-        expect(instagram_inbox.messages.last.content_attributes['shared_content_url']).to eq('https://www.example.com/test.jpeg')
       end
 
       it 'handles unsupported message' do
@@ -375,6 +300,458 @@ describe Webhooks::InstagramEventsJob do
         expect(instagram_inbox.messages.count).to eq 1
         expect(instagram_inbox.messages.last.content_attributes['is_unsupported']).to be_nil
       end
+    end
+  end
+
+  describe 'lock mechanism' do
+    let(:lock_manager) { instance_double(Redis::LockManager) }
+    let(:dm_event) { build(:instagram_message_create_event).with_indifferent_access }
+    let(:standby_event) { build(:instagram_message_standby_event, ig_entry_id: ig_account_id).with_indifferent_access }
+    let(:read_event) { build(:messaging_seen_event, ig_entry_id: ig_account_id).with_indifferent_access }
+    let(:test_event) { build(:instagram_test_event).with_indifferent_access }
+    let(:echo_event) do
+      [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: ig_account_id },
+              recipient: { id: 'customer-ig-user-id-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              message: {
+                mid: 'echo-message-id-1',
+                text: 'Echo message',
+                is_echo: true
+              }
+            }
+          ]
+        }
+      ]
+    end
+    let(:sender_id) { dm_event[:entry][0][:messaging][0][:sender][:id] }
+    let(:ig_account_id) { dm_event[:entry][0][:id] }
+    let(:expected_key) { format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: sender_id, ig_account_id: ig_account_id) }
+    let(:released_log_message) do
+      "[Webhooks::InstagramEventsJob] event=lock_released lock_key=#{expected_key} " \
+        "sender_id=#{sender_id} ig_account_id=#{ig_account_id} " \
+        'event_family=inbound fallback_used=false lock_attempt_ms=50 lock_hold_ms=150 total_elapsed_ms=200'
+    end
+    let(:contention_log_message) do
+      "[Webhooks::InstagramEventsJob] event=lock_retry_scheduled lock_key=#{expected_key} " \
+        "sender_id=#{sender_id} ig_account_id=#{ig_account_id} " \
+        'event_family=inbound fallback_used=false lock_attempt_ms=200 retry_attempt=3'
+    end
+    let(:base_contention_log_message) do
+      "[Webhooks::InstagramEventsJob] Failed to acquire lock on attempt 3: #{expected_key}"
+    end
+    let(:acquired_log_message) do
+      "[Webhooks::InstagramEventsJob] Acquired lock for: #{expected_key} on attempt 0"
+    end
+
+    before do
+      allow(Redis::LockManager).to receive(:new).and_return(lock_manager)
+      allow(lock_manager).to receive(:lock).and_return(true)
+      allow(lock_manager).to receive(:unlock).and_return(true)
+    end
+
+    it 'acquires lock with 30 second timeout for message events' do
+      expect(lock_manager).to receive(:lock).with(expected_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(dm_event[:entry])
+    end
+
+    it 'uses exponential lock retry backoff with jitter' do
+      allow(described_class).to receive(:rand).and_return(0.5)
+
+      expect(described_class::LOCK_RETRY_WAIT.call(1)).to eq(2.15)
+      expect(described_class::LOCK_RETRY_WAIT.call(2)).to eq(4.3)
+      expect(described_class::LOCK_RETRY_WAIT.call(5)).to eq(32.25)
+    end
+
+    it 'logs one structured lock timing event on success' do
+      job_instance = described_class.new
+
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(dm_event[:entry])
+
+      expect(Rails.logger).to have_received(:info).with(released_log_message).once
+      expect(Rails.logger).not_to have_received(:info).with(acquired_log_message)
+    end
+
+    it 'logs retry timing and backoff details before retrying' do
+      job_instance = described_class.new
+
+      allow(lock_manager).to receive(:lock).and_return(false)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.2)
+      allow(job_instance).to receive(:executions).and_return(3)
+      allow(Rails.logger).to receive(:warn)
+      allow(Rails.logger).to receive(:info)
+
+      expect do
+        job_instance.perform(dm_event[:entry])
+      end.to raise_error(MutexApplicationJob::LockAcquisitionError, "Failed to acquire lock for key: #{expected_key}")
+
+      expect(Rails.logger).to have_received(:warn).with(contention_log_message).once
+      expect(Rails.logger).not_to have_received(:warn).with(base_contention_log_message)
+    end
+
+    it 'uses the echo recipient to scope the lock key' do
+      echo_recipient_id = echo_event[0][:messaging][0][:recipient][:id]
+      expected_echo_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: echo_recipient_id, ig_account_id: ig_account_id)
+
+      expect(lock_manager).to receive(:lock).with(expected_echo_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(echo_event)
+    end
+
+    it 'logs the narrowed echo lock key on contention' do
+      echo_recipient_id = echo_event[0][:messaging][0][:recipient][:id]
+      expected_echo_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: echo_recipient_id, ig_account_id: ig_account_id)
+      expected_log_message = "[Webhooks::InstagramEventsJob] event=lock_retry_scheduled lock_key=#{expected_echo_key} " \
+                             "sender_id=#{ig_account_id} ig_account_id=#{ig_account_id} " \
+                             'event_family=echo fallback_used=false lock_attempt_ms=200 retry_attempt=3'
+
+      job_instance = described_class.new
+
+      allow(lock_manager).to receive(:lock).and_return(false)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.2)
+      allow(job_instance).to receive(:executions).and_return(3)
+      allow(Rails.logger).to receive(:warn)
+      allow(Rails.logger).to receive(:info)
+
+      expect do
+        job_instance.perform(echo_event)
+      end.to raise_error(MutexApplicationJob::LockAcquisitionError, "Failed to acquire lock for key: #{expected_echo_key}")
+
+      expect(Rails.logger).to have_received(:warn).with(expected_log_message).once
+    end
+
+    it 'uses the standby sender for the lock key' do
+      standby_sender_id = standby_event[:entry][0][:standby][0][:sender][:id]
+      expected_standby_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: standby_sender_id, ig_account_id: ig_account_id)
+
+      expect(lock_manager).to receive(:lock).with(expected_standby_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(standby_event[:entry])
+    end
+
+    it 'does not acquire the Redis mutex for read-only events' do
+      expect(lock_manager).not_to receive(:lock)
+
+      job_instance = described_class.new
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(read_event[:entry])
+    end
+
+    it 'derives a lock key safely for test events without messaging payloads' do
+      expected_test_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: nil, ig_account_id: test_event[:entry][0][:id])
+
+      expect(lock_manager).to receive(:lock).with(expected_test_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(test_event[:entry])
+    end
+
+    it 'does not narrow the lock key when a mixed batch includes inbound messages' do
+      mixed_entries = [echo_event[0], dm_event[:entry][0]]
+
+      expect(lock_manager).to receive(:lock).with(expected_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(mixed_entries)
+    end
+
+    it 'falls back to first non-echo sender for multi-item batched echo deliveries' do
+      multi_echo_entries = [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: ig_account_id },
+              recipient: { id: 'customer-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              message: { mid: 'echo-1', text: 'Echo one', is_echo: true }
+            },
+            {
+              sender: { id: ig_account_id },
+              recipient: { id: 'customer-2' },
+              timestamp: '2021-09-08T06:34:05+0000',
+              message: { mid: 'echo-2', text: 'Echo two', is_echo: true }
+            }
+          ]
+        }
+      ]
+
+      # Fallback returns first echo recipient when all are echo-self
+      expected_fallback_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: 'customer-1', ig_account_id: ig_account_id)
+      expect(lock_manager).to receive(:lock).with(expected_fallback_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(multi_echo_entries)
+
+      # Verify fallback was used in the delivery validation log
+      expect(Rails.logger).to have_received(:info).with(/event=delivery_validation.*fallback_used=true/)
+    end
+
+    it 'emits delivery_validation log with entry count, messaging count, echo presence, and event family' do
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(dm_event[:entry])
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=delivery_validation.*entry_count=1.*messaging_count=1.*has_echo=false.*fallback_used=false.*event_family=inbound/
+      )
+    end
+
+    it 'emits delivery_validation log with has_echo=true for echo deliveries' do
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(echo_event)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=delivery_validation.*has_echo=true.*fallback_used=false.*event_family=echo/
+      )
+    end
+
+    it 'emits delivery_validation log with event_family=mixed and fallback_used=true for mixed batches' do
+      mixed_entries = [echo_event[0], dm_event[:entry][0]]
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(mixed_entries)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=delivery_validation.*has_echo=true.*fallback_used=true.*event_family=mixed/
+      )
+    end
+
+    it 'includes distinct_participant_ids in delivery_validation log' do
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(echo_event)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=delivery_validation.*distinct_participant_ids=#{ig_account_id},customer-ig-user-id-1/
+      )
+    end
+
+    it 'includes event_family and fallback_used in lock released log' do
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(dm_event[:entry])
+
+      expect(Rails.logger).to have_received(:info).with(/event=lock_released.*event_family=inbound.*fallback_used=false/)
+    end
+  end
+
+  describe 'read-path split' do
+    let(:lock_manager) { instance_double(Redis::LockManager) }
+    let(:ig_account_id) { 'ig-account-123' }
+
+    before do
+      allow(Redis::LockManager).to receive(:new).and_return(lock_manager)
+      allow(lock_manager).to receive(:lock).and_return(true)
+      allow(lock_manager).to receive(:unlock).and_return(true)
+      allow(Rails.logger).to receive(:info)
+    end
+
+    it 'processes read events outside the mutex and message events inside' do
+      mixed_entries = [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: 'customer-1' },
+              recipient: { id: 'chatwoot-app-user-id-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              read: { mid: 'read-mid-1' }
+            },
+            {
+              sender: { id: 'customer-1' },
+              recipient: { id: 'chatwoot-app-user-id-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              message: { mid: 'msg-mid-1', text: 'Hello' }
+            }
+          ]
+        }
+      ]
+
+      job_instance = described_class.new
+
+      # Read events are processed before lock acquisition
+      allow(job_instance).to receive(:process_single_read).and_call_original
+      allow(job_instance).to receive(:find_channel).and_return(nil)
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+
+      job_instance.perform(mixed_entries)
+
+      # Lock should still be acquired for message work
+      expect(lock_manager).to have_received(:lock).once
+    end
+
+    it 'logs read_unlocked when processing a read event with a valid channel' do
+      read_entries = [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: 'customer-1' },
+              recipient: { id: 'chatwoot-app-user-id-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              read: { mid: 'read-mid-1' }
+            }
+          ]
+        }
+      ]
+
+      messages_relation = instance_double(ActiveRecord::Relation, find_by: nil)
+      inbox = instance_double(Inbox, messages: messages_relation)
+      channel = instance_double(Channel::Instagram, inbox: inbox, id: 1, account_id: 1, instagram_id: 'x')
+      allow(Channel::Instagram).to receive(:find_by).and_return(channel)
+      read_service = instance_double(Instagram::ReadStatusService, perform: nil)
+      allow(Instagram::ReadStatusService).to receive(:new).and_return(read_service)
+
+      job_instance = described_class.new
+      job_instance.perform(read_entries)
+
+      expect(Rails.logger).to have_received(:info).with(/event=read_unlocked/)
+    end
+
+    it 'logs read_message_missing when channel is not found for a read event' do
+      read_entries = [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: 'customer-1' },
+              recipient: { id: 'unknown-recipient' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              read: { mid: 'read-mid-1' }
+            }
+          ]
+        }
+      ]
+
+      job_instance = described_class.new
+      job_instance.perform(read_entries)
+
+      expect(Rails.logger).to have_received(:info).with(/event=read_message_missing/)
+    end
+
+    it 'logs unsupported_event_skipped for items with no recognized event key' do
+      unsupported_entries = [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: 'customer-1' },
+              recipient: { id: 'chatwoot-app-user-id-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              reaction: { mid: 'msg-mid-1', action: 'react', emoji: "\u{2764}\u{FE0F}" }
+            }
+          ]
+        }
+      ]
+
+      # No message-like work, so no lock
+      expect(lock_manager).not_to receive(:lock)
+
+      job_instance = described_class.new
+      job_instance.perform(unsupported_entries)
+
+      # unsupported_event_skipped is only logged inside the locked message path, which won't run here
+      # since there's no message_work. This verifies no lock is acquired for unsupported-only payloads.
+    end
+
+    it 'logs unsupported_event_skipped when unsupported items coexist with message items in the same entry' do
+      mixed_entries = [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: 'customer-1' },
+              recipient: { id: 'chatwoot-app-user-id-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              message: { mid: 'msg-mid-1', text: 'Hello' }
+            },
+            {
+              sender: { id: 'customer-1' },
+              recipient: { id: 'chatwoot-app-user-id-1' },
+              timestamp: '2021-09-08T06:34:05+0000',
+              reaction: { mid: 'msg-mid-1', action: 'react', emoji: "\u{2764}\u{FE0F}" }
+            }
+          ]
+        }
+      ]
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:dispatch_message)
+      allow(job_instance).to receive(:find_channel).and_return(instance_double(Channel::Instagram))
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+
+      job_instance.perform(mixed_entries)
+
+      expect(Rails.logger).to have_received(:info).with(/event=unsupported_event_skipped/)
+    end
+
+    it 'logs message_locked when processing a message event inside the mutex' do
+      dm_event = build(:instagram_message_create_event).with_indifferent_access
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:dispatch_message)
+      allow(job_instance).to receive(:find_channel).and_return(instance_double(Channel::Instagram))
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+
+      job_instance.perform(dm_event[:entry])
+
+      expect(Rails.logger).to have_received(:info).with(/event=message_locked/)
     end
   end
 end

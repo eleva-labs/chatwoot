@@ -21,6 +21,7 @@
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
 #  account_id            :integer          not null
+#  company_id            :bigint
 #
 # Indexes
 #
@@ -28,6 +29,7 @@
 #  index_contacts_on_account_id_and_contact_type         (account_id,contact_type)
 #  index_contacts_on_account_id_and_last_activity_at     (account_id,last_activity_at DESC NULLS LAST)
 #  index_contacts_on_blocked                             (blocked)
+#  index_contacts_on_company_id                          (company_id)
 #  index_contacts_on_lower_email_account_id              (lower((email)::text), account_id)
 #  index_contacts_on_name_email_phone_number_identifier  (name,email,phone_number,identifier) USING gin
 #  index_contacts_on_nonempty_fields                     (account_id,email,phone_number,identifier) WHERE (((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))
@@ -226,10 +228,6 @@ class Contact < ApplicationRecord
   def prepare_jsonb_attributes
     self.additional_attributes = {} if additional_attributes.blank?
     self.custom_attributes = {} if custom_attributes.blank?
-    # Set default AI flag only when the record is being created and the key is missing
-    return unless new_record? && !custom_attributes.key?('ai_enabled')
-
-    custom_attributes['ai_enabled'] = ENV.fetch('CW_DEFAULT_AI_BOT_ENABLED', 'false') == 'true'
   end
 
   def sync_contact_attributes
@@ -245,6 +243,26 @@ class Contact < ApplicationRecord
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(CONTACT_DELETED, Time.zone.now, contact: self)
+    # For deletion events, pass primitive data instead of the object
+    # This prevents deserialization errors when the record is already deleted
+    #
+    # Pattern follows inbox.rb:244 and agent_bot.rb:123
+    # ApplicationJob's discard_on provides additional safety net
+    Rails.configuration.dispatcher.dispatch(
+      CONTACT_DELETED,
+      Time.zone.now,
+      contact_id: id,
+      account_id: account_id,
+      # Pass all fields needed for push_event_data
+      additional_attributes: additional_attributes,
+      custom_attributes: custom_attributes,
+      email: email,
+      identifier: identifier,
+      name: name,
+      phone_number: phone_number,
+      thumbnail: avatar_url,
+      blocked: blocked
+    )
   end
 end
+Contact.include_mod_with('Concerns::Contact')

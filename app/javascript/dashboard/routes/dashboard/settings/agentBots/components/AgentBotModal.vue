@@ -3,7 +3,7 @@ import { ref, computed, reactive, watch } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
-import { required, helpers, url } from '@vuelidate/validators';
+import { required, helpers } from '@vuelidate/validators';
 import { useVuelidate } from '@vuelidate/core';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useToggle } from '@vueuse/core';
@@ -49,6 +49,17 @@ const formState = reactive({
 const [showAccessToken, toggleAccessToken] = useToggle();
 const accessToken = ref('');
 
+// Custom URL validator that accepts both HTTP and HTTPS (for localhost development)
+const isValidUrl = value => {
+  if (!value) return true; // Let 'required' handle empty values
+  try {
+    const urlObj = new URL(value);
+    return ['http:', 'https:'].includes(urlObj.protocol);
+  } catch {
+    return false;
+  }
+};
+
 const v$ = useVuelidate(
   {
     botName: {
@@ -62,9 +73,9 @@ const v$ = useVuelidate(
         () => t('AGENT_BOTS.FORM.ERRORS.URL'),
         required
       ),
-      url: helpers.withMessage(
+      isValidUrl: helpers.withMessage(
         () => t('AGENT_BOTS.FORM.ERRORS.VALID_URL'),
-        url
+        isValidUrl
       ),
     },
   },
@@ -118,10 +129,11 @@ const showAccessTokenInput = computed(
 const resetForm = () => {
   // Use account.id instead of store_id from custom_attributes
   const storeId = currentAccount.value.id;
+  const constructedUrl = `${window.chatwootConfig.aiBackendUrl}/api/webhooks/chatwoot/message?store_id=${storeId}&agent_system_id=pending&id_type=external`;
   Object.assign(formState, {
     botName: '',
     botDescription: '',
-    botUrl: `${window.chatwootConfig.aiBackendUrl}/api/webhooks/chatwoot/message?store_id=${storeId}&agent_system_id=pending&id_type=external`,
+    botUrl: constructedUrl,
     botAvatar: null,
     botAvatarUrl: '',
   });

@@ -451,7 +451,7 @@ export default {
   <div class="flex flex-col justify-between flex-grow h-full min-w-0 m-0">
     <Banner
       v-if="!currentChat.can_reply"
-      color-scheme="alert"
+      color-scheme="warning"
       class="mx-2 mt-2 overflow-hidden rounded-lg"
       :banner-message="replyWindowBannerMessage"
       :href-link="replyWindowLink"

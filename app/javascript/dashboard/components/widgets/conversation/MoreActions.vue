@@ -10,6 +10,7 @@ import ResolveAction from '../../buttons/ResolveAction.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import AIToggleButton from '../../ui/AIToggleButton.vue';
+import ConversationApi from 'dashboard/api/conversations';
 
 import {
   CMD_MUTE_CONVERSATION,
@@ -26,25 +27,33 @@ const [showActionsDropdown, toggleDropdown] = useToggle(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 
-// AI toggle functionality
-const currentContact = computed(() => {
-  const senderId = currentChat.value?.meta?.sender?.id;
-  return senderId ? store.getters['contacts/getContact'](senderId) : {};
-});
-
 const isAiEnabled = computed(() => {
-  return !!currentContact.value?.custom_attributes?.ai_enabled;
+  return !!currentChat.value?.custom_attributes?.ai_enabled;
 });
 
 const onToggleAi = async () => {
-  const contactId = currentContact.value?.id;
-  if (!contactId) return;
-  const next = !isAiEnabled.value;
+  const conversationId = currentChat.value?.id;
+  if (!conversationId) return;
 
-  await store.dispatch('contacts/toggleAi', {
-    id: contactId,
-    aiEnabled: next,
-  });
+  const nextValue = !isAiEnabled.value;
+
+  try {
+    await ConversationApi.toggleAi(conversationId, nextValue);
+
+    // Update the local conversation state
+    const updatedChat = {
+      ...currentChat.value,
+      custom_attributes: {
+        ...currentChat.value.custom_attributes,
+        ai_enabled: nextValue,
+      },
+    };
+
+    store.commit('UPDATE_CONVERSATION', updatedChat);
+    useAlert(t('CONVERSATION.AI_TOGGLE_SUCCESS'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.AI_TOGGLE_ERROR'));
+  }
 };
 
 const actionMenuItems = computed(() => {
@@ -119,7 +128,7 @@ onUnmounted(() => {
       :status="currentChat.status"
     />
     <AIToggleButton
-      v-if="currentContact.id"
+      v-if="currentChat.id"
       :ai-enabled="isAiEnabled"
       @toggle-ai="onToggleAi"
     />

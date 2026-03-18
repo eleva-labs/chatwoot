@@ -27,29 +27,21 @@ require 'test_prof/recipes/rspec/let_it_be'
 # require only the support files necessary.
 #
 # rubocop:disable  Rails/FilePath
-Dir[Rails.root.join('spec', 'support', '**', '*.rb')].sort.each { |f| require f }
+Dir[Rails.root.join('spec', 'support', '**', '*.rb')].each { |f| require f }
 # rubocop:enable  Rails/FilePath
 
 # Checks for pending migrations and applies them before tests are run.
 # If you are not using ActiveRecord, you can remove these lines.
 begin
   ActiveRecord::Migration.maintain_test_schema!
+  # Also maintain custom migrations for test schema
+  CustomMigrationRunner.new.migrate
 rescue ActiveRecord::PendingMigrationError => e
   puts e.to_s.strip
   exit 1
 end
 RSpec.configure do |config|
   config.include FactoryBot::Syntax::Methods
-
-  # Mock Stripe billing jobs in tests by default to prevent HTTP calls
-  # but skip mocking when we're explicitly testing billing job behavior
-  config.before do
-    unless RSpec.current_example&.file_path&.include?('jobs/billing')
-      allow(Billing::ProvisionStripeSubscriptionJob).to receive(:perform_later)
-      allow(Billing::CreateCustomerJob).to receive(:perform_later)
-    end
-  end
-
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
   config.fixture_path = Rails.root.join('spec/fixtures')
 
@@ -81,16 +73,10 @@ RSpec.configure do |config|
   config.include FileUploadHelpers
   config.include CsvSpecHelpers
   config.include InstagramSpecHelpers
-  config.include AiBackendStubs
   config.include Devise::Test::IntegrationHelpers, type: :request
   config.include ActiveSupport::Testing::TimeHelpers
   config.include ActionCable::TestHelper
   config.include ActiveJob::TestHelper
-
-  # Automatically stub AI Backend API calls before each test
-  config.before do
-    stub_ai_backend_requests
-  end
 end
 
 Shoulda::Matchers.configure do |config|

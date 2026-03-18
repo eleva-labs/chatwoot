@@ -9,6 +9,7 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
   let(:class_instance) { described_class.new }
   let!(:account) { create(:account) }
   let!(:administrator) { create(:user, :administrator, email: 'agent1@example.com', account: account) }
+  let!(:another_administrator) { create(:user, :administrator, email: 'agent2@example.com', account: account) }
 
   describe 'facebook_disconnect' do
     before do
@@ -26,7 +27,7 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
       end
 
       it 'renders the receiver email' do
-        expect(mail.to).to eq([administrator.email])
+        expect(mail.to).to contain_exactly(administrator.email, another_administrator.email)
       end
     end
   end
@@ -38,7 +39,7 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
       ch.define_singleton_method(:validate_provider_config) { true }
       # Prevent sync_templates from being called
       ch.define_singleton_method(:sync_templates) { nil }
-      
+
       # Mock the provider_config_object to prevent webhook token generation issues
       mock_config = double('MockProviderConfig')
       allow(mock_config).to receive(:webhook_verify_token).and_return('test_webhook_token')
@@ -46,7 +47,7 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
       allow(mock_config).to receive(:cleanup_on_destroy)
       allow(mock_config).to receive(:api_key).and_return('test_api_key')
       allow(ch).to receive(:provider_config_object).and_return(mock_config)
-      
+
       ch.save!(validate: false)
       ch
     end
@@ -58,7 +59,7 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
     end
 
     it 'renders the receiver email' do
-      expect(mail.to).to eq([administrator.email])
+      expect(mail.to).to contain_exactly(administrator.email, another_administrator.email)
     end
   end
 
@@ -72,7 +73,7 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
     end
 
     it 'renders the receiver email' do
-      expect(mail.to).to eq([administrator.email])
+      expect(mail.to).to contain_exactly(administrator.email, another_administrator.email)
     end
   end
 end

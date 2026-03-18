@@ -61,4 +61,21 @@ class AutomationRules::ActionService < ActionService
       TeamNotifications::AutomationNotificationMailer.conversation_creation(@conversation, team, params[0][:message])&.deliver_now
     end
   end
+
+  def set_ai_enabled(ai_enabled_params)
+    enabled = extract_boolean_value(ai_enabled_params)
+
+    if enabled
+      @conversation.enable_ai!
+    else
+      @conversation.disable_ai!
+    end
+  end
+
+  def extract_boolean_value(params)
+    value = params.is_a?(Array) ? params.first : params
+    # Handle hash format from frontend dropdown: { id: true/false, name: 'Enable'/'Disable' }
+    value = value['id'] || value[:id] if value.is_a?(Hash)
+    [true, 'true', 1, '1'].include?(value)
+  end
 end

@@ -1,7 +1,10 @@
 version: '3'
+silent: true
 
 env:
   COMPOSE_FILE: docker-compose.yaml
+  TEST_POSTGRES_HOST: localhost
+  TEST_POSTGRES_PORT: '5430'
 
 tasks:
   # =====================================================================
@@ -114,14 +117,20 @@ tasks:
     cmds:
       - docker compose exec rails bundle exec rails console
 
-  dev-dbconsole:
-    desc: 'Open database console'
-    cmds:
-      - docker compose exec postgres psql -U postgres -d chatwoot_development
-
   setup-db:
     desc: 'Clone database from dev/prod to local (usage: task setup-db -- [dev|prod] [--no-exclude] [--exclude TABLE])'
     cmds:
+      - |
+        # Check if postgres is already running
+        if ! docker compose ps postgres | grep -q "Up"; then
+          echo "🚀 Starting Docker Compose database..."
+          docker compose up -d postgres redis
+          echo "⏳ Waiting for database to be ready..."
+          sleep 5
+          echo "✅ Database started"
+        else
+          echo "✅ Database already running"
+        fi
       - |
         # Check for required Python dependencies
         if ! python3 -c "import boto3" 2>/dev/null; then
@@ -144,7 +153,7 @@ tasks:
     cmds:
       - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "🧪 Running all RSpec tests"
-      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec --format documentation
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rspec --format documentation
       - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-module:
@@ -152,7 +161,7 @@ tasks:
     cmds:
       - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "🧪 Running RSpec tests for {{.CLI_ARGS}}"
-      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rspec {{.CLI_ARGS}} --format documentation
       - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-file:
@@ -160,14 +169,14 @@ tasks:
     cmds:
       - '{{if eq .SETUP_DB "true"}}task test-setup-db{{end}}'
       - echo "🧪 Running RSpec test file {{.CLI_ARGS}}"
-      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rspec {{.CLI_ARGS}} --format documentation
       - '{{if eq .CLEANUP "true"}}task test-cleanup{{end}}'
 
   test-backend-local:
     desc: 'Run RSpec tests locally (requires local postgres/redis)'
     cmds:
       - echo "🧪 Running RSpec tests locally"
-      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rspec {{.CLI_ARGS}} --format documentation
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rspec {{.CLI_ARGS}} --format documentation
 
   # Frontend Testing (Vitest)
   # -------------------------
@@ -201,29 +210,29 @@ tasks:
       - docker compose up -d postgres redis
       - sleep 5
       - echo "📦 Preparing test database schema..."
-      - POSTGRES_HOST=localhost POSTGRES_USERNAME=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://localhost:6379/0 RAILS_ENV=test bundle exec rails db:chatwoot_prepare
+      - RAILS_ENV=test POSTGRES_HOST={{.TEST_POSTGRES_HOST}} POSTGRES_PORT={{.TEST_POSTGRES_PORT}} bundle exec rails db:chatwoot_prepare
       - echo "✅ Test database ready"
 
   test-check-db:
-    desc: 'Check for running databases on port 5432'
+    desc: 'Check for running databases on port {{.TEST_POSTGRES_PORT}}'
     cmds:
       - |
-        if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-          echo "⚠️  Database is running on port 5432"
-          lsof -Pi :5432 -sTCP:LISTEN
+        if lsof -Pi :{{.TEST_POSTGRES_PORT}} -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+          echo "⚠️  Database is running on port {{.TEST_POSTGRES_PORT}}"
+          lsof -Pi :{{.TEST_POSTGRES_PORT}} -sTCP:LISTEN
           exit 1
         else
-          echo "✅ No database running on port 5432"
+          echo "✅ No database running on port {{.TEST_POSTGRES_PORT}}"
         fi
     silent: false
 
   test-stop-db:
-    desc: 'Stop any running databases on port 5432'
+    desc: 'Stop any running databases on port {{.TEST_POSTGRES_PORT}}'
     cmds:
       - |
-        if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-          echo "🛑 Stopping database on port 5432..."
-          docker ps -q --filter "publish=5432" | xargs -r docker stop
+        if lsof -Pi :{{.TEST_POSTGRES_PORT}} -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+          echo "🛑 Stopping database on port {{.TEST_POSTGRES_PORT}}..."
+          docker ps -q --filter "publish={{.TEST_POSTGRES_PORT}}" | xargs -r docker stop
           brew services list | grep postgresql | grep started && brew services stop postgresql || true
           sleep 2
           echo "✅ Database stopped"
@@ -281,9 +290,17 @@ tasks:
   # -------------------------
 
   docker-up:
-    desc: 'Start all Docker containers'
+    desc: 'Start Docker containers (usage: task docker-up or task docker-up -- db)'
     cmds:
-      - docker compose up -d
+      - |
+        if [ "{{.CLI_ARGS}}" = "db" ]; then
+          echo "🚀 Starting database containers only (postgres, redis)..."
+          docker compose up -d postgres redis
+        else
+          echo "🚀 Starting all containers..."
+          docker compose up -d
+        fi
+      - echo "✅ Containers started"
 
   docker-stop:
     desc: 'Stop Docker containers (without removing them)'
@@ -383,4 +400,3 @@ tasks:
     cmds:
       - task: lint-backend
       - task: lint-frontend
-
