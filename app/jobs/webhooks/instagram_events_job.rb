@@ -8,59 +8,107 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
 
   retry_on LockAcquisitionError, wait: LOCK_RETRY_WAIT, attempts: 8
 
-  # @return [Array] We will support further events like reaction or seen in future
-  SUPPORTED_EVENTS = [:message, :read].freeze
+  # Message-like events require the Redis mutex; read events do not.
+  MESSAGE_EVENTS = %i[message].freeze
 
   def perform(entries)
     @entries = entries
+    process_read_events(entries)
+    return unless message_work?(entries)
 
-    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: lock_participant_id, ig_account_id: ig_account_id)
+    participant_id, fallback_used = derive_lock_participant
+    @event_family = detect_event_family
+    @fallback_used = fallback_used
+    log_delivery_validation
+
+    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: participant_id, ig_account_id: ig_account_id)
     lock_started_at = monotonic_time
     @lock_acquired_at = nil
 
     with_lock(key, 30.seconds) do
       @lock_acquired_at = monotonic_time
-      process_entries(entries)
+      process_message_entries(entries)
     end
   rescue LockAcquisitionError
-    log_lock_retry(
-      lock_key: key,
-      lock_attempt_ms: elapsed_ms(lock_started_at, monotonic_time),
-      retry_attempt: lock_attempt
-    )
+    log_lock_retry(lock_key: key, lock_attempt_ms: elapsed_ms(lock_started_at, monotonic_time), retry_attempt: lock_attempt)
     raise
   ensure
     log_lock_release(key, lock_started_at) if lock_started_at && @lock_acquired_at
   end
 
-  # https://developers.facebook.com/docs/messenger-platform/instagram/features/webhook
-  def process_entries(entries)
+  private
+
+  def process_read_events(entries)
     entries.each do |entry|
-      process_single_entry(entry.with_indifferent_access)
+      entry = entry.with_indifferent_access
+      next if test_event?(entry)
+
+      messages(entry).each { |messaging| process_single_read(messaging) if read_event?(messaging) }
     end
   end
 
-  private
+  def process_single_read(messaging)
+    channel = find_channel(instagram_id(messaging))
 
-  def process_single_entry(entry)
-    if test_event?(entry)
-      process_test_event(entry)
+    if channel.blank?
+      log_webhook_event('read_message_missing', messaging: messaging, reason: 'channel_not_found')
       return
     end
 
-    process_messages(entry)
+    log_webhook_event('read_unlocked', messaging: messaging)
+    ::Instagram::ReadStatusService.new(params: messaging, channel: channel).perform
   end
 
-  def process_messages(entry)
-    messages(entry).each do |messaging|
-      instagram_id = instagram_id(messaging)
-      channel = find_channel(instagram_id)
+  def read_event?(messaging)
+    messaging.key?(:read) && !message_event?(messaging)
+  end
 
+  def process_message_entries(entries)
+    entries.each do |entry|
+      entry = entry.with_indifferent_access
+      if test_event?(entry)
+        process_test_event(entry)
+      else
+        process_message_items(entry)
+      end
+    end
+  end
+
+  def process_message_items(entry)
+    messages(entry).each do |messaging|
+      next if read_event?(messaging)
+
+      unless message_event?(messaging)
+        log_webhook_event('unsupported_event_skipped', messaging: messaging)
+        next
+      end
+
+      channel = find_channel(instagram_id(messaging))
       next if channel.blank?
 
-      if (event_name = event_name(messaging))
-        send(event_name, messaging, channel)
-      end
+      log_webhook_event('message_locked', messaging: messaging)
+      dispatch_message(messaging, channel)
+    end
+  end
+
+  def dispatch_message(messaging, channel)
+    if channel.is_a?(Channel::Instagram)
+      ::Instagram::MessageText.new(messaging, channel).perform
+    else
+      ::Instagram::Messenger::MessageText.new(messaging, channel).perform
+    end
+  end
+
+  def message_event?(messaging)
+    MESSAGE_EVENTS.any? { |key| messaging.key?(key) }
+  end
+
+  def message_work?(entries)
+    entries.any? do |entry|
+      entry = entry.with_indifferent_access
+      next true if test_event?(entry)
+
+      messages(entry).any? { |m| message_event?(m) }
     end
   end
 
@@ -73,21 +121,12 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def process_test_event(entry)
-    messaging = extract_messaging_from_test_event(entry)
-
+    messaging = entry[:changes].first&.dig(:value) if entry[:changes].present?
     Instagram::TestEventService.new(messaging).perform if messaging.present?
   end
 
-  def extract_messaging_from_test_event(entry)
-    entry[:changes].first&.dig(:value) if entry[:changes].present?
-  end
-
   def instagram_id(messaging)
-    if agent_message_via_echo?(messaging)
-      messaging[:sender][:id]
-    else
-      messaging[:recipient][:id]
-    end
+    agent_message_via_echo?(messaging) ? messaging[:sender][:id] : messaging[:recipient][:id]
   end
 
   def ig_account_id
@@ -98,15 +137,34 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
     @entries&.dig(0, :messaging, 0, :sender, :id)
   end
 
-  def lock_participant_id
-    echo_recipient_id = nil
+  # Returns [participant_id, fallback_used] for the lock key.
+  # Narrow override: only for single-item message-like deliveries, derive based on event semantics.
+  # For mixed/batched/ambiguous deliveries, fall back to the first non-echo sender (original behavior).
+  def derive_lock_participant
+    msgs = lock_messages
+    return [sender_id, true] if msgs.empty?
 
-    lock_messages.each do |messaging|
+    # Narrow single-item override
+    if msgs.size == 1
+      item = msgs.first
+      if echo_self_message?(item)
+        [item.dig(:recipient, :id), false]
+      else
+        [item.dig(:sender, :id), false]
+      end
+    else
+      [fallback_lock_participant(msgs), true]
+    end
+  end
+
+  # Original multi-item derivation: return the first non-echo-self sender, or the first echo recipient.
+  def fallback_lock_participant(msgs)
+    echo_recipient_id = nil
+    msgs.each do |messaging|
       return messaging.dig(:sender, :id) unless echo_self_message?(messaging)
 
       echo_recipient_id ||= messaging.dig(:recipient, :id)
     end
-
     echo_recipient_id
   end
 
@@ -115,41 +173,50 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def lock_messages
-    Array(@entries).flat_map do |entry|
-      messages(entry.with_indifferent_access)
-    end
+    @lock_messages ||= Array(@entries).flat_map { |entry| messages(entry.with_indifferent_access).select { |m| message_event?(m) } }
+  end
+
+  def detect_event_family
+    msgs = lock_messages
+    return 'none' if msgs.empty?
+
+    has_echo = msgs.any? { |m| agent_message_via_echo?(m) }
+    has_inbound = msgs.any? { |m| !agent_message_via_echo?(m) }
+    return 'mixed' if has_echo && has_inbound
+    return 'echo' if has_echo
+
+    'inbound'
+  end
+
+  # TODO: Remove after contention analysis (Phase 1 temporary logging)
+  def log_delivery_validation
+    msgs = lock_messages
+    entry_count = Array(@entries).size
+    messaging_count = msgs.size
+    has_echo = msgs.any? { |m| agent_message_via_echo?(m) }
+    distinct_ids = msgs.flat_map { |m| [m.dig(:sender, :id), m.dig(:recipient, :id)] }.compact.uniq
+
+    Rails.logger.info(
+      "[#{self.class.name}] event=delivery_validation ig_account_id=#{ig_account_id} " \
+      "entry_count=#{entry_count} messaging_count=#{messaging_count} " \
+      "has_echo=#{has_echo} fallback_used=#{@fallback_used} " \
+      "event_family=#{@event_family} distinct_participant_ids=#{distinct_ids.join(',')}"
+    )
   end
 
   def find_channel(instagram_id)
-    # There will be chances for the instagram account to be connected to a facebook page,
-    # so we need to check for both instagram and facebook page channels
-    # priority is for instagram channel which created via instagram login
-    channel = Channel::Instagram.find_by(instagram_id: instagram_id)
-    # If not found, fallback to the facebook page channel
-    channel ||= Channel::FacebookPage.find_by(instagram_id: instagram_id)
-
-    channel
-  end
-
-  def event_name(messaging)
-    SUPPORTED_EVENTS.find { |key| messaging.key?(key) }
-  end
-
-  def message(messaging, channel)
-    if channel.is_a?(Channel::Instagram)
-      ::Instagram::MessageText.new(messaging, channel).perform
-    else
-      ::Instagram::Messenger::MessageText.new(messaging, channel).perform
-    end
-  end
-
-  def read(messaging, channel)
-    # Use a single service to handle read status for both channel types since the params are same
-    ::Instagram::ReadStatusService.new(params: messaging, channel: channel).perform
+    Channel::Instagram.find_by(instagram_id: instagram_id) || Channel::FacebookPage.find_by(instagram_id: instagram_id)
   end
 
   def messages(entry)
     (entry[:messaging].presence || entry[:standby] || [])
+  end
+
+  def log_webhook_event(event, messaging: nil, **metadata)
+    mid = messaging&.dig(:message, :mid) || messaging&.dig(:read, :mid)
+    sender = messaging&.dig(:sender, :id)
+    details = metadata.map { |k, v| "#{k}=#{v}" }.join(' ')
+    Rails.logger.info("[#{self.class.name}] event=#{event} ig_account_id=#{ig_account_id} sender=#{sender} mid=#{mid} #{details}".strip)
   end
 
   def log_lock_release(lock_key, lock_started_at)
@@ -166,14 +233,16 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   def log_lock_event(event, lock_key:, **metadata)
     details = metadata.map { |attribute, value| "#{attribute}=#{value}" }.join(' ')
     Rails.logger.info(
-      "[#{self.class.name}] event=lock_#{event} lock_key=#{lock_key} sender_id=#{sender_id} ig_account_id=#{ig_account_id} #{details}".strip
+      "[#{self.class.name}] event=lock_#{event} lock_key=#{lock_key} sender_id=#{sender_id} " \
+      "ig_account_id=#{ig_account_id} event_family=#{@event_family} fallback_used=#{@fallback_used} #{details}".strip
     )
   end
 
   def log_lock_retry(lock_key:, **metadata)
     details = metadata.map { |attribute, value| "#{attribute}=#{value}" }.join(' ')
     Rails.logger.warn(
-      "[#{self.class.name}] event=lock_retry_scheduled lock_key=#{lock_key} sender_id=#{sender_id} ig_account_id=#{ig_account_id} #{details}".strip
+      "[#{self.class.name}] event=lock_retry_scheduled lock_key=#{lock_key} sender_id=#{sender_id} " \
+      "ig_account_id=#{ig_account_id} event_family=#{@event_family} fallback_used=#{@fallback_used} #{details}".strip
     )
   end
 
