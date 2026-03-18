@@ -16,7 +16,12 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
     process_read_events(entries)
     return unless message_work?(entries)
 
-    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: lock_participant_id, ig_account_id: ig_account_id)
+    participant_id, fallback_used = derive_lock_participant
+    @event_family = detect_event_family
+    @fallback_used = fallback_used
+    log_delivery_validation
+
+    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: participant_id, ig_account_id: ig_account_id)
     lock_started_at = monotonic_time
     @lock_acquired_at = nil
 
@@ -132,9 +137,30 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
     @entries&.dig(0, :messaging, 0, :sender, :id)
   end
 
-  def lock_participant_id
+  # Returns [participant_id, fallback_used] for the lock key.
+  # Narrow override: only for single-item message-like deliveries, derive based on event semantics.
+  # For mixed/batched/ambiguous deliveries, fall back to the first non-echo sender (original behavior).
+  def derive_lock_participant
+    msgs = lock_messages
+    return [sender_id, true] if msgs.empty?
+
+    # Narrow single-item override
+    if msgs.size == 1
+      item = msgs.first
+      if echo_self_message?(item)
+        [item.dig(:recipient, :id), false]
+      else
+        [item.dig(:sender, :id), false]
+      end
+    else
+      [fallback_lock_participant(msgs), true]
+    end
+  end
+
+  # Original multi-item derivation: return the first non-echo-self sender, or the first echo recipient.
+  def fallback_lock_participant(msgs)
     echo_recipient_id = nil
-    lock_messages.each do |messaging|
+    msgs.each do |messaging|
       return messaging.dig(:sender, :id) unless echo_self_message?(messaging)
 
       echo_recipient_id ||= messaging.dig(:recipient, :id)
@@ -147,7 +173,35 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def lock_messages
-    Array(@entries).flat_map { |entry| messages(entry.with_indifferent_access).select { |m| message_event?(m) } }
+    @lock_messages ||= Array(@entries).flat_map { |entry| messages(entry.with_indifferent_access).select { |m| message_event?(m) } }
+  end
+
+  def detect_event_family
+    msgs = lock_messages
+    return 'none' if msgs.empty?
+
+    has_echo = msgs.any? { |m| agent_message_via_echo?(m) }
+    has_inbound = msgs.any? { |m| !agent_message_via_echo?(m) }
+    return 'mixed' if has_echo && has_inbound
+    return 'echo' if has_echo
+
+    'inbound'
+  end
+
+  # TODO: Remove after contention analysis (Phase 1 temporary logging)
+  def log_delivery_validation
+    msgs = lock_messages
+    entry_count = Array(@entries).size
+    messaging_count = msgs.size
+    has_echo = msgs.any? { |m| agent_message_via_echo?(m) }
+    distinct_ids = msgs.flat_map { |m| [m.dig(:sender, :id), m.dig(:recipient, :id)] }.compact.uniq
+
+    Rails.logger.info(
+      "[#{self.class.name}] event=delivery_validation ig_account_id=#{ig_account_id} " \
+      "entry_count=#{entry_count} messaging_count=#{messaging_count} " \
+      "has_echo=#{has_echo} fallback_used=#{@fallback_used} " \
+      "event_family=#{@event_family} distinct_participant_ids=#{distinct_ids.join(',')}"
+    )
   end
 
   def find_channel(instagram_id)
@@ -179,14 +233,16 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   def log_lock_event(event, lock_key:, **metadata)
     details = metadata.map { |attribute, value| "#{attribute}=#{value}" }.join(' ')
     Rails.logger.info(
-      "[#{self.class.name}] event=lock_#{event} lock_key=#{lock_key} sender_id=#{sender_id} ig_account_id=#{ig_account_id} #{details}".strip
+      "[#{self.class.name}] event=lock_#{event} lock_key=#{lock_key} sender_id=#{sender_id} " \
+      "ig_account_id=#{ig_account_id} event_family=#{@event_family} fallback_used=#{@fallback_used} #{details}".strip
     )
   end
 
   def log_lock_retry(lock_key:, **metadata)
     details = metadata.map { |attribute, value| "#{attribute}=#{value}" }.join(' ')
     Rails.logger.warn(
-      "[#{self.class.name}] event=lock_retry_scheduled lock_key=#{lock_key} sender_id=#{sender_id} ig_account_id=#{ig_account_id} #{details}".strip
+      "[#{self.class.name}] event=lock_retry_scheduled lock_key=#{lock_key} sender_id=#{sender_id} " \
+      "ig_account_id=#{ig_account_id} event_family=#{@event_family} fallback_used=#{@fallback_used} #{details}".strip
     )
   end
 

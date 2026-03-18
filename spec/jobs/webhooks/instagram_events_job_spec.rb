@@ -334,12 +334,12 @@ describe Webhooks::InstagramEventsJob do
     let(:released_log_message) do
       "[Webhooks::InstagramEventsJob] event=lock_released lock_key=#{expected_key} " \
         "sender_id=#{sender_id} ig_account_id=#{ig_account_id} " \
-        'lock_attempt_ms=50 lock_hold_ms=150 total_elapsed_ms=200'
+        'event_family=inbound fallback_used=false lock_attempt_ms=50 lock_hold_ms=150 total_elapsed_ms=200'
     end
     let(:contention_log_message) do
       "[Webhooks::InstagramEventsJob] event=lock_retry_scheduled lock_key=#{expected_key} " \
         "sender_id=#{sender_id} ig_account_id=#{ig_account_id} " \
-        'lock_attempt_ms=200 retry_attempt=3'
+        'event_family=inbound fallback_used=false lock_attempt_ms=200 retry_attempt=3'
     end
     let(:base_contention_log_message) do
       "[Webhooks::InstagramEventsJob] Failed to acquire lock on attempt 3: #{expected_key}"
@@ -421,7 +421,8 @@ describe Webhooks::InstagramEventsJob do
       echo_recipient_id = echo_event[0][:messaging][0][:recipient][:id]
       expected_echo_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: echo_recipient_id, ig_account_id: ig_account_id)
       expected_log_message = "[Webhooks::InstagramEventsJob] event=lock_retry_scheduled lock_key=#{expected_echo_key} " \
-                             "sender_id=#{ig_account_id} ig_account_id=#{ig_account_id} lock_attempt_ms=200 retry_attempt=3"
+                             "sender_id=#{ig_account_id} ig_account_id=#{ig_account_id} " \
+                             'event_family=echo fallback_used=false lock_attempt_ms=200 retry_attempt=3'
 
       job_instance = described_class.new
 
@@ -485,6 +486,107 @@ describe Webhooks::InstagramEventsJob do
       allow(Rails.logger).to receive(:info)
 
       job_instance.perform(mixed_entries)
+    end
+
+    it 'falls back to first non-echo sender for multi-item batched echo deliveries' do
+      multi_echo_entries = [
+        {
+          id: ig_account_id,
+          messaging: [
+            {
+              sender: { id: ig_account_id },
+              recipient: { id: 'customer-1' },
+              timestamp: '2021-09-08T06:34:04+0000',
+              message: { mid: 'echo-1', text: 'Echo one', is_echo: true }
+            },
+            {
+              sender: { id: ig_account_id },
+              recipient: { id: 'customer-2' },
+              timestamp: '2021-09-08T06:34:05+0000',
+              message: { mid: 'echo-2', text: 'Echo two', is_echo: true }
+            }
+          ]
+        }
+      ]
+
+      # Fallback returns first echo recipient when all are echo-self
+      expected_fallback_key = format(Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: 'customer-1', ig_account_id: ig_account_id)
+      expect(lock_manager).to receive(:lock).with(expected_fallback_key, 30.seconds).and_return(true)
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(multi_echo_entries)
+
+      # Verify fallback was used in the delivery validation log
+      expect(Rails.logger).to have_received(:info).with(/event=delivery_validation.*fallback_used=true/)
+    end
+
+    it 'emits delivery_validation log with entry count, messaging count, echo presence, and event family' do
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(dm_event[:entry])
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=delivery_validation.*entry_count=1.*messaging_count=1.*has_echo=false.*fallback_used=false.*event_family=inbound/
+      )
+    end
+
+    it 'emits delivery_validation log with has_echo=true for echo deliveries' do
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(echo_event)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=delivery_validation.*has_echo=true.*fallback_used=false.*event_family=echo/
+      )
+    end
+
+    it 'emits delivery_validation log with event_family=mixed and fallback_used=true for mixed batches' do
+      mixed_entries = [echo_event[0], dm_event[:entry][0]]
+
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(mixed_entries)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=delivery_validation.*has_echo=true.*fallback_used=true.*event_family=mixed/
+      )
+    end
+
+    it 'includes distinct_participant_ids in delivery_validation log' do
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(echo_event)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=delivery_validation.*distinct_participant_ids=#{ig_account_id},customer-ig-user-id-1/
+      )
+    end
+
+    it 'includes event_family and fallback_used in lock released log' do
+      job_instance = described_class.new
+      allow(job_instance).to receive(:process_message_entries)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      allow(Rails.logger).to receive(:info)
+
+      job_instance.perform(dm_event[:entry])
+
+      expect(Rails.logger).to have_received(:info).with(/event=lock_released.*event_family=inbound.*fallback_used=false/)
     end
   end
 
