@@ -135,6 +135,7 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
       context 'with unsupported WHAPI inbound payloads' do
         it 'skips action payloads before contact creation or normalization' do
           action_params = {
+            'correlation_id' => 'corr-action-skip',
             'messages' => [
               {
                 'id' => 'whapi_action_message',
@@ -147,6 +148,7 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
           }
 
           service = described_class.new(inbox: inbox, params: action_params)
+          allow(Rails.logger).to receive(:info)
           expect(service).not_to receive(:set_contact)
           clear_enqueued_jobs
 
@@ -155,11 +157,18 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
             expect(Conversation.count).to eq(0)
             expect(Message.count).to eq(0)
             expect(Contact.count).to eq(0)
+            expect(Rails.logger).to have_received(:info) do |&block|
+              expect(block.call).to include('outcome=unsupported_benign reason=unsupported_benign_type')
+              expect(block.call).to include('message_type=action')
+              expect(block.call).to include("channel_id=#{channel.id}")
+              expect(block.call).to include('correlation_id=corr-action-skip')
+            end
           end
         end
 
         it 'skips ephemeral payloads before contact creation' do
           ephemeral_params = {
+            'correlation_id' => 'corr-ephemeral-skip',
             'messages' => [
               {
                 'id' => 'whapi_ephemeral_message',
@@ -173,6 +182,7 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
           }
 
           service = described_class.new(inbox: inbox, params: ephemeral_params)
+          allow(Rails.logger).to receive(:info)
           expect(service).not_to receive(:set_contact)
           clear_enqueued_jobs
 
@@ -181,6 +191,175 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
             expect(Conversation.count).to eq(0)
             expect(Message.count).to eq(0)
             expect(Contact.count).to eq(0)
+            expect(Rails.logger).to have_received(:info) do |&block|
+              expect(block.call).to include('outcome=unsupported_benign reason=unsupported_benign_type')
+              expect(block.call).to include('message_type=ephemeral')
+              expect(block.call).to include("channel_id=#{channel.id}")
+              expect(block.call).to include('correlation_id=corr-ephemeral-skip')
+            end
+          end
+        end
+
+        it 'logs and skips unknown message types without raising' do
+          unknown_params = {
+            'correlation_id' => 'corr-unknown-skip',
+            'messages' => [
+              {
+                'id' => 'whapi_unknown_message',
+                'from' => phone_number,
+                'from_name' => contact_name,
+                'from_me' => false,
+                'type' => 'unknown',
+                'timestamp' => Time.now.to_i
+              }
+            ]
+          }
+          allow(Rails.logger).to receive(:info)
+
+          aggregate_failures do
+            expect { described_class.new(inbox: inbox, params: unknown_params).perform }.not_to raise_error
+            expect(Contact.count).to eq(0)
+            expect(Conversation.count).to eq(0)
+            expect(Message.count).to eq(0)
+            expect(Rails.logger).to have_received(:info) do |&block|
+              expect(block.call).to include('outcome=unknown_future reason=unknown_type')
+              expect(block.call).to include('message_type=unknown')
+              expect(block.call).to include("channel_id=#{channel.id}")
+              expect(block.call).to include('correlation_id=corr-unknown-skip')
+            end
+          end
+        end
+
+        it 'logs and skips declared renderable types with missing nested payload' do
+          malformed_params = {
+            'correlation_id' => 'corr-missing-payload',
+            'messages' => [
+              {
+                'id' => 'whapi_missing_text_payload',
+                'from' => phone_number,
+                'from_name' => contact_name,
+                'from_me' => false,
+                'type' => 'text',
+                'timestamp' => Time.now.to_i
+              }
+            ]
+          }
+          allow(Rails.logger).to receive(:info)
+
+          aggregate_failures do
+            expect { described_class.new(inbox: inbox, params: malformed_params).perform }.not_to raise_error
+            expect(Contact.count).to eq(0)
+            expect(Conversation.count).to eq(0)
+            expect(Message.count).to eq(0)
+            expect(Rails.logger).to have_received(:info) do |&block|
+              expect(block.call).to include('outcome=malformed reason=missing_nested_payload')
+              expect(block.call).to include('message_type=text')
+              expect(block.call).to include("channel_id=#{channel.id}")
+              expect(block.call).to include('correlation_id=corr-missing-payload')
+            end
+          end
+        end
+
+        it 'logs and skips payloads with missing type' do
+          missing_type_params = {
+            'correlation_id' => 'corr-missing-type',
+            'messages' => [
+              {
+                'id' => 'whapi_missing_type_message',
+                'from' => phone_number,
+                'from_name' => contact_name,
+                'from_me' => false,
+                'timestamp' => Time.now.to_i
+              }
+            ]
+          }
+          allow(Rails.logger).to receive(:info)
+
+          aggregate_failures do
+            expect { described_class.new(inbox: inbox, params: missing_type_params).perform }.not_to raise_error
+            expect(Contact.count).to eq(0)
+            expect(Conversation.count).to eq(0)
+            expect(Message.count).to eq(0)
+            expect(Rails.logger).to have_received(:info) do |&block|
+              expect(block.call).to include('outcome=malformed reason=missing_type')
+              expect(block.call).to include('message_id=whapi_missing_type_message')
+              expect(block.call).to include('message_type=missing')
+              expect(block.call).to include("channel_id=#{channel.id}")
+              expect(block.call).to include('correlation_id=corr-missing-type')
+            end
+          end
+        end
+
+        it 'skips non-hash malformed items and continues processing later valid messages in the same batch' do
+          mixed_batch_params = {
+            'correlation_id' => 'corr-non-hash-item',
+            'messages' => [
+              'malformed message item',
+              {
+                'id' => 'whapi_valid_text_after_non_hash',
+                'from' => phone_number,
+                'from_name' => contact_name,
+                'from_me' => false,
+                'type' => 'text',
+                'text' => { 'body' => 'Hello after malformed item' },
+                'timestamp' => Time.now.to_i
+              }
+            ]
+          }
+          allow(Rails.logger).to receive(:info)
+
+          expect { described_class.new(inbox: inbox, params: mixed_batch_params).perform }
+            .to change(Contact, :count).by(1)
+            .and change(Conversation, :count).by(1)
+            .and change(Message, :count).by(1)
+
+          aggregate_failures do
+            expect(Message.last.content).to eq('Hello after malformed item')
+            expect(Message.last.source_id).to eq('whapi_valid_text_after_non_hash')
+            malformed_log = nil
+            expect(Rails.logger).to have_received(:info).at_least(:once) do |&block|
+              result = block&.call
+              malformed_log = result if result&.include?('outcome=malformed reason=non_hash_item')
+            end
+            expect(malformed_log).to be_present
+            expect(malformed_log).to include('message_id=missing')
+            expect(malformed_log).to include('message_type=missing')
+            expect(malformed_log).to include('item_class=String')
+            expect(malformed_log).to include("channel_id=#{channel.id}")
+            expect(malformed_log).to include('correlation_id=corr-non-hash-item')
+          end
+        end
+
+        it 'skips declared media types with missing nested payload before download logic' do
+          missing_media_payload_params = {
+            'correlation_id' => 'corr-missing-media-payload',
+            'messages' => [
+              {
+                'id' => 'whapi_missing_image_payload',
+                'from' => phone_number,
+                'from_name' => contact_name,
+                'from_me' => false,
+                'type' => 'image',
+                'timestamp' => Time.now.to_i
+              }
+            ]
+          }
+          service = described_class.new(inbox: inbox, params: missing_media_payload_params)
+          allow(Rails.logger).to receive(:info)
+          expect(service).not_to receive(:download_attachment_file)
+
+          aggregate_failures do
+            expect { service.perform }.not_to raise_error
+            expect(Contact.count).to eq(0)
+            expect(Conversation.count).to eq(0)
+            expect(Message.count).to eq(0)
+            expect(Rails.logger).to have_received(:info) do |&block|
+              expect(block.call).to include('outcome=malformed reason=missing_nested_payload')
+              expect(block.call).to include('message_id=whapi_missing_image_payload')
+              expect(block.call).to include('message_type=image')
+              expect(block.call).to include("channel_id=#{channel.id}")
+              expect(block.call).to include('correlation_id=corr-missing-media-payload')
+            end
           end
         end
 
@@ -245,7 +424,10 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
               expect(Message.count).to eq(0)
               expect(Contact.count).to eq(0)
               expect(Rails.logger).to have_received(:info) do |&block|
-                expect(block.call).to include('provider=whapi reason=blank_from id=whapi_blank_sender_message type=text')
+                expect(block.call).to include('outcome=malformed reason=blank_from')
+                expect(block.call).to include('message_id=whapi_blank_sender_message')
+                expect(block.call).to include('message_type=text')
+                expect(block.call).to include("channel_id=#{channel.id}")
               end
             end
           end

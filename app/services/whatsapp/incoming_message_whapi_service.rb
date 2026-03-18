@@ -1,4 +1,7 @@
 class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseService
+  RENDERABLE_MESSAGE_TYPES = %w[text image video audio voice document sticker location contacts button interactive].freeze
+  UNSUPPORTED_BENIGN_MESSAGE_TYPES = %w[action ephemeral].freeze
+
   # This service is a complete override of the base service to handle the specific
   # webhook structure of WHAPI. It handles incoming messages, outgoing message
   # echoes, and status updates.
@@ -29,8 +32,19 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def process_messages
     params['messages'].each do |message_params|
+      unless message_params.is_a?(Hash)
+        log_malformed_message_item(message_params)
+        next
+      end
+
       # Ensure we have a consistent hash with symbols as keys
       message = message_params.with_indifferent_access
+
+      classification = classify_message(message)
+      unless classification[:outcome] == :renderable_message
+        log_message_skip(message, classification)
+        next
+      end
 
       # Ignore messages that are sent as part of a campaign
       next if message[:from_campaign] == true
@@ -59,7 +73,6 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   # Message type processors
 
   def process_incoming_message(message)
-    return if unsupported_incoming_message?(message)
     return if missing_sender_for_incoming_message?(message)
 
     # Prevent processing duplicate messages
@@ -352,16 +365,53 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   end
 
   def unsupported_incoming_message?(message)
-    %w[action ephemeral].include?(message[:type].to_s)
+    UNSUPPORTED_BENIGN_MESSAGE_TYPES.include?(message[:type].to_s)
   end
 
   def missing_sender_for_incoming_message?(message)
     return false if message[:from].present?
 
-    Rails.logger.info do
-      "[WhapiInbound] Skipping incoming message: provider=whapi reason=blank_from id=#{message[:id]} type=#{message[:type]}"
-    end
+    log_message_skip(message, outcome: :malformed, reason: 'blank_from')
     true
+  end
+
+  def classify_message(message)
+    message_type = message[:type].to_s
+
+    return { outcome: :malformed, reason: 'missing_type' } if message_type.blank?
+    return { outcome: :unknown_future, reason: 'unknown_type' } if message_type == 'unknown'
+    return { outcome: :unsupported_benign, reason: 'unsupported_benign_type' } if unsupported_incoming_message?(message)
+    return { outcome: :unknown_future, reason: 'unrenderable_type' } unless RENDERABLE_MESSAGE_TYPES.include?(message_type)
+    return { outcome: :malformed, reason: 'missing_nested_payload' } if missing_declared_payload?(message, message_type)
+
+    { outcome: :renderable_message, reason: 'renderable_message' }
+  end
+
+  def missing_declared_payload?(message, message_type)
+    case message_type
+    when 'text'
+      message[:text].blank?
+    when 'contacts'
+      message[:contacts].blank?
+    else
+      message[message_type].blank?
+    end
+  end
+
+  def log_message_skip(message, classification)
+    Rails.logger.info do
+      "[WhapiMessage] Skipping message: provider=whapi outcome=#{classification[:outcome]} reason=#{classification[:reason]} " \
+        "message_id=#{message[:id]} message_type=#{message[:type].presence || 'missing'} channel_id=#{inbox.channel_id} " \
+        "correlation_id=#{params['correlation_id'] || 'missing'}"
+    end
+  end
+
+  def log_malformed_message_item(message_item)
+    Rails.logger.info do
+      '[WhapiMessage] Skipping message: provider=whapi outcome=malformed reason=non_hash_item ' \
+        "message_id=missing message_type=missing channel_id=#{inbox.channel_id} correlation_id=#{params['correlation_id'] || 'missing'} " \
+        "item_class=#{message_item.class}"
+    end
   end
 
   def message_already_processed?(source_id)
