@@ -306,6 +306,7 @@
     "CUSTOM_ATTRIBUTES": "Atributos personalizados",
     "AUTOMATION": "Automatización",
     "MACROS": "Macros",
+    "PROMPTS": "Base de Conocimiento",
     "TEAMS": "Equipos",
     "BILLING": "Facturación",
     "CUSTOM_VIEWS_FOLDER": "Carpetas",
@@ -436,6 +437,46 @@
       "SWITCH_TO_PRIVATE_NOTE": "Cambiar a nota privada",
       "SWITCH_TO_REPLY": "Cambiar a respuesta",
       "TOGGLE_SNOOZE_DROPDOWN": "Cambiar el menú desplegable"
+    }
+  },
+  "PROMPTS_PAGE": {
+    "TITLE": "Base de Conocimiento",
+    "DESCRIPTION": "Administra tu base de conocimiento. Agrega prompts y fuentes de conocimiento para ayudar a tus agentes a responder más rápido y con mayor precisión.",
+    "EMPTY_STATE": "No se encontraron prompts. Crea tu primer prompt para comenzar.",
+    "LOADING": "Cargando...",
+    "EDIT": "Editar",
+    "DELETE": "Eliminar",
+    "ADD": {
+      "TITLE": "Agregar Prompt",
+      "DESC": "Crear una nueva plantilla de prompt",
+      "SUCCESS_MESSAGE": "Prompt creado correctamente",
+      "ERROR_MESSAGE": "No se pudo crear el prompt",
+      "VALIDATION_ERROR": "Por favor completa todos los campos requeridos"
+    },
+    "EDITOR": {
+      "SAVING": "Guardando...",
+      "SAVED": "Guardado"
+    },
+    "DELETE_CONFIRM": {
+      "TITLE": "Eliminar Prompt",
+      "MESSAGE": "¿Estás seguro de que deseas eliminar este prompt?",
+      "YES": "Eliminar",
+      "NO": "Cancelar"
+    },
+    "FORM": {
+      "PROMPT_KEY": {
+        "LABEL": "Clave del Prompt",
+        "PLACEHOLDER": "Ingresa un identificador único para este prompt",
+        "ERROR": "La clave del prompt es requerida"
+      },
+      "TEXT": {
+        "LABEL": "Texto del Prompt",
+        "PLACEHOLDER": "Ingresa el contenido del prompt",
+        "ERROR": "El texto del prompt es requerido"
+      },
+      "CANCEL": "Cancelar",
+      "SUBMIT": "Crear Prompt",
+      "UPDATE": "Actualizar Prompt"
     }
   }
 }

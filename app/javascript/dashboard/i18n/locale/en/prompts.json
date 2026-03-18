@@ -1,11 +1,14 @@
 {
   "PROMPTS_PAGE": {
-    "TITLE": "Prompts",
-    "DESCRIPTION": "Configure prompts for your account. These prompts can be used in the composer to quickly write a message.",
+    "TITLE": "Knowledge Base",
+    "DESCRIPTION": "Manage your knowledge base. Add prompts and knowledge sources to help your agents respond faster and more accurately.",
     "ADD_BUTTON": "Add prompt",
-    "ADD_KNOWLEDGE_SOURCE_BUTTON": "Add knowledge source",
+    "ADD_KNOWLEDGE_SOURCE_BUTTON": "Add information",
+    "EMPTY_STATE": "No prompts found. Create your first prompt to get started.",
+    "LOADING": "Loading...",
+    "DELETE": "Delete",
     "KNOWLEDGE_SOURCE": {
-      "TITLE": "Add knowledge source",
+      "TITLE": "Add information",
       "TYPE": {
         "LABEL": "Type",
         "WEBPAGE": "Webpage",
@@ -66,4 +69,4 @@
       "UPDATE_BUTTON_TEXT": "Update"
     }
   }
-} 
+}

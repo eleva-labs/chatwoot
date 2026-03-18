@@ -1,11 +1,14 @@
 {
   "PROMPTS_PAGE": {
-    "TITLE": "Prompts",
-    "DESCRIPTION": "Configura prompts para tu cuenta. Estos prompts se pueden usar en el editor para escribir un mensaje rápidamente.",
+    "TITLE": "Base de Conocimiento",
+    "DESCRIPTION": "Administra tu base de conocimiento. Agrega prompts y fuentes de conocimiento para ayudar a tus agentes a responder más rápido y con mayor precisión.",
     "ADD_BUTTON": "Agregar prompt",
-    "ADD_KNOWLEDGE_SOURCE_BUTTON": "Agregar fuente de conocimiento",
+    "ADD_KNOWLEDGE_SOURCE_BUTTON": "Agregar información",
+    "EMPTY_STATE": "No se encontraron prompts. Crea tu primer prompt para comenzar.",
+    "LOADING": "Cargando...",
+    "DELETE": "Eliminar",
     "KNOWLEDGE_SOURCE": {
-      "TITLE": "Agregar fuente de conocimiento",
+      "TITLE": "Agregar información",
       "TYPE": {
         "LABEL": "Tipo",
         "WEBPAGE": "Página web",
@@ -57,8 +60,8 @@
     },
     "EDIT": {
       "TITLE": "Editar prompt",
-      "SUCCESS_MESSAGE": "Atajo actualizado correctamente.",
-      "ERROR_MESSAGE": "No se pudo actualizar el atajo. Por favor, inténtalo de nuevo."
+      "SUCCESS_MESSAGE": "Actualizado correctamente.",
+      "ERROR_MESSAGE": "No se pudo actualizar. Por favor, inténtalo de nuevo."
     },
     "EDITOR": {
       "SAVING": "Guardando...",
@@ -66,4 +69,4 @@
       "UPDATE_BUTTON_TEXT": "Actualizar"
     }
   }
-} 
+}

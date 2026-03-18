@@ -306,7 +306,7 @@
     "CUSTOM_ATTRIBUTES": "Custom Attributes",
     "AUTOMATION": "Automation",
     "MACROS": "Macros",
-    "PROMPTS": "Prompts",
+    "PROMPTS": "Knowledge Base",
     "TEAMS": "Teams",
     "BILLING": "Billing",
     "CUSTOM_VIEWS_FOLDER": "Folders",
@@ -443,10 +443,10 @@
     }
   },
   "PROMPTS_PAGE": {
-    "TITLE": "Prompts",
-    "DESCRIPTION": "Configure prompts for your account. These prompts can be used in the composer to quickly write a message.",
+    "TITLE": "Knowledge Base",
+    "DESCRIPTION": "Manage your knowledge base. Add prompts and knowledge sources to help your agents respond faster and more accurately.",
     "EMPTY_STATE": "No prompts found. Create your first prompt to get started.",
-    "LOADING": "Loading prompts...",
+    "LOADING": "Loading...",
     "EDIT": "Edit",
     "DELETE": "Delete",
     "ADD": {
@@ -454,13 +454,6 @@
       "DESC": "Create a new prompt template",
       "SUCCESS_MESSAGE": "Prompt created successfully",
       "ERROR_MESSAGE": "Failed to create prompt",
-      "VALIDATION_ERROR": "Please fill in all required fields"
-    },
-    "EDIT": {
-      "TITLE": "Edit Prompt",
-      "DESC": "Update the prompt template",
-      "SUCCESS_MESSAGE": "Prompt updated successfully",
-      "ERROR_MESSAGE": "Failed to update prompt",
       "VALIDATION_ERROR": "Please fill in all required fields"
     },
     "EDITOR": {
