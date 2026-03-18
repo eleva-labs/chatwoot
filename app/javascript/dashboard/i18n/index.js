@@ -1,4 +1,5 @@
 import ar from './locale/ar';
+import bg from './locale/bg';
 import ca from './locale/ca';
 import cs from './locale/cs';
 import da from './locale/da';
@@ -38,15 +39,25 @@ import zh_TW from './locale/zh_TW';
 import is from './locale/is';
 import lt from './locale/lt';
 
+// Import custom versions of EN/ES
+import enCustom from './locale_custom/en';
+import esCustom from './locale_custom/es';
+
+// Determine which locale set to use based on environment variable
+// This is evaluated at build time, so only one set is included in the bundle
+// Defaults to true (custom locales) unless explicitly set to 'false'
+const USE_CUSTOM_LOCALES = import.meta.env.VITE_USE_CUSTOM_LOCALES !== 'false';
+
 export default {
   ar,
+  bg,
   ca,
   cs,
   da,
   de,
   el,
-  en,
-  es,
+  en: USE_CUSTOM_LOCALES ? enCustom : en,
+  es: USE_CUSTOM_LOCALES ? esCustom : es,
   fa,
   fi,
   fr,

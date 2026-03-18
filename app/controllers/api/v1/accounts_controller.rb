@@ -6,6 +6,7 @@ class Api::V1::AccountsController < Api::BaseController
                      only: [:create], raise: false
   before_action :check_signup_enabled, only: [:create]
   before_action :ensure_account_name, only: [:create]
+  before_action :check_account_name_uniqueness, only: [:create]
   before_action :validate_captcha, only: [:create]
   before_action :fetch_account, except: [:create]
   before_action :check_authorization, except: [:create]
@@ -13,7 +14,9 @@ class Api::V1::AccountsController < Api::BaseController
   rescue_from CustomExceptions::Account::InvalidEmail,
               CustomExceptions::Account::InvalidParams,
               CustomExceptions::Account::UserExists,
+              CustomExceptions::Account::NameExists,
               CustomExceptions::Account::UserErrors,
+              CustomExceptions::Account::AIBackendSetupFailed,
               with: :render_error_response
 
   def show
@@ -109,5 +112,14 @@ class Api::V1::AccountsController < Api::BaseController
       account: @account,
       account_user: @current_account_user
     }
+  end
+
+  def check_account_name_uniqueness
+    # If the account name is blank, we dont have it on the database yet, continue
+    return if account_params[:account_name].blank?
+
+    # If the account name is not blank, check if it already exists (with case insensitivity)
+    raise CustomExceptions::Account::NameExists.new(name: account_params[:account_name]) if Account.exists?(['LOWER(name) = ?',
+                                                                                                             account_params[:account_name].downcase])
   end
 end

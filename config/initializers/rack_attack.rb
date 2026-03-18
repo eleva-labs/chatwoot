@@ -83,12 +83,17 @@ class Rack::Attack
   end
 
   # ### Prevent Brute-Force Login Attacks ###
+  # Exclude MFA verification attempts from regular login throttling
   throttle('login/ip', limit: 5, period: 5.minutes) do |req|
-    req.ip if req.path_without_extentions == '/auth/sign_in' && req.post?
+    if req.path_without_extentions == '/auth/sign_in' && req.post? && req.params['mfa_token'].blank?
+      # Skip if this is an MFA verification request
+      req.ip
+    end
   end
 
   throttle('login/email', limit: 10, period: 15.minutes) do |req|
-    if req.path_without_extentions == '/auth/sign_in' && req.post?
+    # Skip if this is an MFA verification request
+    if req.path_without_extentions == '/auth/sign_in' && req.post? && req.params['mfa_token'].blank?
       # ref: https://github.com/rack/rack-attack/issues/399
       # NOTE: This line used to throw ArgumentError /rails/action_mailbox/sendgrid/inbound_emails : invalid byte sequence in UTF-8
       # Hence placed in the if block
@@ -112,6 +117,28 @@ class Rack::Attack
   ## Resend confirmation throttling
   throttle('resend_confirmation/ip', limit: 5, period: 30.minutes) do |req|
     req.ip if req.path_without_extentions == '/api/v1/profile/resend_confirmation' && req.post?
+  end
+
+  ## MFA throttling - prevent brute force attacks
+  throttle('mfa_verification/ip', limit: 5, period: 1.minute) do |req|
+    if req.path_without_extentions == '/api/v1/profile/mfa'
+      req.ip if req.delete? # Throttle disable attempts
+    elsif req.path_without_extentions.match?(%r{/api/v1/profile/mfa/(verify|backup_codes)})
+      req.ip if req.post? # Throttle verify and backup_codes attempts
+    end
+  end
+
+  # Separate rate limiting for MFA verification attempts
+  throttle('mfa_login/ip', limit: 10, period: 1.minute) do |req|
+    req.ip if req.path_without_extentions == '/auth/sign_in' && req.post? && req.params['mfa_token'].present?
+  end
+
+  throttle('mfa_login/token', limit: 10, period: 1.minute) do |req|
+    if req.path_without_extentions == '/auth/sign_in' && req.post?
+      # Track by MFA token to prevent brute force on a specific token
+      mfa_token = req.params['mfa_token'].presence
+      (mfa_token.presence)
+    end
   end
 
   ## Prevent Brute-Force Signup Attacks ###
@@ -155,6 +182,33 @@ class Rack::Attack
   throttle('/api/v1/accounts/:account_id/conversations/:conversation_id/transcript', limit: 30, period: 1.hour) do |req|
     match_data = %r{/api/v1/accounts/(?<account_id>\d+)/conversations/(?<conversation_id>\d+)/transcript}.match(req.path)
     match_data[:account_id] if match_data.present?
+  end
+
+  ## Partner Whapi - throttle webhook and QR polling
+  # Webhook from Whapi to Chatwoot. Per IP to avoid abuse.
+  throttle('/webhooks/whapi', limit: ENV.fetch('RATE_LIMIT_WHAPI_WEBHOOK_PER_MIN', '120').to_i, period: 1.minute) do |req|
+    req.ip if req.path_without_extentions == '/webhooks/whapi' && req.post?
+  end
+
+  # QR polling from dashboard clients. Per account to keep load bounded.
+  throttle('/api/v1/accounts/:account_id/whapi_channels/:id/qr_code', limit: ENV.fetch('RATE_LIMIT_WHAPI_QR_POLL_PER_MIN', '6').to_i,
+                                                                      period: 1.minute) do |req|
+    match_data = %r{/api/v1/accounts/(?<account_id>\d+)/whapi_channels/(?<inbox_id>\d+)/qr_code}.match(req.path)
+    match_data[:account_id] if match_data.present? && req.get?
+  end
+
+  # Channel creation - per account to prevent abuse
+  throttle('/api/v1/accounts/:account_id/whapi_channels', limit: ENV.fetch('RATE_LIMIT_WHAPI_CHANNEL_CREATE_PER_HOUR', '10').to_i,
+                                                          period: 1.hour) do |req|
+    match_data = %r{/api/v1/accounts/(?<account_id>\d+)/whapi_channels}.match(req.path)
+    match_data[:account_id] if match_data.present? && req.post?
+  end
+
+  # QR code generation - per account to prevent API abuse
+  throttle('/api/v1/accounts/:account_id/whapi_channels/:id/qr_code_generate', limit: ENV.fetch('RATE_LIMIT_WHAPI_QR_GENERATE_PER_HOUR', '20').to_i,
+                                                                               period: 1.hour) do |req|
+    match_data = %r{/api/v1/accounts/(?<account_id>\d+)/whapi_channels/(?<inbox_id>\d+)/qr_code}.match(req.path)
+    match_data[:account_id] if match_data.present? && req.get?
   end
 
   ## Prevent Abuse of attachment upload APIs ##

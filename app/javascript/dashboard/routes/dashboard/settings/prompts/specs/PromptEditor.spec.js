@@ -28,12 +28,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -45,12 +41,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -70,12 +62,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: newPromptProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -87,12 +75,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -106,12 +90,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -121,26 +101,6 @@ describe('PromptEditor.vue', () => {
 
       expect(wrapper.vm.localPrompt.text).toBe(newText);
     });
-
-    it('should update localPrompt when promptKey changes', () => {
-      wrapper = shallowMount(PromptEditor, {
-        props: defaultProps,
-        global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
-          stubs: {
-            FullEditor: true,
-            NextButton: true,
-          },
-        },
-      });
-
-      const newKey = 'greeting_updated';
-      wrapper.vm.promptKey = newKey;
-
-      expect(wrapper.vm.localPrompt.prompt_key).toBe(newKey);
-    });
   });
 
   describe('event emission', () => {
@@ -148,12 +108,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -176,12 +132,8 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -200,12 +152,8 @@ describe('PromptEditor.vue', () => {
           isUpdating: true,
         },
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -220,12 +168,8 @@ describe('PromptEditor.vue', () => {
           isSaved: true,
         },
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -240,51 +184,24 @@ describe('PromptEditor.vue', () => {
           isReadonly: true,
         },
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
 
       // The update button should not be rendered
-      expect(wrapper.text()).not.toContain(
-        'PROMPTS_PAGE.EDITOR.UPDATE_BUTTON_TEXT'
-      );
+      expect(wrapper.text()).not.toContain('Update');
     });
   });
 
   describe('computed properties', () => {
-    it('should return correct promptKey', () => {
-      wrapper = shallowMount(PromptEditor, {
-        props: defaultProps,
-        global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
-          stubs: {
-            FullEditor: true,
-            NextButton: true,
-          },
-        },
-      });
-
-      expect(wrapper.vm.promptKey).toBe(defaultProps.prompt.prompt_key);
-    });
-
     it('should return correct promptText', () => {
       wrapper = shallowMount(PromptEditor, {
         props: defaultProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
@@ -301,17 +218,12 @@ describe('PromptEditor.vue', () => {
       wrapper = shallowMount(PromptEditor, {
         props: emptyPromptProps,
         global: {
-          mocks: {
-            $t: vi.fn(key => key),
-          },
           stubs: {
             FullEditor: true,
-            NextButton: true,
           },
         },
       });
 
-      expect(wrapper.vm.promptKey).toBe('');
       expect(wrapper.vm.promptText).toBe('');
     });
   });

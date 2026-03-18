@@ -36,6 +36,7 @@ FactoryBot.define do
          'status' => 'APPROVED',
          'category' => 'UTILITY',
          'language' => 'en',
+         'namespace' => '23423423_2342423_324234234_2343224',
          'components' => [
            { 'text' => "Hello {{name}},  Your support ticket with ID: \#{{ticket_id}} has been updated by the support agent.",
              'type' => 'BODY',
@@ -62,6 +63,25 @@ FactoryBot.define do
          ],
          'sub_category' => 'CUSTOM',
          'parameter_format' => 'NAMED'
+       },
+       {
+         'name' => 'test_no_params_template',
+         'status' => 'APPROVED',
+         'category' => 'UTILITY',
+         'language' => 'en',
+         'namespace' => 'ed41a221_133a_4558_a1d6_192960e3aee9',
+         'id' => '9876543210987654',
+         'length' => 1,
+         'parameter_format' => 'POSITIONAL',
+         'previous_category' => 'MARKETING',
+         'sub_category' => 'CUSTOM',
+         'components' => [
+           {
+             'text' => 'Thank you for contacting us! Your request has been processed successfully. Have a great day! 🙂',
+             'type' => 'BODY'
+           }
+         ],
+         'rejected_reason' => 'NONE'
        }]
     end
     message_templates_last_updated { Time.now.utc }
@@ -71,14 +91,17 @@ FactoryBot.define do
       validate_provider_config { true }
     end
 
-    before(:create) do |channel_whatsapp, options|
-      # since factory already has the required message templates, we just need to bypass it getting updated
-      channel_whatsapp.define_singleton_method(:sync_templates) { nil } unless options.sync_templates
-      channel_whatsapp.define_singleton_method(:validate_provider_config) { nil } unless options.validate_provider_config
+    after(:build) do |channel_whatsapp, _options|
       if channel_whatsapp.provider == 'whatsapp_cloud'
         channel_whatsapp.provider_config = channel_whatsapp.provider_config.merge({ 'api_key' => 'test_key', 'phone_number_id' => '123456789',
                                                                                     'business_account_id' => '123456789' })
       end
+    end
+
+    before(:create) do |channel_whatsapp, options|
+      # since factory already has the required message templates, we just need to bypass it getting updated
+      channel_whatsapp.define_singleton_method(:sync_templates) { nil } unless options.sync_templates
+      channel_whatsapp.define_singleton_method(:validate_provider_config) { nil } unless options.validate_provider_config
     end
 
     after(:create) do |channel_whatsapp|

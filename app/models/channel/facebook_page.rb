@@ -21,6 +21,12 @@ class Channel::FacebookPage < ApplicationRecord
   include Channelable
   include Reauthorizable
 
+  # TODO: Remove guard once encryption keys become mandatory (target 3-4 releases out).
+  if Chatwoot.encryption_configured?
+    encrypts :page_access_token
+    encrypts :user_access_token
+  end
+
   self.table_name = 'channel_facebook_pages'
 
   validates :page_id, uniqueness: { scope: :account_id }
@@ -37,6 +43,17 @@ class Channel::FacebookPage < ApplicationRecord
                                                             source_id: instagram_id,
                                                             inbox: inbox,
                                                             contact_attributes: { name: name }
+                                                          }).perform
+  end
+
+  def create_contact_inbox_with_identifier(instagram_id, name, username)
+    @contact_inbox = ::ContactInboxWithContactBuilder.new({
+                                                            source_id: instagram_id,
+                                                            inbox: inbox,
+                                                            contact_attributes: {
+                                                              name: name,
+                                                              identifier: username
+                                                            }
                                                           }).perform
   end
 

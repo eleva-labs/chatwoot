@@ -14,11 +14,21 @@ class ActionCableListener < BaseListener
   end
 
   def notification_deleted(event)
-    return if event.data[:notification].user.blank?
+    # For deletion events, we receive primitive data instead of objects
+    return if event.data[:user_id].blank?
 
-    notification, account, unread_count, count = extract_notification_and_account(event)
-    tokens = [event.data[:notification].user.pubsub_token]
-    broadcast(account, tokens, NOTIFICATION_DELETED, { notification: { id: notification.id }, unread_count: unread_count, count: count })
+    user = User.find_by(id: event.data[:user_id])
+    return if user.blank?
+
+    account = Account.find_by(id: event.data[:account_id])
+    return if account.blank?
+
+    notification_finder = NotificationFinder.new(user, account)
+    unread_count = notification_finder.unread_count
+    count = notification_finder.count
+
+    tokens = [user.pubsub_token]
+    broadcast(account, tokens, NOTIFICATION_DELETED, { notification: { id: event.data[:notification_id] }, unread_count: unread_count, count: count })
   end
 
   def account_cache_invalidated(event)
@@ -151,8 +161,25 @@ class ActionCableListener < BaseListener
   end
 
   def contact_deleted(event)
-    contact, account = extract_contact_and_account(event)
-    broadcast(account, [account_token(account)], CONTACT_DELETED, contact.push_event_data)
+    # For deletion events, we receive primitive data instead of objects
+    account = Account.find_by(id: event.data[:account_id])
+    return if account.blank?
+
+    # Reconstruct the push_event_data from the primitive data passed in the event
+    contact_data = {
+      additional_attributes: event.data[:additional_attributes],
+      custom_attributes: event.data[:custom_attributes],
+      email: event.data[:email],
+      id: event.data[:contact_id],
+      identifier: event.data[:identifier],
+      name: event.data[:name],
+      phone_number: event.data[:phone_number],
+      thumbnail: event.data[:thumbnail],
+      blocked: event.data[:blocked],
+      type: 'contact'
+    }
+
+    broadcast(account, [account_token(account)], CONTACT_DELETED, contact_data)
   end
 
   def conversation_mentioned(event)

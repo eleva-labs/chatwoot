@@ -1,13 +1,14 @@
 <script>
+import { computed, watch } from 'vue';
 import { mapGetters } from 'vuex';
+import { useStore } from 'vuex';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useAccount } from 'dashboard/composables/useAccount';
-import OnboardingView from '../OnboardingView.vue';
+import { useRoute, useRouter } from 'vue-router';
 import EmptyStateMessage from './EmptyStateMessage.vue';
 
 export default {
   components: {
-    OnboardingView,
     EmptyStateMessage,
   },
   props: {
@@ -18,12 +19,44 @@ export default {
   },
   setup() {
     const { isAdmin } = useAdmin();
-
     const { accountScopedUrl } = useAccount();
+    const route = useRoute();
+    const router = useRouter();
+    const store = useStore();
+
+    const isOnboardingCompleted = computed(() =>
+      store.getters['accounts/isOnboardingCompleted']()
+    );
+
+    // Get inbox loading state to prevent race condition
+    const inboxesUIFlags = computed(() => store.getters['inboxes/getUIFlags']);
+
+    const shouldRedirectToOnboarding = computed(
+      () =>
+        !isOnboardingCompleted.value &&
+        isAdmin.value &&
+        !inboxesUIFlags.value.isFetching // Guard: don't redirect while loading
+    );
+
+    watch(
+      shouldRedirectToOnboarding,
+      shouldRedirect => {
+        if (shouldRedirect && route.name !== 'settings_inbox_new') {
+          router.push({
+            name: 'settings_inbox_new',
+            query: { onboarding: 'true' },
+          });
+        }
+      },
+      { immediate: true }
+    );
 
     return {
       isAdmin,
       accountScopedUrl,
+      isOnboardingCompleted,
+      shouldRedirectToOnboarding,
+      inboxesUIFlags,
     };
   },
   computed: {
@@ -58,7 +91,7 @@ export default {
       ) {
         return 'h-full overflow-auto w-full';
       }
-      return 'flex-1 min-w-0 px-0 flex flex-col items-center justify-center h-full';
+      return 'flex-1 min-w-0 px-0 flex flex-col items-center justify-center h-full w-full';
     },
   },
 };
@@ -70,18 +103,25 @@ export default {
       v-if="uiFlags.isFetching || loadingChatList"
       :message="loadingIndicatorMessage"
     />
-    <!-- No inboxes attached -->
+    <!-- Onboarding not completed -->
     <div
-      v-if="!inboxesList.length && !uiFlags.isFetching && !loadingChatList"
-      class="clearfix mx-auto"
+      v-if="!isOnboardingCompleted && !loadingChatList"
+      class="clearfix mx-auto w-full flex justify-center items-center h-full"
     >
-      <OnboardingView v-if="isAdmin" />
-      <EmptyStateMessage v-else :message="$t('CONVERSATION.NO_INBOX_AGENT')" />
+      <!-- Show loading while redirecting to Standard Inbox flow -->
+      <woot-loading-state
+        v-if="isAdmin && shouldRedirectToOnboarding"
+        message="Starting your onboarding..."
+      />
+      <EmptyStateMessage
+        v-else-if="!isAdmin"
+        :message="$t('CONVERSATION.NO_INBOX_AGENT')"
+      />
     </div>
     <!-- Show empty state images if not loading -->
 
     <div
-      v-else-if="!uiFlags.isFetching && !loadingChatList"
+      v-else-if="!uiFlags.isFetching"
       class="flex flex-col items-center justify-center h-full"
     >
       <!-- No conversations available -->

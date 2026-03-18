@@ -34,8 +34,14 @@ Rails.application.configure do
   # Disable request forgery protection in test environment.
   config.action_controller.allow_forgery_protection = false
 
+  # Disable host check in test environment to allow webhook tests
+  config.hosts = nil
+
   # Store uploaded files on the local file system in a temporary directory.
   config.active_storage.service = :test
+  
+  # Set ActiveStorage URL expiration to 30 minutes for external services (e.g., Instagram)
+  config.active_storage.service_urls_expire_in = 30.minutes
 
   config.action_mailer.perform_caching = false
 

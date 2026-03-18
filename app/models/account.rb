@@ -62,6 +62,7 @@ class Account < ApplicationRecord
   has_many :agent_bots, dependent: :destroy_async
   has_many :api_channels, dependent: :destroy_async, class_name: '::Channel::Api'
   has_many :articles, dependent: :destroy_async, class_name: '::Article'
+  has_many :assignment_policies, dependent: :destroy_async
   has_many :automation_rules, dependent: :destroy_async
   has_many :macros, dependent: :destroy_async
   has_many :campaigns, dependent: :destroy_async
@@ -79,6 +80,7 @@ class Account < ApplicationRecord
   has_many :instagram_channels, dependent: :destroy_async, class_name: '::Channel::Instagram'
   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
   has_many :inboxes, dependent: :destroy_async
+  has_many :knowledge_bases, dependent: :destroy_async, class_name: 'KnowledgeBase'
   has_many :labels, dependent: :destroy_async
   has_many :line_channels, dependent: :destroy_async, class_name: '::Channel::Line'
   has_many :mentions, dependent: :destroy_async
@@ -89,7 +91,6 @@ class Account < ApplicationRecord
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async
-  has_many :telegram_bots, dependent: :destroy_async
   has_many :telegram_channels, dependent: :destroy_async, class_name: '::Channel::Telegram'
   has_many :twilio_sms, dependent: :destroy_async, class_name: '::Channel::TwilioSms'
   has_many :twitter_profiles, dependent: :destroy_async, class_name: '::Channel::TwitterProfile'
@@ -108,7 +109,9 @@ class Account < ApplicationRecord
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
+  after_create_commit :enqueue_stripe_provisioning_job
   after_destroy :remove_account_sequences
+  after_destroy_commit :dispatch_destroy_event
 
   def agents
     users.where(account_users: { role: :agent })
@@ -159,10 +162,66 @@ class Account < ApplicationRecord
     ISO_639.find(account_locale)&.english_name&.downcase || 'english'
   end
 
+  # Check if user is the account owner (first administrator with no inviter)
+  def owner?(user)
+    account_users.find_by(user: user, inviter_id: nil, role: :administrator).present?
+  end
+
+  def custom_feature_enabled?(feature_name)
+    return false unless defined?(CustomFeaturesManagerService)
+
+    CustomFeaturesManagerService.instance.custom_feature_enabled?(self, feature_name)
+  end
+
+  def custom_features
+    return [] unless defined?(CustomFeaturesManagerService)
+
+    CustomFeaturesManagerService.instance.get_custom_features(self)
+  end
+
+  def custom_features=(features)
+    return unless defined?(CustomFeaturesManagerService)
+
+    CustomFeaturesManagerService.instance.set_custom_features(self, features)
+  end
+
+  def feature_enabled?(name)
+    return send("feature_#{name}?") if respond_to?("feature_#{name}?")
+
+    custom_feature_enabled?(name)
+  end
+
+  def enable_features(*names)
+    names.each do |name|
+      if respond_to?("feature_#{name}=")
+        send("feature_#{name}=", true)
+      else
+        current_features = custom_features
+        unless current_features.include?(name)
+          current_features << name
+          self.custom_features = current_features
+        end
+      end
+    end
+  end
+
+  def enable_features!(*names)
+    enable_features(*names)
+    save
+  end
+
   private
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def dispatch_destroy_event
+    Rails.configuration.dispatcher.dispatch(ACCOUNT_DELETED, Time.zone.now, account_id: id)
+  end
+
+  def enqueue_stripe_provisioning_job
+    Billing::ProvisionStripeSubscriptionJob.perform_later(id, 'starter')
   end
 
   trigger.after(:insert).for_each(:row) do

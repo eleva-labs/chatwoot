@@ -7,7 +7,6 @@ import hljsVuePlugin from '@highlightjs/vue-plugin';
 
 import Multiselect from 'vue-multiselect';
 import { plugin, defaultConfig } from '@formkit/vue';
-import WootSwitch from 'components/ui/Switch.vue';
 import WootWizard from 'components/ui/Wizard.vue';
 import FloatingVue from 'floating-vue';
 import WootUiKit from 'dashboard/components';
@@ -72,6 +71,20 @@ if (window.errorLoggingConfig) {
   });
 }
 
+app.config.errorHandler = (err, instance, info) => {
+  // eslint-disable-next-line no-console
+  console.error('[vue:errorHandler]', {
+    err,
+    info,
+    component: instance?.$options?.name,
+  });
+  if (window.errorLoggingConfig && Sentry?.captureException) {
+    Sentry.captureException(err, {
+      extra: { info, component: instance?.$options?.name },
+    });
+  }
+};
+
 app.use(VueDOMPurifyHTML, domPurifyConfig);
 app.use(WootUiKit);
 app.use(
@@ -90,7 +103,6 @@ app.use(FloatingVue, {
 app.use(hljsVuePlugin);
 
 app.component('multiselect', Multiselect);
-app.component('woot-switch', WootSwitch);
 app.component('woot-wizard', WootWizard);
 app.component('fluent-icon', FluentIcon);
 

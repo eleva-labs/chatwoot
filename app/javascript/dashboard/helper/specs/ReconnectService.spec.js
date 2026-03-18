@@ -345,5 +345,27 @@ describe('ReconnectService', () => {
         BUS_EVENTS.WEBSOCKET_RECONNECT_COMPLETED
       );
     });
+
+    it('should log error and still emit WEBSOCKET_RECONNECT_COMPLETED when an internal method fails', async () => {
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const testError = new Error('fetch failed');
+      reconnectService.handleRouteSpecificFetch = vi
+        .fn()
+        .mockRejectedValue(testError);
+      reconnectService.revalidateCaches = vi.fn();
+
+      await reconnectService.onReconnect();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[ReconnectService:onReconnect]',
+        testError
+      );
+      expect(emitter.emit).toHaveBeenCalledWith(
+        BUS_EVENTS.WEBSOCKET_RECONNECT_COMPLETED
+      );
+      consoleSpy.mockRestore();
+    });
   });
 });

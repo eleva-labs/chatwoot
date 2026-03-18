@@ -1,4 +1,6 @@
 class Webhooks::Trigger
+  include ExternalApiCircuitBreaker
+
   SUPPORTED_ERROR_HANDLE_EVENTS = %w[message_created message_updated].freeze
 
   def initialize(url, payload, webhook_type)
@@ -14,31 +16,75 @@ class Webhooks::Trigger
   def execute
     perform_request
   rescue StandardError => e
+    # Handle specific error scenarios (e.g., update message status)
     handle_error(e)
-    Rails.logger.warn "Exception: Invalid webhook URL #{@url} : #{e.message}"
+
+    # Log at ERROR level with context for debugging
+    Rails.logger.error(
+      "Webhook delivery failed: #{e.message} | " \
+      "url=#{@url} webhook_type=#{@webhook_type} " \
+      "conversation_id=#{@payload[:conversation]&.dig(:id)} " \
+      "message_id=#{@payload[:id]} error_class=#{e.class.name}"
+    )
+
+    # RE-RAISE exception to trigger job retry mechanism
+    # This is critical - do NOT swallow the exception
+    raise e
   end
 
   private
 
   def perform_request
-    RestClient::Request.execute(
-      method: :post,
-      url: @url,
-      payload: @payload.to_json,
-      headers: { content_type: :json, accept: :json },
-      timeout: 5
+    # Use circuit breaker for webhook delivery
+    response = with_circuit_breaker('webhook_delivery') do
+      RestClient::Request.execute(
+        method: :post,
+        url: @url,
+        payload: @payload.to_json,
+        headers: { content_type: :json, accept: :json },
+        timeout: 5
+      )
+    end
+
+    # Log successful delivery
+    Rails.logger.info(
+      'Webhook delivered successfully | ' \
+      "url=#{@url} status=#{response&.code} webhook_type=#{@webhook_type} " \
+      "conversation_id=#{@payload[:conversation]&.dig(:id)} " \
+      "message_id=#{@payload[:id]}"
     )
+
+    response
   end
 
   def handle_error(error)
-    return unless should_handle_error?
+    return unless SUPPORTED_ERROR_HANDLE_EVENTS.include?(@payload[:event])
     return unless message
 
-    update_message_status(error)
+    case @webhook_type
+    when :agent_bot_webhook
+      conversation = message.conversation
+      return unless conversation&.pending?
+
+      conversation.open!
+      create_agent_bot_error_activity(conversation)
+    when :api_inbox_webhook
+      update_message_status(error)
+    end
   end
 
-  def should_handle_error?
-    @webhook_type == :api_inbox_webhook && SUPPORTED_ERROR_HANDLE_EVENTS.include?(@payload[:event])
+  def create_agent_bot_error_activity(conversation)
+    content = I18n.t('conversations.activity.agent_bot.error_moved_to_open')
+    Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params(conversation, content))
+  end
+
+  def activity_message_params(conversation, content)
+    {
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      message_type: :activity,
+      content: content
+    }
   end
 
   def update_message_status(error)

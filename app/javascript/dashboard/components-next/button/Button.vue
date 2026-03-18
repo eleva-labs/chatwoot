@@ -102,11 +102,11 @@ const STYLE_CONFIG = {
       solid:
         'bg-n-brand text-white hover:enabled:brightness-110 focus-visible:brightness-110 outline-transparent',
       faded:
-        'bg-n-brand/10 text-n-blue-text hover:enabled:bg-n-brand/20 focus-visible:bg-n-brand/20 outline-transparent',
-      outline: 'text-n-blue-text outline-n-brand',
+        'bg-n-brand/10 text-n-brand dark:text-n-lightBrand hover:enabled:bg-n-brand/20 focus-visible:bg-n-brand/20 outline-transparent',
+      outline: 'text-n-brand dark:text-n-lightBrand outline-n-brand',
       ghost:
-        'text-n-blue-text hover:enabled:bg-n-alpha-2 focus-visible:bg-n-alpha-2 outline-transparent',
-      link: 'text-n-blue-text hover:enabled:underline focus-visible:underline outline-transparent',
+        'text-n-brand dark:text-n-lightBrand hover:enabled:bg-n-alpha-2 focus-visible:bg-n-alpha-2 outline-transparent',
+      link: 'text-n-brand dark:text-n-lightBrand hover:enabled:underline focus-visible:underline outline-transparent',
     },
     ruby: {
       solid:
@@ -121,7 +121,7 @@ const STYLE_CONFIG = {
     },
     amber: {
       solid:
-        'bg-n-amber-9 text-white hover:enabled:bg-n-amber-10 focus-visible:bg-n-amber-10 outline-transparent',
+        'bg-n-amber-8 text-white hover:enabled:brightness-110 focus-visible:brightness-110 outline-transparent',
       faded:
         'bg-n-amber-9/10 text-n-slate-12 hover:enabled:bg-n-amber-9/20 focus-visible:bg-n-amber-9/20 outline-transparent',
       outline:

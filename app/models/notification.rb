@@ -19,6 +19,7 @@
 #
 # Indexes
 #
+#  idx_notifications_performance                   (user_id,account_id,snoozed_until,read_at)
 #  index_notifications_on_account_id               (account_id)
 #  index_notifications_on_last_activity_at         (last_activity_at)
 #  index_notifications_on_user_id                  (user_id)
@@ -179,7 +180,21 @@ class Notification < ApplicationRecord
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(NOTIFICATION_DELETED, Time.zone.now, notification: self)
+    # For deletion events, pass primitive data instead of the object
+    # This prevents deserialization errors when the record is already deleted
+    #
+    # Pattern follows inbox.rb:244 and agent_bot.rb:123
+    # ApplicationJob's discard_on provides additional safety net
+    Rails.configuration.dispatcher.dispatch(
+      NOTIFICATION_DELETED,
+      Time.zone.now,
+      notification_id: id,
+      user_id: user_id,
+      account_id: account_id,
+      notification_type: notification_type,
+      primary_actor_type: primary_actor_type,
+      primary_actor_id: primary_actor_id
+    )
   end
 
   def set_last_activity_at

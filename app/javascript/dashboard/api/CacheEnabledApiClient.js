@@ -37,16 +37,32 @@ class CacheEnabledApiClient extends ApiClient {
 
   async getFromCache() {
     try {
-      // IDB is not supported in Firefox private mode: https://bugzilla.mozilla.org/show_bug.cgi?id=781982
+      // IDB is not supported in Firefox private mode:
+      // https://bugzilla.mozilla.org/show_bug.cgi?id=781982
       await this.dataManager.initDb();
     } catch {
       return this.getFromNetwork();
     }
 
-    const { data } = await axios.get(
-      `/api/v1/accounts/${this.accountIdFromRoute}/cache_keys`
-    );
-    const cacheKeyFromApi = data.cache_keys[this.cacheModelName];
+    let cacheKeyFromApi;
+    try {
+      const { data } = await axios.get(
+        `/api/v1/accounts/${this.accountIdFromRoute}/cache_keys`
+      );
+      cacheKeyFromApi = data.cache_keys[this.cacheModelName];
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[cache:${this.cacheModelName}] cache_keys fetch failed, falling back to network`,
+        error
+      );
+      return this.getFromNetwork();
+    }
+
+    if (!this.isUsableCacheKey(cacheKeyFromApi)) {
+      return this.refetchAndCommit(null);
+    }
+
     const isCacheValid = await this.validateCacheKey(cacheKeyFromApi);
 
     let localData = [];
@@ -69,7 +85,10 @@ class CacheEnabledApiClient extends ApiClient {
     try {
       await this.dataManager.initDb();
 
-      this.dataManager.replace({
+      // NOTE: DataManager.replace() internally calls this.db.clear() without await
+      // (pre-existing issue, not introduced here). The await here ensures push()
+      // completes before setCacheKeys runs.
+      await this.dataManager.replace({
         modelName: this.cacheModelName,
         data: this.extractDataFromResponse(response),
       });
@@ -77,14 +96,40 @@ class CacheEnabledApiClient extends ApiClient {
       await this.dataManager.setCacheKeys({
         [this.cacheModelName]: newKey,
       });
-    } catch {
-      // Ignore error
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[cache:${this.cacheModelName}] refetchAndCommit IDB write failed`,
+        error
+      );
     }
 
     return response;
   }
 
+  // eslint-disable-next-line class-methods-use-this
+  isUsableCacheKey(cacheKey) {
+    if (cacheKey === null || cacheKey === undefined) {
+      return false;
+    }
+
+    if (typeof cacheKey === 'number') {
+      return cacheKey !== 0;
+    }
+
+    if (typeof cacheKey === 'string') {
+      const normalizedCacheKey = cacheKey.trim();
+      return normalizedCacheKey !== '' && !/^0+$/.test(normalizedCacheKey);
+    }
+
+    return true;
+  }
+
   async validateCacheKey(cacheKeyFromApi) {
+    if (!this.isUsableCacheKey(cacheKeyFromApi)) {
+      return false;
+    }
+
     if (!this.dataManager.db) {
       await this.dataManager.initDb();
     }

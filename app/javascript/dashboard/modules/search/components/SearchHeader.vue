@@ -1,10 +1,17 @@
 <script setup>
-import { ref, useTemplateRef, onMounted, onUnmounted } from 'vue';
+import { ref, useTemplateRef, onMounted, onUnmounted, watch } from 'vue';
 import { debounce } from '@chatwoot/utils';
+
+const props = defineProps({
+  initialQuery: {
+    type: String,
+    default: '',
+  },
+});
 
 const emit = defineEmits(['search']);
 
-const searchQuery = ref('');
+const searchQuery = ref(props.initialQuery);
 const isInputFocused = ref(false);
 
 const searchInput = useTemplateRef('searchInput');
@@ -38,6 +45,16 @@ const onBlur = () => {
   isInputFocused.value = false;
 };
 
+watch(
+  () => props.initialQuery,
+  newValue => {
+    if (searchQuery.value !== newValue) {
+      searchQuery.value = newValue;
+    }
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
   searchInput.value.focus();
   document.addEventListener('keydown', handler);
@@ -62,7 +79,7 @@ onUnmounted(() => {
         class="icon"
         aria-hidden="true"
         :class="{
-          'text-n-blue-text': isInputFocused,
+          'text-n-brand dark:text-n-lightBrand': isInputFocused,
           'text-n-slate-10': !isInputFocused,
         }"
       />

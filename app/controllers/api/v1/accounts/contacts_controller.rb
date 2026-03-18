@@ -17,8 +17,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   before_action :set_include_contact_inboxes, only: [:index, :active, :search, :filter, :show, :update]
 
   def index
-    @contacts_count = resolved_contacts.count
     @contacts = fetch_contacts(resolved_contacts)
+    @contacts_count = @contacts.total_count
   end
 
   def search
@@ -29,8 +29,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
         OR contacts.additional_attributes->>\'company_name\' ILIKE :search',
       search: "%#{params[:q].strip}%"
     )
-    @contacts_count = contacts.count
     @contacts = fetch_contacts(contacts)
+    @contacts_count = @contacts.total_count
   end
 
   def import
@@ -55,8 +55,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   def active
     contacts = Current.account.contacts.where(id: ::OnlineStatusTracker
                   .get_available_contact_ids(Current.account.id))
-    @contacts_count = contacts.count
     @contacts = fetch_contacts(contacts)
+    @contacts_count = @contacts.total_count
   end
 
   def show; end
@@ -85,12 +85,25 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def create
+    Rails.logger.info "[ContactsController] Creating new contact - account_id: #{Current.account.id}, params: #{permitted_params.except(:avatar_url,
+                                                                                                                                        :additional_attributes, :custom_attributes).inspect}"
+
     ActiveRecord::Base.transaction do
       @contact = Current.account.contacts.new(permitted_params.except(:avatar_url))
       @contact.save!
+      Rails.logger.info "[ContactsController] Contact created successfully - id: #{@contact.id}, name: '#{@contact.name}'"
+
       @contact_inbox = build_contact_inbox
       process_avatar_from_url
     end
+
+    Rails.logger.info "[ContactsController] Contact creation completed - contact_id: #{@contact.id}, contact_inbox_id: #{@contact_inbox&.id}"
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "[ContactsController] Contact creation failed - validation errors: #{e.record.errors.full_messages.join(', ')}"
+    raise e
+  rescue StandardError => e
+    Rails.logger.error "[ContactsController] Contact creation failed - error: #{e.message}, backtrace: #{e.backtrace.first(3).join(', ')}"
+    raise e
   end
 
   def update
@@ -122,7 +135,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   def resolved_contacts
     return @resolved_contacts if @resolved_contacts
 
-    @resolved_contacts = Current.account.contacts.resolved_contacts
+    @resolved_contacts = Current.account.contacts.resolved_contacts(use_crm_v2: Current.account.feature_enabled?('crm_v2'))
 
     @resolved_contacts = @resolved_contacts.tagged_with(params[:labels], any: true) if params[:labels].present?
     @resolved_contacts
@@ -133,13 +146,14 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def fetch_contacts(contacts)
-    contacts_with_avatar = filtrate(contacts)
-                           .includes([{ avatar_attachment: [:blob] }])
-                           .page(@current_page).per(RESULTS_PER_PAGE)
+    # Build includes hash to avoid separate query when contact_inboxes are needed
+    includes_hash = { avatar_attachment: [:blob] }
+    includes_hash[:contact_inboxes] = { inbox: :channel } if @include_contact_inboxes
 
-    return contacts_with_avatar.includes([{ contact_inboxes: [:inbox] }]) if @include_contact_inboxes
-
-    contacts_with_avatar
+    filtrate(contacts)
+      .includes(includes_hash)
+      .page(@current_page)
+      .per(RESULTS_PER_PAGE)
   end
 
   def build_contact_inbox

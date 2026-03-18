@@ -1,7 +1,10 @@
+import { parseBoolean } from '@chatwoot/utils';
+
 const {
   API_CHANNEL_NAME: apiChannelName,
   API_CHANNEL_THUMBNAIL: apiChannelThumbnail,
   APP_VERSION: appVersion,
+  CUSTOM_VERSION: customVersion,
   AZURE_APP_ID: azureAppId,
   BRAND_NAME: brandName,
   CHATWOOT_INBOX_TOKEN: chatwootInboxToken,
@@ -15,6 +18,7 @@ const {
   LOGO: logo,
   LOGO_DARK: logoDark,
   PRIVACY_URL: privacyURL,
+  IS_ENTERPRISE: isEnterprise,
   TERMS_URL: termsURL,
   WIDGET_BRAND_URL: widgetBrandURL,
   DISABLE_USER_PROFILE_UPDATE: disableUserProfileUpdate,
@@ -25,13 +29,14 @@ const state = {
   apiChannelName,
   apiChannelThumbnail,
   appVersion,
+  customVersion,
   azureAppId,
   brandName,
   chatwootInboxToken,
   deploymentEnv,
   createNewAccountFromDashboard,
-  directUploadsEnabled: directUploadsEnabled === 'true',
-  disableUserProfileUpdate: disableUserProfileUpdate === 'true',
+  directUploadsEnabled: parseBoolean(directUploadsEnabled),
+  disableUserProfileUpdate: parseBoolean(disableUserProfileUpdate),
   displayManifest,
   gitSha,
   hCaptchaSiteKey,
@@ -42,6 +47,7 @@ const state = {
   privacyURL,
   termsURL,
   widgetBrandURL,
+  isEnterprise: parseBoolean(isEnterprise),
 };
 
 export const getters = {

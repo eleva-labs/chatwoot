@@ -1,5 +1,6 @@
 import advancedFilters from './advancedFilters.json';
 import agentBots from './agentBots.json';
+import aiChat from './aiChat.json';
 import agentMgmt from './agentMgmt.json';
 import attributesMgmt from './attributesMgmt.json';
 import auditLogs from './auditLogs.json';
@@ -36,10 +37,12 @@ import signup from './signup.json';
 import sla from './sla.json';
 import teamsSettings from './teamsSettings.json';
 import whatsappTemplates from './whatsappTemplates.json';
+import contentTemplates from './contentTemplates.json';
 
 export default {
   ...advancedFilters,
   ...agentBots,
+  ...aiChat,
   ...agentMgmt,
   ...attributesMgmt,
   ...auditLogs,
@@ -66,7 +69,7 @@ export default {
   ...labelsMgmt,
   ...login,
   ...macros,
-  ...prompts.PROMPTS_PAGE,
+  ...prompts,
   ...report,
   ...resetPassword,
   ...search,
@@ -76,4 +79,5 @@ export default {
   ...sla,
   ...teamsSettings,
   ...whatsappTemplates,
+  ...contentTemplates,
 };

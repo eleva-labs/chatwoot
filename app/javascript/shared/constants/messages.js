@@ -55,12 +55,11 @@ export const ALLOWED_FILE_TYPES_FOR_TWILIO_WHATSAPP =
   'audio/mpeg, audio/opus, audio/ogg, audio/amr,' +
   'video/mp4,' +
   'application/pdf,';
-// https://developers.line.biz/en/reference/messaging-api/#image-message, https://developers.line.biz/en/reference/messaging-api/#video-message
+
 export const ALLOWED_FILE_TYPES_FOR_LINE = 'image/png, image/jpeg,video/mp4';
 
-// https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api#requirements
 export const ALLOWED_FILE_TYPES_FOR_INSTAGRAM =
-  'image/png, image/jpeg, video/mp4, video/mov, video/webm';
+  'image/png, image/jpeg, video/mp4, video/mov, video/webm, audio/aac, audio/mp4, audio/wav, audio/mpeg, audio/ogg';
 
 export const CSAT_RATINGS = [
   {
@@ -157,6 +156,14 @@ export const MESSAGE_VARIABLES = [
     label: 'Agent email',
     key: 'agent.email',
   },
+  {
+    key: 'inbox.name',
+    label: 'Inbox name',
+  },
+  {
+    label: 'Inbox id',
+    key: 'inbox.id',
+  },
 ];
 
 export const ATTACHMENT_ICONS = {
@@ -166,4 +173,10 @@ export const ATTACHMENT_ICONS = {
   file: 'document',
   location: 'location',
   fallback: 'link',
+};
+
+export const TWILIO_CONTENT_TEMPLATE_TYPES = {
+  TEXT: 'text',
+  MEDIA: 'media',
+  QUICK_REPLY: 'quick_reply',
 };

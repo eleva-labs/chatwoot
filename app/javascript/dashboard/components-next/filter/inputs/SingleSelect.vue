@@ -46,7 +46,7 @@ const {
 const { t } = useI18n();
 const selected = defineModel({
   type: Object,
-  required: true,
+  default: null,
 });
 
 const searchTerm = ref('');
@@ -124,7 +124,7 @@ const toggleSelected = option => {
           :placeholder="searchPlaceholder || t('COMBOBOX.SEARCH_PLACEHOLDER')"
         />
       </div>
-      <DropdownSection class="max-h-80 overflow-scroll">
+      <DropdownSection class="[&>ul]:max-h-80">
         <template v-if="searchResults.length">
           <DropdownItem
             v-for="option in searchResults"

@@ -13,10 +13,13 @@ class AccountDashboard < Administrate::BaseDashboard
                                    limits: AccountLimitsField
                                  }
 
-                                 # Only show manually managed features in Chatwoot Cloud deployment
-                                 attributes[:manually_managed_features] = ManuallyManagedFeaturesField if ChatwootApp.chatwoot_cloud?
+                                 # Show manually managed features in all enterprise deployments
+                                 attributes[:manually_managed_features] = ManuallyManagedFeaturesField
 
-                                 # Add all_features last so it appears after manually_managed_features
+                                 # Show custom features in all enterprise deployments
+                                 attributes[:custom_features] = CustomFeaturesManagementField
+
+                                 # Add all_features last so it appears after other feature fields
                                  attributes[:all_features] = AccountFeaturesField
 
                                  attributes
@@ -27,6 +30,7 @@ class AccountDashboard < Administrate::BaseDashboard
   ATTRIBUTE_TYPES = {
     id: Field::Number.with_options(searchable: true),
     name: Field::String.with_options(searchable: true),
+    support_email: Field::String.with_options(searchable: true),
     created_at: Field::DateTime,
     updated_at: Field::DateTime,
     users: CountField,
@@ -55,7 +59,8 @@ class AccountDashboard < Administrate::BaseDashboard
   # an array of attributes that will be displayed on the model's show page.
   enterprise_show_page_attributes = if ChatwootApp.enterprise?
                                       attrs = %i[custom_attributes limits]
-                                      attrs << :manually_managed_features if ChatwootApp.chatwoot_cloud?
+                                      attrs << :manually_managed_features
+                                      attrs << :custom_features
                                       attrs << :all_features
                                       attrs
                                     else
@@ -64,6 +69,7 @@ class AccountDashboard < Administrate::BaseDashboard
   SHOW_PAGE_ATTRIBUTES = (%i[
     id
     name
+    support_email
     created_at
     updated_at
     locale
@@ -77,7 +83,8 @@ class AccountDashboard < Administrate::BaseDashboard
   # on the model's form (`new` and `edit`) pages.
   enterprise_form_attributes = if ChatwootApp.enterprise?
                                  attrs = %i[limits]
-                                 attrs << :manually_managed_features if ChatwootApp.chatwoot_cloud?
+                                 attrs << :manually_managed_features
+                                 attrs << :custom_features
                                  attrs << :all_features
                                  attrs
                                else
@@ -85,6 +92,7 @@ class AccountDashboard < Administrate::BaseDashboard
                                end
   FORM_ATTRIBUTES = (%i[
     name
+    support_email
     locale
     status
   ] + enterprise_form_attributes).freeze
@@ -119,8 +127,11 @@ class AccountDashboard < Administrate::BaseDashboard
   def permitted_attributes(action)
     attrs = super + [limits: {}]
 
-    # Add manually_managed_features to permitted attributes only for Chatwoot Cloud
-    attrs << { manually_managed_features: [] } if ChatwootApp.chatwoot_cloud?
+    # Add manually_managed_features to permitted attributes for all enterprise deployments
+    attrs << { manually_managed_features: [] } if ChatwootApp.enterprise?
+
+    # Add custom_features to permitted attributes for all enterprise deployments
+    attrs << { custom_features: [] } if ChatwootApp.enterprise?
 
     attrs
   end

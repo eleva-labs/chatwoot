@@ -1,19 +1,23 @@
 import { URLPattern } from 'urlpattern-polyfill';
 
 export const isPatternMatchingWithURL = (urlPattern, url) => {
-  let updatedUrlPattern = urlPattern;
-  const locationObj = new URL(url);
+  try {
+    let updatedUrlPattern = urlPattern;
+    const locationObj = new URL(url);
 
-  if (updatedUrlPattern.endsWith('/')) {
-    updatedUrlPattern = updatedUrlPattern.slice(0, -1) + '*\\?*\\#*';
+    if (updatedUrlPattern.endsWith('/')) {
+      updatedUrlPattern = updatedUrlPattern.slice(0, -1) + '*\\?*\\#*';
+    }
+
+    if (locationObj.pathname.endsWith('/')) {
+      locationObj.pathname = locationObj.pathname.slice(0, -1);
+    }
+
+    const pattern = new URLPattern(updatedUrlPattern);
+    return pattern.test(locationObj.toString());
+  } catch {
+    return false;
   }
-
-  if (locationObj.pathname.endsWith('/')) {
-    locationObj.pathname = locationObj.pathname.slice(0, -1);
-  }
-
-  const pattern = new URLPattern(updatedUrlPattern);
-  return pattern.test(locationObj.toString());
 };
 
 // Format all campaigns

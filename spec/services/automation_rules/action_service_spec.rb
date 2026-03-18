@@ -117,5 +117,146 @@ RSpec.describe AutomationRules::ActionService do
         expect(mailer).to have_received(:conversation_transcript).exactly(1).times
       end
     end
+
+    describe '#perform with add_label action' do
+      before do
+        rule.actions << { action_name: 'add_label', action_params: %w[bug feature] }
+        rule.save
+      end
+
+      it 'will add labels to conversation' do
+        described_class.new(rule, account, conversation).perform
+        expect(conversation.reload.label_list).to include('bug', 'feature')
+      end
+
+      it 'will not duplicate existing labels' do
+        conversation.add_labels(['bug'])
+        described_class.new(rule, account, conversation).perform
+        expect(conversation.reload.label_list.count('bug')).to eq(1)
+        expect(conversation.reload.label_list).to include('feature')
+      end
+    end
+
+    describe '#perform with remove_label action' do
+      before do
+        conversation.add_labels(%w[bug feature support])
+        rule.actions << { action_name: 'remove_label', action_params: %w[bug feature] }
+        rule.save
+      end
+
+      it 'will remove specified labels from conversation' do
+        described_class.new(rule, account, conversation).perform
+        expect(conversation.reload.label_list).not_to include('bug', 'feature')
+        expect(conversation.reload.label_list).to include('support')
+      end
+
+      it 'will not fail if labels do not exist on conversation' do
+        conversation.update_labels(['support']) # Remove bug and feature first
+        expect { described_class.new(rule, account, conversation).perform }.not_to raise_error
+        expect(conversation.reload.label_list).to include('support')
+      end
+    end
+
+    describe '#perform with add_private_note action' do
+      let(:message_builder) { double }
+
+      before do
+        allow(Messages::MessageBuilder).to receive(:new).and_return(message_builder)
+        rule.actions.delete_if { |a| a['action_name'] == 'send_message' }
+        rule.actions << { action_name: 'add_private_note', action_params: ['Note'] }
+      end
+
+      it 'will add private note' do
+        expect(message_builder).to receive(:perform)
+        described_class.new(rule, account, conversation).perform
+      end
+
+      it 'will not add note if conversation is a tweet' do
+        twitter_inbox = create(:inbox, channel: create(:channel_twitter_profile, account: account))
+        conversation = create(:conversation, inbox: twitter_inbox, additional_attributes: { type: 'tweet' })
+        expect(message_builder).not_to receive(:perform)
+        described_class.new(rule, account, conversation).perform
+      end
+    end
+
+    describe '#perform with set_ai_enabled action' do
+      let(:inbox) { create(:inbox, account: account) }
+      let(:contact) { create(:contact, account: account) }
+      let(:conversation) { create(:conversation, inbox: inbox, contact: contact, account: account) }
+
+      context 'when inbox has active agent-bot' do
+        before do
+          agent_bot = create(:agent_bot)
+          create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, status: :active)
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [true] }]
+          rule.save!
+        end
+
+        it 'sets ai_enabled to true' do
+          described_class.new(rule, account, conversation).perform
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be true
+        end
+
+        it 'sets ai_enabled to false when action params are false' do
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [false] }]
+          rule.save!
+
+          described_class.new(rule, account, conversation).perform
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be false
+        end
+      end
+
+      context 'when inbox has no agent-bot' do
+        before do
+          # Ensure conversation starts with no ai_enabled set
+          conversation.custom_attributes = {}
+          conversation.save!
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [true] }]
+          rule.save!
+        end
+
+        it 'does not set ai_enabled to true' do
+          described_class.new(rule, account, conversation).perform
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be_nil
+        end
+
+        it 'returns false from enable_ai!' do
+          result = conversation.enable_ai!
+          expect(result).to be false
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be_nil
+        end
+
+        it 'allows setting ai_enabled to false without agent-bot' do
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [false] }]
+          rule.save!
+
+          described_class.new(rule, account, conversation).perform
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be false
+        end
+      end
+
+      context 'when action params are in hash format (from frontend dropdown)' do
+        before do
+          agent_bot = create(:agent_bot)
+          create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot, status: :active)
+        end
+
+        it 'extracts true from hash with string key' do
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [{ 'id' => true, 'name' => 'Enable' }] }]
+          rule.save!
+
+          described_class.new(rule, account, conversation).perform
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be true
+        end
+
+        it 'extracts false from hash with symbol key' do
+          rule.actions = [{ action_name: 'set_ai_enabled', action_params: [{ id: false, name: 'Disable' }] }]
+          rule.save!
+
+          described_class.new(rule, account, conversation).perform
+          expect(conversation.reload.custom_attributes['ai_enabled']).to be false
+        end
+      end
+    end
   end
 end

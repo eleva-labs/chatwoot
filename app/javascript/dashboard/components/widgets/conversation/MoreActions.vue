@@ -9,6 +9,8 @@ import EmailTranscriptModal from './EmailTranscriptModal.vue';
 import ResolveAction from '../../buttons/ResolveAction.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
+import AIToggleButton from '../../ui/AIToggleButton.vue';
+import ConversationApi from 'dashboard/api/conversations';
 
 import {
   CMD_MUTE_CONVERSATION,
@@ -24,6 +26,35 @@ const [showEmailActionsModal, toggleEmailModal] = useToggle(false);
 const [showActionsDropdown, toggleDropdown] = useToggle(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
+
+const isAiEnabled = computed(() => {
+  return !!currentChat.value?.custom_attributes?.ai_enabled;
+});
+
+const onToggleAi = async () => {
+  const conversationId = currentChat.value?.id;
+  if (!conversationId) return;
+
+  const nextValue = !isAiEnabled.value;
+
+  try {
+    await ConversationApi.toggleAi(conversationId, nextValue);
+
+    // Update the local conversation state
+    const updatedChat = {
+      ...currentChat.value,
+      custom_attributes: {
+        ...currentChat.value.custom_attributes,
+        ai_enabled: nextValue,
+      },
+    };
+
+    store.commit('UPDATE_CONVERSATION', updatedChat);
+    useAlert(t('CONVERSATION.AI_TOGGLE_SUCCESS'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.AI_TOGGLE_ERROR'));
+  }
+};
 
 const actionMenuItems = computed(() => {
   const items = [];
@@ -95,6 +126,11 @@ onUnmounted(() => {
     <ResolveAction
       :conversation-id="currentChat.id"
       :status="currentChat.status"
+    />
+    <AIToggleButton
+      v-if="currentChat.id"
+      :ai-enabled="isAiEnabled"
+      @toggle-ai="onToggleAi"
     />
     <div
       v-on-clickaway="() => toggleDropdown(false)"

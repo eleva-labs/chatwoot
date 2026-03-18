@@ -81,6 +81,15 @@ const v$ = useVuelidate(validationRules, state);
 const isCreating = computed(() => formState.uiFlags.value.isCreating);
 const isSubmitDisabled = computed(() => v$.value.$invalid);
 
+const submitButtonLabel = computed(() => {
+  const modeKey = props.mode.toUpperCase();
+  const buttonKeys = {
+    EDIT: 'CAMPAIGN.LIVE_CHAT.CREATE.FORM.BUTTONS.EDIT',
+    CREATE: 'CAMPAIGN.LIVE_CHAT.CREATE.FORM.BUTTONS.CREATE',
+  };
+  return t(buttonKeys[modeKey] || buttonKeys.CREATE);
+});
+
 const mapToOptions = (items, valueKey, labelKey) =>
   items?.map(item => ({
     value: item[valueKey],
@@ -97,8 +106,18 @@ const sendersAndBotList = computed(() => [
 ]);
 
 const getErrorMessage = (field, errorKey) => {
-  const baseKey = 'CAMPAIGN.LIVE_CHAT.CREATE.FORM';
-  return v$.value[field].$error ? t(`${baseKey}.${errorKey}.ERROR`) : '';
+  if (!v$.value[field].$error) return '';
+
+  const errorKeys = {
+    TITLE: 'CAMPAIGN.LIVE_CHAT.CREATE.FORM.TITLE.ERROR',
+    MESSAGE: 'CAMPAIGN.LIVE_CHAT.CREATE.FORM.MESSAGE.ERROR',
+    INBOX: 'CAMPAIGN.LIVE_CHAT.CREATE.FORM.INBOX.ERROR',
+    END_POINT: 'CAMPAIGN.LIVE_CHAT.CREATE.FORM.END_POINT.ERROR',
+    TIME_ON_PAGE: 'CAMPAIGN.LIVE_CHAT.CREATE.FORM.TIME_ON_PAGE.ERROR',
+    SENT_BY: 'CAMPAIGN.LIVE_CHAT.CREATE.FORM.SENT_BY.ERROR',
+  };
+
+  return t(errorKeys[errorKey] || '');
 };
 
 const formErrors = computed(() => ({
@@ -306,14 +325,12 @@ defineExpose({ prepareCampaignDetails, isSubmitDisabled });
         variant="faded"
         color="slate"
         :label="t('CAMPAIGN.LIVE_CHAT.CREATE.FORM.BUTTONS.CANCEL')"
-        class="w-full bg-n-alpha-2 n-blue-text hover:bg-n-alpha-3"
+        class="w-full bg-n-alpha-2 text-n-brand dark:text-n-lightBrand hover:bg-n-alpha-3"
         @click="handleCancel"
       />
       <Button
         type="submit"
-        :label="
-          t(`CAMPAIGN.LIVE_CHAT.CREATE.FORM.BUTTONS.${mode.toUpperCase()}`)
-        "
+        :label="submitButtonLabel"
         class="w-full"
         :is-loading="isCreating"
         :disabled="isCreating || isSubmitDisabled"

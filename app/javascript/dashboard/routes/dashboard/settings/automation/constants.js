@@ -3,6 +3,7 @@ import {
   OPERATOR_TYPES_2,
   OPERATOR_TYPES_3,
   OPERATOR_TYPES_6,
+  OPERATOR_TYPES_7,
 } from './operators';
 
 export const AUTOMATIONS = {
@@ -33,6 +34,30 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_1,
       },
       {
+        key: 'status',
+        name: 'STATUS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'assignee_id',
+        name: 'ASSIGNEE_NAME',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
+        key: 'team_id',
+        name: 'TEAM_NAME',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
+        key: 'priority',
+        name: 'PRIORITY',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
         key: 'conversation_language',
         name: 'CONVERSATION_LANGUAGE',
         inputType: 'multi_select',
@@ -43,6 +68,44 @@ export const AUTOMATIONS = {
         name: 'PHONE_NUMBER',
         inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_6,
+      },
+      {
+        key: 'labels',
+        name: 'LABELS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
+        key: 'has_agent_bot',
+        name: 'HAS_AGENT_BOT',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'entry_phrase',
+        name: 'ENTRY_PHRASE_MATCH',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+        customFilters: {
+          message_limit: {
+            type: 'number',
+            default: 2,
+            label: 'MESSAGE_LIMIT',
+            min: 1,
+            max: 10,
+          },
+          case_sensitive: {
+            type: 'boolean',
+            default: false,
+            label: 'CASE_SENSITIVE',
+          },
+        },
+      },
+      {
+        key: 'random_chance',
+        name: 'RANDOM_PERCENTAGE',
+        inputType: 'number',
+        filterOperators: OPERATOR_TYPES_7,
       },
     ],
     actions: [
@@ -82,7 +145,10 @@ export const AUTOMATIONS = {
         key: 'snooze_conversation',
         name: 'SNOOZE_CONVERSATION',
       },
-
+      {
+        key: 'open_conversation',
+        name: 'OPEN_CONVERSATION',
+      },
       {
         key: 'resolve_conversation',
         name: 'RESOLVE_CONVERSATION',
@@ -94,6 +160,10 @@ export const AUTOMATIONS = {
       {
         key: 'send_attachment',
         name: 'SEND_ATTACHMENT',
+      },
+      {
+        key: 'set_ai_enabled',
+        name: 'SET_AI_ENABLED',
       },
     ],
   },
@@ -159,6 +229,44 @@ export const AUTOMATIONS = {
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
       },
+      {
+        key: 'labels',
+        name: 'LABELS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
+        key: 'has_agent_bot',
+        name: 'HAS_AGENT_BOT',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'entry_phrase',
+        name: 'ENTRY_PHRASE_MATCH',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+        customFilters: {
+          message_limit: {
+            type: 'number',
+            default: 2,
+            label: 'MESSAGE_LIMIT',
+            min: 1,
+            max: 10,
+          },
+          case_sensitive: {
+            type: 'boolean',
+            default: false,
+            label: 'CASE_SENSITIVE',
+          },
+        },
+      },
+      {
+        key: 'random_chance',
+        name: 'RANDOM_PERCENTAGE',
+        inputType: 'number',
+        filterOperators: OPERATOR_TYPES_7,
+      },
     ],
     actions: [
       {
@@ -204,6 +312,10 @@ export const AUTOMATIONS = {
       {
         key: 'send_attachment',
         name: 'SEND_ATTACHMENT',
+      },
+      {
+        key: 'set_ai_enabled',
+        name: 'SET_AI_ENABLED',
       },
     ],
   },
@@ -280,6 +392,12 @@ export const AUTOMATIONS = {
         name: 'PRIORITY',
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'labels',
+        name: 'LABELS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_3,
       },
     ],
     actions: [
@@ -397,6 +515,12 @@ export const AUTOMATIONS = {
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
       },
+      {
+        key: 'labels',
+        name: 'LABELS',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
     ],
     actions: [
       {
@@ -441,6 +565,106 @@ export const AUTOMATIONS = {
       },
     ],
   },
+  conversation_resolved: {
+    conditions: [
+      {
+        key: 'browser_language',
+        name: 'BROWSER_LANGUAGE',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'email',
+        name: 'EMAIL',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        key: 'mail_subject',
+        name: 'MAIL_SUBJECT',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        key: 'country_code',
+        name: 'COUNTRY_NAME',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'referer',
+        name: 'REFERER_LINK',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        key: 'assignee_id',
+        name: 'ASSIGNEE_NAME',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
+        key: 'phone_number',
+        name: 'PHONE_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_6,
+      },
+      {
+        key: 'team_id',
+        name: 'TEAM_NAME',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
+        key: 'inbox_id',
+        name: 'INBOX',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'conversation_language',
+        name: 'CONVERSATION_LANGUAGE',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'priority',
+        name: 'PRIORITY',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+    ],
+    actions: [
+      {
+        key: 'assign_agent',
+        name: 'ASSIGN_AGENT',
+      },
+      {
+        key: 'assign_team',
+        name: 'ASSIGN_TEAM',
+      },
+      {
+        key: 'send_email_to_team',
+        name: 'SEND_EMAIL_TO_TEAM',
+      },
+      {
+        key: 'send_message',
+        name: 'SEND_MESSAGE',
+      },
+      {
+        key: 'send_email_transcript',
+        name: 'SEND_EMAIL_TRANSCRIPT',
+      },
+      {
+        key: 'send_webhook_event',
+        name: 'SEND_WEBHOOK_EVENT',
+      },
+      {
+        key: 'send_attachment',
+        name: 'SEND_ATTACHMENT',
+      },
+    ],
+  },
 };
 
 export const AUTOMATION_RULE_EVENTS = [
@@ -451,6 +675,10 @@ export const AUTOMATION_RULE_EVENTS = [
   {
     key: 'conversation_updated',
     value: 'CONVERSATION_UPDATED',
+  },
+  {
+    key: 'conversation_resolved',
+    value: 'CONVERSATION_RESOLVED',
   },
   {
     key: 'message_created',
@@ -509,6 +737,11 @@ export const AUTOMATION_ACTION_TYPES = [
     inputType: null,
   },
   {
+    key: 'open_conversation',
+    label: 'OPEN_CONVERSATION',
+    inputType: null,
+  },
+  {
     key: 'send_webhook_event',
     label: 'SEND_WEBHOOK_EVENT',
     inputType: 'url',
@@ -524,6 +757,11 @@ export const AUTOMATION_ACTION_TYPES = [
     inputType: 'textarea',
   },
   {
+    key: 'add_private_note',
+    label: 'ADD_PRIVATE_NOTE',
+    inputType: 'textarea',
+  },
+  {
     key: 'change_priority',
     label: 'CHANGE_PRIORITY',
     inputType: 'search_select',
@@ -531,6 +769,11 @@ export const AUTOMATION_ACTION_TYPES = [
   {
     key: 'add_sla',
     label: 'ADD_SLA',
+    inputType: 'search_select',
+  },
+  {
+    key: 'set_ai_enabled',
+    label: 'SET_AI_ENABLED',
     inputType: 'search_select',
   },
 ];

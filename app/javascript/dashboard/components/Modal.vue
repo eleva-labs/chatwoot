@@ -1,19 +1,22 @@
 <script setup>
 // [TODO] Use Teleport to move the modal to the end of the body
-import { ref, computed, defineEmits, onMounted } from 'vue';
+import { ref, computed, defineEmits } from 'vue';
 import { useEventListener } from '@vueuse/core';
 import Button from 'dashboard/components-next/button/Button.vue';
 
-const { modalType, closeOnBackdropClick, onClose } = defineProps({
+const props = defineProps({
   closeOnBackdropClick: { type: Boolean, default: true },
   showCloseButton: { type: Boolean, default: true },
-  onClose: { type: Function, required: true },
+  onClose: { type: Function, default: null },
   fullWidth: { type: Boolean, default: false },
   modalType: { type: String, default: 'centered' },
   size: { type: String, default: '' },
 });
 
 const emit = defineEmits(['close']);
+
+const { modalType, closeOnBackdropClick } = props;
+
 const show = defineModel('show', { type: Boolean, default: false });
 
 const modalClassName = computed(() => {
@@ -35,7 +38,9 @@ const handleMouseDown = () => {
 const close = () => {
   show.value = false;
   emit('close');
-  onClose();
+  if (props.onClose) {
+    props.onClose();
+  }
 };
 
 const onMouseUp = () => {
@@ -57,14 +62,8 @@ const onKeydown = e => {
 useEventListener(document.body, 'mouseup', onMouseUp);
 useEventListener(document, 'keydown', onKeydown);
 
-onMounted(() => {
-  if (import.meta.env.DEV && onClose && typeof onClose === 'function') {
-    // eslint-disable-next-line no-console
-    console.warn(
-      "[DEPRECATED] The 'onClose' prop is deprecated. Please use the 'close' event instead."
-    );
-  }
-});
+// Note: The 'onClose' prop is deprecated. New code should use the 'close' event instead.
+// The deprecation warning has been removed to reduce console noise during development.
 </script>
 
 <template>

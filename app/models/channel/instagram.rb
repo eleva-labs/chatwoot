@@ -19,6 +19,9 @@ class Channel::Instagram < ApplicationRecord
   include Reauthorizable
   self.table_name = 'channel_instagram'
 
+  # TODO: Remove guard once encryption keys become mandatory (target 3-4 releases out).
+  encrypts :access_token if Chatwoot.encryption_configured?
+
   AUTHORIZATION_ERROR_THRESHOLD = 1
 
   validates :access_token, presence: true
@@ -36,6 +39,17 @@ class Channel::Instagram < ApplicationRecord
                                                             source_id: instagram_id,
                                                             inbox: inbox,
                                                             contact_attributes: { name: name }
+                                                          }).perform
+  end
+
+  def create_contact_inbox_with_identifier(instagram_id, name, username)
+    @contact_inbox = ::ContactInboxWithContactBuilder.new({
+                                                            source_id: instagram_id,
+                                                            inbox: inbox,
+                                                            contact_attributes: {
+                                                              name: name,
+                                                              identifier: username
+                                                            }
                                                           }).perform
   end
 

@@ -1,0 +1,171 @@
+# TODO: This is only functional right now with Whapi
+class ForwardNotificationService
+  # Don't include the class, we'll instantiate it
+
+  def initialize(message)
+    @message = message
+    @conversation = message.conversation
+    @account = @conversation.account
+  end
+
+  def send_notification
+    # Enqueue job asynchronously following Chatwoot pattern
+    ForwardNotificationJob.perform_later(@message.id)
+  rescue StandardError => e
+    Rails.logger.error "Error enqueuing notification job: #{e.message}"
+  end
+
+  def perform_notification_sending
+    # Find the notification channels and their target chats
+    notification_channels = extract_notification_channels
+
+    if notification_channels.empty?
+      Rails.logger.warn 'Notification not sent: No notification channels found in the configuration'
+      return
+    end
+
+    notification_channels.each do |channel_config|
+      send_to_channel(channel_config)
+    end
+  rescue StandardError => e
+    Rails.logger.error "Notification Failed: Error in ForwardNotificationService.perform_notification_sending: #{e.message}"
+  end
+
+  private
+
+  def extract_notification_channels
+    notification_config = find_notification_config
+    return [] unless notification_config&.dig('channels')
+
+    channels = []
+    notification_config['channels'].each do |channel_data|
+      channel = channel_data['channel']
+      target_chats = channel_data['target_chats'] || []
+
+      channels << {
+        channel: channel,
+        target_chats: target_chats
+      }
+    end
+
+    channels
+  end
+
+  def send_to_channel(channel_config)
+    channel = channel_config[:channel]
+    target_chats = channel_config[:target_chats]
+
+    case channel
+    when 'whatsapp'
+      send_whatsapp_notifications(target_chats)
+    else
+      Rails.logger.warn "Not implemented notification channel: #{channel}"
+    end
+  end
+
+  def send_whatsapp_notifications(target_chats)
+    # Get the WhatsApp channel with provider "whapi"
+    whatsapp_channel = @account.whatsapp_channels.find_by(provider: 'whapi')
+
+    if whatsapp_channel.nil?
+
+      Rails.logger.info "No existing whapi channel found for account #{@account.id}, fallback to default whapi channel"
+      default_api_key = ENV.fetch('DEFAULT_WHAPI_CHANNEL_TOKEN', nil)
+      if default_api_key.present?
+
+        Rails.logger.info "Creating new whapi channel for account #{@account.id} using default API Token: #{default_api_key[0..8]}..."
+        whatsapp_channel = create_whapi_channel(default_api_key)
+
+      else
+        Rails.logger.error "Notification Failed: Account #{@account.id} with no whapi channel and no default whapi channel token defined"
+        return
+      end
+
+    else
+      api_key = whatsapp_channel.provider_config&.dig('api_key')
+      Rails.logger.info "Using existing whapi channel for account #{@account.id} with API key: #{api_key&.[](0..8)}..."
+    end
+
+    # Validate that the channel has proper configuration
+    if whatsapp_channel&.provider_config&.dig('api_key').blank?
+      Rails.logger.warn "WhatsApp channel missing API key for account #{@account.id}"
+      return
+    end
+
+    # Send to each chat (WhapiService will handle retry and timeout)
+    target_chats.each do |chat_id|
+      send_via_whatsapp_channel(whatsapp_channel, chat_id, @message.content)
+    end
+  end
+
+  def send_via_whatsapp_channel(whatsapp_channel, target_chat, notification_message)
+    return if whatsapp_channel.nil? || target_chat.blank?
+
+    # Create a proper message object for notification forwarding
+    message_object = NotificationMessage.new(notification_message)
+
+    # Create the WhapiService instance and send the message (WhapiService handles retry/timeout)
+    whapi_service = Whatsapp::Providers::WhapiService.new(whatsapp_channel: whatsapp_channel)
+    whapi_service.send_message(target_chat, message_object)
+
+  rescue StandardError => e
+    Rails.logger.error "Failed to send WhatsApp notification to #{target_chat}: #{e.message}"
+  end
+
+  def create_whapi_channel(api_key)
+    # Create a minimal Channel::Whatsapp instance with only the API key
+    Channel::Whatsapp.new(
+      provider: 'whapi',
+      provider_config: {
+        'api_key' => api_key
+      },
+      account: @account
+    )
+  end
+
+  # Message object for notification forwarding
+  class NotificationMessage
+    attr_reader :content, :content_type, :message_type, :private, :attachments, :content_attributes
+    attr_accessor :external_error, :status
+
+    def initialize(content)
+      @content = content
+      @content_type = 'text'
+      @message_type = 'outgoing'
+      @private = false
+      @attachments = []
+      @content_attributes = {}
+      @external_error = nil
+      @status = 'sent'
+    end
+
+    def outgoing_content
+      content
+    end
+
+    def save!
+      # No-op for notification messages - they don't get persisted
+    end
+  end
+
+  def find_notification_config
+    store_id = @account.id
+    return if store_id.blank?
+
+    begin
+      # Instantiate the configuration service
+      config_service = AiBackendService::ConfigurationService.new
+
+      # Use the configuration service to get notifications config
+      notification_config = config_service.get_configuration(
+        scope: AiBackendService::Constants::Scope::STORE,
+        resource_id: store_id,
+        config_key: AiBackendService::Constants::ConfigKey::NOTIFICATIONS_CONFIG
+      )
+
+      return notification_config if notification_config.present?
+    rescue StandardError => e
+      Rails.logger.error "Error getting notification config: #{e.message}"
+    end
+  end
+end

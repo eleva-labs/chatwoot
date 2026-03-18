@@ -68,6 +68,9 @@ RSpec.describe SendReplyJob do
 
     it 'calls ::Whatsapp:SendOnWhatsappService when its whatsapp message' do
       stub_request(:post, 'https://waba.360dialog.io/v1/configs/webhook')
+      # Stub 360Dialog templates API call to prevent external requests during tests
+      stub_request(:get, 'https://waba.360dialog.io/v1/configs/templates')
+        .to_return(status: 200, body: '{"waba_templates": []}', headers: { 'Content-Type' => 'application/json' })
       whatsapp_channel = create(:channel_whatsapp, sync_templates: false)
       message = create(:message, conversation: create(:conversation, inbox: whatsapp_channel.inbox))
       allow(Whatsapp::SendOnWhatsappService).to receive(:new).with(message: message).and_return(process_service)
@@ -105,6 +108,33 @@ RSpec.describe SendReplyJob do
 
       allow(Instagram::Messenger::SendOnInstagramService).to receive(:new).with(message: message).and_return(process_service)
       expect(Instagram::Messenger::SendOnInstagramService).to receive(:new).with(message: message)
+      expect(process_service).to receive(:perform)
+      described_class.perform_now(message.id)
+    end
+
+    it 'calls ::Email::SendOnEmailService when its email message' do
+      email_channel = create(:channel_email)
+      message = create(:message, conversation: create(:conversation, inbox: email_channel.inbox))
+      allow(Email::SendOnEmailService).to receive(:new).with(message: message).and_return(process_service)
+      expect(Email::SendOnEmailService).to receive(:new).with(message: message)
+      expect(process_service).to receive(:perform)
+      described_class.perform_now(message.id)
+    end
+
+    it 'calls ::Messages::SendEmailNotificationService when its webwidget message' do
+      webwidget_channel = create(:channel_widget)
+      message = create(:message, conversation: create(:conversation, inbox: webwidget_channel.inbox))
+      allow(Messages::SendEmailNotificationService).to receive(:new).with(message: message).and_return(process_service)
+      expect(Messages::SendEmailNotificationService).to receive(:new).with(message: message)
+      expect(process_service).to receive(:perform)
+      described_class.perform_now(message.id)
+    end
+
+    it 'calls ::Messages::SendEmailNotificationService when its api channel message' do
+      api_channel = create(:channel_api)
+      message = create(:message, conversation: create(:conversation, inbox: api_channel.inbox))
+      allow(Messages::SendEmailNotificationService).to receive(:new).with(message: message).and_return(process_service)
+      expect(Messages::SendEmailNotificationService).to receive(:new).with(message: message)
       expect(process_service).to receive(:perform)
       described_class.perform_now(message.id)
     end

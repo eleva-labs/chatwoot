@@ -1,6 +1,12 @@
 class Webhooks::InstagramEventsJob < MutexApplicationJob
   queue_as :default
-  retry_on LockAcquisitionError, wait: 1.second, attempts: 8
+
+  LOCK_RETRY_WAIT = lambda do |executions|
+    base_wait_seconds = [2 * (2**(executions - 1)), 30].min
+    base_wait_seconds + (base_wait_seconds * rand * 0.15)
+  end
+
+  retry_on LockAcquisitionError, wait: LOCK_RETRY_WAIT, attempts: 8
 
   # @return [Array] We will support further events like reaction or seen in future
   SUPPORTED_EVENTS = [:message, :read].freeze
@@ -8,10 +14,23 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   def perform(entries)
     @entries = entries
 
-    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: sender_id, ig_account_id: ig_account_id)
-    with_lock(key) do
+    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: lock_participant_id, ig_account_id: ig_account_id)
+    lock_started_at = monotonic_time
+    @lock_acquired_at = nil
+
+    with_lock(key, 30.seconds) do
+      @lock_acquired_at = monotonic_time
       process_entries(entries)
     end
+  rescue LockAcquisitionError
+    log_lock_retry(
+      lock_key: key,
+      lock_attempt_ms: elapsed_ms(lock_started_at, monotonic_time),
+      retry_attempt: lock_attempt
+    )
+    raise
+  ensure
+    log_lock_release(key, lock_started_at) if lock_started_at && @lock_acquired_at
   end
 
   # https://developers.facebook.com/docs/messenger-platform/instagram/features/webhook
@@ -34,8 +53,6 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
 
   def process_messages(entry)
     messages(entry).each do |messaging|
-      Rails.logger.info("Instagram Events Job Messaging: #{messaging}")
-
       instagram_id = instagram_id(messaging)
       channel = find_channel(instagram_id)
 
@@ -48,7 +65,7 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def agent_message_via_echo?(messaging)
-    messaging[:message].present? && messaging[:message][:is_echo].present?
+    messaging&.dig(:message, :is_echo).present?
   end
 
   def test_event?(entry)
@@ -81,6 +98,28 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
     @entries&.dig(0, :messaging, 0, :sender, :id)
   end
 
+  def lock_participant_id
+    echo_recipient_id = nil
+
+    lock_messages.each do |messaging|
+      return messaging.dig(:sender, :id) unless echo_self_message?(messaging)
+
+      echo_recipient_id ||= messaging.dig(:recipient, :id)
+    end
+
+    echo_recipient_id
+  end
+
+  def echo_self_message?(messaging)
+    agent_message_via_echo?(messaging) && messaging&.dig(:sender, :id) == ig_account_id
+  end
+
+  def lock_messages
+    Array(@entries).flat_map do |entry|
+      messages(entry.with_indifferent_access)
+    end
+  end
+
   def find_channel(instagram_id)
     # There will be chances for the instagram account to be connected to a facebook page,
     # so we need to check for both instagram and facebook page channels
@@ -93,7 +132,7 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def event_name(messaging)
-    @event_name ||= SUPPORTED_EVENTS.find { |key| messaging.key?(key) }
+    SUPPORTED_EVENTS.find { |key| messaging.key?(key) }
   end
 
   def message(messaging, channel)
@@ -111,6 +150,51 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
 
   def messages(entry)
     (entry[:messaging].presence || entry[:standby] || [])
+  end
+
+  def log_lock_release(lock_key, lock_started_at)
+    lock_released_at = monotonic_time
+    log_lock_event(
+      'released',
+      lock_key: lock_key,
+      lock_attempt_ms: elapsed_ms(lock_started_at, @lock_acquired_at),
+      lock_hold_ms: elapsed_ms(@lock_acquired_at, lock_released_at),
+      total_elapsed_ms: elapsed_ms(lock_started_at, lock_released_at)
+    )
+  end
+
+  def log_lock_event(event, lock_key:, **metadata)
+    details = metadata.map { |attribute, value| "#{attribute}=#{value}" }.join(' ')
+    Rails.logger.info(
+      "[#{self.class.name}] event=lock_#{event} lock_key=#{lock_key} sender_id=#{sender_id} ig_account_id=#{ig_account_id} #{details}".strip
+    )
+  end
+
+  def log_lock_retry(lock_key:, **metadata)
+    details = metadata.map { |attribute, value| "#{attribute}=#{value}" }.join(' ')
+    Rails.logger.warn(
+      "[#{self.class.name}] event=lock_retry_scheduled lock_key=#{lock_key} sender_id=#{sender_id} ig_account_id=#{ig_account_id} #{details}".strip
+    )
+  end
+
+  def lock_attempt
+    [executions.to_i, 1].max
+  end
+
+  def monotonic_time
+    Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+
+  def elapsed_ms(started_at, ended_at)
+    ((ended_at - started_at) * 1000).round
+  end
+
+  def log_attempt(_lock_key, _executions)
+    nil
+  end
+
+  def handle_failed_lock_acquisition(lock_key)
+    raise LockAcquisitionError, "Failed to acquire lock for key: #{lock_key}"
   end
 end
 

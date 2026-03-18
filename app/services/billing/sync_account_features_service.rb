@@ -35,13 +35,26 @@ module Billing
     private
 
     def update_plan_limits
-      limits = self.class.plan_limits(@plan_name)
-      # Using -1 for unlimited
-      @account.limits = {
-        agents: limits['agents'],
-        inboxes: limits['inboxes'],
-        conversations: limits['conversations']
-      }
+      # Try to get limits from billing provider metadata first (if account has active subscription)
+      billing_provider_limits = extract_limits_from_billing_provider_subscription
+
+      if billing_provider_limits.present?
+        Rails.logger.info "Using plan limits from billing provider metadata: #{billing_provider_limits}"
+        limits = billing_provider_limits
+      else
+        Rails.logger.info 'Falling back to billing_plans.yml limits'
+        yaml_plan_data = self.class.plan_details(@plan_name)
+        limits = self.class.extract_plan_limits(yaml_plan_data, :yaml)
+      end
+
+      # Dynamically assign all limits (works with any number of limit types)
+      if limits.present?
+        @account.limits = limits
+        Rails.logger.info "Updated account limits: #{limits}"
+      else
+        Rails.logger.warn "No limits found for plan: #{@plan_name}"
+      end
+
       @account.save!
     end
 
@@ -49,22 +62,60 @@ module Billing
       Rails.logger.info '---[SYNC ACCOUNT FEATURES SERVICE - UPDATE PLAN FEATURES]---'
       all_features = self.class.all_features
       enabled_features = self.class.plan_features(@plan_name)
+      current_features = @account.enabled_features.keys.map(&:to_s)
 
       Rails.logger.info "All possible features: #{all_features}"
       Rails.logger.info "Features to be enabled for #{@plan_name}: #{enabled_features}"
+      Rails.logger.info "Currently enabled features: #{current_features}"
 
-      # Disable all possible features first to handle downgrades
-      Rails.logger.info 'Disabling all features...'
-      @account.disable_features(*all_features)
-      Rails.logger.info "Features after disabling all: #{@account.enabled_features.keys}"
+      # Calculate which features need to be disabled and enabled
+      features_to_disable = current_features - enabled_features
+      features_to_enable = enabled_features - current_features
 
-      # Enable only the features for the current plan
-      Rails.logger.info "Enabling features for #{@plan_name} plan..."
-      @account.enable_features(*enabled_features) if enabled_features.present?
-      Rails.logger.info "Features after enabling plan features: #{@account.enabled_features.keys}"
+      Rails.logger.info "Features to disable: #{features_to_disable}"
+      Rails.logger.info "Features to enable: #{features_to_enable}"
 
-      @account.save!
-      Rails.logger.info 'Account saved successfully.'
+      # Only make changes if necessary to avoid unnecessary updates
+      if features_to_disable.any? || features_to_enable.any?
+        # Apply changes atomically within a single save operation
+        if features_to_disable.any?
+          Rails.logger.info "Disabling features: #{features_to_disable}"
+          @account.disable_features(*features_to_disable)
+        end
+
+        if features_to_enable.any?
+          Rails.logger.info "Enabling features: #{features_to_enable}"
+          @account.enable_features(*features_to_enable)
+        end
+
+        @account.save!
+        Rails.logger.info "Features after update: #{@account.enabled_features.keys}"
+      else
+        Rails.logger.info 'No feature changes needed - account already has correct features'
+      end
+
+      Rails.logger.info 'Feature sync completed successfully.'
+    end
+
+    def extract_limits_from_billing_provider_subscription
+      return {} unless @account.custom_attributes&.dig('stripe_customer_id').present?
+
+      begin
+        # Fetch current subscription from billing provider and extract metadata
+        customer_id = @account.custom_attributes['stripe_customer_id']
+        subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'all')
+
+        # Filter for active or trialing subscriptions
+        active_subscriptions = subscriptions.data.select { |sub| Billing::SubscriptionStatuses.paid_status?(sub.status) }
+        return {} if active_subscriptions.empty?
+
+        subscription = active_subscriptions.first
+        product_metadata = Billing::StripeMetadataExtractor.extract_product_metadata(subscription, with_logging: false)
+        self.class.limits_from_billing_provider_metadata(product_metadata)
+      rescue ::Stripe::StripeError => e
+        Rails.logger.error "Failed to fetch billing provider subscription metadata: #{e.message}"
+        {}
+      end
     end
 
     def success_response

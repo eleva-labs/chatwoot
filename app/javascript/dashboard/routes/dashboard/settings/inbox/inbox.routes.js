@@ -8,6 +8,7 @@ import InboxHome from './Index.vue';
 import Settings from './Settings.vue';
 import InboxChannel from './InboxChannels.vue';
 import ChannelList from './ChannelList.vue';
+import AddAgent from '../agents/AddAgent.vue';
 import AddAgents from './AddAgents.vue';
 import FinishSetup from './FinishSetup.vue';
 
@@ -42,9 +43,7 @@ export default {
         const fullWidth = params.name === 'settings_inbox_show';
         return {
           headerTitle: 'INBOX_MGMT.HEADER',
-          headerButtonText: 'SETTINGS.INBOXES.NEW_INBOX',
           icon: 'mail-inbox-all',
-          newButtonRoutes: ['settings_inbox_list'],
           showBackButton,
           fullWidth,
         };
@@ -85,6 +84,15 @@ export default {
               },
             },
             {
+              path: ':inbox_id/invite-team',
+              name: 'settings_inboxes_invite_team',
+              meta: {
+                featureFlag: FEATURE_FLAGS.INBOX_MANAGEMENT,
+                permissions: ['administrator'],
+              },
+              component: AddAgent,
+            },
+            {
               path: ':inbox_id/agents',
               name: 'settings_inboxes_add_agents',
               meta: {
@@ -96,7 +104,7 @@ export default {
           ],
         },
         {
-          path: ':inboxId',
+          path: ':inboxId/:tab?',
           name: 'settings_inbox_show',
           component: Settings,
           meta: {

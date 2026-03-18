@@ -4,10 +4,11 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   before_action :fetch_agent_bot, only: [:set_agent_bot]
   before_action :validate_limit, only: [:create]
   # we are already handling the authorization in fetch inbox
-  before_action :check_authorization, except: [:show]
+  before_action :check_authorization, except: [:show, :health]
+  before_action :validate_whatsapp_cloud_channel, only: [:health]
 
   def index
-    @inboxes = policy_scope(Current.account.inboxes.order_by_name.includes(:channel, { avatar_attachment: [:blob] }))
+    @inboxes = policy_scope(Current.account.inboxes.order_by_name.includes(:channel, :members, { avatar_attachment: [:blob] }))
   end
 
   def show; end
@@ -42,9 +43,19 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def update
-    inbox_params = permitted_params.except(:channel, :csat_config)
+    inbox_params = permitted_params.except(:channel, :csat_config, :auto_assignment_config)
     inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
-    @inbox.update!(inbox_params)
+
+    # Handle auto_assignment_config separately with explicit change tracking
+    if permitted_params[:auto_assignment_config].present?
+      formatted = format_auto_assignment_config(permitted_params[:auto_assignment_config])
+      inbox_params[:auto_assignment_config] = formatted
+    end
+
+    @inbox.assign_attributes(inbox_params)
+    @inbox.auto_assignment_config_will_change! if permitted_params[:auto_assignment_config].present?
+    @inbox.save!
+
     update_inbox_working_hours
     update_channel if channel_update_required?
   end
@@ -54,19 +65,46 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def set_agent_bot
-    if @agent_bot
-      agent_bot_inbox = @inbox.agent_bot_inbox || AgentBotInbox.new(inbox: @inbox)
-      agent_bot_inbox.agent_bot = @agent_bot
-      agent_bot_inbox.save!
-    elsif @inbox.agent_bot_inbox.present?
-      @inbox.agent_bot_inbox.destroy!
+    old_bot_id = @inbox.agent_bot_inbox&.agent_bot_id
+
+    ActiveRecord::Base.transaction do
+      # Destroy triggers after_destroy_commit → AI Backend unassignment
+      @inbox.agent_bot_inbox&.destroy!
+
+      # Create triggers after_create_commit → AI Backend assignment
+      if @agent_bot
+        AgentBotInbox.create!(
+          inbox: @inbox,
+          agent_bot: @agent_bot,
+          account_id: @inbox.account_id
+        )
+      end
     end
+
+    log_bot_assignment_change(old_bot_id, @agent_bot&.id)
     head :ok
   end
 
   def destroy
     ::DeleteObjectJob.perform_later(@inbox, Current.user, request.ip) if @inbox.present?
     render status: :ok, json: { message: I18n.t('messages.inbox_deletetion_response') }
+  end
+
+  def sync_templates
+    return render status: :unprocessable_entity, json: { error: 'Template sync is only available for WhatsApp channels' } unless whatsapp_channel?
+
+    trigger_template_sync
+    render status: :ok, json: { message: 'Template sync initiated successfully' }
+  rescue StandardError => e
+    render status: :internal_server_error, json: { error: e.message }
+  end
+
+  def health
+    health_data = Whatsapp::HealthService.new(@inbox.channel).fetch_health_status
+    render json: health_data
+  rescue StandardError => e
+    Rails.logger.error "[INBOX HEALTH] Error fetching health data: #{e.message}"
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private
@@ -78,6 +116,12 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
 
   def fetch_agent_bot
     @agent_bot = AgentBot.find(params[:agent_bot]) if params[:agent_bot]
+  end
+
+  def validate_whatsapp_cloud_channel
+    return if @inbox.channel.is_a?(Channel::Whatsapp) && @inbox.channel.provider == 'whatsapp_cloud'
+
+    render json: { error: 'Health data only available for WhatsApp Cloud API channels' }, status: :bad_request
   end
 
   def create_channel
@@ -138,11 +182,17 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
     }
   end
 
+  def format_auto_assignment_config(config)
+    existing_config = @inbox.auto_assignment_config || {}
+    existing_config.merge(config.to_h)
+  end
+
   def inbox_attributes
     [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled,
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name,
-     { csat_config: [:display_type, :message, { survey_rules: [:operator, { values: [] }] }] }]
+     { csat_config: [:display_type, :message, { survey_rules: [:operator, { values: [] }] }] },
+     { auto_assignment_config: [:max_assignment_limit, :agent_bot_respects_working_hours] }]
   end
 
   def permitted_params(channel_attributes = [])
@@ -172,6 +222,28 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
       channel_type.constantize::EDITABLE_ATTRS.presence
     else
       []
+    end
+  end
+
+  def whatsapp_channel?
+    @inbox.whatsapp? || (@inbox.twilio? && @inbox.channel.whatsapp?)
+  end
+
+  def trigger_template_sync
+    if @inbox.whatsapp?
+      Channels::Whatsapp::TemplatesSyncJob.perform_later(@inbox.channel)
+    elsif @inbox.twilio? && @inbox.channel.whatsapp?
+      Channels::Twilio::TemplatesSyncJob.perform_later(@inbox.channel)
+    end
+  end
+
+  def log_bot_assignment_change(old_bot_id, new_bot_id)
+    if old_bot_id.present? && new_bot_id.present?
+      Rails.logger.info("Bot reassignment: Channel #{@inbox.id} changed from Bot #{old_bot_id} to Bot #{new_bot_id}")
+    elsif new_bot_id.present?
+      Rails.logger.info("Bot assignment: Channel #{@inbox.id} assigned to Bot #{new_bot_id}")
+    elsif old_bot_id.present?
+      Rails.logger.info("Bot unassignment: Channel #{@inbox.id} unassigned from Bot #{old_bot_id}")
     end
   end
 end

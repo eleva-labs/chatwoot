@@ -47,5 +47,18 @@ RSpec.describe Webhooks::FacebookEventsJob do
 
       expect(job_instance).to have_received(:process_message).with(parsed_response)
     end
+
+    it 'acquires lock with 30 second timeout' do
+      lock_manager = instance_double(Redis::LockManager)
+      allow(Redis::LockManager).to receive(:new).and_return(lock_manager)
+      allow(lock_manager).to receive(:lock).and_return(true)
+      allow(lock_manager).to receive(:unlock).and_return(true)
+
+      expected_key = format(Redis::Alfred::FACEBOOK_MESSAGE_MUTEX, sender_id: 'sender_id', recipient_id: 'recipient_id')
+
+      expect(lock_manager).to receive(:lock).with(expected_key, 30.seconds).and_return(true)
+
+      described_class.perform_now(params)
+    end
   end
 end

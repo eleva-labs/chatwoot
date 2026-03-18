@@ -1,15 +1,19 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { getInboxIconByType } from 'dashboard/helper/inbox';
+import { useI18n } from 'vue-i18n';
 import { useRouter, useRoute } from 'vue-router';
+import { getInboxIconByType } from 'dashboard/helper/inbox';
 import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper.js';
 import { dynamicTime, shortTimestamp } from 'shared/helpers/timeHelper';
+import { useAlert } from 'dashboard/composables';
+import ConversationApi from 'dashboard/api/conversations.js';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import CardMessagePreview from './CardMessagePreview.vue';
 import CardMessagePreviewWithMeta from './CardMessagePreviewWithMeta.vue';
 import CardPriorityIcon from './CardPriorityIcon.vue';
+import AIToggleButton from 'dashboard/components/ui/AIToggleButton.vue';
 
 const props = defineProps({
   conversation: {
@@ -30,6 +34,7 @@ const props = defineProps({
   },
 });
 
+const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 
@@ -48,8 +53,8 @@ const inbox = computed(() => props.stateInbox);
 const inboxName = computed(() => inbox.value?.name);
 
 const inboxIcon = computed(() => {
-  const { phoneNumber, channelType } = inbox.value;
-  return getInboxIconByType(channelType, phoneNumber);
+  const { channelType, medium } = inbox.value;
+  return getInboxIconByType(channelType, medium);
 });
 
 const lastActivityAt = computed(() => {
@@ -62,6 +67,10 @@ const showMessagePreviewWithoutMeta = computed(() => {
   return (
     !cardMessagePreviewWithMetaRef.value?.hasSlaThreshold && labels.length === 0
   );
+});
+
+const isAiEnabled = computed(() => {
+  return !!props.conversation?.custom_attributes?.ai_enabled;
 });
 
 const onCardClick = e => {
@@ -82,6 +91,18 @@ const onCardClick = e => {
   }
   router.push({ path });
 };
+
+const onToggleAi = async () => {
+  const conversationId = props.conversation?.id;
+  if (!conversationId) return;
+  const next = !isAiEnabled.value;
+
+  try {
+    await ConversationApi.toggleAi(conversationId, next);
+  } catch {
+    useAlert(t('CONVERSATION.AI_TOGGLE_ERROR'));
+  }
+};
 </script>
 
 <template>
@@ -90,19 +111,37 @@ const onCardClick = e => {
     class="flex w-full gap-3 px-3 py-4 transition-all duration-300 ease-in-out cursor-pointer"
     @click="onCardClick"
   >
-    <Avatar
-      :name="currentContactName"
-      :src="currentContactThumbnail"
-      :size="24"
-      :status="currentContactStatus"
-      rounded-full
-    />
+    <!-- Avatar with counter positioned at bottom-right -->
+    <div class="relative flex-shrink-0">
+      <Avatar
+        :name="currentContactName"
+        :src="currentContactThumbnail"
+        :size="24"
+        :status="currentContactStatus"
+        rounded-full
+      />
+      <!-- Unread counter positioned at bottom-right of avatar -->
+      <div
+        v-if="conversation.unreadCount > 0"
+        class="absolute -bottom-0.5 -right-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-n-brand border-[1.5px] border-white px-0.5"
+      >
+        <span class="text-[10px] font-semibold leading-none text-white">
+          {{
+            conversation.unreadCount > 9
+              ? $t('COMBOBOX.MORE', { count: 9 })
+              : conversation.unreadCount
+          }}
+        </span>
+      </div>
+    </div>
+
     <div class="flex flex-col w-full gap-1 min-w-0">
-      <div class="flex items-center justify-between h-6 gap-2">
-        <h4 class="text-base font-medium truncate text-n-slate-12">
+      <!-- Header with username and dates aligned at top -->
+      <div class="flex items-start justify-between gap-2 min-h-[24px]">
+        <h4 class="text-base font-medium truncate text-n-slate-12 leading-6">
           {{ currentContactName }}
         </h4>
-        <div class="flex items-center gap-2">
+        <div class="flex items-start gap-2 flex-shrink-0">
           <CardPriorityIcon :priority="conversation.priority || null" />
           <div
             v-tooltip.left="inboxName"
@@ -113,21 +152,33 @@ const onCardClick = e => {
               class="flex-shrink-0 text-n-slate-11 size-3"
             />
           </div>
-          <span class="text-sm text-n-slate-10">
+          <span class="text-sm text-n-slate-10 leading-6">
             {{ lastActivityAt }}
           </span>
         </div>
       </div>
-      <CardMessagePreview
-        v-show="showMessagePreviewWithoutMeta"
-        :conversation="conversation"
-      />
-      <CardMessagePreviewWithMeta
-        v-show="!showMessagePreviewWithoutMeta"
-        ref="cardMessagePreviewWithMetaRef"
-        :conversation="conversation"
-        :account-labels="accountLabels"
-      />
+
+      <!-- Message preview with AI button centered vertically -->
+      <div class="relative">
+        <!-- AI Toggle Button positioned absolutely in center -->
+        <div class="absolute right-4 top-1/2 -translate-y-1/2 z-10">
+          <AIToggleButton :ai-enabled="isAiEnabled" @toggle-ai="onToggleAi" />
+        </div>
+
+        <!-- Message content with right padding to avoid AI button -->
+        <div class="pr-16">
+          <CardMessagePreview
+            v-show="showMessagePreviewWithoutMeta"
+            :conversation="conversation"
+          />
+          <CardMessagePreviewWithMeta
+            v-show="!showMessagePreviewWithoutMeta"
+            ref="cardMessagePreviewWithMetaRef"
+            :conversation="conversation"
+            :account-labels="accountLabels"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>

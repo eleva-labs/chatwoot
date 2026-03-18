@@ -21,6 +21,14 @@ export default {
     PRIORITY_DESC: 'priority_desc',
     WAITING_SINCE_ASC: 'waiting_since_asc',
     WAITING_SINCE_DESC: 'waiting_since_desc',
+    UNREAD_COUNT_DESC: 'unread_count_desc',
+    // Legacy constants for backward compatibility
+    LATEST: 'last_activity_at_desc',
+  },
+  CONVERSATION_TYPE: {
+    MENTION: 'mention',
+    PARTICIPATING: 'participating',
+    UNATTENDED: 'unattended',
   },
   ARTICLE_STATUS_TYPES: {
     DRAFT: 0,
@@ -35,7 +43,9 @@ export default {
   HELP_CENTER_DOCS_URL:
     'https://www.chatwoot.com/docs/product/others/help-center',
   TESTIMONIAL_URL: 'https://testimonials.cdn.chatwoot.com/content.json',
-  SMALL_SCREEN_BREAKPOINT: 1200,
+  WHATSAPP_EMBEDDED_SIGNUP_DOCS_URL:
+    'https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users#limitations',
+  SMALL_SCREEN_BREAKPOINT: 768,
   AVAILABILITY_STATUS_KEYS: ['online', 'busy', 'offline'],
   SNOOZE_OPTIONS: {
     UNTIL_NEXT_REPLY: 'until_next_reply',

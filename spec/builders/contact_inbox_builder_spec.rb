@@ -122,6 +122,11 @@ describe ContactInboxBuilder do
     end
 
     describe 'whatsapp inbox' do
+      before do
+        stub_request(:post, 'https://waba.360dialog.io/v1/configs/webhook')
+        stub_request(:get, 'https://waba.360dialog.io/v1/configs/templates')
+      end
+
       let(:whatsapp_inbox) { create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox }
 
       it 'does not create contact inbox when contact inbox already exists with the source id provided' do
@@ -363,6 +368,38 @@ describe ContactInboxBuilder do
             contact: contact,
             inbox: channel_api.inbox,
             source_id: source_id
+          ).perform
+        end.to raise_error(ActiveRecord::RecordNotUnique)
+      end
+
+      it 're-raises for whapi whatsapp so callers can retry outside the failed transaction' do
+        whatsapp_channel = create(:channel_whatsapp, account: account, provider: 'whapi', sync_templates: false, validate_provider_config: false)
+        whatsapp_source_id = '5215551234567'
+        create(:contact_inbox, contact: contact2, inbox: whatsapp_channel.inbox, source_id: whatsapp_source_id)
+
+        expect_any_instance_of(described_class).not_to receive(:update_old_contact_inbox)
+
+        expect do
+          described_class.new(
+            contact: contact,
+            inbox: whatsapp_channel.inbox,
+            source_id: whatsapp_source_id
+          ).perform
+        end.to raise_error(ActiveRecord::RecordNotUnique)
+      end
+
+      it 're-raises for twilio whatsapp so callers can retry outside the failed transaction' do
+        twilio_whatsapp = create(:channel_twilio_sms, medium: :whatsapp, account: account)
+        whatsapp_source_id = 'whatsapp:+5215551234567'
+        create(:contact_inbox, contact: contact2, inbox: twilio_whatsapp.inbox, source_id: whatsapp_source_id)
+
+        expect_any_instance_of(described_class).not_to receive(:update_old_contact_inbox)
+
+        expect do
+          described_class.new(
+            contact: contact,
+            inbox: twilio_whatsapp.inbox,
+            source_id: whatsapp_source_id
           ).perform
         end.to raise_error(ActiveRecord::RecordNotUnique)
       end

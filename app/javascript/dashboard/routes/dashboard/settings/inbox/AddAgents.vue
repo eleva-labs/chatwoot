@@ -21,6 +21,17 @@ export default {
       },
     },
   },
+  props: {
+    inboxId: {
+      type: Number,
+      default: null,
+    },
+    disabledAutoRoute: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['agentsAdded'],
   setup() {
     return { v$: useVuelidate() };
   },
@@ -41,16 +52,22 @@ export default {
   methods: {
     async addAgents() {
       this.isCreating = true;
-      const inboxId = this.$route.params.inbox_id;
+      const inboxId = this.$route.params.inbox_id || this.inboxId;
       const selectedAgents = this.selectedAgents.map(x => x.id);
 
       try {
         await InboxMembersAPI.update({ inboxId, agentList: selectedAgents });
+
+        if (this.disabledAutoRoute) {
+          this.$emit('agentsAdded');
+          this.isCreating = false;
+          return;
+        }
         router.replace({
           name: 'settings_inbox_finish',
           params: {
             page: 'new',
-            inbox_id: this.$route.params.inbox_id,
+            inbox_id: inboxId,
           },
         });
       } catch (error) {
@@ -63,9 +80,7 @@ export default {
 </script>
 
 <template>
-  <div
-    class="border border-n-weak bg-n-solid-1 rounded-t-lg border-b-0 h-full w-full p-6 col-span-6 overflow-auto"
-  >
+  <div class="h-full w-full p-6 col-span-6">
     <form class="flex flex-wrap flex-col mx-0" @submit.prevent="addAgents()">
       <div class="w-full">
         <PageHeader

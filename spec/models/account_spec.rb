@@ -8,7 +8,6 @@ RSpec.describe Account do
   it { is_expected.to have_many(:inboxes).dependent(:destroy_async) }
   it { is_expected.to have_many(:conversations).dependent(:destroy_async) }
   it { is_expected.to have_many(:contacts).dependent(:destroy_async) }
-  it { is_expected.to have_many(:telegram_bots).dependent(:destroy_async) }
   it { is_expected.to have_many(:canned_responses).dependent(:destroy_async) }
   it { is_expected.to have_many(:facebook_pages).class_name('::Channel::FacebookPage').dependent(:destroy_async) }
   it { is_expected.to have_many(:web_widgets).class_name('::Channel::WebWidget').dependent(:destroy_async) }
@@ -211,6 +210,117 @@ RSpec.describe Account do
         account.update(auto_resolve_after: nil)
         expect(described_class.with_auto_resolve).not_to include(account)
       end
+    end
+  end
+
+  describe '#owner?' do
+    let(:account) { create(:account) }
+
+    context 'when user is the account owner' do
+      let(:user) { create(:user) }
+
+      before do
+        # First administrator with no inviter is the owner
+        create(:account_user, account: account, user: user, role: :administrator, inviter_id: nil)
+      end
+
+      it 'returns true' do
+        expect(account.owner?(user)).to be true
+      end
+    end
+
+    context 'when user is invited administrator' do
+      let(:owner) { create(:user) }
+      let(:invited_admin) { create(:user) }
+
+      before do
+        create(:account_user, account: account, user: owner, role: :administrator, inviter_id: nil)
+        create(:account_user, account: account, user: invited_admin, role: :administrator, inviter_id: owner.id)
+      end
+
+      it 'returns false' do
+        expect(account.owner?(invited_admin)).to be false
+      end
+    end
+
+    context 'when user is an agent' do
+      let(:user) { create(:user) }
+
+      before do
+        create(:account_user, account: account, user: user, role: :agent)
+      end
+
+      it 'returns false' do
+        expect(account.owner?(user)).to be false
+      end
+    end
+
+    context 'when user is not part of account' do
+      let(:user) { create(:user) }
+
+      it 'returns false' do
+        expect(account.owner?(user)).to be false
+      end
+    end
+
+    context 'when multiple admins exist' do
+      let(:owner) { create(:user) }
+      let(:admin2) { create(:user) }
+      let(:admin3) { create(:user) }
+
+      before do
+        # First admin (owner)
+        create(:account_user, account: account, user: owner, role: :administrator, inviter_id: nil)
+        # Invited admins
+        create(:account_user, account: account, user: admin2, role: :administrator, inviter_id: owner.id)
+        create(:account_user, account: account, user: admin3, role: :administrator, inviter_id: owner.id)
+      end
+
+      it 'returns true only for the owner' do
+        expect(account.owner?(owner)).to be true
+        expect(account.owner?(admin2)).to be false
+        expect(account.owner?(admin3)).to be false
+      end
+    end
+  end
+
+  describe 'deletion events' do
+    it 'dispatches ACCOUNT_DELETED event after destroy' do
+      account = create(:account)
+
+      expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
+        'account.deleted',
+        anything,
+        hash_including(account_id: account.id)
+      )
+
+      account.destroy
+    end
+
+    it 'includes account_id in event data' do
+      account = create(:account)
+      received_data = nil
+
+      allow(Rails.configuration.dispatcher).to receive(:dispatch) do |_event, _time, data|
+        received_data = data
+      end
+
+      account.destroy
+
+      expect(received_data[:account_id]).to eq(account.id)
+    end
+
+    it 'fires after DB transaction commits' do
+      account = create(:account)
+      event_dispatched = false
+
+      allow(Rails.configuration.dispatcher).to receive(:dispatch) do |event, _time, _data|
+        event_dispatched = true if event == 'account.deleted'
+      end
+
+      account.destroy
+
+      expect(event_dispatched).to be true
     end
   end
 end

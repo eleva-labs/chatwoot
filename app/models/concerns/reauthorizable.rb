@@ -37,6 +37,9 @@ module Reauthorizable
   # Performed automatically if error threshold is breached
   # could used to manually prompt reauthorization if auth scope changes
   def prompt_reauthorization!
+    # Prevent sending duplicate emails if reauthorization is already flagged
+    return if reauthorization_required?
+
     ::Redis::Alfred.set(reauthorization_required_key, true)
 
     reauthorization_handlers[self.class.name]&.call(self)

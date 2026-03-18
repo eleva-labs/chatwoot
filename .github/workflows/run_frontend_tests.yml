@@ -1,0 +1,70 @@
+name: Run Chatwoot CE Frontend Tests
+
+# Throttling Strategies:
+# 1. Skip draft PRs - only run when PR is ready for review
+# 2. Cancel outdated runs - when new commits pushed, cancel old runs
+# 3. Ignore non-code changes - skip for docs, markdown files
+# 4. Manual trigger available - use workflow_dispatch when needed
+
+on:
+  push:
+    branches:
+      - development
+      - main
+    # Only trigger when frontend files change
+    paths:
+      - 'app/javascript/**'
+      - 'app/assets/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - '.eslintrc*'
+      - '.github/workflows/run_frontend_tests.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    # Only trigger when frontend files change
+    paths:
+      - 'app/javascript/**'
+      - 'app/assets/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - '.eslintrc*'
+      - '.github/workflows/run_frontend_tests.yml'
+  workflow_dispatch:
+
+jobs:
+  frontend-tests:
+    runs-on: ubuntu-22.04
+    # Skip if PR is a draft
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    concurrency:
+      # Cancel outdated runs when new commits are pushed
+      # Uses PR number for PRs, branch name for pushes
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 23
+          cache: 'pnpm'
+
+      - name: Install pnpm dependencies
+        run: pnpm i
+
+      - name: Run ESLint
+        run: pnpm run eslint
+
+      - name: Run frontend tests with coverage
+        run: pnpm run test:coverage
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: coverage

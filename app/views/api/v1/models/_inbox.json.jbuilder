@@ -19,7 +19,6 @@ json.allow_messages_after_resolved resource.allow_messages_after_resolved
 json.lock_to_single_conversation resource.lock_to_single_conversation
 json.sender_name_type resource.sender_name_type
 json.business_name resource.business_name
-
 if resource.portal.present?
   json.help_center do
     json.name resource.portal.name
@@ -33,6 +32,7 @@ end
 json.tweets_enabled resource.channel.try(:tweets_enabled) if resource.twitter?
 
 ## WebWidget Attributes
+json.allowed_domains resource.channel.try(:allowed_domains)
 json.widget_color resource.channel.try(:widget_color)
 json.website_url resource.channel.try(:website_url)
 json.hmac_mandatory resource.channel.try(:hmac_mandatory)
@@ -63,9 +63,12 @@ json.instagram_id resource.channel.try(:instagram_id) if resource.instagram?
 json.messaging_service_sid resource.channel.try(:messaging_service_sid)
 json.phone_number resource.channel.try(:phone_number)
 json.medium resource.channel.try(:medium) if resource.twilio?
-if resource.twilio? && Current.account_user&.administrator?
-  json.auth_token resource.channel.try(:auth_token)
-  json.account_sid resource.channel.try(:account_sid)
+if resource.twilio?
+  json.content_templates resource.channel.try(:content_templates)
+  if Current.account_user&.administrator?
+    json.auth_token resource.channel.try(:auth_token)
+    json.account_sid resource.channel.try(:account_sid)
+  end
 end
 
 if resource.email?
@@ -112,8 +115,33 @@ end
 
 json.provider resource.channel.try(:provider)
 
+#Add members count
+json.members_count resource.members.count
+json.has_members resource.members.count.positive?
+
+## Telegram Attributes
+json.bot_name resource.channel.try(:bot_name) if resource.telegram?
+
 ### WhatsApp Channel
 if resource.whatsapp?
   json.message_templates resource.channel.try(:message_templates)
-  json.provider_config resource.channel.try(:provider_config) if Current.account_user&.administrator?
+  if Current.account_user&.administrator?
+    if resource.channel.try(:provider) == 'whapi'
+      # Use provider config object for consistent data access
+      resource.channel.provider_config_object
+      provider_cfg = resource.channel.try(:provider_config) || {}
+      # Remove only api_key for whapi provider, keep whapi_channel_token for administrators
+      sanitized_cfg = provider_cfg.except('api_key')
+      json.provider_config sanitized_cfg
+    else
+      json.provider_config resource.channel.try(:provider_config)
+    end
+  end
+  json.reauthorization_required resource.channel.try(:reauthorization_required?)
+end
+
+## Voice Channel Attributes
+if resource.channel_type == 'Channel::Voice'
+  json.voice_call_webhook_url resource.channel.try(:voice_call_webhook_url)
+  json.voice_status_webhook_url resource.channel.try(:voice_status_webhook_url)
 end

@@ -14,6 +14,11 @@ class AccountBuilder
       @account = create_account
       @user = create_and_link_user
     end
+
+    # Enqueue Stripe provisioning after the transaction is committed
+    # This ensures the account exists in the database when the job runs
+    # enqueue_stripe_provisioning if @account
+
     [@user, @account]
   rescue StandardError => e
     Rails.logger.debug e.inspect
@@ -48,6 +53,7 @@ class AccountBuilder
     @account = Account.new(name: account_name, locale: I18n.locale)
     set_initial_trial_plan
     @account.save!
+
     Current.account = @account
     @account
   end
@@ -55,6 +61,7 @@ class AccountBuilder
   def create_and_link_user
     if @user.present? || create_user
       link_user_to_account(@user, @account)
+      @user.reload # Reload to pick up the new account association
       @user
     else
       raise UserErrors.new(errors: @user.errors)
@@ -65,8 +72,13 @@ class AccountBuilder
     AccountUser.create!(
       account_id: account.id,
       user_id: user.id,
-      role: AccountUser.roles['administrator']
+      role: AccountUser.roles['administrator'],
+      inviter_id: nil # Explicitly mark as account creator (not invited)
     )
+
+    # Sync owner token to AI backend after account creator is linked
+    # NOTE: Only account creators (inviter_id: nil) trigger this, not invited admins
+    dispatch_owner_token_event(user, account) if user.access_token.present?
   end
 
   def create_user
@@ -84,15 +96,43 @@ class AccountBuilder
     plan_details = self.class.plan_details(trial_plan_name)
     return unless plan_details
 
-    expires_in_days = plan_details.dig('trial_expires_in_days') || 7
+    expires_in_days = plan_details['trial_expires_in_days'] || 7
     ends_on = Time.current + expires_in_days.days
+    limit_agents = plan_details.dig('limits', 'agents') || 2 # So that in the on boarding we could invite 1 user besides the admin
+
+    # Extract plan limits for validation
+    plan_limits = {
+      'agents' => limit_agents,
+      'inboxes' => plan_details.dig('limits', 'inboxes'),
+      'conversations_monthly' => plan_details.dig('limits', 'conversations_monthly')
+    }
+
+    # Validate required plan limits before proceeding
+    self.class.validate_plan_limits_for_free_trial(plan_limits, trial_plan_name)
 
     @account.custom_attributes ||= {}
     @account.custom_attributes.merge!({
                                         'plan_name' => trial_plan_name,
-                                        'subscribed_quantity' => 1,
                                         'subscription_status' => 'active',
-                                        'subscription_ends_on' => ends_on.iso8601
+                                        'subscription_ends_on' => ends_on.iso8601,
+                                        'billing_status' => 'provisioning_pending'
                                       })
+
+    # Set trial limits in the limits column directly
+    @account.limits = plan_limits
+  end
+
+  def dispatch_owner_token_event(user, account)
+    Rails.configuration.dispatcher.dispatch(
+      Events::Types::OWNER_TOKEN_UPDATED,
+      Time.zone.now,
+      account: account,
+      user: user,
+      token: user.access_token.token
+    )
+    Rails.logger.info "Dispatched owner_token_updated event for user #{user.id}, account #{account.id}"
+  rescue StandardError => e
+    Rails.logger.error "Failed to dispatch owner_token_updated event: #{e.message}"
+    # Don't raise - account creation should succeed even if token sync fails
   end
 end

@@ -28,7 +28,7 @@ properties:
     type: string
     nullable: true
     description: Message to send when auto resolving
-    example: "This conversation has been automatically resolved due to inactivity"
+    example: 'This conversation has been automatically resolved due to inactivity'
   auto_resolve_ignore_waiting:
     type: boolean
     nullable: true
@@ -38,12 +38,12 @@ properties:
   industry:
     type: string
     description: Industry type
-    example: "Technology"
+    example: 'Technology'
   company_size:
     type: string
     description: Company size
-    example: "50-100"
+    example: '50-100'
   timezone:
     type: string
     description: Account timezone
-    example: "UTC"
+    example: 'UTC'

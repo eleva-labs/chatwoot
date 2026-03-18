@@ -57,14 +57,14 @@ export default {
     isALineChannel() {
       return this.channelType === INBOX_TYPES.LINE;
     },
+    isAVoiceChannel() {
+      return this.channelType === INBOX_TYPES.VOICE;
+    },
     isAnEmailChannel() {
       return this.channelType === INBOX_TYPES.EMAIL;
     },
     isATelegramChannel() {
       return this.channelType === INBOX_TYPES.TELEGRAM;
-    },
-    isAVoiceChannel() {
-      return this.channelType === INBOX_TYPES.VOICE;
     },
     isATwilioSMSChannel() {
       const { medium: medium = '' } = this.inbox;
@@ -87,6 +87,12 @@ export default {
       return (
         this.channelType === INBOX_TYPES.WHATSAPP &&
         this.whatsAppAPIProvider === 'default'
+      );
+    },
+    isAWhapiChannel() {
+      return (
+        this.channelType === INBOX_TYPES.WHATSAPP &&
+        this.whatsAppAPIProvider === 'whapi'
       );
     },
     chatAdditionalAttributes() {

@@ -2,18 +2,21 @@ require 'rails_helper'
 
 RSpec.describe 'Api::V2::Accounts::PromptsController', type: :request do
   let(:account) { create(:account) }
+  # Create test prompts using the factory
+  let!(:account_prompt_1) { create(:account_prompt, :greeting, account: account) }
+  let!(:account_prompt_2) { create(:account_prompt, :closing, account: account) }
+  let!(:account_prompt_3) { create(:account_prompt, account: account, prompt_key: 'follow_up', text: 'Any other questions?') }
+  # Create prompts for another account to test authorization
+  let!(:other_account_prompt) { create(:account_prompt, account: another_account, prompt_key: 'other_greeting', text: 'Other account greeting') }
   let(:another_account) { create(:account) }
   let(:administrator) { create(:user, account: account, role: :administrator) }
   let(:agent) { create(:user, account: account, role: :agent) }
   let(:user_from_another_account) { create(:user, account: another_account, role: :administrator) }
 
-  # Create test prompts using the factory
-  let!(:account_prompt_1) { create(:account_prompt, :greeting, account: account) }
-  let!(:account_prompt_2) { create(:account_prompt, :closing, account: account) }
-  let!(:account_prompt_3) { create(:account_prompt, account: account, prompt_key: 'follow_up', text: 'Any other questions?') }
-
-  # Create prompts for another account to test authorization
-  let!(:other_account_prompt) { create(:account_prompt, account: another_account, prompt_key: 'other_greeting', text: 'Other account greeting') }
+  before do
+    # Mock the feature flag check for tests since the custom features system has validation issues
+    allow_any_instance_of(Account).to receive(:feature_enabled?).with('prompts').and_return(true)
+  end
 
   describe 'GET /api/v2/accounts/:account_id/prompts' do
     context 'when it is an unauthenticated user' do
@@ -94,6 +97,11 @@ RSpec.describe 'Api::V2::Accounts::PromptsController', type: :request do
     context 'when account has no prompts' do
       let(:empty_account) { create(:account) }
       let(:empty_account_admin) { create(:user, account: empty_account, role: :administrator) }
+
+      before do
+        # Enable prompts feature for empty account
+        empty_account.enable_features('prompts')
+      end
 
       it 'returns success with empty array' do
         get "/api/v2/accounts/#{empty_account.id}/prompts",

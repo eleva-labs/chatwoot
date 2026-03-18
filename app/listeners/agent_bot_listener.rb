@@ -24,6 +24,8 @@ class AgentBotListener < BaseListener
     inbox = message.inbox
     return unless connected_agent_bot_exist?(inbox)
     return unless message.webhook_sendable?
+    return if should_skip_due_to_business_hours?(inbox, message)
+    return if should_skip_due_to_ai_disabled?(message.conversation)
 
     method_name = __method__.to_s
     process_message_event(method_name, inbox.agent_bot, message, event)
@@ -34,6 +36,8 @@ class AgentBotListener < BaseListener
     inbox = message.inbox
     return unless connected_agent_bot_exist?(inbox)
     return unless message.webhook_sendable?
+    return if should_skip_due_to_business_hours?(inbox, message)
+    return if should_skip_due_to_ai_disabled?(message.conversation)
 
     method_name = __method__.to_s
     process_message_event(method_name, inbox.agent_bot, message, event)
@@ -69,5 +73,35 @@ class AgentBotListener < BaseListener
     return if agent_bot.outgoing_url.blank?
 
     AgentBots::WebhookJob.perform_later(agent_bot.outgoing_url, payload)
+  end
+
+  # Determines if agent bot webhook should be skipped due to business hours
+  # Only skips when ALL conditions are true:
+  # 1. Message is incoming (not from agent/bot)
+  # 2. Working hours are enabled for this inbox
+  # 3. Currently outside business hours
+  # 4. Inbox has agent_bot_respects_working_hours flag enabled
+  #
+  # @param inbox [Inbox] The inbox the message belongs to
+  # @param message [Message] The message being processed
+  # @return [Boolean] true if webhook should be skipped, false otherwise
+  def should_skip_due_to_business_hours?(inbox, message)
+    message.incoming? &&
+      inbox.working_hours_enabled? &&
+      inbox.out_of_office? &&
+      inbox.agent_bot_respects_working_hours?
+  end
+
+  # Determines if agent bot webhook should be skipped due to AI being disabled
+  # Checks the conversation's ai_enabled custom attribute to determine
+  # if the AI/agent-bot should respond to this conversation.
+  #
+  # Only sends webhooks when AI is EXPLICITLY enabled (ai_enabled == true).
+  # Treats nil or false as disabled for defensive safety.
+  #
+  # @param conversation [Conversation] The conversation to check
+  # @return [Boolean] true if webhook should be skipped (AI not enabled), false otherwise
+  def should_skip_due_to_ai_disabled?(conversation)
+    !conversation.ai_enabled?
   end
 end

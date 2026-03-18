@@ -42,7 +42,7 @@ RSpec.describe 'DeviseOverrides::OmniauthCallbacksController', type: :request do
         follow_redirect!
 
         expect(AccountBuilder).to have_received(:new).with({
-                                                             account_name: 'example',
+                                                             account_name: 'test',
                                                              user_full_name: 'test',
                                                              email: 'test_not_preset@example.com',
                                                              locale: I18n.locale,
@@ -94,6 +94,9 @@ RSpec.describe 'DeviseOverrides::OmniauthCallbacksController', type: :request do
       with_modified_env ENABLE_ACCOUNT_SIGNUP: 'false', FRONTEND_URL: 'http://www.example.com' do
         set_omniauth_config('does-not-exist-for-sure@example.com')
         allow(email_validation_service).to receive(:perform).and_return(true)
+        allow(GlobalConfigService).to receive(:load)
+          .with('ENABLE_ACCOUNT_SIGNUP', 'false')
+          .and_return('false')
 
         get '/omniauth/google_oauth2/callback'
 
@@ -121,6 +124,19 @@ RSpec.describe 'DeviseOverrides::OmniauthCallbacksController', type: :request do
         # expect app/login page to respond with 200 and render
         follow_redirect!
         expect(response).to have_http_status(:ok)
+      end
+    end
+
+    it 'fails gracefully when auth_hash is missing' do
+      with_modified_env FRONTEND_URL: 'http://www.example.com' do
+        set_omniauth_config('test@example.com')
+        allow_any_instance_of(DeviseOverrides::OmniauthCallbacksController).to receive(:auth_hash).and_return(nil)
+
+        get '/omniauth/google_oauth2/callback'
+
+        expect(response).to redirect_to('http://www.example.com/auth/google_oauth2/callback')
+        follow_redirect!
+        expect(response).to redirect_to(%r{/app/login\?error=authentication-failed$})
       end
     end
 
