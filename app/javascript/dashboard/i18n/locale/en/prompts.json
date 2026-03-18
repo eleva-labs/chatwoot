@@ -1,7 +1,7 @@
 {
   "PROMPTS_PAGE": {
     "TITLE": "Knowledge Base",
-    "DESCRIPTION": "Manage your knowledge base. Add prompts and knowledge sources to help your agents respond faster and more accurately.",
+    "DESCRIPTION": "Manage your knowledge base. Add knowledge sources to help your agents respond faster and more accurately.",
     "ADD_BUTTON": "Add prompt",
     "ADD_KNOWLEDGE_SOURCE_BUTTON": "Add information",
     "EMPTY_STATE": "No prompts found. Create your first prompt to get started.",
@@ -72,7 +72,7 @@
     "LOADING": "Loading prompts...",
     "EDIT": "Edit"
   },
-  "ADD_KNOWLEDGE_SOURCE_BUTTON": "Add knowledge source",
+  "ADD_KNOWLEDGE_SOURCE_BUTTON": "Add information",
   "KNOWLEDGE_SOURCE": {
     "TITLE": "Knowledge Sources",
     "LOADING": "Loading knowledge sources...",
