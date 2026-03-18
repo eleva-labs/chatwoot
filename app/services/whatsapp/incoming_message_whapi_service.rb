@@ -62,6 +62,11 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
 
   def process_statuses
     params['statuses'].each do |status_params|
+      unless status_params.is_a?(Hash)
+        log_malformed_status_item(status_params)
+        next
+      end
+
       status = status_params.with_indifferent_access
       message = find_message_by_source_id(status[:id])
       next unless message
@@ -348,10 +353,21 @@ class Whatsapp::IncomingMessageWhapiService < Whatsapp::IncomingMessageBaseServi
   end
 
   def log_unknown_whapi_status(status, raw_status)
-    log_message = "[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=#{status[:id]} status=#{raw_status}"
-    log_message += " code=#{status[:code]}" unless status[:code].nil?
+    Rails.logger.info do
+      display_status = raw_status.presence || '<none>'
+      log_msg = "[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=#{status[:id]} status=#{display_status}"
+      log_msg += " code=#{status[:code]}" unless status[:code].nil?
+      log_msg += " channel_id=#{inbox.channel_id} correlation_id=#{params['correlation_id'] || 'missing'}"
+      log_msg
+    end
+  end
 
-    Rails.logger.info(log_message)
+  def log_malformed_status_item(status_item)
+    Rails.logger.info do
+      '[WhapiStatus] Skipping status update: provider=whapi reason=non_hash_item ' \
+        "channel_id=#{inbox.channel_id} correlation_id=#{params['correlation_id'] || 'missing'} " \
+        "item_class=#{status_item.class}"
+    end
   end
 
   # Utility methods

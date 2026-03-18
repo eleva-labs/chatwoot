@@ -753,8 +753,9 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
           .not_to raise_error
       end
 
-      it 'logs and skips unknown status strings' do
+      it 'logs and skips unknown status strings with channel and correlation context' do
         unknown_status_params = {
+          'correlation_id' => 'corr-unknown-status',
           'statuses' => [
             { 'id' => 'status_message_id', 'status' => 'buffered' }
           ]
@@ -766,14 +767,20 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
 
         aggregate_failures do
           expect(message.reload.status).to eq('sent')
-          expect(Rails.logger).to have_received(:info).with(
-            '[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=status_message_id status=buffered'
-          )
+          expect(Rails.logger).to have_received(:info) do |&block|
+            result = block.call
+            expect(result).to include('reason=unknown_status')
+            expect(result).to include('id=status_message_id')
+            expect(result).to include('status=buffered')
+            expect(result).to include("channel_id=#{channel.id}")
+            expect(result).to include('correlation_id=corr-unknown-status')
+          end
         end
       end
 
       it 'continues processing later valid statuses after an unknown one' do
         mixed_status_params = {
+          'correlation_id' => 'corr-mixed-status',
           'statuses' => [
             { 'id' => 'status_message_id', 'status' => 'buffered' },
             { 'id' => 'second_status_message_id', 'status' => 'delivered' }
@@ -787,14 +794,19 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
         aggregate_failures do
           expect(message.reload.status).to eq('sent')
           expect(second_message.reload.status).to eq('delivered')
-          expect(Rails.logger).to have_received(:info).with(
-            '[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=status_message_id status=buffered'
-          )
+          skip_log = nil
+          expect(Rails.logger).to have_received(:info).at_least(:once) do |&block|
+            result = block&.call
+            skip_log = result if result&.include?('reason=unknown_status')
+          end
+          expect(skip_log).to be_present
+          expect(skip_log).to include('status=buffered')
         end
       end
 
-      it 'logs and skips unknown numeric status codes' do
+      it 'logs and skips unknown numeric status codes with channel and correlation context' do
         unknown_numeric_code_params = {
+          'correlation_id' => 'corr-unknown-code',
           'statuses' => [
             { 'id' => 'status_message_id', 'code' => 99 }
           ]
@@ -807,14 +819,20 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
         aggregate_failures do
           expect(message.reload.status).to eq('sent')
           expect(message.external_error).to be_nil
-          expect(Rails.logger).to have_received(:info).with(
-            '[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=status_message_id status= code=99'
-          )
+          expect(Rails.logger).to have_received(:info) do |&block|
+            result = block.call
+            expect(result).to include('reason=unknown_status')
+            expect(result).to include('id=status_message_id')
+            expect(result).to include('code=99')
+            expect(result).to include("channel_id=#{channel.id}")
+            expect(result).to include('correlation_id=corr-unknown-code')
+          end
         end
       end
 
       it 'continues processing later valid statuses after an unknown numeric code' do
         mixed_numeric_code_params = {
+          'correlation_id' => 'corr-mixed-code',
           'statuses' => [
             { 'id' => 'status_message_id', 'code' => 99 },
             { 'id' => 'second_status_message_id', 'code' => 3 }
@@ -829,9 +847,83 @@ RSpec.describe Whatsapp::IncomingMessageWhapiService do
           expect(message.reload.status).to eq('sent')
           expect(message.external_error).to be_nil
           expect(second_message.reload.status).to eq('delivered')
-          expect(Rails.logger).to have_received(:info).with(
-            '[WhapiStatus] Skipping status update: provider=whapi reason=unknown_status id=status_message_id status= code=99'
-          )
+          skip_log = nil
+          expect(Rails.logger).to have_received(:info).at_least(:once) do |&block|
+            result = block&.call
+            skip_log = result if result&.include?('reason=unknown_status')
+          end
+          expect(skip_log).to be_present
+          expect(skip_log).to include('code=99')
+        end
+      end
+
+      it 'skips non-hash status items and continues processing later valid statuses' do
+        mixed_status_params = {
+          'correlation_id' => 'corr-non-hash-status',
+          'statuses' => [
+            'malformed status item',
+            { 'id' => 'second_status_message_id', 'status' => 'delivered' }
+          ]
+        }
+        allow(Rails.logger).to receive(:info)
+
+        expect { described_class.new(inbox: inbox, params: mixed_status_params).perform }
+          .not_to raise_error
+
+        aggregate_failures do
+          expect(second_message.reload.status).to eq('delivered')
+          malformed_log = nil
+          expect(Rails.logger).to have_received(:info).at_least(:once) do |&block|
+            result = block&.call
+            malformed_log = result if result&.include?('reason=non_hash_item')
+          end
+          expect(malformed_log).to be_present
+          expect(malformed_log).to include('[WhapiStatus]')
+          expect(malformed_log).to include('item_class=String')
+          expect(malformed_log).to include("channel_id=#{channel.id}")
+          expect(malformed_log).to include('correlation_id=corr-non-hash-status')
+        end
+      end
+
+      it 'includes missing correlation_id marker when correlation_id is absent from status logs' do
+        unknown_status_params = {
+          'statuses' => [
+            { 'id' => 'status_message_id', 'status' => 'buffered' }
+          ]
+        }
+        allow(Rails.logger).to receive(:info)
+
+        described_class.new(inbox: inbox, params: unknown_status_params).perform
+
+        expect(Rails.logger).to have_received(:info) do |&block|
+          result = block.call
+          expect(result).to include('correlation_id=missing')
+        end
+      end
+
+      it 'logs as unknown with status=<none> and skips when status item has only an id (no status or code key)' do
+        empty_hash_status_params = {
+          'correlation_id' => 'corr-empty-hash',
+          'statuses' => [
+            { 'id' => 'status_message_id' }
+          ]
+        }
+        allow(Rails.logger).to receive(:info)
+
+        expect { described_class.new(inbox: inbox, params: empty_hash_status_params).perform }
+          .not_to raise_error
+
+        aggregate_failures do
+          expect(message.reload.status).to eq('sent')
+          expect(Rails.logger).to have_received(:info) do |&block|
+            result = block.call
+            expect(result).to include('reason=unknown_status')
+            expect(result).to include('id=status_message_id')
+            expect(result).to include('status=<none>')
+            expect(result).not_to include('code=')
+            expect(result).to include("channel_id=#{channel.id}")
+            expect(result).to include('correlation_id=corr-empty-hash')
+          end
         end
       end
     end
