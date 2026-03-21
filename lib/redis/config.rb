@@ -5,6 +5,10 @@ module Redis::Config
       config
     end
 
+    def rack_attack_cache_store_config
+      config.merge(namespace: 'velma')
+    end
+
     def config
       @config ||= sentinel? ? sentinel_config : base_config
     end
