@@ -65,6 +65,16 @@ RSpec.describe Conversations::UpdateMessageStatusJob do
       end.not_to change(message.reload, :status)
     end
 
+    it 'processes eligible messages even when the association has a default order' do
+      newer_message = create(:message, conversation: conversation, message_type: 'outgoing', status: 'sent', created_at: 2.hours.ago)
+      older_message = create(:message, conversation: conversation, message_type: 'outgoing', status: 'sent', created_at: 2.days.ago)
+
+      described_class.perform_now(conversation.id, conversation.contact_last_seen_at)
+
+      expect(newer_message.reload.status).to eq('read')
+      expect(older_message.reload.status).to eq('read')
+    end
+
     it 'does not run the job if the conversation does not exist' do
       expect do
         described_class.perform_now(1212, conversation.contact_last_seen_at)

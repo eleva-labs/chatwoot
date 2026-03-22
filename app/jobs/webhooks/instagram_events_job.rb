@@ -43,12 +43,17 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
       entry = entry.with_indifferent_access
       next if test_event?(entry)
 
-      messages(entry).each { |messaging| process_single_read(messaging) if read_event?(messaging) }
+      messages(entry).each { |messaging| process_single_read(entry, messaging) if read_event?(messaging) }
     end
   end
 
-  def process_single_read(messaging)
+  def process_single_read(entry, messaging)
     channel = find_channel(instagram_id(messaging))
+    matching_candidates = read_resolution_candidates(entry, messaging).select do |_candidate_name, candidate_id|
+      candidate_id.present? && find_channel(candidate_id).present?
+    end.map(&:first)
+
+    log_read_resolution_probe(entry, messaging, matching_candidates, channel)
 
     if channel.blank?
       log_webhook_event('read_message_missing', messaging: messaging, reason: 'channel_not_found')
@@ -206,6 +211,25 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
 
   def find_channel(instagram_id)
     Channel::Instagram.find_by(instagram_id: instagram_id) || Channel::FacebookPage.find_by(instagram_id: instagram_id)
+  end
+
+  def log_read_resolution_probe(entry, messaging, matching_candidates, resolved_channel)
+    log_webhook_event(
+      'read_resolution_probe',
+      messaging: messaging,
+      entry_id: entry[:id],
+      messaging_sender_id: messaging&.dig(:sender, :id),
+      messaging_recipient_id: messaging&.dig(:recipient, :id),
+      matching_candidates: matching_candidates.presence || 'none',
+      resolved_channel_class: resolved_channel&.class&.name || 'none'
+    )
+  end
+
+  def read_resolution_candidates(entry, messaging)
+    [
+      ['messaging.recipient.id', messaging&.dig(:recipient, :id)],
+      ['entry.id', entry[:id]]
+    ]
   end
 
   def messages(entry)
