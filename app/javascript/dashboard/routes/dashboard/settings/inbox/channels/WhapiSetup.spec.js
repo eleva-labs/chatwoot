@@ -64,6 +64,7 @@ describe('Whapi.vue', () => {
           id: 12,
           provider_config: { connection_status: 'pending' },
         }),
+        'inboxes/getWhapiQrCode': () => null,
       },
     };
 

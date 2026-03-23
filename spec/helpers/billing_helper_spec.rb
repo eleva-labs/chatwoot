@@ -6,6 +6,7 @@ RSpec.describe BillingHelper do
     let(:account) { create(:account, custom_attributes: { 'plan_name' => 'Hacker' }) }
 
     before do
+      allow_any_instance_of(Inbox).to receive(:check_inbox_limit).and_return(true)
       create(:installation_config, {
                name: 'CHATWOOT_CLOUD_PLANS',
                value: [

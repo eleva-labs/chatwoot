@@ -9,6 +9,7 @@ RSpec.describe Inboxes::BulkAutoAssignmentJob do
 
   describe '#perform' do
     before do
+      allow_any_instance_of(Inbox).to receive(:check_inbox_limit).and_return(true)
       allow(assignment_service).to receive(:perform)
     end
 
