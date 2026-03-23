@@ -374,7 +374,9 @@
       "TITLE": "Plan actual",
       "PLAN_NOTE": "Actualmente está suscrito al plan **{plan}** con **{quantity}** licencias",
       "SEAT_COUNT": "Número de asientos",
-      "RENEWS_ON": "Renueva el"
+      "RENEWS_ON": "Renueva el",
+      "STATUS": "Estado",
+      "ENDS_ON": "Finaliza el"
     },
     "VIEW_PRICING": "Ver precios",
     "MANAGE_SUBSCRIPTION": {

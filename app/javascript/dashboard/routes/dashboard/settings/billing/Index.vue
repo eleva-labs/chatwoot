@@ -4,15 +4,11 @@ import { useMapGetter, useStore } from 'dashboard/composables/store.js';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useI18n } from 'vue-i18n';
 import { format, parseISO } from 'date-fns';
-import { useCaptain } from 'dashboard/composables/useCaptain';
 import sessionStorage from 'shared/helpers/sessionStorage';
-
-import BillingMeter from './components/BillingMeter.vue';
 import BillingCard from './components/BillingCard.vue';
-import BillingHeader from './components/BillingHeader.vue';
 import BillingLimitsCard from './components/BillingLimitsCard.vue';
 import BillingSubscriptionCard from './components/BillingSubscriptionCard.vue';
-import BillingTrainingCard from './components/BillingTrainingCard.vue';
+// import BillingTrainingCard from './components/BillingTrainingCard.vue';
 import PricingTable from './components/PricingTable.vue';
 import DetailItem from './components/DetailItem.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
@@ -20,13 +16,6 @@ import SettingsLayout from '../SettingsLayout.vue';
 import ButtonV4 from 'next/button/Button.vue';
 
 const { currentAccount } = useAccount();
-const {
-  captainEnabled,
-  captainLimits,
-  documentLimits,
-  responseLimits,
-  fetchLimits,
-} = useCaptain();
 
 const uiFlags = useMapGetter('accounts/getUIFlags');
 const store = useStore();
@@ -248,7 +237,6 @@ const fetchAccountDetails = async () => {
   await store.dispatch('accounts/subscription');
   // Fetch limits after subscription data is loaded
   await store.dispatch('accounts/limits');
-  fetchLimits();
 };
 
 const handleBillingPageLogic = async () => {
@@ -297,10 +285,6 @@ const onClickBillingPortal = async () => {
   } else {
     await store.dispatch('accounts/checkout');
   }
-};
-
-const onToggleChatWindow = () => {
-  window.open('https://wa.me/50672925075', '_blank', 'noopener,noreferrer');
 };
 
 onMounted(handleBillingPageLogic);
@@ -375,41 +359,6 @@ onMounted(handleBillingPageLogic);
             />
           </div>
         </BillingCard>
-        <BillingCard
-          v-if="captainEnabled"
-          :title="$t('BILLING_SETTINGS.CAPTAIN.TITLE')"
-          :description="$t('BILLING_SETTINGS.CAPTAIN.DESCRIPTION')"
-        >
-          <template #action>
-            <ButtonV4 sm faded slate disabled>
-              {{ $t('BILLING_SETTINGS.CAPTAIN.BUTTON_TXT') }}
-            </ButtonV4>
-          </template>
-          <div v-if="captainLimits && responseLimits" class="px-5">
-            <BillingMeter
-              :title="$t('BILLING_SETTINGS.CAPTAIN.RESPONSES')"
-              v-bind="responseLimits"
-            />
-          </div>
-          <div v-if="captainLimits && documentLimits" class="px-5">
-            <BillingMeter
-              :title="$t('BILLING_SETTINGS.CAPTAIN.DOCUMENTS')"
-              v-bind="documentLimits"
-            />
-          </div>
-        </BillingCard>
-        <BillingCard
-          v-else
-          :title="$t('BILLING_SETTINGS.CAPTAIN.TITLE')"
-          :description="$t('BILLING_SETTINGS.CAPTAIN.UPGRADE')"
-        >
-          <template #action>
-            <ButtonV4 sm solid slate @click="onClickBillingPortal">
-              {{ $t('CAPTAIN.PAYWALL.UPGRADE_NOW') }}
-            </ButtonV4>
-          </template>
-        </BillingCard>
-
         <!-- Usage Limits Card (for users with billing plans) -->
         <BillingLimitsCard v-if="hasABillingPlan" />
 
@@ -417,23 +366,7 @@ onMounted(handleBillingPageLogic);
         <BillingSubscriptionCard v-if="hasABillingPlan" />
 
         <!-- Training Services Card (for users with billing plans) -->
-        <BillingTrainingCard v-if="hasABillingPlan" />
-
-        <BillingHeader
-          class="px-1 mt-5"
-          :title="$t('BILLING_SETTINGS.CHAT_WITH_US.TITLE')"
-          :description="$t('BILLING_SETTINGS.CHAT_WITH_US.DESCRIPTION')"
-        >
-          <ButtonV4
-            sm
-            solid
-            slate
-            icon="i-lucide-life-buoy"
-            @open="onToggleChatWindow"
-          >
-            {{ $t('BILLING_SETTINGS.CHAT_WITH_US.BUTTON_TXT') }}
-          </ButtonV4>
-        </BillingHeader>
+        <!-- <BillingTrainingCard v-if="hasABillingPlan" /> -->
       </section>
     </template>
   </SettingsLayout>
