@@ -226,9 +226,11 @@ onMounted(() => {
         <!-- Total (Next billing) -->
         <div class="flex items-center justify-between">
           <h4 class="text-base font-semibold text-n-slate-12">
-            {{ isScheduledToCancel
+            {{
+              isScheduledToCancel
                 ? t('BILLING_SETTINGS.SUBSCRIPTION.TOTAL_LABEL_CANCELLED')
-                : t('BILLING_SETTINGS.SUBSCRIPTION.TOTAL_LABEL') }}
+                : t('BILLING_SETTINGS.SUBSCRIPTION.TOTAL_LABEL')
+            }}
           </h4>
           <span class="text-xl font-bold text-n-slate-12">
             {{ breakdown.total.amount_formatted }}
@@ -237,7 +239,12 @@ onMounted(() => {
 
         <!-- Next Billing Date / Cancellation Date / Trial End Date -->
         <div
-          v-if="billingDateLabel && (formattedNextBillingDate || formattedCancellationDate || isFreeOrTrial)"
+          v-if="
+            billingDateLabel &&
+            (formattedNextBillingDate ||
+              formattedCancellationDate ||
+              isFreeOrTrial)
+          "
           class="text-center text-sm text-n-slate-11 pt-3 mt-3 border-t border-n-slate-5"
         >
           <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->

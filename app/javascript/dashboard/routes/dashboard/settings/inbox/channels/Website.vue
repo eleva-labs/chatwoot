@@ -233,9 +233,7 @@ export default {
           </p>
         </div>
         <p
-          v-if="
-            !showUsageLoadingMessage && !usageErrorMessage && noteMessage
-          "
+          v-if="!showUsageLoadingMessage && !usageErrorMessage && noteMessage"
           class="text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
         >
           {{ noteMessage }}
@@ -249,8 +247,8 @@ export default {
               !inboxName ||
               uiFlags.isCreating ||
               isPurchasingExtraChannel ||
-              isChannelInfoLoading
-              || isTrialLimitReached
+              isChannelInfoLoading ||
+              isTrialLimitReached
             "
             solid
             blue

@@ -86,9 +86,7 @@ const createChannel = async () => {
       },
     });
   } catch (error) {
-    useAlert(
-      error?.message || 'An error occurred while creating the channel'
-    );
+    useAlert(error?.message || 'An error occurred while creating the channel');
   }
 };
 </script>

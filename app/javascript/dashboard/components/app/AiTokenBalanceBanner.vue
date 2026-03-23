@@ -12,7 +12,9 @@ const balanceStatus = computed(
 );
 
 const impactedCount = computed(
-  () => currentAccount.value?.custom_attributes?.ai_token_impacted_conversations_count || 0
+  () =>
+    currentAccount.value?.custom_attributes
+      ?.ai_token_impacted_conversations_count || 0
 );
 
 const shouldShowBanner = computed(() =>
@@ -23,9 +25,12 @@ const bannerMessage = computed(() => {
   if (balanceStatus.value === 'insufficient_tokens') {
     const count = impactedCount.value;
     if (count > 0) {
-      return t('BILLING_SETTINGS.LIMITS.AI_TOKENS.INSUFFICIENT_TOKEN_BANNER_WITH_COUNT', {
-        count
-      });
+      return t(
+        'BILLING_SETTINGS.LIMITS.AI_TOKENS.INSUFFICIENT_TOKEN_BANNER_WITH_COUNT',
+        {
+          count,
+        }
+      );
     }
     return t('BILLING_SETTINGS.LIMITS.AI_TOKENS.INSUFFICIENT_TOKEN_BANNER');
   }
@@ -49,4 +54,3 @@ const colorScheme = computed(() =>
     :color-scheme="colorScheme"
   />
 </template>
-

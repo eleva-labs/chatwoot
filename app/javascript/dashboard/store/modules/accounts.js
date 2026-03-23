@@ -13,7 +13,8 @@ const findRecordById = ($state, id) =>
 const DEFAULT_TRIAL_PERIOD_DAYS = 7;
 
 const trialPeriodDaysForAccount = account =>
-  account?.custom_attributes?.trial_expires_in_days ?? DEFAULT_TRIAL_PERIOD_DAYS;
+  account?.custom_attributes?.trial_expires_in_days ??
+  DEFAULT_TRIAL_PERIOD_DAYS;
 
 const state = {
   records: [],
@@ -182,7 +183,10 @@ export const actions = {
   ) => {
     commit(types.default.SET_ACCOUNT_UI_FLAG, { isCheckoutInProcess: true });
     try {
-      const response = await BillingAPI.createSubscription(planName, billingInterval);
+      const response = await BillingAPI.createSubscription(
+        planName,
+        billingInterval
+      );
 
       if (response.data.success) {
         // If the backend sends a checkout URL, redirect the user immediately
@@ -262,7 +266,10 @@ export const actions = {
     }
   },
 
-  purchaseAddOn: async (_, { add_on_type, action, quantity = null, skip_validation = false }) => {
+  purchaseAddOn: async (
+    _,
+    { add_on_type, action, quantity = null, skip_validation = false }
+  ) => {
     try {
       const response = await BillingAPI.updateAddOn(
         add_on_type,

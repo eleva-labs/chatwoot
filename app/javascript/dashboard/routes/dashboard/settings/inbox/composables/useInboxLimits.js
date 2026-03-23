@@ -102,11 +102,7 @@ export function useInboxLimits(store) {
   };
 
   const fetchData = async (force = false) => {
-    if (
-      !force &&
-      hasSuccessfulLimitsFetch() &&
-      hasSuccessfulAddOnsFetch()
-    ) {
+    if (!force && hasSuccessfulLimitsFetch() && hasSuccessfulAddOnsFetch()) {
       syncFromCache();
       return;
     }
@@ -142,7 +138,9 @@ export function useInboxLimits(store) {
   const includedLimit = computed(() => inboxLimits.value.base_limit || 0);
   const currentUsage = computed(() => inboxLimits.value.current || 0);
   const totalAllowed = computed(() => inboxLimits.value.total_allowed || 0);
-  const extraInboxesPurchased = computed(() => inboxLimits.value.purchased || 0);
+  const extraInboxesPurchased = computed(
+    () => inboxLimits.value.purchased || 0
+  );
 
   const includedUsage = computed(() => {
     const current = currentUsage.value;

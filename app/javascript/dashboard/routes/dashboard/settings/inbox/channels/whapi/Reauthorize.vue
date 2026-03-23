@@ -62,7 +62,10 @@ watch(qrFromWebsocket, qr => {
 
 // Watch for connection success via websocket
 watch(connectionStatus, status => {
-  if (status === 'connected' && (step.value === 'waiting' || step.value === 'qr')) {
+  if (
+    status === 'connected' &&
+    (step.value === 'waiting' || step.value === 'qr')
+  ) {
     step.value = 'success';
     store.commit('inboxes/CLEAR_WHAPI_QR_CODE', props.inbox.id);
     useAlert(t('INBOX.REAUTHORIZE.SUCCESS'));
@@ -98,7 +101,6 @@ const initiateReconnection = async () => {
     if (response.status === 'connected') {
       step.value = 'success';
       useAlert(t('INBOX.REAUTHORIZE.SUCCESS'));
-      return;
     }
 
     // Otherwise, wait for QR via websocket - no polling
@@ -170,6 +172,5 @@ onBeforeUnmount(() => {
         @click="cancel"
       />
     </div>
-
   </div>
 </template>

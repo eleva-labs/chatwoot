@@ -5,7 +5,7 @@ import * as Sentry from '@sentry/vue';
 import BillingAPI from 'dashboard/api/v2/billing.js';
 import PricingCard from './PricingCard.vue';
 
-const props = defineProps({
+defineProps({
   currentPlanName: {
     type: String,
     default: null,
@@ -23,7 +23,6 @@ const props = defineProps({
     default: null,
   },
 });
-
 
 const { t } = useI18n();
 const plans = ref([]);
@@ -199,8 +198,7 @@ onUnmounted(() => {
       <!-- Scrollable container -->
       <div
         ref="scrollContainer"
-        class="flex w-full max-w-full overflow-x-auto gap-6 pb-8 flex-nowrap scroll-smooth snap-x snap-mandatory"
-        style="scrollbar-width: thin;"
+        class="flex w-full max-w-full overflow-x-auto gap-6 pb-8 flex-nowrap scroll-smooth snap-x snap-mandatory [scrollbar-width:thin]"
         @scroll="updateScrollState"
       >
         <div

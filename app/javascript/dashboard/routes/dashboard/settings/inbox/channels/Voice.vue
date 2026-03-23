@@ -19,16 +19,16 @@ const router = useRouter();
 
 const baseLabel = computed(() => t('INBOX_MGMT.ADD.VOICE.SUBMIT_BUTTON'));
 
-    const {
-      primaryButtonLabel,
-      noteMessage,
-      showUsageLoadingMessage,
-      usageErrorMessage,
-      isPurchasingExtraChannel,
-      isChannelInfoLoading,
-      isTrialLimitReached,
-      handleChannelCreation,
-    } = useChannelPurchaseManager({ store, baseLabel, t });
+const {
+  primaryButtonLabel,
+  noteMessage,
+  showUsageLoadingMessage,
+  usageErrorMessage,
+  isPurchasingExtraChannel,
+  isChannelInfoLoading,
+  isTrialLimitReached,
+  handleChannelCreation,
+} = useChannelPurchaseManager({ store, baseLabel, t });
 
 const state = reactive({
   phoneNumber: '',

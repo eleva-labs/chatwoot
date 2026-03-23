@@ -152,9 +152,17 @@ const purchaseTraining = async trainingType => {
 
       // Redirect to ClickUp form for training purchases
       if (trainingType === 'live_training') {
-        window.open(CLICKUP_LIVE_TRAINING_FORM_URL, '_blank', 'noopener noreferrer');
+        window.open(
+          CLICKUP_LIVE_TRAINING_FORM_URL,
+          '_blank',
+          'noopener noreferrer'
+        );
       } else if (trainingType === 'live_1_1_training') {
-        window.open(CLICKUP_LIVE_1_1_TRAINING_FORM_URL, '_blank', 'noopener noreferrer');
+        window.open(
+          CLICKUP_LIVE_1_1_TRAINING_FORM_URL,
+          '_blank',
+          'noopener noreferrer'
+        );
       }
     } else {
       throw new Error('Purchase failed - no success flag in response');
@@ -301,10 +309,12 @@ const isTrainingPurchasing = trainingType => {
 const cancelButtonLabel = trainingType => {
   const labelMap = {
     live_training: 'BILLING_SETTINGS.TRAINING.CANCEL_BUTTON_LIVE_TRAINING',
-    live_1_1_training: 'BILLING_SETTINGS.TRAINING.CANCEL_BUTTON_LIVE_1_1_TRAINING',
+    live_1_1_training:
+      'BILLING_SETTINGS.TRAINING.CANCEL_BUTTON_LIVE_1_1_TRAINING',
   };
 
-  const translationKey = labelMap[trainingType] || 'BILLING_SETTINGS.TRAINING.CANCEL_BUTTON';
+  const translationKey =
+    labelMap[trainingType] || 'BILLING_SETTINGS.TRAINING.CANCEL_BUTTON';
 
   return t(translationKey);
 };

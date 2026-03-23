@@ -37,7 +37,8 @@ const {
 } = useAgentSeatLimits(store);
 
 // Use unified composable for add-on purchase eligibility
-const { canPurchaseAddOns, isPastDue, blockMessage, planName } = useCanPurchaseAddOns();
+const { canPurchaseAddOns, isPastDue, blockMessage, planName } =
+  useCanPurchaseAddOns();
 
 const trialRestrictionMessage = computed(() => {
   // Only show message if user needs to pay for an extra seat but can't
@@ -163,9 +164,10 @@ const fetchProrationPreview = async () => {
   }
 };
 
-  watch(
-    [hasLoadedData, hasAvailableIncludedSeat, canPurchaseAddOns, planName],
-    async ([loaded, hasSeat, canPurchase, plan]) => {
+watch(
+  [hasLoadedData, hasAvailableIncludedSeat, canPurchaseAddOns, planName],
+  // eslint-disable-next-line no-unused-vars
+  async ([loaded, hasSeat, canPurchase, _plan]) => {
     if (loaded && !hasSeat) {
       if (canPurchase) {
         // Reset proration cache when plan changes to recalculate with new plan's pricing
@@ -187,10 +189,7 @@ const fetchProrationPreview = async () => {
 
 // Note message when extra charge applies
 const noteMessage = computed(() => {
-  if (
-    !hasLoadedData.value ||
-    trialRestrictionMessage.value !== null
-  ) {
+  if (!hasLoadedData.value || trialRestrictionMessage.value !== null) {
     return null;
   }
 

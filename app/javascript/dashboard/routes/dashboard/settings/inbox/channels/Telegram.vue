@@ -131,26 +131,24 @@ export default {
           </p>
         </div>
         <p
-          v-if="
-            !showUsageLoadingMessage && !usageErrorMessage && noteMessage
-          "
+          v-if="!showUsageLoadingMessage && !usageErrorMessage && noteMessage"
           class="mt-3 text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
         >
           {{ noteMessage }}
         </p>
-      <NextButton
-        :is-loading="uiFlags.isCreating || isPurchasingExtraChannel"
-        :disabled="
-          uiFlags.isCreating ||
-          isPurchasingExtraChannel ||
-          isChannelInfoLoading ||
-          isTrialLimitReached
-        "
-        type="submit"
-        solid
-        blue
-        :label="primaryButtonLabel"
-      />
+        <NextButton
+          :is-loading="uiFlags.isCreating || isPurchasingExtraChannel"
+          :disabled="
+            uiFlags.isCreating ||
+            isPurchasingExtraChannel ||
+            isChannelInfoLoading ||
+            isTrialLimitReached
+          "
+          type="submit"
+          solid
+          blue
+          :label="primaryButtonLabel"
+        />
       </div>
     </form>
   </div>

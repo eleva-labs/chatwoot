@@ -32,7 +32,7 @@ const isPurchasingAiTokens = ref(false);
 const conversationPackModal = ref(null);
 const aiTokenCreditsModal = ref(null);
 
-const { accountId, currentAccount } = useAccount();
+const { currentAccount } = useAccount();
 const isSubscriptionPastDue = computed(
   () =>
     currentAccount.value?.custom_attributes?.subscription_status === 'past_due'
@@ -535,7 +535,9 @@ onMounted(async () => {
             sm
             solid
             blue
-            :disabled="isPurchasing || !canPurchaseAddOns || isSubscriptionPastDue"
+            :disabled="
+              isPurchasing || !canPurchaseAddOns || isSubscriptionPastDue
+            "
             @click="confirmPurchaseConversationPack"
           >
             {{ t('BILLING_SETTINGS.LIMITS.PURCHASE_CONVERSATION_PACKS') }}

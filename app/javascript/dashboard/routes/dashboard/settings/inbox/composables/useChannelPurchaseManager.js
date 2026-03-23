@@ -90,7 +90,7 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
   );
 
   // Use unified composable for add-on purchase eligibility
-  const { canPurchaseAddOns, isTrialing, isPastDue, blockMessage, planName } =
+  const { canPurchaseAddOns, isPastDue, blockMessage, planName } =
     useCanPurchaseAddOns();
 
   // Check if user is blocked from purchasing when they need an extra channel
@@ -164,7 +164,8 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
 
   watch(
     [hasLoadedData, hasAvailableIncludedChannel, canPurchaseAddOns, planName],
-    async ([loaded, hasAvailable, canPurchase, plan]) => {
+    // eslint-disable-next-line no-unused-vars
+    async ([loaded, hasAvailable, canPurchase, _plan]) => {
       if (loaded && !hasAvailable) {
         if (canPurchase) {
           // Reset proration cache when plan changes to recalculate with new plan's pricing
@@ -258,4 +259,3 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
     handleChannelCreation,
   };
 }
-

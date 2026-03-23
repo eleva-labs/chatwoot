@@ -41,7 +41,9 @@ const confirmPurchase = () => {
 };
 
 const selectedPack = computed(() => {
-  return props.packs.find(pack => pack.lookup_key === selectedPackLookupKey.value);
+  return props.packs.find(
+    pack => pack.lookup_key === selectedPackLookupKey.value
+  );
 });
 
 const packOptions = computed(() => {
@@ -64,7 +66,9 @@ defineExpose({
     <div class="h-auto overflow-auto flex flex-col">
       <woot-modal-header
         :header-title="t('BILLING_SETTINGS.LIMITS.AI_TOKENS.MODAL_TITLE')"
-        :header-content="t('BILLING_SETTINGS.LIMITS.AI_TOKENS.MODAL_DESCRIPTION')"
+        :header-content="
+          t('BILLING_SETTINGS.LIMITS.AI_TOKENS.MODAL_DESCRIPTION')
+        "
       />
 
       <div class="px-6 py-4">
@@ -99,13 +103,18 @@ defineExpose({
           <p class="text-xs text-n-slate-11 mt-2">
             {{ t('BILLING_SETTINGS.LIMITS.AI_TOKENS.ONE_TIME_CHARGE') }}
             <span class="font-semibold text-n-slate-12">
-              {{ selectedPack.formatted_price || t('BILLING_SETTINGS.LIMITS.AI_TOKENS.PRICE_NOT_AVAILABLE') }}
+              {{
+                selectedPack.formatted_price ||
+                t('BILLING_SETTINGS.LIMITS.AI_TOKENS.PRICE_NOT_AVAILABLE')
+              }}
             </span>
           </p>
         </div>
       </div>
 
-      <div class="flex flex-row justify-end gap-2 py-4 px-6 w-full border-t border-n-weak">
+      <div
+        class="flex flex-row justify-end gap-2 py-4 px-6 w-full border-t border-n-weak"
+      >
         <NextButton
           faded
           type="reset"
@@ -124,4 +133,3 @@ defineExpose({
     </div>
   </Modal>
 </template>
-

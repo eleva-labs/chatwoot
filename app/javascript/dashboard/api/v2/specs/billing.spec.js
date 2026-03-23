@@ -43,7 +43,10 @@ describe('#billingAPI', () => {
     it('#createSubscription with custom plan', () => {
       billingAPI.createSubscription('professional');
       expect(axiosMock.post).toHaveBeenCalledWith('/api/v2/subscription', {
-        subscription: { plan_name: 'professional', billing_interval: 'monthly' },
+        subscription: {
+          plan_name: 'professional',
+          billing_interval: 'monthly',
+        },
       });
     });
 

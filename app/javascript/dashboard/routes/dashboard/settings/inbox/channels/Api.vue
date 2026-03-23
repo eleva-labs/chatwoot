@@ -45,6 +45,7 @@ export default {
       usageErrorMessage,
       isPurchasingExtraChannel,
       isChannelInfoLoading,
+      isTrialLimitReached,
       handleChannelCreation,
     };
   },
@@ -153,9 +154,7 @@ export default {
           </p>
         </div>
         <p
-          v-if="
-            !showUsageLoadingMessage && !usageErrorMessage && noteMessage
-          "
+          v-if="!showUsageLoadingMessage && !usageErrorMessage && noteMessage"
           class="mt-3 text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
         >
           {{ noteMessage }}
