@@ -1,10 +1,8 @@
 <script>
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 import { mapGetters } from 'vuex';
 import { useStore } from 'vuex';
 import { useAdmin } from 'dashboard/composables/useAdmin';
-import { useAccount } from 'dashboard/composables/useAccount';
-import { useRoute, useRouter } from 'vue-router';
 import EmptyStateMessage from './EmptyStateMessage.vue';
 
 export default {
@@ -19,44 +17,15 @@ export default {
   },
   setup() {
     const { isAdmin } = useAdmin();
-    const { accountScopedUrl } = useAccount();
-    const route = useRoute();
-    const router = useRouter();
     const store = useStore();
 
     const isOnboardingCompleted = computed(() =>
       store.getters['accounts/isOnboardingCompleted']()
     );
 
-    // Get inbox loading state to prevent race condition
-    const inboxesUIFlags = computed(() => store.getters['inboxes/getUIFlags']);
-
-    const shouldRedirectToOnboarding = computed(
-      () =>
-        !isOnboardingCompleted.value &&
-        isAdmin.value &&
-        !inboxesUIFlags.value.isFetching // Guard: don't redirect while loading
-    );
-
-    watch(
-      shouldRedirectToOnboarding,
-      shouldRedirect => {
-        if (shouldRedirect && route.name !== 'settings_inbox_new') {
-          router.push({
-            name: 'settings_inbox_new',
-            query: { onboarding: 'true' },
-          });
-        }
-      },
-      { immediate: true }
-    );
-
     return {
       isAdmin,
-      accountScopedUrl,
       isOnboardingCompleted,
-      shouldRedirectToOnboarding,
-      inboxesUIFlags,
     };
   },
   computed: {
@@ -79,9 +48,6 @@ export default {
       }
       return this.$t('CONVERSATION.404');
     },
-    newInboxURL() {
-      return this.accountScopedUrl('settings/inboxes/new');
-    },
     emptyClassName() {
       if (
         !this.inboxesList.length &&
@@ -103,20 +69,16 @@ export default {
       v-if="uiFlags.isFetching || loadingChatList"
       :message="loadingIndicatorMessage"
     />
-    <!-- Onboarding not completed -->
+    <!-- No inboxes configured -->
     <div
       v-if="!isOnboardingCompleted && !loadingChatList"
       class="clearfix mx-auto w-full flex justify-center items-center h-full"
     >
-      <!-- Show loading while redirecting to Standard Inbox flow -->
-      <woot-loading-state
-        v-if="isAdmin && shouldRedirectToOnboarding"
-        message="Starting your onboarding..."
-      />
       <EmptyStateMessage
-        v-else-if="!isAdmin"
+        v-if="!isAdmin"
         :message="$t('CONVERSATION.NO_INBOX_AGENT')"
       />
+      <EmptyStateMessage v-else :message="$t('CONVERSATION.NO_MESSAGE_1')" />
     </div>
     <!-- Show empty state images if not loading -->
 

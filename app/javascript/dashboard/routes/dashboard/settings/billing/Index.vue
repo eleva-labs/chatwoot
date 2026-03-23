@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { useMapGetter, useStore } from 'dashboard/composables/store.js';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useI18n } from 'vue-i18n';
@@ -20,8 +19,7 @@ import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import ButtonV4 from 'next/button/Button.vue';
 
-const router = useRouter();
-const { currentAccount, isOnChatwootCloud } = useAccount();
+const { currentAccount } = useAccount();
 const {
   captainEnabled,
   captainLimits,
@@ -254,12 +252,6 @@ const fetchAccountDetails = async () => {
 };
 
 const handleBillingPageLogic = async () => {
-  // If self-hosted, redirect to dashboard
-  if (!isOnChatwootCloud.value) {
-    router.push({ name: 'home' });
-    return;
-  }
-
   // Check if we've already attempted a refresh for billing setup
   const billingRefreshAttempted = sessionStorage.get(BILLING_REFRESH_ATTEMPTED);
 
