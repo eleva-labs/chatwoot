@@ -49,7 +49,7 @@ describe('#actions', () => {
       axios.get.mockRejectedValue(new Error('Network error'));
       await actions.get({ commit });
       expect(consoleSpy).toHaveBeenCalledWith(
-        '[inboxes:get]',
+        expect.stringContaining('cache_keys fetch failed'),
         expect.any(Error)
       );
       consoleSpy.mockRestore();

@@ -97,6 +97,11 @@ export const getters = {
         return false;
       }
 
+      // Filter out authentication templates (OTP/verification codes)
+      if (template.category?.toUpperCase() === 'AUTHENTICATION') {
+        return false;
+      }
+
       return true;
     });
   },

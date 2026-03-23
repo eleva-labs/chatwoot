@@ -10,6 +10,7 @@ class Billing::UnifiedLimitService
   def initialize(account, resource_type)
     @account = account
     @resource_type = resource_type.to_sym
+    @billing_configured = account.custom_attributes&.dig('plan_name').present?
     @plan_name = account.custom_attributes&.dig('plan_name') || 'starter'
     @plan_config = self.class.plan_details(@plan_name)
 
@@ -18,6 +19,9 @@ class Billing::UnifiedLimitService
 
   # Check if resource can be created
   def can_create?
+    # Skip billing checks when no plan is configured (self-hosted, test environments)
+    return true unless @billing_configured
+
     # Unlimited plans can always create
     return true if unlimited?
 

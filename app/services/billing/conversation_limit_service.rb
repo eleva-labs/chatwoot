@@ -7,12 +7,16 @@ class Billing::ConversationLimitService
 
   def initialize(account)
     @account = account
+    @billing_configured = account.custom_attributes&.dig('plan_name').present?
     @plan_name = account.custom_attributes&.dig('plan_name') || 'starter'
     @plan_config = self.class.plan_details(@plan_name)
   end
 
   # Check if a new conversation can be created
   def can_create_conversation?
+    # Skip billing checks when no plan is configured (self-hosted, test environments)
+    return true unless @billing_configured
+
     # Unlimited plans can always create
     return true if unlimited?
 
