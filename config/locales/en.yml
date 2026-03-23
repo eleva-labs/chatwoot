@@ -59,6 +59,7 @@ en:
       invalid_email: You have entered an invalid email
       email_already_exists: 'You have already signed up for an account with %{email}'
       invalid_params: 'Invalid, please check the signup paramters and try again'
+      account_name_already_exists: 'The company name %{name} already exists'
       failed: Signup failed
     assignment_policy:
       not_found: Assignment policy not found
