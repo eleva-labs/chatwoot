@@ -16,18 +16,6 @@ const props = defineProps({
     type: String,
     default: null,
   },
-  subscriptionStatus: {
-    type: String,
-    default: null,
-  },
-  cancelAtPeriodEnd: {
-    type: Boolean,
-    default: false,
-  },
-  subscriptionEndsOn: {
-    type: String,
-    default: null,
-  },
 });
 
 const { t, locale } = useI18n();

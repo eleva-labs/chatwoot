@@ -27,6 +27,17 @@ const isPreviewingRemoval = ref(false);
 const removalPreview = ref(null);
 const removalError = ref(null);
 
+const {
+  isLoading: limitsLoading,
+  hasLoadedData,
+  includedLimit,
+  includedUsage,
+  extraInboxesPurchased,
+  extraInboxesUsed,
+  fetchLimits,
+  fetchAddOns,
+} = useInboxLimits(store);
+
 const inboxes = useMapGetter('inboxes/getInboxes');
 
 const inboxesList = computed(() => {
@@ -163,17 +174,6 @@ const openDelete = async inbox => {
   // Show confirmation modal
   showDeletePopup.value = true;
 };
-
-const {
-  isLoading: limitsLoading,
-  hasLoadedData,
-  includedLimit,
-  includedUsage,
-  extraInboxesPurchased,
-  extraInboxesUsed,
-  fetchLimits,
-  fetchAddOns,
-} = useInboxLimits(store);
 
 const inboxUsageLoading = computed(() => {
   return !hasLoadedData.value && limitsLoading.value;

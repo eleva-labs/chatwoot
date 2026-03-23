@@ -10,18 +10,6 @@ defineProps({
     type: String,
     default: null,
   },
-  subscriptionStatus: {
-    type: String,
-    default: null,
-  },
-  cancelAtPeriodEnd: {
-    type: Boolean,
-    default: false,
-  },
-  subscriptionEndsOn: {
-    type: String,
-    default: null,
-  },
 });
 
 const { t } = useI18n();
@@ -211,9 +199,6 @@ onUnmounted(() => {
             :plan="plan"
             :billing-interval="billingInterval"
             :current-plan-name="currentPlanName"
-            :subscription-status="subscriptionStatus"
-            :cancel-at-period-end="cancelAtPeriodEnd"
-            :subscription-ends-on="subscriptionEndsOn"
           />
         </div>
       </div>
