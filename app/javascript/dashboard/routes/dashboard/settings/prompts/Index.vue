@@ -63,17 +63,6 @@ const hideAddKnowledgeSourceModal = () => {
   showAddKnowledgeSourceModal.value = false;
 };
 
-const viewKnowledgeSource = source => {
-  if (source.source_type === 'image') {
-    openGallery(source);
-  } else if (
-    source.source_type === 'file' ||
-    source.source_type === 'webpage'
-  ) {
-    window.open(source.url, '_blank', 'noopener noreferrer');
-  }
-};
-
 const openGallery = source => {
   activeAttachment.value = {
     id: source.id,
@@ -88,6 +77,17 @@ const openGallery = source => {
     },
   };
   showGalleryViewer.value = true;
+};
+
+const viewKnowledgeSource = source => {
+  if (source.source_type === 'image') {
+    openGallery(source);
+  } else if (
+    source.source_type === 'file' ||
+    source.source_type === 'webpage'
+  ) {
+    window.open(source.url, '_blank', 'noopener noreferrer');
+  }
 };
 
 const onCloseGallery = () => {
@@ -187,8 +187,8 @@ onMounted(() => {
 <template>
   <div class="flex flex-col w-full">
     <BaseSettingsHeader
-      :title="t('PROMPTS_PAGE.TITLE')"
-      :description="t('PROMPTS_PAGE.DESCRIPTION')"
+      :title="t('KNOWLEDGE_BASE_PAGE.TITLE')"
+      :description="t('KNOWLEDGE_BASE_PAGE.DESCRIPTION')"
     >
       <template #actions>
         <NextButton @click="openAddKnowledgeSourceModal">
@@ -199,9 +199,7 @@ onMounted(() => {
 
     <!-- Knowledge Sources Section -->
     <div class="mt-12">
-      <h2
-        class="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-6"
-      >
+      <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-6">
         {{ t('KNOWLEDGE_SOURCE.TITLE') }}
       </h2>
 
@@ -211,10 +209,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <div
-        v-else-if="knowledgeSources.length === 0"
-        class="text-center py-8"
-      >
+      <div v-else-if="knowledgeSources.length === 0" class="text-center py-8">
         <p class="text-slate-600 dark:text-slate-400">
           {{ t('KNOWLEDGE_SOURCE.EMPTY_STATE') }}
         </p>

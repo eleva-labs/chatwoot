@@ -144,7 +144,7 @@ describe('Index.vue', () => {
         },
       });
 
-      expect(mockT).toHaveBeenCalledWith('PROMPTS_PAGE.EMPTY_STATE');
+      expect(mockT).toHaveBeenCalledWith('KNOWLEDGE_BASE_PAGE.EMPTY_STATE');
       expect(wrapper.find('[data-testid="prompt-card"]').exists()).toBe(false);
     });
 
@@ -163,8 +163,8 @@ describe('Index.vue', () => {
       });
 
       // Should show loading state instead of empty state
-      expect(mockT).toHaveBeenCalledWith('PROMPTS_PAGE.LOADING');
-      expect(mockT).not.toHaveBeenCalledWith('PROMPTS_PAGE.EMPTY_STATE');
+      expect(mockT).toHaveBeenCalledWith('KNOWLEDGE_BASE_PAGE.LOADING');
+      expect(mockT).not.toHaveBeenCalledWith('KNOWLEDGE_BASE_PAGE.EMPTY_STATE');
     });
   });
 
@@ -247,7 +247,7 @@ describe('Index.vue', () => {
         },
       });
 
-      expect(mockT).toHaveBeenCalledWith('PROMPTS_PAGE.LOADING');
+      expect(mockT).toHaveBeenCalledWith('KNOWLEDGE_BASE_PAGE.LOADING');
     });
 
     it('should hide prompt list when loading', () => {
@@ -268,7 +268,7 @@ describe('Index.vue', () => {
 
       // Should not render prompt cards when loading
       expect(wrapper.find('[data-testid="prompt-card"]').exists()).toBe(false);
-      expect(mockT).toHaveBeenCalledWith('PROMPTS_PAGE.LOADING');
+      expect(mockT).toHaveBeenCalledWith('KNOWLEDGE_BASE_PAGE.LOADING');
     });
   });
 });

@@ -476,7 +476,7 @@ const menuItems = computed(() => {
         },
         {
           name: 'Settings Prompts',
-          label: t('SIDEBAR.PROMPTS'),
+          label: t('SIDEBAR.KNOWLEDGE_BASE'),
           icon: 'i-lucide-book-open',
           to: accountScopedRoute('prompts_list'),
         },

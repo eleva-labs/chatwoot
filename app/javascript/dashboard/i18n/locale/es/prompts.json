@@ -1,5 +1,5 @@
 {
-  "PROMPTS_PAGE": {
+  "KNOWLEDGE_BASE_PAGE": {
     "TITLE": "Base de Conocimiento",
     "DESCRIPTION": "Administra tu base de conocimiento. Agrega fuentes de conocimiento para ayudar a tus agentes a responder más rápido y con mayor precisión.",
     "ADD_BUTTON": "Agregar prompt",

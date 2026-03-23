@@ -44,14 +44,14 @@ const updatePrompt = async promptData => {
       id: promptId.value,
       ...promptData,
     });
-    useAlert(t('PROMPTS_PAGE.EDIT.SUCCESS_MESSAGE'));
+    useAlert(t('KNOWLEDGE_BASE_PAGE.EDIT.SUCCESS_MESSAGE'));
 
     // Refresh the prompts data to ensure we have the latest changes
     await store.dispatch('prompts/get');
 
     router.push({ name: 'prompts_list' });
   } catch (error) {
-    useAlert(t('PROMPTS_PAGE.EDIT.ERROR_MESSAGE'));
+    useAlert(t('KNOWLEDGE_BASE_PAGE.EDIT.ERROR_MESSAGE'));
   } finally {
     isUpdating.value = false;
   }
@@ -78,7 +78,7 @@ onMounted(() => {
   />
   <div v-else class="flex justify-center py-8">
     <div class="text-slate-600 dark:text-slate-400">
-      {{ t('PROMPTS_PAGE.LOADING') }}
+      {{ t('KNOWLEDGE_BASE_PAGE.LOADING') }}
     </div>
   </div>
 </template>

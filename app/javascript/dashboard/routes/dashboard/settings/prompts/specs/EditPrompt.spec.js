@@ -76,7 +76,9 @@ describe('EditPrompt.vue', () => {
       const hasPromptEditor = wrapper
         .find('[data-testid="prompt-editor"]')
         .exists();
-      const hasLoadingText = wrapper.text().includes('PROMPTS_PAGE.LOADING');
+      const hasLoadingText = wrapper
+        .text()
+        .includes('KNOWLEDGE_BASE_PAGE.LOADING');
 
       // At least one should be true (either loaded or loading)
       expect(hasPromptEditor || hasLoadingText).toBe(true);
@@ -91,7 +93,7 @@ describe('EditPrompt.vue', () => {
         },
       });
 
-      expect(wrapper.text()).toContain('PROMPTS_PAGE.LOADING');
+      expect(wrapper.text()).toContain('KNOWLEDGE_BASE_PAGE.LOADING');
     });
   });
 

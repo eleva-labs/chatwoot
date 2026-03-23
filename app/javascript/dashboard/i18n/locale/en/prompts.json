@@ -1,5 +1,5 @@
 {
-  "PROMPTS_PAGE": {
+  "KNOWLEDGE_BASE_PAGE": {
     "TITLE": "Knowledge Base",
     "DESCRIPTION": "Manage your knowledge base. Add knowledge sources to help your agents respond faster and more accurately.",
     "ADD_BUTTON": "Add prompt",
