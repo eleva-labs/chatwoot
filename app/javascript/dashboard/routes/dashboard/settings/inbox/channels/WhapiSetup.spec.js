@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ref } from 'vue';
 import { mount } from '@vue/test-utils';
 import Whapi from './Whapi.vue';
 
@@ -9,6 +10,25 @@ vi.mock('dashboard/composables', () => ({
 vi.mock('dashboard/composables/store', () => ({
   useStore: vi.fn(),
   useMapGetter: vi.fn(),
+}));
+
+vi.mock('../composables/useChannelPurchaseManager', () => ({
+  useChannelPurchaseManager: () => ({
+    limitsLoading: ref(false),
+    hasLoadedData: ref(true),
+    showUsageLoadingMessage: ref(false),
+    usageErrorMessage: ref(''),
+    isPurchasingExtraChannel: ref(false),
+    purchaseError: ref(null),
+    noteMessage: ref(null),
+    trialRestrictionMessage: ref(''),
+    isTrialLimitReached: ref(false),
+    primaryButtonLabel: ref('Continue'),
+    isChannelInfoLoading: ref(false),
+    channelPriceLabel: ref(''),
+    shouldBeDisabled: ref(false),
+    handleChannelCreation: vi.fn(fn => fn()),
+  }),
 }));
 
 describe('Whapi.vue', () => {
