@@ -7,6 +7,7 @@ RSpec.describe BillingHelper do
 
     before do
       allow_any_instance_of(Inbox).to receive(:check_inbox_limit).and_return(true)
+      allow_any_instance_of(Conversation).to receive(:check_conversation_limit).and_return(true)
       create(:installation_config, {
                name: 'CHATWOOT_CLOUD_PLANS',
                value: [

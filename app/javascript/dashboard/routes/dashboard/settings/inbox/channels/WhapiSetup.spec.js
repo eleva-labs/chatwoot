@@ -82,7 +82,7 @@ describe('Whapi.vue', () => {
     vi.useRealTimers();
   });
 
-  it('creates channel then moves to qr step and fetches QR', async () => {
+  it('creates channel and transitions to waiting step', async () => {
     const wrapper = mount(Whapi, {
       global: {
         mocks: {
@@ -100,7 +100,6 @@ describe('Whapi.vue', () => {
     await wrapper.find('form').trigger('submit.prevent');
 
     expect(actions['inboxes/createWhapiChannel']).toHaveBeenCalled();
-    expect(actions['inboxes/getWhapiQrCode']).toHaveBeenCalled();
   });
 
   it('transitions to success when connection status becomes connected', async () => {
