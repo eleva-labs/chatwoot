@@ -48,20 +48,41 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def process_single_read(entry, messaging)
-    channel = find_channel(instagram_id(messaging))
-    matching_candidates = read_resolution_candidates(entry, messaging).select do |_candidate_name, candidate_id|
-      candidate_id.present? && find_channel(candidate_id).present?
-    end.map(&:first)
-
-    log_read_resolution_probe(entry, messaging, matching_candidates, channel)
+    channel, resolver_metadata = resolve_read_channel(entry, messaging)
 
     if channel.blank?
-      log_webhook_event('read_message_missing', messaging: messaging, reason: 'channel_not_found')
+      log_webhook_event('read_message_missing', messaging: messaging, reason: 'channel_not_found', **resolver_metadata)
       return
     end
 
-    log_webhook_event('read_unlocked', messaging: messaging)
+    log_webhook_event('read_unlocked', messaging: messaging, **resolver_metadata,
+                                       resolved_channel_type: channel.class.name,
+                                       resolved_channel_id: channel.id,
+                                       resolved_channel_instagram_id: channel.instagram_id)
     ::Instagram::ReadStatusService.new(params: messaging, channel: channel).perform
+  end
+
+  def resolve_read_channel(entry, messaging)
+    recipient_id = messaging.dig(:recipient, :id)
+    entry_id = entry[:id]
+
+    channel = find_channel(recipient_id)
+    return [channel, read_resolver_metadata(recipient_id, entry_id, 'recipient')] if channel.present?
+
+    channel = find_facebook_page_channel(entry_id)
+    return [channel, read_resolver_metadata(recipient_id, entry_id, 'entry')] if channel.present?
+
+    [nil, read_resolver_metadata(recipient_id, entry_id)]
+  end
+
+  def read_resolver_metadata(recipient_id, entry_id, resolved_via = nil)
+    {
+      recipient_id: recipient_id,
+      entry_id: entry_id,
+      attempted_candidates: 'recipient,entry'
+    }.tap do |metadata|
+      metadata[:resolved_via] = resolved_via if resolved_via.present?
+    end
   end
 
   def read_event?(messaging)
@@ -210,26 +231,15 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   end
 
   def find_channel(instagram_id)
-    Channel::Instagram.find_by(instagram_id: instagram_id) || Channel::FacebookPage.find_by(instagram_id: instagram_id)
+    find_instagram_channel(instagram_id) || find_facebook_page_channel(instagram_id)
   end
 
-  def log_read_resolution_probe(entry, messaging, matching_candidates, resolved_channel)
-    log_webhook_event(
-      'read_resolution_probe',
-      messaging: messaging,
-      entry_id: entry[:id],
-      messaging_sender_id: messaging&.dig(:sender, :id),
-      messaging_recipient_id: messaging&.dig(:recipient, :id),
-      matching_candidates: matching_candidates.presence || 'none',
-      resolved_channel_class: resolved_channel&.class&.name || 'none'
-    )
+  def find_instagram_channel(instagram_id)
+    Channel::Instagram.find_by(instagram_id: instagram_id)
   end
 
-  def read_resolution_candidates(entry, messaging)
-    [
-      ['messaging.recipient.id', messaging&.dig(:recipient, :id)],
-      ['entry.id', entry[:id]]
-    ]
+  def find_facebook_page_channel(instagram_id)
+    Channel::FacebookPage.find_by(instagram_id: instagram_id)
   end
 
   def messages(entry)
