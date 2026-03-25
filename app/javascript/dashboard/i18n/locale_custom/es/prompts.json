@@ -1,5 +1,5 @@
 {
-  "PROMPTS_PAGE": {
+  "KNOWLEDGE_BASE_PAGE": {
     "TITLE": "Prompts",
     "DESCRIPTION": "Configura los prompts para tu cuenta. Estos prompts se pueden usar en el compositor para escribir rápidamente un mensaje.",
     "ADD_BUTTON": "Añadir prompt",

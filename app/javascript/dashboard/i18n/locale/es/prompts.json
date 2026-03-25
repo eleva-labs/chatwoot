@@ -1,11 +1,11 @@
 {
-  "PROMPTS_PAGE": {
-    "TITLE": "Prompts",
-    "DESCRIPTION": "Configura los prompts para tu cuenta. Estos prompts se pueden usar en el compositor para escribir rápidamente un mensaje.",
-    "ADD_BUTTON": "Añadir prompt",
-    "ADD_KNOWLEDGE_SOURCE_BUTTON": "Añadir fuente de conocimiento",
+  "KNOWLEDGE_BASE_PAGE": {
+    "TITLE": "Base de Conocimiento",
+    "DESCRIPTION": "Administra tu base de conocimiento. Agrega fuentes de conocimiento para ayudar a tus agentes a responder más rápido y con mayor precisión.",
+    "ADD_BUTTON": "Agregar prompt",
+    "ADD_KNOWLEDGE_SOURCE_BUTTON": "Agregar información",
     "KNOWLEDGE_SOURCE": {
-      "TITLE": "Añadir fuente de conocimiento",
+      "TITLE": "Agregar información",
       "TYPE": {
         "LABEL": "Tipo",
         "WEBPAGE": "Página web",
@@ -69,7 +69,7 @@
     "LOADING": "Cargando prompts...",
     "EDIT": "Editar"
   },
-  "ADD_KNOWLEDGE_SOURCE_BUTTON": "Añadir fuente de conocimiento",
+  "ADD_KNOWLEDGE_SOURCE_BUTTON": "Agregar información",
   "KNOWLEDGE_SOURCE": {
     "TITLE": "Fuentes de Conocimiento",
     "LOADING": "Cargando fuentes de conocimiento...",
@@ -130,4 +130,4 @@
       "UPLOAD_ERROR": "Error al procesar la URL. Por favor verifica la URL e intenta de nuevo."
     }
   }
-} 
+}

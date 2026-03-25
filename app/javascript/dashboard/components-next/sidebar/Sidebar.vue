@@ -475,6 +475,12 @@ const menuItems = computed(() => {
           to: accountScopedRoute('macros_wrapper'),
         },
         {
+          name: 'Settings Prompts',
+          label: t('SIDEBAR.KNOWLEDGE_BASE'),
+          icon: 'i-lucide-book-open',
+          to: accountScopedRoute('prompts_list'),
+        },
+        {
           name: 'Settings Canned Responses',
           label: t('SIDEBAR.CANNED_RESPONSES'),
           icon: 'i-lucide-message-square-quote',
