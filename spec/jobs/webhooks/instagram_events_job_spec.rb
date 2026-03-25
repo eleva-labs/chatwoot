@@ -593,6 +593,22 @@ describe Webhooks::InstagramEventsJob do
   describe 'read-path split' do
     let(:lock_manager) { instance_double(Redis::LockManager) }
     let(:ig_account_id) { 'ig-account-123' }
+    let(:read_messaging) do
+      {
+        sender: { id: 'customer-1' },
+        recipient: { id: 'recipient-ig-id' },
+        timestamp: '2021-09-08T06:34:04+0000',
+        read: { mid: 'read-mid-1' }
+      }
+    end
+    let(:read_entries) do
+      [
+        {
+          id: ig_account_id,
+          messaging: [read_messaging]
+        }
+      ]
+    end
 
     before do
       allow(Redis::LockManager).to receive(:new).and_return(lock_manager)
@@ -637,23 +653,8 @@ describe Webhooks::InstagramEventsJob do
     end
 
     it 'logs read_unlocked when processing a read event with a valid channel' do
-      read_entries = [
-        {
-          id: ig_account_id,
-          messaging: [
-            {
-              sender: { id: 'customer-1' },
-              recipient: { id: 'chatwoot-app-user-id-1' },
-              timestamp: '2021-09-08T06:34:04+0000',
-              read: { mid: 'read-mid-1' }
-            }
-          ]
-        }
-      ]
-
-      messages_relation = instance_double(ActiveRecord::Relation, find_by: nil)
-      inbox = instance_double(Inbox, messages: messages_relation)
-      channel = instance_double(Channel::Instagram, inbox: inbox, id: 1, account_id: 1, instagram_id: 'x')
+      channel = instance_double(Channel::Instagram, id: 1, instagram_id: 'x')
+      allow(channel).to receive(:class).and_return(Channel::Instagram)
       allow(Channel::Instagram).to receive(:find_by).and_return(channel)
       read_service = instance_double(Instagram::ReadStatusService, perform: nil)
       allow(Instagram::ReadStatusService).to receive(:new).and_return(read_service)
@@ -661,28 +662,112 @@ describe Webhooks::InstagramEventsJob do
       job_instance = described_class.new
       job_instance.perform(read_entries)
 
-      expect(Rails.logger).to have_received(:info).with(/event=read_unlocked/)
+      expect(Rails.logger).to have_received(:info).with(
+        /event=read_unlocked.*recipient_id=recipient-ig-id.*entry_id=ig-account-123.*attempted_candidates=recipient,entry.*resolved_via=recipient.*resolved_channel_type=Channel::Instagram.*resolved_channel_id=1.*resolved_channel_instagram_id=x/
+      )
     end
 
     it 'logs read_message_missing when channel is not found for a read event' do
-      read_entries = [
-        {
-          id: ig_account_id,
-          messaging: [
-            {
-              sender: { id: 'customer-1' },
-              recipient: { id: 'unknown-recipient' },
-              timestamp: '2021-09-08T06:34:04+0000',
-              read: { mid: 'read-mid-1' }
-            }
-          ]
-        }
-      ]
+      read_entries[0][:messaging][0][:recipient][:id] = 'unknown-recipient'
 
       job_instance = described_class.new
       job_instance.perform(read_entries)
 
-      expect(Rails.logger).to have_received(:info).with(/event=read_message_missing/)
+      expect(Rails.logger).to have_received(:info).with(
+        /event=read_message_missing.*reason=channel_not_found.*recipient_id=unknown-recipient.*entry_id=ig-account-123.*attempted_candidates=recipient,entry/
+      )
+    end
+
+    it 'resolves read events via recipient id first' do
+      recipient_channel = instance_double(Channel::Instagram, id: 11, instagram_id: 'recipient-ig-id')
+      allow(recipient_channel).to receive(:class).and_return(Channel::Instagram)
+      read_service = instance_double(Instagram::ReadStatusService, perform: nil)
+
+      expect(Channel::Instagram).to receive(:find_by).with(instagram_id: 'recipient-ig-id').and_return(recipient_channel)
+      expect(Channel::Instagram).not_to receive(:find_by).with(instagram_id: ig_account_id)
+      allow(Instagram::ReadStatusService).to receive(:new).with(params: read_messaging, channel: recipient_channel).and_return(read_service)
+
+      described_class.perform_now(read_entries)
+
+      expect(Rails.logger).to have_received(:info).with(/event=read_unlocked.*resolved_via=recipient/)
+    end
+
+    it 'falls back to entry id for read events when recipient id does not match' do
+      entry_channel = instance_double(Channel::FacebookPage, id: 12, instagram_id: ig_account_id)
+      allow(entry_channel).to receive(:class).and_return(Channel::FacebookPage)
+      read_service = instance_double(Instagram::ReadStatusService, perform: nil)
+
+      expect(Channel::Instagram).to receive(:find_by).with(instagram_id: 'recipient-ig-id').and_return(nil)
+      expect(Channel::FacebookPage).to receive(:find_by).with(instagram_id: 'recipient-ig-id').and_return(nil)
+      expect(Channel::FacebookPage).to receive(:find_by).with(instagram_id: ig_account_id).and_return(entry_channel)
+      allow(Instagram::ReadStatusService).to receive(:new).with(params: read_messaging, channel: entry_channel).and_return(read_service)
+
+      described_class.perform_now(read_entries)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=read_unlocked.*resolved_via=entry.*resolved_channel_type=Channel::FacebookPage.*resolved_channel_id=12.*resolved_channel_instagram_id=ig-account-123/
+      )
+    end
+
+    it 'falls back to entry id when recipient id is blank' do
+      read_entries[0][:messaging][0][:recipient][:id] = nil
+
+      entry_channel = instance_double(Channel::FacebookPage, id: 13, instagram_id: ig_account_id)
+      allow(entry_channel).to receive(:class).and_return(Channel::FacebookPage)
+      read_service = instance_double(Instagram::ReadStatusService, perform: nil)
+
+      expect(Channel::Instagram).to receive(:find_by).with(instagram_id: nil).and_return(nil)
+      expect(Channel::FacebookPage).to receive(:find_by).with(instagram_id: nil).and_return(nil)
+      expect(Channel::FacebookPage).to receive(:find_by).with(instagram_id: ig_account_id).and_return(entry_channel)
+      allow(Instagram::ReadStatusService).to receive(:new).with(params: read_messaging, channel: entry_channel).and_return(read_service)
+
+      described_class.perform_now(read_entries)
+
+      expect(Rails.logger).to have_received(:info).with(
+        /event=read_unlocked.*recipient_id=.*entry_id=ig-account-123.*resolved_via=entry.*resolved_channel_type=Channel::FacebookPage/
+      )
+    end
+
+    it 'does not misroute read events across channel classes' do
+      entry_channel = instance_double(Channel::FacebookPage, id: 32, instagram_id: ig_account_id)
+      allow(entry_channel).to receive(:class).and_return(Channel::FacebookPage)
+      read_service = instance_double(Instagram::ReadStatusService, perform: nil)
+
+      expect(Channel::Instagram).to receive(:find_by).with(instagram_id: 'recipient-ig-id').and_return(nil)
+      expect(Channel::FacebookPage).to receive(:find_by).with(instagram_id: 'recipient-ig-id').and_return(nil)
+      expect(Channel::FacebookPage).to receive(:find_by).with(instagram_id: ig_account_id).and_return(entry_channel)
+      allow(Instagram::ReadStatusService).to receive(:new).with(params: read_messaging, channel: entry_channel).and_return(read_service)
+
+      described_class.perform_now(read_entries)
+
+      expect(Rails.logger).to have_received(:info).with(/event=read_unlocked.*resolved_via=entry.*resolved_channel_id=32/)
+    end
+
+    it 'keeps recipient resolution when both recipient and entry ids match channels' do
+      recipient_channel = instance_double(Channel::Instagram, id: 21, instagram_id: 'recipient-ig-id')
+      allow(recipient_channel).to receive(:class).and_return(Channel::Instagram)
+      read_service = instance_double(Instagram::ReadStatusService, perform: nil)
+
+      expect(Channel::Instagram).to receive(:find_by).with(instagram_id: 'recipient-ig-id').and_return(recipient_channel)
+      expect(Channel::Instagram).not_to receive(:find_by).with(instagram_id: ig_account_id)
+      expect(Channel::FacebookPage).not_to receive(:find_by).with(instagram_id: ig_account_id)
+      allow(Instagram::ReadStatusService).to receive(:new).with(params: read_messaging, channel: recipient_channel).and_return(read_service)
+
+      described_class.perform_now(read_entries)
+
+      expect(Rails.logger).to have_received(:info).with(/event=read_unlocked.*resolved_via=recipient.*resolved_channel_id=21/)
+    end
+
+    it 'does not change message-path resolution behavior' do
+      dm_event = build(:instagram_message_create_event).with_indifferent_access
+      job_instance = described_class.new
+
+      allow(job_instance).to receive(:dispatch_message)
+      allow(job_instance).to receive(:monotonic_time).and_return(100.0, 100.05, 100.2)
+      expect(job_instance).to receive(:find_channel).with(dm_event[:entry][0][:messaging][0][:recipient][:id]).and_return(instance_double(Channel::Instagram))
+      expect(job_instance).not_to receive(:find_channel).with(dm_event[:entry][0][:id])
+
+      job_instance.perform(dm_event[:entry])
     end
 
     it 'logs unsupported_event_skipped for items with no recognized event key' do
