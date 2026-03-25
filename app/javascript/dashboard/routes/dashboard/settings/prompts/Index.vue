@@ -1,5 +1,7 @@
-<script>
-import { mapGetters } from 'vuex';
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useStore } from 'vuex';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import AddKnowledgeSource from './components/AddKnowledgeSource.vue';
@@ -8,299 +10,208 @@ import GalleryView from 'dashboard/components/widgets/conversation/components/Ga
 import { useAlert } from 'dashboard/composables';
 import Auth from 'dashboard/api/auth';
 
-export default {
-  components: {
-    BaseSettingsHeader,
-    NextButton,
-    AddKnowledgeSource,
-    Modal,
-    GalleryView,
-  },
-  data() {
-    return {
-      showAddKnowledgeSourceModal: false,
-      knowledgeSources: [],
-      loadingKnowledgeSources: false,
-      showDeleteConfirm: false,
-      sourceToDelete: null,
-      showGalleryViewer: false,
-      activeAttachment: {},
-    };
-  },
-  computed: {
-    ...mapGetters({
-      prompts: 'prompts/getPrompts',
-      uiFlags: 'prompts/getUIFlags',
-      currentAccountId: 'getCurrentAccountId',
-    }),
-  },
-  mounted() {
-    this.$store.dispatch('prompts/get');
-    this.fetchKnowledgeSources();
-  },
-  methods: {
-    navigateToEditPrompt(prompt) {
-      this.$router.push({
-        name: 'prompts_edit',
-        params: { id: prompt.id },
-      });
-    },
-    openAddKnowledgeSourceModal() {
-      this.showAddKnowledgeSourceModal = true;
-    },
-    hideAddKnowledgeSourceModal() {
-      this.showAddKnowledgeSourceModal = false;
-    },
-    async fetchKnowledgeSources() {
-      this.loadingKnowledgeSources = true;
-      try {
-        const authData = Auth.getAuthData();
-        const headers = {
-          'Content-Type': 'application/json',
-        };
+const { t } = useI18n();
+const store = useStore();
 
-        if (authData) {
-          headers['access-token'] = authData['access-token'];
-          headers['token-type'] = authData['token-type'];
-          headers.client = authData.client;
-          headers.expiry = authData.expiry;
-          headers.uid = authData.uid;
-        }
+const showAddKnowledgeSourceModal = ref(false);
+const knowledgeSources = ref([]);
+const loadingKnowledgeSources = ref(false);
+const showDeleteConfirm = ref(false);
+const sourceToDelete = ref(null);
+const showGalleryViewer = ref(false);
+const activeAttachment = ref({});
 
-        const response = await fetch(
-          `/api/v1/accounts/${this.currentAccountId}/knowledge_bases`,
-          {
-            method: 'GET',
-            headers,
-          }
-        );
+const currentAccountId = computed(() => store.getters.getCurrentAccountId);
 
-        if (response.ok) {
-          this.knowledgeSources = await response.json();
-        } else {
-          throw new Error('Failed to fetch knowledge sources');
-        }
-      } catch (error) {
-        useAlert(this.$t('KNOWLEDGE_SOURCE.FETCH_ERROR'));
-      } finally {
-        this.loadingKnowledgeSources = false;
-      }
-    },
-    viewKnowledgeSource(source) {
-      if (source.source_type === 'image') {
-        this.openGallery(source);
-      } else if (
-        source.source_type === 'file' ||
-        source.source_type === 'webpage'
-      ) {
-        window.open(source.url, '_blank', 'noopener noreferrer');
-      }
-    },
-    openGallery(source) {
-      // Create an attachment object that GalleryView expects
-      this.activeAttachment = {
-        id: source.id,
-        message_id: source.id, // GalleryView uses this for navigation
-        file_type: 'image',
-        data_url: source.url,
-        created_at: source.created_at,
-        sender: {
-          name: 'Knowledge Base',
-          id: 'system',
-          avatar_url: '',
-        },
-      };
-      this.showGalleryViewer = true;
-    },
-    onCloseGallery() {
-      this.showGalleryViewer = false;
-      this.activeAttachment = {};
-    },
-    confirmDeleteKnowledgeSource(knowledgeSource, event) {
-      // Prevent the click from bubbling up to viewKnowledgeSource
-      event.stopPropagation();
-      this.sourceToDelete = knowledgeSource;
-      this.showDeleteConfirm = true;
-    },
-    async deleteKnowledgeSource() {
-      if (!this.sourceToDelete) return;
-
-      try {
-        const authData = Auth.getAuthData();
-        const headers = {
-          'Content-Type': 'application/json',
-        };
-
-        if (authData) {
-          headers['access-token'] = authData['access-token'];
-          headers['token-type'] = authData['token-type'];
-          headers.client = authData.client;
-          headers.expiry = authData.expiry;
-          headers.uid = authData.uid;
-        }
-
-        const response = await fetch(
-          `/api/v1/accounts/${this.currentAccountId}/knowledge_bases/${this.sourceToDelete.id}`,
-          {
-            method: 'DELETE',
-            headers,
-          }
-        );
-
-        if (response.ok) {
-          useAlert(this.$t('KNOWLEDGE_SOURCE.DELETE_SUCCESS'));
-          this.fetchKnowledgeSources(); // Refresh the list
-        } else {
-          throw new Error('Failed to delete knowledge source');
-        }
-      } catch (error) {
-        useAlert(this.$t('KNOWLEDGE_SOURCE.DELETE_ERROR'));
-      } finally {
-        this.showDeleteConfirm = false;
-        this.sourceToDelete = null;
-      }
-    },
-    cancelDelete() {
-      this.showDeleteConfirm = false;
-      this.sourceToDelete = null;
-    },
-    getSourceIcon(sourceType) {
-      switch (sourceType) {
-        case 'webpage':
-          return 'i-lucide-globe';
-        case 'file':
-          return 'i-lucide-file-text';
-        case 'image':
-          return 'i-lucide-image';
-        default:
-          return 'i-lucide-file';
-      }
-    },
-    getSourceTypeDisplay(sourceType) {
-      switch (sourceType) {
-        case 'webpage':
-          return this.$t('KNOWLEDGE_SOURCE.TYPE.URL');
-        case 'file':
-          return this.$t('KNOWLEDGE_SOURCE.TYPE.FILE');
-        case 'image':
-          return this.$t('KNOWLEDGE_SOURCE.TYPE.IMAGE');
-        default:
-          return this.$t('KNOWLEDGE_SOURCE.TYPE.UNKNOWN');
-      }
-    },
-    formatDate(dateString) {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffTime = Math.abs(now - date);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 1) {
-        return this.$t('KNOWLEDGE_SOURCE.DATE.TODAY');
-      }
-      if (diffDays === 2) {
-        return this.$t('KNOWLEDGE_SOURCE.DATE.YESTERDAY');
-      }
-      if (diffDays <= 7) {
-        return this.$t('KNOWLEDGE_SOURCE.DATE.DAYS_AGO', {
-          count: diffDays - 1,
-        });
-      }
-      if (diffDays <= 14) {
-        return this.$t('KNOWLEDGE_SOURCE.DATE.WEEK_AGO');
-      }
-      if (diffDays <= 30) {
-        return this.$t('KNOWLEDGE_SOURCE.DATE.WEEKS_AGO', {
-          count: Math.ceil(diffDays / 7),
-        });
-      }
-      return this.$t('KNOWLEDGE_SOURCE.DATE.MONTHS_AGO', {
-        count: Math.ceil(diffDays / 30),
-      });
-    },
-    onKnowledgeSourceAdded() {
-      // Refresh the knowledge sources list when a new one is added
-      this.fetchKnowledgeSources();
-    },
-  },
+const getAuthHeaders = () => {
+  const authData = Auth.getAuthData();
+  const headers = { 'Content-Type': 'application/json' };
+  if (authData) {
+    headers['access-token'] = authData['access-token'];
+    headers['token-type'] = authData['token-type'];
+    headers.client = authData.client;
+    headers.expiry = authData.expiry;
+    headers.uid = authData.uid;
+  }
+  return headers;
 };
+
+const fetchKnowledgeSources = async () => {
+  loadingKnowledgeSources.value = true;
+  try {
+    const response = await fetch(
+      `/api/v1/accounts/${currentAccountId.value}/knowledge_bases`,
+      { method: 'GET', headers: getAuthHeaders() }
+    );
+    if (response.ok) {
+      knowledgeSources.value = await response.json();
+    } else {
+      throw new Error('Failed to fetch knowledge sources');
+    }
+  } catch {
+    useAlert(t('KNOWLEDGE_SOURCE.FETCH_ERROR'));
+  } finally {
+    loadingKnowledgeSources.value = false;
+  }
+};
+
+const openAddKnowledgeSourceModal = () => {
+  showAddKnowledgeSourceModal.value = true;
+};
+
+const hideAddKnowledgeSourceModal = () => {
+  showAddKnowledgeSourceModal.value = false;
+};
+
+const openGallery = source => {
+  activeAttachment.value = {
+    id: source.id,
+    message_id: source.id,
+    file_type: 'image',
+    data_url: source.url,
+    created_at: source.created_at,
+    sender: {
+      name: 'Knowledge Base',
+      id: 'system',
+      avatar_url: '',
+    },
+  };
+  showGalleryViewer.value = true;
+};
+
+const viewKnowledgeSource = source => {
+  if (source.source_type === 'image') {
+    openGallery(source);
+  } else if (
+    source.source_type === 'file' ||
+    source.source_type === 'webpage'
+  ) {
+    window.open(source.url, '_blank', 'noopener noreferrer');
+  }
+};
+
+const onCloseGallery = () => {
+  showGalleryViewer.value = false;
+  activeAttachment.value = {};
+};
+
+const confirmDeleteKnowledgeSource = (knowledgeSource, event) => {
+  event.stopPropagation();
+  sourceToDelete.value = knowledgeSource;
+  showDeleteConfirm.value = true;
+};
+
+const deleteKnowledgeSource = async () => {
+  if (!sourceToDelete.value) return;
+  try {
+    const response = await fetch(
+      `/api/v1/accounts/${currentAccountId.value}/knowledge_bases/${sourceToDelete.value.id}`,
+      { method: 'DELETE', headers: getAuthHeaders() }
+    );
+    if (response.ok) {
+      useAlert(t('KNOWLEDGE_SOURCE.DELETE_SUCCESS'));
+      fetchKnowledgeSources();
+    } else {
+      throw new Error('Failed to delete knowledge source');
+    }
+  } catch {
+    useAlert(t('KNOWLEDGE_SOURCE.DELETE_ERROR'));
+  } finally {
+    showDeleteConfirm.value = false;
+    sourceToDelete.value = null;
+  }
+};
+
+const cancelDelete = () => {
+  showDeleteConfirm.value = false;
+  sourceToDelete.value = null;
+};
+
+const getSourceIcon = sourceType => {
+  switch (sourceType) {
+    case 'webpage':
+      return 'i-lucide-globe';
+    case 'file':
+      return 'i-lucide-file-text';
+    case 'image':
+      return 'i-lucide-image';
+    default:
+      return 'i-lucide-file';
+  }
+};
+
+const getSourceTypeDisplay = sourceType => {
+  switch (sourceType) {
+    case 'webpage':
+      return t('KNOWLEDGE_SOURCE.TYPE.URL');
+    case 'file':
+      return t('KNOWLEDGE_SOURCE.TYPE.FILE');
+    case 'image':
+      return t('KNOWLEDGE_SOURCE.TYPE.IMAGE');
+    default:
+      return t('KNOWLEDGE_SOURCE.TYPE.UNKNOWN');
+  }
+};
+
+const formatDate = dateString => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = Math.abs(now - date);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 1) return t('KNOWLEDGE_SOURCE.DATE.TODAY');
+  if (diffDays === 2) return t('KNOWLEDGE_SOURCE.DATE.YESTERDAY');
+  if (diffDays <= 7) {
+    return t('KNOWLEDGE_SOURCE.DATE.DAYS_AGO', { count: diffDays - 1 });
+  }
+  if (diffDays <= 14) return t('KNOWLEDGE_SOURCE.DATE.WEEK_AGO');
+  if (diffDays <= 30) {
+    return t('KNOWLEDGE_SOURCE.DATE.WEEKS_AGO', {
+      count: Math.ceil(diffDays / 7),
+    });
+  }
+  return t('KNOWLEDGE_SOURCE.DATE.MONTHS_AGO', {
+    count: Math.ceil(diffDays / 30),
+  });
+};
+
+const onKnowledgeSourceAdded = () => {
+  fetchKnowledgeSources();
+};
+
+onMounted(() => {
+  fetchKnowledgeSources();
+});
 </script>
 
 <template>
   <div class="flex flex-col w-full">
     <BaseSettingsHeader
-      :title="$t('PROMPTS_PAGE.TITLE')"
-      :description="$t('PROMPTS_PAGE.DESCRIPTION')"
+      :title="t('KNOWLEDGE_BASE_PAGE.TITLE')"
+      :description="t('KNOWLEDGE_BASE_PAGE.DESCRIPTION')"
     >
       <template #actions>
         <NextButton @click="openAddKnowledgeSourceModal">
-          {{ $t('ADD_KNOWLEDGE_SOURCE_BUTTON') }}
+          {{ t('ADD_KNOWLEDGE_SOURCE_BUTTON') }}
         </NextButton>
       </template>
     </BaseSettingsHeader>
 
-    <div v-if="!uiFlags.isFetching" class="mt-6">
-      <div v-if="prompts.length === 0" class="text-center py-8">
-        <p class="text-slate-600 dark:text-slate-400">
-          {{ $t('PROMPTS_PAGE.EMPTY_STATE') }}
-        </p>
-      </div>
-
-      <div v-else class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div
-          v-for="prompt in prompts"
-          :key="prompt.id"
-          data-testid="prompt-card"
-          class="group relative bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 transition-colors cursor-pointer hover:border-slate-300 dark:hover:border-slate-600"
-          @click="navigateToEditPrompt(prompt)"
-        >
-          <div class="flex items-start justify-between mb-3">
-            <h3
-              class="text-lg font-semibold text-slate-900 dark:text-slate-100 line-clamp-1"
-            >
-              {{ prompt.prompt_key }}
-            </h3>
-            <div
-              class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <NextButton
-                v-tooltip.top="$t('PROMPTS_PAGE.EDIT')"
-                data-testid="edit-button"
-                icon="i-lucide-pen"
-                slate
-                xs
-                faded
-                @click.stop="navigateToEditPrompt(prompt)"
-              />
-            </div>
-          </div>
-          <p class="text-slate-600 dark:text-slate-400 text-sm line-clamp-3">
-            {{ prompt.text }}
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <div v-else class="flex justify-center py-8">
-      <div class="text-slate-600 dark:text-slate-400">
-        {{ $t('PROMPTS_PAGE.LOADING') }}
-      </div>
-    </div>
-
     <!-- Knowledge Sources Section -->
     <div class="mt-12">
       <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-6">
-        {{ $t('KNOWLEDGE_SOURCE.TITLE') }}
+        {{ t('KNOWLEDGE_SOURCE.TITLE') }}
       </h2>
 
       <div v-if="loadingKnowledgeSources" class="flex justify-center py-8">
         <div class="text-slate-600 dark:text-slate-400">
-          {{ $t('KNOWLEDGE_SOURCE.LOADING') }}
+          {{ t('KNOWLEDGE_SOURCE.LOADING') }}
         </div>
       </div>
 
       <div v-else-if="knowledgeSources.length === 0" class="text-center py-8">
         <p class="text-slate-600 dark:text-slate-400">
-          {{ $t('KNOWLEDGE_SOURCE.EMPTY_STATE') }}
+          {{ t('KNOWLEDGE_SOURCE.EMPTY_STATE') }}
         </p>
       </div>
 
@@ -321,7 +232,7 @@ export default {
                 {{ source.name }}
               </p>
               <p class="text-sm text-slate-600 dark:text-slate-400">
-                {{ getSourceTypeDisplay(source.source_type) }} •
+                {{ getSourceTypeDisplay(source.source_type) }} &bull;
                 {{ formatDate(source.created_at) }}
               </p>
             </div>
@@ -357,12 +268,12 @@ export default {
     <Modal v-if="showDeleteConfirm" :show="showDeleteConfirm" size="small">
       <div class="flex flex-col">
         <woot-modal-header
-          :header-title="$t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.TITLE')"
+          :header-title="t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.TITLE')"
         />
         <div class="p-6">
           <p class="text-slate-600 dark:text-slate-400">
             {{
-              $t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.MESSAGE', {
+              t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.MESSAGE', {
                 name: sourceToDelete?.name,
               })
             }}
@@ -372,10 +283,10 @@ export default {
           class="flex items-center justify-end gap-3 p-6 border-t border-slate-200 dark:border-slate-700"
         >
           <NextButton slate outline @click="cancelDelete">
-            {{ $t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.CANCEL') }}
+            {{ t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.CANCEL') }}
           </NextButton>
           <NextButton variant="danger" @click="deleteKnowledgeSource">
-            {{ $t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.DELETE') }}
+            {{ t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.DELETE') }}
           </NextButton>
         </div>
       </div>

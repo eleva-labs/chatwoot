@@ -1,5 +1,5 @@
 {
-  "PROMPTS_PAGE": {
+  "KNOWLEDGE_BASE_PAGE": {
     "TITLE": "Prompts",
     "DESCRIPTION": "Configure prompts for your account. These prompts can be used in the composer to quickly write a message.",
     "ADD_BUTTON": "Add prompt",
