@@ -92,6 +92,12 @@
       "IMAGE": "Image",
       "UNKNOWN": "Unknown"
     },
+    "STATUS": {
+      "PENDING": "Pending...",
+      "PROCESSING": "Processing...",
+      "PROCESSED": "Added",
+      "FAILED": "Failed"
+    },
     "DATE": {
       "TODAY": "Added today",
       "YESTERDAY": "Added yesterday",
@@ -131,6 +137,9 @@
     },
     "URL": {
       "UPLOAD_ERROR": "Failed to process URL. Please check the URL and try again."
+    },
+    "UPLOAD": {
+      "SUPPORTED_TYPES": "Supported: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, JPG, PNG, GIF, WEBP"
     }
   }
 }

@@ -89,6 +89,12 @@
       "IMAGE": "Imagen",
       "UNKNOWN": "Desconocido"
     },
+    "STATUS": {
+      "PENDING": "Pendiente...",
+      "PROCESSING": "Procesando...",
+      "PROCESSED": "Agregado",
+      "FAILED": "Fallido"
+    },
     "DATE": {
       "TODAY": "Añadido hoy",
       "YESTERDAY": "Añadido ayer",
@@ -128,6 +134,9 @@
     },
     "URL": {
       "UPLOAD_ERROR": "Error al procesar la URL. Por favor verifica la URL e intenta de nuevo."
+    },
+    "UPLOAD": {
+      "SUPPORTED_TYPES": "Soportados: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, JPG, PNG, GIF, WEBP"
     }
   }
 }
