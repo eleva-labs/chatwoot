@@ -327,6 +327,14 @@
         "QR_PLEASE_WAIT": "Generating QR code. Please wait...",
         "QR_EXPIRED": "QR code expired or retry limit reached",
         "CHANNEL_CREATE_ERROR": "An error occurred while creating the channel",
+        "CONNECTION_ERROR": "Failed to connect. Please try again.",
+        "STATUS": {
+          "INIT": "Initializing channel...",
+          "LAUNCH": "Starting connection...",
+          "QR": "QR code ready, please scan",
+          "AUTH": "Connected!",
+          "WAITING": "Preparing connection..."
+        },
         "SETUP_MODE": {
           "TITLE": "Choose Setup Method",
           "QR_CODE": "QR Code Setup",

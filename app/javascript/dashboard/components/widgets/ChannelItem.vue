@@ -25,9 +25,8 @@ const hasInstagramConfigured = computed(() => {
 
 const isActive = computed(() => {
   const { key } = props.channel;
-  if (Object.keys(props.enabledFeatures).length === 0) {
-    return false;
-  }
+  // Do not gate every channel on a non-empty `features` hash. Self-hosted accounts
+  // can have an empty bitmask while still offering WhatsApp (Whapi), SMS, etc.
   if (key === 'website') {
     return props.enabledFeatures.channel_website;
   }
