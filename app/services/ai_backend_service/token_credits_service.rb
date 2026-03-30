@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'httparty'
-require 'openssl'
 
 # TokenCreditsService - Manage token credits in AI Backend
 #
@@ -12,13 +11,14 @@ require 'openssl'
 # - reset_credits(store_id:, ...) - Resets credits using account.id with id_type=external
 class AiBackendService::TokenCreditsService
   include HTTParty
+  include AiBackendService::RequestSigning
 
   class TokenCreditsError < StandardError; end
 
-  BALANCE_PATH = '/api/token-credits/balance'
-  TRANSACTIONS_PATH = '/api/token-credits/transactions'
-  ADD_CREDITS_PATH = '/api/token-credits/add'
-  RESET_CREDITS_PATH = '/api/token-credits/reset'
+  BALANCE_PATH = '/api/usage/credits/balance'
+  TRANSACTIONS_PATH = '/api/usage/credits/transactions'
+  ADD_CREDITS_PATH = '/api/usage/credits/add'
+  RESET_CREDITS_PATH = '/api/usage/credits/reset'
   DEFAULT_TRANSACTION_LIMIT = 100
 
   def initialize(id_type: AiBackendService::Constants::IdType::EXTERNAL)
@@ -110,46 +110,14 @@ class AiBackendService::TokenCreditsService
   private
 
   def headers(payload, timestamp)
-    api_key = ai_backend_api_key
-    raise TokenCreditsError, 'AI Backend API key is not configured' if api_key.blank?
-
-    {
-      'Content-Type' => 'application/json',
-      'Authorization' => "Bearer #{api_key}",
-      'X-Chatwoot-Timestamp' => timestamp.to_s,
-      'X-Chatwoot-Signature' => generate_signature(payload, timestamp)
-    }
-  end
-
-  def generate_signature(payload, timestamp)
-    secret = ai_backend_webhook_secret
-    raise TokenCreditsError, 'AI Backend webhook secret is not configured' if secret.blank?
-
-    message = "#{timestamp}.#{canonical_payload(payload)}"
-    OpenSSL::HMAC.hexdigest('SHA256', secret, message)
-  end
-
-  def canonical_payload(payload)
-    normalized_payload = normalize_payload(payload)
-    # Use compact JSON format (no spaces) to match Python's json.dumps(..., separators=(',', ':'))
-    JSON.generate(normalized_payload, space: nil, space_before: nil)
-  end
-
-  def normalize_payload(obj)
-    case obj
-    when Hash
-      obj.keys.sort.each_with_object({}) do |key, acc|
-        acc[key] = normalize_payload(obj[key])
-      end
-    when Array
-      obj.map { |item| normalize_payload(item) }
-    else
-      obj
-    end
-  end
-
-  def current_timestamp
-    Time.now.to_i
+    signed_headers(
+      payload: payload || {},
+      timestamp: timestamp,
+      bearer_token: ai_backend_api_key,
+      require_bearer: true
+    )
+  rescue StandardError => e
+    raise TokenCreditsError, e.message
   end
 
   def handle_response(response)
@@ -180,11 +148,6 @@ class AiBackendService::TokenCreditsService
   def ai_backend_api_key
     ENV['AI_BACKEND_API_KEY'] ||
       Rails.application.credentials.dig(:ai_backend, :api_key)
-  end
-
-  def ai_backend_webhook_secret
-    ENV['AI_BACKEND_WEBHOOK_SECRET'] ||
-      Rails.application.credentials.dig(:ai_backend, :webhook_secret)
   end
 end
 

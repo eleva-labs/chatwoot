@@ -8,26 +8,24 @@ require 'httparty'
 # - update_store(account_id, attrs) - Updates store by Chatwoot account.id
 class AiBackendService::StoreService
   include HTTParty
+  include AiBackendService::RequestSigning
 
   class StoreError < StandardError; end
 
   def initialize(id_type: AiBackendService::Constants::IdType::EXTERNAL)
     @id_type = id_type
     self.class.base_uri ai_backend_api_url
-    self.class.headers({
-                         'Content-Type' => 'application/json',
-                         'Authorization' => 'application/json'
-                       })
   end
 
   # Create store with external_id (Chatwoot account.id)
   def create_store(account, user_email)
     store_data = AiBackendService::Schemas::StoreRequest.from_account(account, user_email)
+    payload = store_data.to_h
 
     response = self.class.post(
       "#{ai_backend_api_url}/api/stores",
-      body: store_data.to_h.to_json,
-      headers: self.class.headers
+      body: payload.to_json,
+      headers: request_headers(payload)
     )
 
     handle_response(response)
@@ -40,7 +38,7 @@ class AiBackendService::StoreService
     response = self.class.get(
       "#{ai_backend_api_url}/api/stores/#{store_id}",
       query: { id_type: @id_type },
-      headers: self.class.headers
+      headers: request_headers({})
     )
 
     handle_response(response)
@@ -51,12 +49,13 @@ class AiBackendService::StoreService
   # Update store by ID
   def update_store(store_id, attributes)
     store_data = AiBackendService::Schemas::StoreRequest.new(**attributes)
+    payload = store_data.to_h
 
     response = self.class.put(
       "#{ai_backend_api_url}/api/stores/#{store_id}",
       query: { id_type: @id_type },
-      body: store_data.to_h.to_json,
-      headers: self.class.headers
+      body: payload.to_json,
+      headers: request_headers(payload)
     )
 
     handle_response(response)
@@ -71,7 +70,7 @@ class AiBackendService::StoreService
     response = self.class.delete(
       "#{ai_backend_api_url}/api/stores/#{store_id}",
       query: { id_type: @id_type, cascade: cascade },
-      headers: self.class.headers
+      headers: request_headers({})
     )
 
     handle_delete_response(response)
@@ -79,6 +78,17 @@ class AiBackendService::StoreService
   end
 
   private
+
+  def request_headers(payload)
+    signed_headers(
+      payload: payload || {},
+      timestamp: current_timestamp,
+      bearer_token: ai_backend_api_key,
+      require_bearer: false
+    )
+  rescue StandardError => e
+    raise StoreError, "Failed to build signed headers: #{e.message}"
+  end
 
   def handle_response(response)
     case response.code
@@ -112,5 +122,10 @@ class AiBackendService::StoreService
       ENV['AI_BACKEND_URL'] ||
       Rails.application.credentials.ai_backend_api_url ||
       'http://localhost:8000'
+  end
+
+  def ai_backend_api_key
+    ENV['AI_BACKEND_API_KEY'] ||
+      Rails.application.credentials.dig(:ai_backend, :api_key)
   end
 end
