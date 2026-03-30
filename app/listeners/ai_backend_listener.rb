@@ -61,8 +61,9 @@ class AiBackendListener < BaseListener
   # Handle account deletion -> delete store from AI backend
   def account_deleted(event)
     account_id = event.data[:account_id]
+    ai_backend_store_id = event.data[:ai_backend_store_id]
 
-    AiBackend::DeleteStoreJob.perform_later(account_id)
+    AiBackend::DeleteStoreJob.perform_later(account_id, ai_backend_store_id)
 
     Rails.logger.info "AI Backend: Enqueued store deletion for account #{account_id}"
   rescue StandardError => e

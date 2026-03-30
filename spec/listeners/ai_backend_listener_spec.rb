@@ -235,10 +235,10 @@ RSpec.describe AiBackendListener do
   end
 
   describe '#account_deleted' do
-    let(:event) { double(data: { account_id: 123 }) }
+    let(:event) { double(data: { account_id: 123, ai_backend_store_id: 'store-uuid-123' }) }
 
-    it 'enqueues DeleteStoreJob with account ID' do
-      expect(AiBackend::DeleteStoreJob).to receive(:perform_later).with(123)
+    it 'enqueues DeleteStoreJob with account ID and store UUID' do
+      expect(AiBackend::DeleteStoreJob).to receive(:perform_later).with(123, 'store-uuid-123')
 
       listener.account_deleted(event)
     end

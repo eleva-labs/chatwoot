@@ -251,6 +251,20 @@ class Account < ApplicationRecord
     custom_attributes&.dig('ai_token_impacted_conversations_count')&.to_i || 0
   end
 
+  def ai_backend_store_id
+    custom_attributes&.dig('ai_backend_store_id')
+  end
+
+  def set_ai_backend_store_id!(store_id, external_id: nil)
+    return if store_id.blank?
+
+    attrs = custom_attributes || {}
+    attrs['ai_backend_store_id'] = store_id.to_s
+    attrs['ai_backend_store_external_id'] = external_id.to_s if external_id.present?
+    attrs['ai_backend_store_synced_at'] = Time.current.iso8601
+    update!(custom_attributes: attrs)
+  end
+
   private
 
   def update_ai_token_balance_attributes(status:, timestamp:, impacted_count: :not_provided)
@@ -267,7 +281,12 @@ class Account < ApplicationRecord
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(ACCOUNT_DELETED, Time.zone.now, account_id: id)
+    Rails.configuration.dispatcher.dispatch(
+      ACCOUNT_DELETED,
+      Time.zone.now,
+      account_id: id,
+      ai_backend_store_id: ai_backend_store_id
+    )
   end
 
   def enqueue_stripe_provisioning_job

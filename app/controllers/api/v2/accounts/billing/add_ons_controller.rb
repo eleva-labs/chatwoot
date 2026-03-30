@@ -285,55 +285,72 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
     token_limit = balance_data['token_limit'].to_i
     available_tokens = balance_data['available_tokens'].to_i
 
+    backend_base_limit = balance_data['base_limit']
+    backend_purchased = balance_data['purchased_credits']
+
     plan_base_limit_value = plan_ai_token_limit
     unlimited_plan = plan_base_limit_value == -1
-
-    base_limit_numeric =
-      if plan_base_limit_value.nil? || plan_base_limit_value.negative?
-        nil
-      else
-        plan_base_limit_value
-      end
-
-    purchased_from_history = Array(transaction_entries).sum { |entry| entry['tokens_added'].to_i }
-    purchased_total =
-      if base_limit_numeric
-        [token_limit - base_limit_numeric, 0].max
-      else
-        [purchased_from_history, 0].max
-      end
 
     calculated_base_limit =
       if unlimited_plan
         -1
-      elsif base_limit_numeric
-        base_limit_numeric
+      elsif backend_base_limit.present?
+        backend_base_limit.to_i
+      elsif plan_base_limit_value.present? && !plan_base_limit_value.negative?
+        plan_base_limit_value
       else
-        [token_limit - purchased_total, 0].max
+        token_limit
+      end
+
+    purchased_total =
+      if backend_purchased.present?
+        backend_purchased.to_i
+      else
+        purchased_from_history = purchases_in_current_period(transaction_entries).sum { |entry| entry['tokens_added'].to_i }
+        fallback_from_balance = calculated_base_limit >= 0 ? [token_limit - calculated_base_limit, 0].max : 0
+        [fallback_from_balance, purchased_from_history, 0].compact.max
       end
 
     total_allowed_value =
       if unlimited_plan
         -1
-      elsif base_limit_numeric
-        base_limit_numeric + purchased_total
       else
-        token_limit
+        effective_base = [calculated_base_limit, 0].max
+        effective_base + purchased_total
       end
 
     included_used =
       if unlimited_plan
         tokens_used
-      elsif calculated_base_limit.zero?
+      elsif calculated_base_limit <= 0
         0
       else
         [tokens_used, calculated_base_limit].min
       end
 
+    purchased_used =
+      if unlimited_plan
+        0
+      else
+        [tokens_used - included_used, 0].max
+      end
+
+    purchased_remaining =
+      if unlimited_plan
+        0
+      else
+        [purchased_total - purchased_used, 0].max
+      end
+
+    included_remaining =
+      if unlimited_plan
+        -1
+      else
+        [[calculated_base_limit, 0].max - included_used, 0].max
+      end
+
     usage_denominator =
-      if unlimited_plan || total_allowed_value.to_i <= 0
-        nil
-      elsif total_allowed_value == -1
+      if unlimited_plan || total_allowed_value <= 0
         nil
       else
         total_allowed_value
@@ -358,7 +375,11 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
       can_create: unlimited_plan ? true : remaining_value.positive?,
       approaching_limit: usage_denominator.present? ? usage_percentage >= 80 : false,
       at_limit: unlimited_plan ? false : !remaining_value.positive?,
-      included_used: included_used
+      included_used: included_used,
+      included_remaining: included_remaining,
+      purchased_used: purchased_used,
+      purchased_remaining: purchased_remaining,
+      current_period_purchases: purchased_total
     }
   end
 
@@ -376,6 +397,33 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
     token_limit.to_i
   rescue StandardError => e
     Rails.logger.error "Error resolving AI token base limit for plan #{plan_name}: #{e.message}"
+    nil
+  end
+
+  def purchases_in_current_period(entries)
+    period_start = current_billing_period_start
+
+    Array(entries).select do |entry|
+      timestamp = transaction_timestamp(entry)
+      timestamp.nil? || timestamp >= period_start
+    end
+  end
+
+  def current_billing_period_start
+    period_start_timestamp = current_account.custom_attributes&.dig('current_period_start')
+    return Time.zone.at(period_start_timestamp.to_i) if period_start_timestamp.present?
+
+    Time.current.beginning_of_month
+  end
+
+  def transaction_timestamp(entry)
+    raw_timestamp = entry['purchased_at'] || entry['created_at'] || entry['occurred_at'] || entry['timestamp']
+    return nil if raw_timestamp.blank?
+
+    return Time.zone.at(raw_timestamp.to_i) if raw_timestamp.is_a?(Numeric)
+
+    Time.zone.parse(raw_timestamp.to_s)
+  rescue ArgumentError, TypeError
     nil
   end
 end

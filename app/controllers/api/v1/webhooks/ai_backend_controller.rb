@@ -79,6 +79,9 @@ module Api
           store_id = payload['store_id']
           raise ActiveRecord::RecordNotFound if store_id.blank?
 
+          account = Account.where("custom_attributes ->> 'ai_backend_store_id' = ?", store_id.to_s).first
+          return account if account
+
           # AI Backend sends the real UUID (store.id) in webhook payloads
           # Query AI Backend to get the external_id (account.id) from the UUID
           begin
@@ -90,6 +93,7 @@ module Api
             account = Account.find_by(id: external_id)
             raise ActiveRecord::RecordNotFound unless account
 
+            persist_store_mapping(account, store_response)
             account
           rescue AiBackendService::StoreService::StoreError => e
             Rails.logger.error "Failed to lookup store by UUID in AI Backend: #{e.message}"
@@ -110,6 +114,15 @@ module Api
 
         def account_not_found_message
           "Account with store_id #{payload['store_id']} not found"
+        end
+
+        def persist_store_mapping(account, store_response)
+          return unless store_response.respond_to?(:id) && store_response.id.present?
+          return if account.ai_backend_store_id == store_response.id.to_s
+
+          account.set_ai_backend_store_id!(store_response.id, external_id: store_response.external_id)
+        rescue StandardError => e
+          Rails.logger.error "Failed to persist AI Backend store mapping for account #{account.id}: #{e.message}"
         end
 
         def verify_webhook_signature!

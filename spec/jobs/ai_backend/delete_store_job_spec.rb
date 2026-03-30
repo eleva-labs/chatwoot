@@ -18,6 +18,17 @@ RSpec.describe AiBackend::DeleteStoreJob, type: :job do
         described_class.new.perform(account_id)
       end
 
+      it 'deletes by internal AI Backend store ID when available' do
+        internal_service = instance_double(AiBackendService::StoreService)
+        allow(AiBackendService::StoreService).to receive(:new)
+          .with(id_type: AiBackendService::Constants::IdType::INTERNAL)
+          .and_return(internal_service)
+
+        expect(internal_service).to receive(:delete_store).with('store-uuid-123').and_return(true)
+
+        described_class.new.perform(account_id, 'store-uuid-123')
+      end
+
       it 'logs success' do
         allow(service).to receive(:delete_store).and_return(true)
         allow(Rails.logger).to receive(:info)
