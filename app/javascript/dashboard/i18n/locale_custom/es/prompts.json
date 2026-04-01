@@ -1,7 +1,7 @@
 {
-  "PROMPTS_PAGE": {
-    "TITLE": "Prompts",
-    "DESCRIPTION": "Configura los prompts para tu cuenta. Estos prompts se pueden usar en el compositor para escribir rápidamente un mensaje.",
+  "KNOWLEDGE_BASE_PAGE": {
+    "TITLE": "Base de Conocimiento",
+    "DESCRIPTION": "Administra tu base de conocimiento. Añade fuentes de conocimiento para ayudar a tus agentes a responder más rápido y con mayor precisión.",
     "ADD_BUTTON": "Añadir prompt",
     "ADD_KNOWLEDGE_SOURCE_BUTTON": "Añadir fuente de conocimiento",
     "KNOWLEDGE_SOURCE": {
@@ -89,6 +89,12 @@
       "IMAGE": "Imagen",
       "UNKNOWN": "Desconocido"
     },
+    "STATUS": {
+      "PENDING": "Pendiente...",
+      "PROCESSING": "Procesando...",
+      "PROCESSED": "Agregado",
+      "FAILED": "Fallido"
+    },
     "DATE": {
       "TODAY": "Añadido hoy",
       "YESTERDAY": "Añadido ayer",
@@ -128,6 +134,9 @@
     },
     "URL": {
       "UPLOAD_ERROR": "Error al procesar la URL. Por favor verifica la URL e intenta de nuevo."
+    },
+    "UPLOAD": {
+      "SUPPORTED_TYPES": "Soportados: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, JPG, PNG, GIF, WEBP"
     }
   }
 } 

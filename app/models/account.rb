@@ -110,9 +110,7 @@ class Account < ApplicationRecord
   before_validation :validate_limit_keys
   before_create :enable_default_custom_features
   after_create_commit :notify_creation
-  # Note: Stripe subscription is now created synchronously in AccountBuilder
-  # No longer using after_create_commit callback to avoid duplicate creation
-  # after_create_commit :enqueue_stripe_provisioning_job
+  before_destroy :cleanup_weaviate_tenant
   after_destroy :remove_account_sequences
   after_destroy_commit :dispatch_destroy_event
 
@@ -331,6 +329,10 @@ class Account < ApplicationRecord
   def remove_account_sequences
     ActiveRecord::Base.connection.exec_query("drop sequence IF EXISTS camp_dpid_seq_#{id}")
     ActiveRecord::Base.connection.exec_query("drop sequence IF EXISTS conv_dpid_seq_#{id}")
+  end
+
+  def cleanup_weaviate_tenant
+    KnowledgeBase::WeaviateService.delete_tenant!(id)
   end
 end
 

@@ -115,7 +115,7 @@ const onClickUpdate = () => {
           @click="onClickGoBack"
         />
         <div class="text-sm text-slate-600 dark:text-slate-400">
-          {{ localPrompt.prompt_key || t('PROMPTS_PAGE.EDIT.TITLE') }}
+          {{ localPrompt.prompt_key || t('KNOWLEDGE_BASE_PAGE.EDIT.TITLE') }}
         </div>
       </div>
       <div class="flex items-center gap-3">
@@ -124,18 +124,18 @@ const onClickUpdate = () => {
           class="inline-flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400"
         >
           <i class="i-lucide-loader-2 animate-spin w-4 h-4" />
-          {{ t('PROMPTS_PAGE.EDITOR.SAVING') }}
+          {{ t('KNOWLEDGE_BASE_PAGE.EDITOR.SAVING') }}
         </span>
         <span
           v-else-if="isSaved"
           class="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400"
         >
           <i class="i-lucide-check w-4 h-4" />
-          {{ t('PROMPTS_PAGE.EDITOR.SAVED') }}
+          {{ t('KNOWLEDGE_BASE_PAGE.EDITOR.SAVED') }}
         </span>
         <NextButton
           v-if="!isReadonly"
-          :label="$t('PROMPTS_PAGE.EDITOR.UPDATE_BUTTON_TEXT')"
+          :label="$t('KNOWLEDGE_BASE_PAGE.EDITOR.UPDATE_BUTTON_TEXT')"
           size="sm"
           :is-loading="isUpdating"
           :disabled="isUpdating"
@@ -151,7 +151,7 @@ const onClickUpdate = () => {
         :key="localPrompt.prompt_key || 'new-prompt'"
         v-model="promptText"
         class="py-0 pb-10 pl-4 rtl:pr-4 rtl:pl-0 h-fit"
-        :placeholder="t('PROMPTS_PAGE.FORM.TEXT.PLACEHOLDER')"
+        :placeholder="t('KNOWLEDGE_BASE_PAGE.FORM.TEXT.PLACEHOLDER')"
         :enabled-menu-options="PROMPT_EDITOR_MENU_OPTIONS"
         autofocus
       />

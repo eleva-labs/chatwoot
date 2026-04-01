@@ -189,6 +189,11 @@ gem 'iso-639'
 gem 'ruby-openai'
 gem 'ai-agents', '>= 0.4.3'
 
+# RAG Knowledge Base
+gem 'weaviate-ruby', '>= 0.9.0'
+gem 'pdf-reader'
+gem 'docx'
+
 # TODO: Move this gem as a dependency of ai-agents
 gem 'ruby_llm-schema'
 

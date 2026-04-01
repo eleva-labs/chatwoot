@@ -12,7 +12,7 @@
 #  csat_config                   :jsonb            not null
 #  csat_survey_enabled           :boolean          default(FALSE)
 #  email_address                 :string
-#  enable_auto_assignment        :boolean          default(TRUE)
+#  enable_auto_assignment        :boolean          default(FALSE)
 #  enable_email_collect          :boolean          default(TRUE)
 #  greeting_enabled              :boolean          default(FALSE)
 #  greeting_message              :string

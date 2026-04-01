@@ -4,7 +4,7 @@ This guide provides step-by-step instructions for diagnosing performance issues,
 
 ## Prerequisites
 
-- AWS CLI configured with `chatscomm` profile
+- AWS CLI configured with `chatscommerce-sso` profile
 - Access to CloudWatch, ECS, and RDS services
 - Basic understanding of Chatwoot architecture
 
@@ -12,7 +12,7 @@ This guide provides step-by-step instructions for diagnosing performance issues,
 
 ### Environment Setup
 ```bash
-export AWS_PROFILE=chatscomm
+export AWS_PROFILE=chatscommerce-sso
 ```
 
 ### Key Infrastructure Components

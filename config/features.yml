@@ -227,3 +227,6 @@
   display_name: Contacts
   enabled: true
   tier: community
+- name: prompts
+  display_name: Knowledge Base
+  enabled: true
