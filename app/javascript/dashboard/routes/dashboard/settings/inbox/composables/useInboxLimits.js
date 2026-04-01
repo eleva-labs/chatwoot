@@ -1,104 +1,33 @@
 import { ref, computed, onMounted } from 'vue';
-
-const sharedState = {
-  limits: null,
-  addOns: null,
-  limitsFetchedAt: null,
-  addOnsFetchedAt: null,
-  error: null,
-};
-
-let limitsPromise = null;
-let addOnsPromise = null;
+import {
+  getSharedState,
+  hasSuccessfulLimitsFetch,
+  hasSuccessfulAddOnsFetch,
+  fetchLimitsInternal,
+  fetchAddOnsInternal,
+} from 'dashboard/composables/billingDataCache';
 
 /**
  * Composable for inbox/channel limit usage summary and pricing.
- * Reused across Billing > Inboxes card and Settings > Channels screens.
+ * Uses the shared billing cache to avoid duplicate API requests.
  *
  * @param {Object} store - Vuex store instance
  * @returns {Object} Usage state, pricing, and refresh helpers
  */
 export function useInboxLimits(store) {
+  const sharedState = getSharedState();
+
   const limits = ref(sharedState.limits ? { ...sharedState.limits } : {});
   const addOns = ref(sharedState.addOns ? { ...sharedState.addOns } : {});
   const isLoading = ref(false);
-  const hasLoadedData = ref(
-    typeof sharedState.limitsFetchedAt === 'number' &&
-      sharedState.limitsFetchedAt > 0
-  );
+  const hasLoadedData = ref(hasSuccessfulLimitsFetch());
   const limitsError = ref(sharedState.error);
-
-  const hasSuccessfulLimitsFetch = () =>
-    typeof sharedState.limitsFetchedAt === 'number' &&
-    sharedState.limitsFetchedAt > 0;
-
-  const hasSuccessfulAddOnsFetch = () =>
-    typeof sharedState.addOnsFetchedAt === 'number' &&
-    sharedState.addOnsFetchedAt > 0;
 
   const syncFromCache = () => {
     limits.value = sharedState.limits ? { ...sharedState.limits } : {};
     addOns.value = sharedState.addOns ? { ...sharedState.addOns } : {};
     limitsError.value = sharedState.error;
     hasLoadedData.value = hasSuccessfulLimitsFetch();
-  };
-
-  const fetchLimitsInternal = async (force = false) => {
-    if (!force && hasSuccessfulLimitsFetch()) {
-      return sharedState.limits;
-    }
-
-    if (limitsPromise) {
-      return limitsPromise;
-    }
-
-    limitsPromise = (async () => {
-      try {
-        const response = await store.dispatch('accounts/fetchAddOnLimits');
-        if (response?.data?.data) {
-          sharedState.limits = response.data.data.limits || {};
-          sharedState.limitsFetchedAt = Date.now();
-        }
-        return sharedState.limits;
-      } catch (error) {
-        sharedState.error =
-          error?.response?.data?.error || error?.message || 'UNKNOWN_ERROR';
-        throw error;
-      } finally {
-        limitsPromise = null;
-      }
-    })();
-
-    return limitsPromise;
-  };
-
-  const fetchAddOnsInternal = async (force = false) => {
-    if (!force && hasSuccessfulAddOnsFetch()) {
-      return sharedState.addOns;
-    }
-
-    if (addOnsPromise) {
-      return addOnsPromise;
-    }
-
-    addOnsPromise = (async () => {
-      try {
-        const response = await store.dispatch('accounts/fetchAddOns');
-        if (response?.data?.data) {
-          sharedState.addOns = response.data.data.add_ons || {};
-          sharedState.addOnsFetchedAt = Date.now();
-        }
-        return sharedState.addOns;
-      } catch (error) {
-        sharedState.error =
-          error?.response?.data?.error || error?.message || 'UNKNOWN_ERROR';
-        throw error;
-      } finally {
-        addOnsPromise = null;
-      }
-    })();
-
-    return addOnsPromise;
   };
 
   const fetchData = async (force = false) => {
@@ -110,10 +39,9 @@ export function useInboxLimits(store) {
     isLoading.value = true;
     try {
       await Promise.all([
-        fetchLimitsInternal(force),
-        fetchAddOnsInternal(force),
+        fetchLimitsInternal(store, force),
+        fetchAddOnsInternal(store, force),
       ]);
-      // Only clear error when both succeed
       sharedState.error = null;
     } catch (error) {
       limitsError.value = sharedState.error;
@@ -129,7 +57,7 @@ export function useInboxLimits(store) {
   };
 
   const fetchAddOns = async (force = false) => {
-    await fetchAddOnsInternal(force);
+    await fetchAddOnsInternal(store, force);
     syncFromCache();
   };
 
@@ -148,7 +76,7 @@ export function useInboxLimits(store) {
     return Math.min(current, included);
   });
 
-  // Extra inboxes used (reuses exact formula from useAgentSeatLimits)
+  // Extra inboxes used
   const extraInboxesUsed = computed(() => {
     const current = currentUsage.value;
     const included = includedLimit.value;

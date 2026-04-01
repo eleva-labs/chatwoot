@@ -47,16 +47,13 @@ class BillingAPI extends ApiClient {
   }
 
   // POST /api/v2/accounts/:account_id/billing/add_ons
-  updateAddOn(addOnType, action, quantity = null, skipValidation = false) {
+  updateAddOn(addOnType, action, quantity = null) {
     const payload = {
       add_on_type: addOnType,
       action: action,
     };
     if (quantity !== null) {
       payload.quantity = quantity;
-    }
-    if (skipValidation) {
-      payload.skip_validation = true;
     }
     return axios.post(`${this.url}billing/add_ons`, payload);
   }

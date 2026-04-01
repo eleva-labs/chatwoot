@@ -1,40 +1,27 @@
 import { ref, computed, onMounted } from 'vue';
-
-const sharedState = {
-  limits: null,
-  addOns: null,
-  limitsFetchedAt: null,
-  addOnsFetchedAt: null,
-  error: null,
-};
-
-let limitsPromise = null;
-let addOnsPromise = null;
+import {
+  getSharedState,
+  hasSuccessfulLimitsFetch,
+  hasSuccessfulAddOnsFetch,
+  fetchLimitsInternal,
+  fetchAddOnsInternal,
+} from 'dashboard/composables/billingDataCache';
 
 /**
- * Composable for managing agent seat limits and add-on data
- * Reuses the same calculations as BillingLimitsCard.vue to ensure consistency
+ * Composable for managing agent seat limits and add-on data.
+ * Uses the shared billing cache to avoid duplicate API requests.
  *
  * @param {Object} store - Vuex store instance
  * @returns {Object} Computed properties and methods for agent seat management
  */
 export function useAgentSeatLimits(store) {
+  const sharedState = getSharedState();
+
   const limits = ref(sharedState.limits || {});
   const addOns = ref(sharedState.addOns || {});
   const isLoading = ref(false);
-  const hasLoadedData = ref(
-    typeof sharedState.limitsFetchedAt === 'number' &&
-      sharedState.limitsFetchedAt > 0
-  );
+  const hasLoadedData = ref(hasSuccessfulLimitsFetch());
   const limitsError = ref(sharedState.error);
-
-  const hasSuccessfulLimitsFetch = () =>
-    typeof sharedState.limitsFetchedAt === 'number' &&
-    sharedState.limitsFetchedAt > 0;
-
-  const hasSuccessfulAddOnsFetch = () =>
-    typeof sharedState.addOnsFetchedAt === 'number' &&
-    sharedState.addOnsFetchedAt > 0;
 
   const syncFromCache = () => {
     limits.value = sharedState.limits ? { ...sharedState.limits } : {};
@@ -43,71 +30,16 @@ export function useAgentSeatLimits(store) {
     hasLoadedData.value = hasSuccessfulLimitsFetch();
   };
 
-  const fetchLimitsInternal = async (force = false) => {
-    if (!force && hasSuccessfulLimitsFetch()) {
-      return sharedState.limits;
-    }
-
-    if (limitsPromise) {
-      return limitsPromise;
-    }
-
-    limitsPromise = (async () => {
-      try {
-        const response = await store.dispatch('accounts/fetchAddOnLimits');
-        if (response?.data?.data) {
-          sharedState.limits = response.data.data.limits || {};
-          sharedState.limitsFetchedAt = Date.now();
-          sharedState.error = null;
-        }
-        return sharedState.limits;
-      } catch (error) {
-        sharedState.error =
-          error?.response?.data?.error || error?.message || 'UNKNOWN_ERROR';
-        throw error;
-      } finally {
-        limitsPromise = null;
-      }
-    })();
-
-    return limitsPromise;
-  };
-
-  const fetchAddOnsInternal = async (force = false) => {
-    if (!force && sharedState.addOnsFetchedAt) {
-      return sharedState.addOns;
-    }
-
-    if (addOnsPromise) {
-      return addOnsPromise;
-    }
-
-    addOnsPromise = (async () => {
-      try {
-        const response = await store.dispatch('accounts/fetchAddOns');
-        if (response?.data?.data) {
-          sharedState.addOns = response.data.data.add_ons || {};
-          sharedState.addOnsFetchedAt = Date.now();
-        }
-        return sharedState.addOns;
-      } finally {
-        addOnsPromise = null;
-      }
-    })();
-
-    return addOnsPromise;
-  };
-
   // Fetch limits from API
   const fetchLimits = async (force = false) => {
-    if (!force && sharedState.limitsFetchedAt) {
+    if (!force && hasSuccessfulLimitsFetch()) {
       syncFromCache();
       return;
     }
 
     isLoading.value = true;
     try {
-      await fetchLimitsInternal(force);
+      await fetchLimitsInternal(store, force);
     } catch (error) {
       limitsError.value = sharedState.error;
       throw error;
@@ -119,14 +51,14 @@ export function useAgentSeatLimits(store) {
 
   // Fetch add-ons (pricing info) from API
   const fetchAddOns = async (force = false) => {
-    if (!force && sharedState.addOnsFetchedAt) {
+    if (!force && hasSuccessfulAddOnsFetch()) {
       syncFromCache();
       return;
     }
 
     isLoading.value = true;
     try {
-      await fetchAddOnsInternal(force);
+      await fetchAddOnsInternal(store, force);
     } finally {
       syncFromCache();
       isLoading.value = false;
@@ -142,8 +74,8 @@ export function useAgentSeatLimits(store) {
 
     isLoading.value = true;
     try {
-      await fetchLimitsInternal(force);
-      await fetchAddOnsInternal(force);
+      await fetchLimitsInternal(store, force);
+      await fetchAddOnsInternal(store, force);
       sharedState.error = null;
     } catch (error) {
       limitsError.value = sharedState.error;
@@ -173,7 +105,7 @@ export function useAgentSeatLimits(store) {
   // Extra seats purchased
   const extraSeatsPurchased = computed(() => agentLimit.value.purchased || 0);
 
-  // Extra seats used (reuses exact formula from BillingLimitsCard.vue)
+  // Extra seats used
   const extraSeatsUsed = computed(() => {
     const current = agentLimit.value.current || 0;
     const included = includedLimit.value;

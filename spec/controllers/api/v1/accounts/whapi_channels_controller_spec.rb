@@ -156,4 +156,166 @@ RSpec.describe 'WhapiChannelsController', type: :request do
       expect(response.parsed_body['correlation_id']).to be_present
     end
   end
+
+  # Shared setup for reauthorize and initiate_reconnection
+  # Both require a WHAPI channel with token
+  let(:whapi_channel) do
+    create(:channel_whatsapp,
+           account: account,
+           provider: 'whapi',
+           phone_number: '+1234567890',
+           provider_config: {
+             'whapi_channel_id' => 'chan_1',
+             'whapi_channel_token' => 'tok_1',
+             'api_key' => 'tok_1',
+             'connection_status' => 'connected'
+           },
+           sync_templates: false,
+           validate_provider_config: false)
+  end
+  let(:whapi_inbox) do
+    inbox = create(:inbox, account: account, channel: whapi_channel)
+    create(:inbox_member, user: admin, inbox: inbox)
+    inbox
+  end
+
+  describe 'POST /api/v1/accounts/:account_id/whapi_channels/:id/reauthorize' do
+    it 'reauthorizes when channel is connected' do
+      stub_request(:get, 'https://gate.whapi.cloud/health')
+        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
+                   body: { text: 'AUTH' }.to_json)
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/reauthorize",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:ok)
+      data = response.parsed_body
+      expect(data['success']).to be true
+      expect(data['message']).to eq('Channel reauthorized successfully')
+    end
+
+    it 'returns 422 when channel is not connected' do
+      stub_request(:get, 'https://gate.whapi.cloud/health')
+        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
+                   body: { text: 'QR' }.to_json)
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/reauthorize",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      data = response.parsed_body
+      expect(data['success']).to be false
+      expect(data['message']).to include('not connected')
+    end
+
+    it 'returns 422 for non-WHAPI inbox' do
+      other_inbox = create(:inbox, account: account)
+      create(:inbox_member, user: admin, inbox: other_inbox)
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{other_inbox.id}/reauthorize",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to eq('Not a WHAPI WhatsApp inbox')
+    end
+
+    it 'returns not connected when health check errors' do
+      # StandardError is caught inside check_channel_health, returning { connected: false, status: 'ERROR' }
+      # So reauthorize sees a disconnected channel and returns 422
+      stub_request(:get, 'https://gate.whapi.cloud/health')
+        .to_raise(StandardError.new('Connection refused'))
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/reauthorize",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      data = response.parsed_body
+      expect(data['success']).to be false
+      expect(data['message']).to include('not connected')
+    end
+  end
+
+  describe 'POST /api/v1/accounts/:account_id/whapi_channels/:id/initiate_reconnection' do
+    it 'returns connected status when channel is already authenticated' do
+      stub_request(:get, 'https://gate.whapi.cloud/health')
+        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
+                   body: { text: 'AUTH' }.to_json)
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/initiate_reconnection",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:ok)
+      data = response.parsed_body
+      expect(data['status']).to eq('connected')
+      expect(data['whapi_status']).to eq('AUTH')
+    end
+
+    it 'returns QR code when channel is in QR state' do
+      stub_request(:get, 'https://gate.whapi.cloud/health')
+        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
+                   body: { text: 'QR' }.to_json)
+
+      allow_any_instance_of(Whatsapp::Partner::WhapiPartnerService)
+        .to receive(:generate_qr_code_simple)
+        .and_return({ 'image_base64' => 'base64data', 'expires_in' => 20 })
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/initiate_reconnection",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:ok)
+      data = response.parsed_body
+      expect(data['image_base64']).to eq('base64data')
+      expect(data['expires_in']).to eq(20)
+    end
+
+    it 'triggers wakeup and returns starting status for disconnected channel' do
+      stub_request(:get, 'https://gate.whapi.cloud/health')
+        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
+                   body: { text: 'STOP' }.to_json)
+
+      # Stub the wakeup call
+      stub_request(:get, %r{gate\.whapi\.cloud/health\?.*wakeup=true})
+        .to_return(status: 200, body: { status: 'ok' }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/initiate_reconnection",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:ok)
+      data = response.parsed_body
+      expect(data['status']).to eq('starting')
+      expect(data['message']).to include('QR code will be delivered via websocket')
+    end
+
+    it 'returns 422 for non-WHAPI inbox' do
+      other_inbox = create(:inbox, account: account)
+      create(:inbox_member, user: admin, inbox: other_inbox)
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{other_inbox.id}/initiate_reconnection",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to eq('Not a WHAPI WhatsApp inbox')
+    end
+
+    it 'falls back to wakeup when QR fetch fails despite QR status' do
+      stub_request(:get, 'https://gate.whapi.cloud/health')
+        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
+                   body: { text: 'QR' }.to_json)
+
+      allow_any_instance_of(Whatsapp::Partner::WhapiPartnerService)
+        .to receive(:generate_qr_code_simple)
+        .and_return(nil)
+
+      # Stub the wakeup call
+      stub_request(:get, %r{gate\.whapi\.cloud/health\?.*wakeup=true})
+        .to_return(status: 200, body: { status: 'ok' }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+      post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/initiate_reconnection",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:ok)
+      data = response.parsed_body
+      expect(data['status']).to eq('starting')
+    end
+  end
 end

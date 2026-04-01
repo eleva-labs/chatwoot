@@ -204,23 +204,20 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
     purchaseError.value = null;
 
     try {
-      // Purchase the add-on
+      // Purchase the add-on first (required to pass backend limit check)
       await store.dispatch('accounts/purchaseAddOn', {
         add_on_type: 'inbox',
         action: 'add',
       });
 
       // Refresh limits - if this fails, log but don't block channel creation
-      // The user has already been charged, so we must complete their intent
       try {
         await fetchLimits(true);
       } catch (refreshError) {
         // eslint-disable-next-line no-console
         console.warn('Failed to refresh limits after purchase:', refreshError);
-        // Continue anyway - limits will sync on next page load
       }
     } catch (error) {
-      // Only block if the purchase itself failed
       const errorMessage =
         error?.response?.data?.error ||
         error?.message ||
@@ -232,7 +229,22 @@ export function useChannelPurchaseManager({ store, baseLabel, t }) {
       isPurchasingExtraChannel.value = false;
     }
 
-    return creationFn();
+    // Create the channel — if this fails, rollback the purchase
+    try {
+      return await creationFn();
+    } catch (creationError) {
+      // Rollback: remove the add-on we just purchased
+      try {
+        await store.dispatch('accounts/purchaseAddOn', {
+          add_on_type: 'inbox',
+          action: 'remove',
+        });
+      } catch (rollbackError) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to rollback add-on purchase:', rollbackError);
+      }
+      throw creationError;
+    }
   };
 
   return {

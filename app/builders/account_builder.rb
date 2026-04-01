@@ -13,11 +13,8 @@ class AccountBuilder
     ActiveRecord::Base.transaction do
       @account = create_account
       @user = create_and_link_user
+      create_stripe_trial_subscription
     end
-
-    # Create Stripe trial subscription after account creation
-    # This ensures the account exists in the database when we call Stripe
-    create_stripe_trial_subscription if @account
 
     [@user, @account]
   rescue StandardError => e

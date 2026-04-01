@@ -186,12 +186,11 @@ const confirmationDetails = computed(() => {
   return details;
 });
 
-const removeExtraAgentSeat = async (skipValidation = false) => {
+const removeExtraAgentSeat = async () => {
   try {
     await store.dispatch('accounts/purchaseAddOn', {
       add_on_type: 'agent',
       action: 'remove',
-      skip_validation: skipValidation,
     });
     return true;
   } catch (error) {
@@ -206,21 +205,13 @@ const deleteAgent = async id => {
   const hadExtraSeat = !!removalPreview.value?.estimated_credit;
 
   try {
-    // If this was an extra seat removal, remove from Stripe FIRST before deleting agent
-    // This ensures validation works correctly and proration credit is calculated properly
-    if (hadExtraSeat) {
-      const stripeRemovalSuccess = await removeExtraAgentSeat(true);
-      if (!stripeRemovalSuccess) {
-        // If Stripe removal fails, don't proceed with agent deletion
-        return;
-      }
-    }
-
-    // Now delete the agent
+    // Delete the agent first (frees the seat)
     await store.dispatch('agents/delete', id);
 
-    // Refresh limits after deletion
+    // Then remove the extra seat from Stripe
+    // If this fails, the agent is already deleted (safe: user has an unused extra seat)
     if (hadExtraSeat) {
+      await removeExtraAgentSeat();
       await Promise.all([fetchLimits(true), fetchAddOns(true)]);
     }
 

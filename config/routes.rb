@@ -425,29 +425,25 @@ Rails.application.routes.draw do
           
           # Billing add-ons and conversation packs
           namespace :billing do
-            resource :add_ons, only: [:index, :update] do
-              get :index, on: :collection
-              post :update, on: :collection
-              post :preview, on: :collection
-              post :preview_purchase, on: :collection
-              get :limits, on: :collection
-              get :breakdown, on: :collection
-            end
-            
-            resources :conversation_packs, only: [] do
-              collection do
-                get '/', action: :index  # List available packs
-                get '/check_payment_method', action: :check_payment_method  # Check if payment method exists
-                post '/purchase', action: :purchase  # Purchase selected pack
-              end
+            resource :add_ons, only: [] do
+              get '/', action: :index
+              post '/', action: :update
+              post :preview
+              post :preview_purchase
+              get :limits
+              get :breakdown
             end
 
-            resources :ai_token_credits, only: [] do
-              collection do
-                get '/', action: :index
-                get '/check_payment_method', action: :check_payment_method
-                post '/purchase', action: :purchase
-              end
+            resource :conversation_packs, only: [] do
+              get '/', action: :index
+              get :check_payment_method
+              post :purchase
+            end
+
+            resource :ai_token_credits, only: [] do
+              get '/', action: :index
+              get :check_payment_method
+              post :purchase
             end
           end
           

@@ -104,12 +104,11 @@ const confirmationDetails = computed(() => {
   return details;
 });
 
-const removeExtraInboxSeat = async (skipValidation = false) => {
+const removeExtraInboxSeat = async () => {
   try {
     await store.dispatch('accounts/purchaseAddOn', {
       add_on_type: 'inbox',
       action: 'remove',
-      skip_validation: skipValidation,
     });
     return true;
   } catch (error) {
@@ -124,21 +123,13 @@ const deleteInbox = async ({ id }) => {
   const hadExtraSeat = !!removalPreview.value?.estimated_credit;
 
   try {
-    // If this was an extra seat removal, remove from Stripe FIRST before deleting inbox
-    // This ensures validation works correctly and proration credit is calculated properly
-    if (hadExtraSeat) {
-      const stripeRemovalSuccess = await removeExtraInboxSeat(true);
-      if (!stripeRemovalSuccess) {
-        // If Stripe removal fails, don't proceed with inbox deletion
-        return;
-      }
-    }
-
-    // Now delete the inbox
+    // Delete the inbox first (frees the seat)
     await store.dispatch('inboxes/delete', id);
 
-    // Refresh limits after deletion
+    // Then remove the extra seat from Stripe
+    // If this fails, the inbox is already deleted (safe: user has an unused extra seat)
     if (hadExtraSeat) {
+      await removeExtraInboxSeat();
       await Promise.all([fetchLimits(true), fetchAddOns(true)]);
     }
 

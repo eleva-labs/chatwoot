@@ -27,16 +27,14 @@ class Billing::ManageSubscriptionAddOnService
   end
 
   # Remove one unit of the add-on
-  # @param skip_validation [Boolean] If true, skips validation check (used when removing before deleting the resource)
-  def remove_unit(skip_validation: false)
+  def remove_unit
     return failure_response('Cannot remove below 0') if current_quantity.zero?
-    
-    # Validate against unused extras for capacity add-ons (unless validation is skipped)
-    unless skip_validation || can_remove_quantity?(1)
+
+    unless can_remove_quantity?(1)
       limit_service = Billing::UnifiedLimitService.new(@account, map_to_resource_type)
       unused = limit_service.unused_extras
       extras_used = limit_service.extras_used
-      
+
       return failure_response(
         "Cannot remove - only #{unused} extra #{@add_on_type}(s) are unused (#{extras_used} in use). " \
         "Remove #{@add_on_type}s from #{settings_section_name} first to free up seats."

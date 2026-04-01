@@ -9,6 +9,7 @@ import ButtonV4 from 'next/button/Button.vue';
 import ConversationPackModal from './ConversationPackModal.vue';
 import AiTokenCreditsModal from './AiTokenCreditsModal.vue';
 import { useAgentSeatLimits } from '../../agents/composables/useAgentSeatLimits';
+import { useInboxLimits } from '../../inbox/composables/useInboxLimits';
 import { useAccount } from 'dashboard/composables/useAccount';
 
 const { t } = useI18n();
@@ -22,8 +23,13 @@ const {
   agentLimit: agentSeatLimit,
 } = useAgentSeatLimits(store);
 
-const limits = ref({});
-const addOns = ref({});
+const {
+  isLoading: inboxLimitsLoading,
+  limits,
+  addOns,
+  fetchLimits: fetchInboxLimits,
+} = useInboxLimits(store);
+
 const conversationPacks = ref([]);
 const aiTokenPacks = ref([]);
 const isCardLoading = ref(true);
@@ -41,29 +47,12 @@ const isSubscriptionPastDue = computed(
 const fetchLimits = async () => {
   try {
     isCardLoading.value = true;
-    const response = await store.dispatch('accounts/fetchAddOnLimits');
-    // Access nested data.data.limits from API response
-    if (response?.data?.data) {
-      limits.value = response.data.data.limits || {};
-    }
+    await fetchInboxLimits(true);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Error fetching add-on limits', error);
   } finally {
     isCardLoading.value = false;
-  }
-};
-
-const fetchAddOns = async () => {
-  try {
-    const response = await store.dispatch('accounts/fetchAddOns');
-    // Access nested data.data.add_ons from API response
-    if (response?.data?.data) {
-      addOns.value = response.data.data.add_ons || {};
-    }
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error fetching add-ons', error);
   }
 };
 
@@ -158,7 +147,11 @@ const inboxExtraMembersDisplay = computed(() => {
 });
 
 const isLimitsLoading = computed(() => {
-  return isCardLoading.value || agentSeatLimitsLoading.value;
+  return (
+    isCardLoading.value ||
+    agentSeatLimitsLoading.value ||
+    inboxLimitsLoading.value
+  );
 });
 
 const formatUsageValue = value => {
@@ -373,7 +366,6 @@ const getAvailableText = limit => {
 onMounted(async () => {
   await Promise.all([
     fetchLimits(),
-    fetchAddOns(),
     fetchConversationPacks(),
     fetchAiTokenPacks(),
   ]);

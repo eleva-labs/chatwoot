@@ -137,7 +137,6 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
     raw_action = request.request_parameters['action']
     action_type = raw_action || params.dig(:add_on, :action) || params[:action_type]
     quantity = params[:quantity] || params.dig(:add_on, :quantity)
-    skip_validation = ActiveModel::Type::Boolean.new.cast(params[:skip_validation]) || false
 
     service = Billing::ManageSubscriptionAddOnService.new(current_account, add_on_type)
 
@@ -145,7 +144,7 @@ class Api::V2::Accounts::Billing::AddOnsController < Api::BaseController
              when 'add'
                service.add_unit
              when 'remove'
-               service.remove_unit(skip_validation: skip_validation)
+               service.remove_unit
              when 'set'
                service.set_quantity(quantity.to_i)
              else
