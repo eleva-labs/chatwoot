@@ -10,6 +10,8 @@ RSpec.describe AiBackendService::StoreService do
 
   before do
     allow(Rails.application.config).to receive(:ai_backend_api_url).and_return(ai_backend_url)
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with('AI_BACKEND_WEBHOOK_SECRET').and_return('test-webhook-secret')
   end
 
   describe '#initialize' do

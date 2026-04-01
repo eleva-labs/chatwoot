@@ -159,6 +159,11 @@ RSpec.describe 'WhapiChannelsController', type: :request do
 
   # Shared setup for reauthorize and initiate_reconnection
   # Both require a WHAPI channel with token
+  # Stub validate_provider_config to prevent health check HTTP calls on channel.update!
+  before do
+    allow_any_instance_of(Channel::Whatsapp).to receive(:validate_provider_config).and_return(true)
+  end
+
   let(:whapi_channel) do
     create(:channel_whatsapp,
            account: account,
@@ -180,10 +185,10 @@ RSpec.describe 'WhapiChannelsController', type: :request do
   end
 
   describe 'POST /api/v1/accounts/:account_id/whapi_channels/:id/reauthorize' do
+    # Stub health_status at the service level to avoid URL/query-param matching issues
     it 'reauthorizes when channel is connected' do
-      stub_request(:get, 'https://gate.whapi.cloud/health')
-        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
-                   body: { text: 'AUTH' }.to_json)
+      allow_any_instance_of(Whatsapp::Providers::WhapiService)
+        .to receive(:health_status).and_return({ 'text' => 'AUTH' })
 
       post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/reauthorize",
            headers: admin.create_new_auth_token, as: :json
@@ -195,9 +200,8 @@ RSpec.describe 'WhapiChannelsController', type: :request do
     end
 
     it 'returns 422 when channel is not connected' do
-      stub_request(:get, 'https://gate.whapi.cloud/health')
-        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
-                   body: { text: 'QR' }.to_json)
+      allow_any_instance_of(Whatsapp::Providers::WhapiService)
+        .to receive(:health_status).and_return({ 'text' => 'QR' })
 
       post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/reauthorize",
            headers: admin.create_new_auth_token, as: :json
@@ -221,9 +225,8 @@ RSpec.describe 'WhapiChannelsController', type: :request do
 
     it 'returns not connected when health check errors' do
       # StandardError is caught inside check_channel_health, returning { connected: false, status: 'ERROR' }
-      # So reauthorize sees a disconnected channel and returns 422
-      stub_request(:get, 'https://gate.whapi.cloud/health')
-        .to_raise(StandardError.new('Connection refused'))
+      allow_any_instance_of(Whatsapp::Providers::WhapiService)
+        .to receive(:health_status).and_raise(StandardError.new('Connection refused'))
 
       post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/reauthorize",
            headers: admin.create_new_auth_token, as: :json
@@ -236,10 +239,17 @@ RSpec.describe 'WhapiChannelsController', type: :request do
   end
 
   describe 'POST /api/v1/accounts/:account_id/whapi_channels/:id/initiate_reconnection' do
+    # Stub all external HTTP to avoid WebMock mismatches
+    before do
+      stub_request(:get, %r{gate\.whapi\.cloud}).to_return(
+        status: 200, headers: { 'Content-Type' => 'application/json' },
+        body: { status: 'ok' }.to_json
+      )
+    end
+
     it 'returns connected status when channel is already authenticated' do
-      stub_request(:get, 'https://gate.whapi.cloud/health')
-        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
-                   body: { text: 'AUTH' }.to_json)
+      allow_any_instance_of(Whatsapp::Providers::WhapiService)
+        .to receive(:health_status).and_return({ 'text' => 'AUTH' })
 
       post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/initiate_reconnection",
            headers: admin.create_new_auth_token, as: :json
@@ -251,9 +261,8 @@ RSpec.describe 'WhapiChannelsController', type: :request do
     end
 
     it 'returns QR code when channel is in QR state' do
-      stub_request(:get, 'https://gate.whapi.cloud/health')
-        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
-                   body: { text: 'QR' }.to_json)
+      allow_any_instance_of(Whatsapp::Providers::WhapiService)
+        .to receive(:health_status).and_return({ 'text' => 'QR' })
 
       allow_any_instance_of(Whatsapp::Partner::WhapiPartnerService)
         .to receive(:generate_qr_code_simple)
@@ -269,13 +278,8 @@ RSpec.describe 'WhapiChannelsController', type: :request do
     end
 
     it 'triggers wakeup and returns starting status for disconnected channel' do
-      stub_request(:get, 'https://gate.whapi.cloud/health')
-        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
-                   body: { text: 'STOP' }.to_json)
-
-      # Stub the wakeup call
-      stub_request(:get, %r{gate\.whapi\.cloud/health\?.*wakeup=true})
-        .to_return(status: 200, body: { status: 'ok' }.to_json, headers: { 'Content-Type' => 'application/json' })
+      allow_any_instance_of(Whatsapp::Providers::WhapiService)
+        .to receive(:health_status).and_return({ 'text' => 'STOP' })
 
       post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/initiate_reconnection",
            headers: admin.create_new_auth_token, as: :json
@@ -298,17 +302,12 @@ RSpec.describe 'WhapiChannelsController', type: :request do
     end
 
     it 'falls back to wakeup when QR fetch fails despite QR status' do
-      stub_request(:get, 'https://gate.whapi.cloud/health')
-        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' },
-                   body: { text: 'QR' }.to_json)
+      allow_any_instance_of(Whatsapp::Providers::WhapiService)
+        .to receive(:health_status).and_return({ 'text' => 'QR' })
 
       allow_any_instance_of(Whatsapp::Partner::WhapiPartnerService)
         .to receive(:generate_qr_code_simple)
         .and_return(nil)
-
-      # Stub the wakeup call
-      stub_request(:get, %r{gate\.whapi\.cloud/health\?.*wakeup=true})
-        .to_return(status: 200, body: { status: 'ok' }.to_json, headers: { 'Content-Type' => 'application/json' })
 
       post "/api/v1/accounts/#{account.id}/whapi_channels/#{whapi_inbox.id}/initiate_reconnection",
            headers: admin.create_new_auth_token, as: :json
