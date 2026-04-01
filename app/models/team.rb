@@ -3,7 +3,7 @@
 # Table name: teams
 #
 #  id                :bigint           not null, primary key
-#  allow_auto_assign :boolean          default(TRUE)
+#  allow_auto_assign :boolean          default(FALSE)
 #  description       :text
 #  name              :string           not null
 #  created_at        :datetime         not null

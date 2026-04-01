@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
@@ -9,6 +9,8 @@ import Modal from 'dashboard/components/Modal.vue';
 import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
 import { useAlert } from 'dashboard/composables';
 import Auth from 'dashboard/api/auth';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 const { t } = useI18n();
 const store = useStore();
@@ -35,6 +37,8 @@ const getAuthHeaders = () => {
   }
   return headers;
 };
+
+let pollInterval = null;
 
 const fetchKnowledgeSources = async () => {
   loadingKnowledgeSources.value = true;
@@ -179,8 +183,31 @@ const onKnowledgeSourceAdded = () => {
   fetchKnowledgeSources();
 };
 
+const onKnowledgeBaseProcessed = () => {
+  fetchKnowledgeSources();
+};
+
+// Auto-poll while any KB is pending/processing, stop when all are done
+watch(knowledgeSources, sources => {
+  const hasProcessing = sources.some(
+    s => s.status === 'pending' || s.status === 'processing'
+  );
+  if (hasProcessing && !pollInterval) {
+    pollInterval = setInterval(() => fetchKnowledgeSources(), 5000);
+  } else if (!hasProcessing && pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+});
+
 onMounted(() => {
   fetchKnowledgeSources();
+  emitter.on(BUS_EVENTS.KNOWLEDGE_BASE_PROCESSED, onKnowledgeBaseProcessed);
+});
+
+onUnmounted(() => {
+  emitter.off(BUS_EVENTS.KNOWLEDGE_BASE_PROCESSED, onKnowledgeBaseProcessed);
+  if (pollInterval) clearInterval(pollInterval);
 });
 </script>
 
@@ -232,9 +259,37 @@ onMounted(() => {
                 {{ source.name }}
               </p>
               <p class="text-sm text-slate-600 dark:text-slate-400">
-                {{ getSourceTypeDisplay(source.source_type) }} &bull;
-                {{ formatDate(source.created_at) }}
+                {{
+                  `${getSourceTypeDisplay(source.source_type)} \u2022 ${formatDate(source.created_at)}`
+                }}
               </p>
+              <span
+                v-if="
+                  source.status === 'pending' || source.status === 'processing'
+                "
+                class="inline-flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400"
+              >
+                <i class="i-lucide-loader-2 animate-spin w-3 h-3" />
+                {{
+                  source.status === 'pending'
+                    ? t('KNOWLEDGE_SOURCE.STATUS.PENDING')
+                    : t('KNOWLEDGE_SOURCE.STATUS.PROCESSING')
+                }}
+              </span>
+              <span
+                v-else-if="source.status === 'failed'"
+                class="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400"
+              >
+                <i class="i-lucide-alert-circle w-3 h-3" />
+                {{ t('KNOWLEDGE_SOURCE.STATUS.FAILED') }}
+              </span>
+              <span
+                v-else-if="source.status === 'processed'"
+                class="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400"
+              >
+                <i class="i-lucide-check-circle w-3 h-3" />
+                {{ t('KNOWLEDGE_SOURCE.STATUS.PROCESSED') }}
+              </span>
             </div>
           </div>
           <NextButton
@@ -285,7 +340,7 @@ onMounted(() => {
           <NextButton slate outline @click="cancelDelete">
             {{ t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.CANCEL') }}
           </NextButton>
-          <NextButton variant="danger" @click="deleteKnowledgeSource">
+          <NextButton ruby @click="deleteKnowledgeSource">
             {{ t('KNOWLEDGE_SOURCE.DELETE_CONFIRM.DELETE') }}
           </NextButton>
         </div>
