@@ -36,14 +36,24 @@ describe('#billingAPI', () => {
     it('#createSubscription with default plan', () => {
       billingAPI.createSubscription();
       expect(axiosMock.post).toHaveBeenCalledWith('/api/v2/subscription', {
-        subscription: { plan_name: 'free' },
+        subscription: { plan_name: 'free', billing_interval: 'monthly' },
       });
     });
 
     it('#createSubscription with custom plan', () => {
       billingAPI.createSubscription('professional');
       expect(axiosMock.post).toHaveBeenCalledWith('/api/v2/subscription', {
-        subscription: { plan_name: 'professional' },
+        subscription: {
+          plan_name: 'professional',
+          billing_interval: 'monthly',
+        },
+      });
+    });
+
+    it('#createSubscription with custom plan and billing interval', () => {
+      billingAPI.createSubscription('professional', 'yearly');
+      expect(axiosMock.post).toHaveBeenCalledWith('/api/v2/subscription', {
+        subscription: { plan_name: 'professional', billing_interval: 'yearly' },
       });
     });
 

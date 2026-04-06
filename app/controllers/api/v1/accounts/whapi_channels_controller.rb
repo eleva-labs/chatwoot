@@ -1,5 +1,5 @@
 class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseController
-  before_action :fetch_inbox, only: [:qr_code, :retry_webhook]
+  before_action :fetch_inbox, only: [:retry_webhook, :reauthorize, :initiate_reconnection]
   before_action :ensure_whapi_partner_feature_enabled
 
   rescue_from CustomExceptions::RateLimitExceeded do |exception|
@@ -21,7 +21,7 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
     if name.blank?
       ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'create_channel.invalid', reason: 'missing_name',
                                                                   account_id: Current.account.id, correlation_id: correlation_id)
-      render json: { message: 'name is required', correlation_id: correlation_id }, status: :unprocessable_entity and return
+      render_error('name is required', correlation_id: correlation_id) and return
     end
 
     # Basic input validation & sanitization
@@ -29,7 +29,7 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
     unless name.match?(/\A[\p{Alnum} _-]{2,80}\z/u)
       ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'create_channel.invalid', reason: 'invalid_name',
                                                                   account_id: Current.account.id, correlation_id: correlation_id)
-      render json: { message: 'invalid name', correlation_id: correlation_id }, status: :unprocessable_entity and return
+      render_error('invalid name', correlation_id: correlation_id) and return
     end
 
     service = Whatsapp::Partner::WhapiPartnerService.new
@@ -66,7 +66,7 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
     unless project_id.present?
       ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'create_channel.unavailable', reason: 'no_projects',
                                                                   account_id: Current.account.id, correlation_id: correlation_id)
-      render json: { message: 'No partner projects available', correlation_id: correlation_id }, status: :unprocessable_entity and return
+      render_error('No partner projects available', correlation_id: correlation_id) and return
     end
 
     # Generate environment-specific webhook URL
@@ -118,79 +118,163 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
     Rails.logger.error "[WhapiPartner][#{correlation_id}] whapi_channel creation failed: #{e.message}"
     ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'create_channel.error', account_id: Current.account.id, error: e.class.name,
                                                                 message: e.message, correlation_id: correlation_id)
-    render json: { message: e.message, correlation_id: correlation_id }, status: :unprocessable_entity
+    render_error(e.message, correlation_id: correlation_id)
   end
 
-  # GET /api/v1/accounts/:account_id/whapi_channels/:id/qr_code
-  def qr_code
+  # POST /api/v1/accounts/:account_id/whapi_channels/:id/reauthorize
+  def reauthorize
     correlation_id = request.request_id || SecureRandom.uuid
     channel = @inbox.channel
+
     unless channel.is_a?(Channel::Whatsapp) && channel.provider == 'whapi'
-      ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'qr.invalid_inbox', account_id: Current.account.id, inbox_id: @inbox.id,
-                                                                  correlation_id: correlation_id)
-      render json: { message: 'Not a WHAPI WhatsApp inbox', correlation_id: correlation_id }, status: :unprocessable_entity and return
+      render_error('Not a WHAPI WhatsApp inbox', correlation_id: correlation_id)
+      return
     end
 
-    # Use config objects for accessing channel token
+    # Verify channel has required configuration
+    channel_token = channel.provider_config_object&.whapi_channel_token || channel.provider_config_object&.api_key
+    if channel_token.blank?
+      Rails.logger.error "[WhapiPartner][#{correlation_id}] Reauthorize failed: channel token missing for channel #{channel.id}"
+      render_error('Channel configuration is missing. Please recreate the channel.', correlation_id: correlation_id)
+      return
+    end
+
+    # Verify channel is actually connected before clearing reauthorization
+    begin
+      health_response = check_channel_health(channel)
+    rescue StandardError => e
+      Rails.logger.error "[WhapiPartner][#{correlation_id}] Health check error during reauthorize: #{e.class} - #{e.message}"
+      Rails.logger.error e.backtrace.join("\n") if e.backtrace
+      render_error('Failed to check channel health. Please try again.', status: :internal_server_error, correlation_id: correlation_id)
+      return
+    end
+
+    if health_response[:connected]
+      begin
+        channel.reauthorized!
+        channel.provider_config_object.update_connection_status('connected')
+
+        render json: {
+          success: true,
+          message: 'Channel reauthorized successfully',
+          correlation_id: correlation_id
+        }, status: :ok
+      rescue StandardError => e
+        Rails.logger.error "[WhapiPartner][#{correlation_id}] Error updating channel status: #{e.class} - #{e.message}"
+        render json: {
+          success: false,
+          message: 'Channel is connected but failed to update status. Please refresh the page.',
+          correlation_id: correlation_id
+        }, status: :internal_server_error
+      end
+    else
+      render json: {
+        success: false,
+        message: 'Channel is not connected. Please scan QR code first.',
+        status: health_response[:status],
+        correlation_id: correlation_id
+      }, status: :unprocessable_entity
+    end
+  end
+
+  # POST /api/v1/accounts/:account_id/whapi_channels/:id/initiate_reconnection
+  # Webhook-driven reconnection flow - triggers channel wakeup and returns immediately
+  # QR code will be delivered via ActionCable when channel reaches QR state
+  #
+  # Endpoint Contract:
+  # This endpoint has three possible response paths:
+  #
+  # 1. Already Connected (200 OK):
+  #    Returns: { status: 'connected', whapi_status: 'AUTH', message: 'Already connected', correlation_id: <id> }
+  #    Triggered when: Channel health check confirms connection (status == 'AUTH')
+  #    Action: Updates channel status, clears reauthorization state, schedules phone sync
+  #
+  # 2. QR Code Available (200 OK):
+  #    Returns: { image_base64: <string>, expires_in: <number>, poll_in: 15, correlation_id: <id> }
+  #    Triggered when: Channel is already in QR state (status == 'QR') and QR code can be fetched immediately
+  #    Action: Returns QR code directly without waiting for webhook
+  #
+  # 3. Webhook-Driven (200 OK):
+  #    Returns: { status: 'starting', whapi_status: <current_status>, message: 'QR code will be delivered via websocket', correlation_id: <id> }
+  #    Triggered when: Channel needs to be woken up or is in a transitional state (INIT, LAUNCH, etc.)
+  #    Action: Triggers channel wakeup, QR code will be delivered via ActionCable when channel reaches QR state
+  #
+  # Error Responses (422 Unprocessable Entity):
+  # - { message: 'Not a WHAPI WhatsApp inbox', correlation_id: <id> }
+  # - { message: 'Channel token missing', correlation_id: <id> }
+  def initiate_reconnection
+    correlation_id = request.request_id || SecureRandom.uuid
+    channel = @inbox.channel
+    Rails.logger.info "[WhapiController][#{correlation_id}] Initiating reconnection for channel #{channel.id}"
+
+    unless channel.is_a?(Channel::Whatsapp) && channel.provider == 'whapi'
+      render_error('Not a WHAPI WhatsApp inbox', correlation_id: correlation_id)
+      return
+    end
+
     channel_token = channel.provider_config_object.whapi_channel_token
     if channel_token.blank?
-      ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'qr.missing_token', account_id: Current.account.id, inbox_id: @inbox.id,
-                                                                  correlation_id: correlation_id)
-      render json: { message: 'Channel token missing', correlation_id: correlation_id }, status: :unprocessable_entity and return
+      render_error('Channel token missing', correlation_id: correlation_id)
+      return
     end
 
-    service = Whatsapp::Partner::WhapiPartnerService.new
-    ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'qr.request', account_id: Current.account.id, inbox_id: @inbox.id,
-                                                                correlation_id: correlation_id)
-
+    # Check if already connected
+    bust_health_check_cache(channel)
     begin
-      qr_payload = service.generate_qr_code(channel_token: channel_token)
-    rescue CustomExceptions::RateLimitExceeded => e
-      Rails.logger.warn "[WhapiPartner][#{correlation_id}] QR code generation rate limited: #{e.message}"
-      raise e # Re-raise to be handled by rescue_from
-    rescue Net::ReadTimeout, Net::OpenTimeout => e
-      Rails.logger.error "[WhapiPartner][#{correlation_id}] QR code generation timeout: #{e.message}"
-      render json: { message: 'QR code generation timed out. Please try again.', correlation_id: correlation_id },
-             status: :service_unavailable and return
-    rescue HTTParty::Error, Net::HTTPError => e
-      Rails.logger.error "[WhapiPartner][#{correlation_id}] QR code generation HTTP error: #{e.message}"
-      render json: { message: 'QR code generation failed. Please try again.', correlation_id: correlation_id },
-             status: :service_unavailable and return
-    rescue JSON::ParserError => e
-      Rails.logger.error "[WhapiPartner][#{correlation_id}] QR code generation JSON parse error: #{e.message}"
-      render json: { message: 'Invalid response from service. Please try again.', correlation_id: correlation_id },
-             status: :service_unavailable and return
+      Rails.logger.info "[WhapiController][#{correlation_id}] Checking channel health..."
+      health_response = check_channel_health(channel)
+      Rails.logger.info "[WhapiController][#{correlation_id}] Health check result: #{health_response.inspect}"
+
+      # Update status in DB based on fresh health check
+      channel.provider_config_object.update_whapi_status(health_response[:status])
+      Rails.logger.info "[WhapiController][#{correlation_id}] Updated whapi_status in DB to: #{health_response[:status]}"
+
+      if health_response[:connected]
+        Rails.logger.info "[WhapiPartner][#{correlation_id}] Channel is already connected"
+        result = handle_already_connected_channel(channel, correlation_id)
+        render json: {
+          status: 'connected',
+          whapi_status: 'AUTH',
+          message: 'Already connected',
+          correlation_id: correlation_id
+        }, status: :ok
+        return
+      end
     rescue StandardError => e
-      # Handle the special case of already authenticated channels
-      raise e unless e.message.include?('already authenticated')
-
-      # Channel is already authenticated, sync phone number and return success
-      config_object = channel.provider_config_object
-      config_object.update_connection_status('connected')
-
-      # Schedule phone number sync in background (non-blocking)
-      Whatsapp::Whapi::PhoneSyncJob.perform_later(@inbox.channel.id)
-      Rails.logger.info "[WhapiPartner][#{correlation_id}] Phone sync scheduled in background"
-
-      ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'qr.already_authenticated', account_id: Current.account.id,
-                                                                  inbox_id: @inbox.id, correlation_id: correlation_id)
-      render json: {
-        authenticated: true,
-        message: 'WhatsApp account successfully connected!',
-        correlation_id: correlation_id
-      }, status: :ok and return
+      Rails.logger.warn "[WhapiPartner][#{correlation_id}] Health check failed during reconnection initiation: #{e.message}"
     end
 
-    # update last_qr_at for polling/expiry hints
-    channel.provider_config_object.update_qr_timestamp
+    # If health check showed QR status, fetch QR code immediately and return it
+    if health_response && health_response[:status] == 'QR'
+      Rails.logger.info "[WhapiController][#{correlation_id}] Channel is in QR state, fetching QR code directly."
+      qr_payload = fetch_qr_code_safe(channel, correlation_id)
+      if qr_payload
+        render json: qr_payload, status: :ok
+        return
+      else
+        Rails.logger.warn "[WhapiController][#{correlation_id}] Failed to fetch QR code directly despite QR status, falling back to webhook flow."
+      end
+    end
 
-    # Throttle hints for polling: minimum 15s, cap retries client side
-    ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'qr.success', account_id: Current.account.id, inbox_id: @inbox.id,
-                                                                correlation_id: correlation_id)
+    # Trigger channel wakeup - this will cause Whapi to send status webhooks
+    trigger_channel_wakeup(channel, channel_token, correlation_id)
+
+    # Update status to reconnecting only if the channel was previously disconnected
+    if channel.provider_config_object.whapi_connection_status != 'pending'
+      channel.provider_config_object.update_connection_status('reconnecting')
+      Rails.logger.info "[WhapiController][#{correlation_id}] Set connection_status to 'reconnecting' for channel #{channel.id}"
+    end
+
+    current_whapi_status = channel.provider_config_object.whapi_status
+    ActiveSupport::Notifications.instrument('whapi.onboarding', action: 'reconnection.initiated', account_id: Current.account.id,
+                                                                inbox_id: @inbox.id, correlation_id: correlation_id)
+
+    # Return immediately - QR will come via webhook/ActionCable
+    Rails.logger.info "[WhapiController][#{correlation_id}] Responding to frontend with status: 'starting', whapi_status: #{current_whapi_status}"
     render json: {
-      image_base64: qr_payload['image_base64'],
-      expires_in: qr_payload['expires_in'] || 20,
-      poll_in: 15,
+      status: 'starting',
+      whapi_status: current_whapi_status,
+      message: 'Reconnection initiated. QR code will be delivered via websocket.',
       correlation_id: correlation_id
     }, status: :ok
   end
@@ -201,13 +285,13 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
     channel = @inbox.channel
 
     unless channel.is_a?(Channel::Whatsapp) && channel.provider == 'whapi'
-      render json: { message: 'Not a WHAPI WhatsApp inbox', correlation_id: correlation_id }, status: :unprocessable_entity and return
+      render_error('Not a WHAPI WhatsApp inbox', correlation_id: correlation_id) and return
     end
 
     # Use config objects for accessing channel token
     channel_token = channel.provider_config_object.whapi_channel_token
     if channel_token.blank?
-      render json: { message: 'Channel token missing', correlation_id: correlation_id }, status: :unprocessable_entity and return
+      render_error('Channel token missing', correlation_id: correlation_id) and return
     end
 
     # Generate environment-specific webhook URL, include phone number if available
@@ -232,32 +316,20 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
     rescue Net::ReadTimeout, Net::OpenTimeout => e
       Rails.logger.error "[WhapiPartner][#{correlation_id}] Webhook retry timeout: #{e.message}"
       channel.provider_config_object.set_webhook_retry_info("Timeout: #{e.message}")
-      render json: {
-        message: 'Webhook configuration timed out. Please try again.',
-        correlation_id: correlation_id
-      }, status: :service_unavailable
+      render_error('Webhook configuration timed out. Please try again.', status: :service_unavailable, correlation_id: correlation_id)
     rescue HTTParty::Error, Net::HTTPError => e
       Rails.logger.error "[WhapiPartner][#{correlation_id}] Webhook retry HTTP error: #{e.message}"
       channel.provider_config_object.set_webhook_retry_info("HTTP Error: #{e.message}")
-      render json: {
-        message: 'Webhook configuration failed due to network error. Please try again.',
-        correlation_id: correlation_id
-      }, status: :service_unavailable
+      render_error('Webhook configuration failed due to network error. Please try again.', status: :service_unavailable, correlation_id: correlation_id)
     rescue JSON::ParserError => e
       Rails.logger.error "[WhapiPartner][#{correlation_id}] Webhook retry JSON parse error: #{e.message}"
       channel.provider_config_object.set_webhook_retry_info("JSON Parse Error: #{e.message}")
-      render json: {
-        message: 'Invalid response from service. Please try again.',
-        correlation_id: correlation_id
-      }, status: :service_unavailable
+      render_error('Invalid response from service. Please try again.', status: :service_unavailable, correlation_id: correlation_id)
     rescue StandardError => e
       Rails.logger.error "[WhapiPartner][#{correlation_id}] Webhook retry unexpected error: #{e.class} - #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
       channel.provider_config_object.set_webhook_retry_info("Unknown Error: #{e.message}")
-      render json: {
-        message: "Webhook configuration failed: #{e.message}",
-        correlation_id: correlation_id
-      }, status: :unprocessable_entity
+      render_error("Webhook configuration failed: #{e.message}", correlation_id: correlation_id)
     end
   end
 
@@ -266,6 +338,19 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
   def fetch_inbox
     @inbox = Current.account.inboxes.find(params[:id])
     authorize @inbox, :show?
+  end
+
+  def render_error(message, status: :unprocessable_entity, correlation_id: nil)
+    correlation_id ||= request.request_id || SecureRandom.uuid
+    render json: { message: message, correlation_id: correlation_id }, status: status
+  end
+
+  def handle_already_connected_channel(channel, correlation_id)
+    channel.reauthorized! if channel.reauthorization_required?
+    channel.provider_config_object.update_connection_status('connected')
+    Whatsapp::Whapi::PhoneSyncJob.perform_later(channel.id)
+
+    { authenticated: true, message: 'WhatsApp account successfully connected!', correlation_id: correlation_id }
   end
 
   def extract_phone_number_from_channel(channel)
@@ -287,5 +372,74 @@ class Api::V1::Accounts::WhapiChannelsController < Api::V1::Accounts::BaseContro
     return if Current.account&.feature_enabled?('channel_whatsapp_whapi_partner')
 
     render json: { message: 'Feature not enabled' }, status: :forbidden
+  end
+
+  def check_channel_health(channel)
+    # Validate channel has required configuration before attempting health check
+    channel_token = channel.provider_config_object&.whapi_channel_token || channel.provider_config_object&.api_key
+    unless channel_token.present?
+      Rails.logger.warn "[Whapi] Health check skipped: channel token missing for channel #{channel.id}"
+      return { connected: false, status: 'MISSING_CONFIG' }
+    end
+
+    service = Whatsapp::Providers::WhapiService.new(whatsapp_channel: channel)
+    health = service.health_status
+    is_connected = health['text'] == 'AUTH'
+
+    { connected: is_connected, status: health['text'] }
+  rescue StandardError => e
+    Rails.logger.error "[Whapi] Health check failed: #{e.class} - #{e.message}"
+    Rails.logger.error e.backtrace.join("\n") if Rails.env.development?
+    # Return disconnected status instead of ERROR to allow QR code generation to proceed
+    # This is especially important for disconnected channels that need reconnection
+    { connected: false, status: 'ERROR' }
+  end
+
+  def bust_health_check_cache(channel)
+    # Clear the health check cache to ensure fresh data is read
+    # This is critical when channel authentication happens via webhook
+    channel_token = channel.provider_config_object&.whapi_channel_token || channel.provider_config_object&.api_key
+    return unless channel_token.present?
+
+    cache_key = "whapi_health_#{channel_token[0..8]}"
+    Rails.cache.delete(cache_key)
+    Rails.logger.debug "[WhapiPartner] Health check cache busted for channel #{channel.id}"
+  end
+
+  def fetch_qr_code_safe(channel, correlation_id)
+    service = Whatsapp::Partner::WhapiPartnerService.new
+    channel_token = channel.provider_config_object.whapi_channel_token
+    qr_payload = service.generate_qr_code_simple(channel_token: channel_token)
+
+    return nil unless qr_payload
+
+    channel.provider_config_object.update_qr_timestamp
+    {
+      image_base64: qr_payload['image_base64'],
+      expires_in: qr_payload['expires_in'] || 20,
+      poll_in: 15, # Frontend doesn't poll, but this is for consistency
+      correlation_id: correlation_id
+    }
+  rescue StandardError => e
+    Rails.logger.error "[WhapiController][#{correlation_id}] fetch_qr_code_safe failed: #{e.message}"
+    nil
+  end
+
+  def trigger_channel_wakeup(channel, channel_token, correlation_id)
+    # Call health endpoint with wakeup=true to start channel
+    # This triggers Whapi to send status webhooks (INIT -> LAUNCH -> QR)
+    Rails.logger.info "[WhapiPartner][#{correlation_id}] Triggering channel wakeup for channel #{channel.id}"
+
+    response = HTTParty.get(
+      'https://gate.whapi.cloud/health',
+      headers: { 'Authorization' => "Bearer #{channel_token}" },
+      query: { wakeup: 'true', channel_type: 'web' },
+      timeout: 5
+    )
+
+    Rails.logger.info "[WhapiPartner][#{correlation_id}] Channel wakeup response: #{response.code}"
+  rescue StandardError => e
+    Rails.logger.warn "[WhapiPartner][#{correlation_id}] Channel wakeup failed: #{e.message}"
+    # Non-blocking - webhook flow will handle it even if wakeup fails
   end
 end

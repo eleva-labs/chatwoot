@@ -32,9 +32,7 @@ module Billing
           Rails.logger.info "Creating Stripe customer for account #{@account.id}"
           customer = @provider.create_customer(@account, @plan_name)
           Rails.logger.info "Customer created successfully: #{customer.id}"
-
-          # Save customer ID immediately to prevent duplicates on retry
-          save_customer_id_only(customer.id)
+          persist_customer_id(customer.id)
         end
 
         price_id = self.class.plan_price_id(@plan_name)
@@ -50,6 +48,11 @@ module Billing
         update_account_attributes(customer, subscription)
         sync_account_features
 
+        # Initialize AI token credits after subscription is created
+        # Use background job to avoid blocking subscription creation
+        # Following the same pattern as AiBackendListener (enqueue jobs with perform_later)
+        Billing::InitializeAiTokenCreditsJob.perform_later(@account.id)
+
         Rails.logger.info 'CreateCustomerService completed successfully'
         success_response(customer: customer, subscription: subscription)
       rescue StandardError => e
@@ -63,7 +66,37 @@ module Billing
     private
 
     def subscription_exists?
-      @account.custom_attributes&.dig('stripe_customer_id').present?
+      custom_attrs = @account.custom_attributes || {}
+      customer_id = custom_attrs['stripe_customer_id']
+      status = custom_attrs['subscription_status']
+
+      return false if customer_id.blank?
+      return false if status.blank? || status == Billing::SubscriptionStatuses::INACTIVE
+
+      # Double-check with Stripe to prevent duplicates from race conditions
+      # This ensures we don't create duplicate subscriptions if the callback fires
+      # before the account attributes are updated
+      begin
+        customer = @provider.get_customer(customer_id)
+        subscriptions = ::Stripe::Subscription.list(customer: customer_id, limit: 10)
+        active_subscriptions = subscriptions.data.select { |sub| %w[trialing active past_due].include?(sub.status) }
+        
+        # If Stripe confirms active subscriptions exist, return true
+        return true if active_subscriptions.any?
+        
+        # If Stripe check succeeded but found no active subscriptions, return false
+        # This allows creating a new subscription even if local status is stale
+        # (e.g., subscription was cancelled in Stripe but local status wasn't updated)
+        return false
+      rescue ::Stripe::StripeError => e
+        Rails.logger.warn "Error checking Stripe subscriptions: #{e.message}. Proceeding with local check."
+        # If Stripe check fails, fall back to local check based on account status
+      end
+
+      # Fallback: If we have a customer_id and status is set (and not inactive),
+      # assume subscription exists (for cases where Stripe check failed)
+      # This is a conservative approach to prevent duplicates when Stripe API is unavailable
+      true
     end
 
     def update_account_attributes(customer, subscription)
@@ -171,13 +204,15 @@ module Billing
       Rails.logger.error "Failed to clear creating customer flag: #{e.message}"
     end
 
-    def save_customer_id_only(customer_id)
+    def persist_customer_id(customer_id)
       custom_attrs = @account.custom_attributes || {}
+      return if custom_attrs['stripe_customer_id'] == customer_id
+
       custom_attrs['stripe_customer_id'] = customer_id
       @account.update!(custom_attributes: custom_attrs)
-      Rails.logger.info "Saved customer ID #{customer_id} to account #{@account.id}"
+      Rails.logger.info "Persisted Stripe customer ID #{customer_id} for account #{@account.id}"
     rescue StandardError => e
-      Rails.logger.error "Failed to save customer ID: #{e.message}"
+      Rails.logger.error "Failed to persist Stripe customer ID: #{e.message}"
     end
 
     def determine_trial_period
@@ -185,16 +220,14 @@ module Billing
       return @trial_period_days if @trial_period_days.present?
 
       # Get trial period from billing plans configuration
-      # Look for trial_expires_in_days in the free_trial plan as the default
-      trial_plan_details = self.class.plan_details('free_trial')
-      trial_days = trial_plan_details&.dig('trial_expires_in_days') || 7
+      # Look for trial_expires_in_days in the starter plan config
+      starter_plan_details = self.class.plan_details('starter')
+      trial_days = starter_plan_details&.dig('trial_expires_in_days') || 7
 
-      # For new signups transitioning to Stripe-managed trials,
-      # we create trialing subscriptions on paid plans (like starter)
-      # but use the trial period from the free_trial configuration
+      # For paid plans, use trial period for Stripe-managed trials
       return trial_days if price_id_has_value?
 
-      # If no price_id (free plan), don't use trial period in Stripe
+      # If no price_id (community plan), don't use trial period in Stripe
       nil
     end
 

@@ -7,6 +7,7 @@ import { required } from '@vuelidate/validators';
 import { useAlert } from 'dashboard/composables';
 import { isPhoneE164 } from 'shared/helpers/Validators';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { useChannelPurchaseManager } from '../composables/useChannelPurchaseManager';
 
 import PageHeader from '../../SettingsSubPageHeader.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
@@ -15,6 +16,19 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 const { t } = useI18n();
 const store = useStore();
 const router = useRouter();
+
+const baseLabel = computed(() => t('INBOX_MGMT.ADD.VOICE.SUBMIT_BUTTON'));
+
+const {
+  primaryButtonLabel,
+  noteMessage,
+  showUsageLoadingMessage,
+  usageErrorMessage,
+  isPurchasingExtraChannel,
+  isChannelInfoLoading,
+  isTrialLimitReached,
+  handleChannelCreation,
+} = useChannelPurchaseManager({ store, baseLabel, t });
 
 const state = reactive({
   phoneNumber: '',
@@ -35,7 +49,13 @@ const validationRules = {
 };
 
 const v$ = useVuelidate(validationRules, state);
-const isSubmitDisabled = computed(() => v$.value.$invalid);
+const isSubmitDisabled = computed(
+  () =>
+    v$.value.$invalid ||
+    isChannelInfoLoading.value ||
+    isPurchasingExtraChannel.value ||
+    isTrialLimitReached.value
+);
 
 const formErrors = computed(() => ({
   phoneNumber: v$.value.phoneNumber?.$error
@@ -70,14 +90,16 @@ async function createChannel() {
   if (!isFormValid) return;
 
   try {
-    const channel = await store.dispatch('inboxes/createVoiceChannel', {
-      name: `Voice (${state.phoneNumber})`,
-      voice: {
-        phone_number: state.phoneNumber,
-        provider: 'twilio',
-        provider_config: getProviderConfig(),
-      },
-    });
+    const channel = await handleChannelCreation(() =>
+      store.dispatch('inboxes/createVoiceChannel', {
+        name: `Voice (${state.phoneNumber})`,
+        voice: {
+          phone_number: state.phoneNumber,
+          provider: 'twilio',
+          provider_config: getProviderConfig(),
+        },
+      })
+    );
 
     router.replace({
       name: 'settings_inboxes_invite_team',
@@ -85,7 +107,8 @@ async function createChannel() {
     });
   } catch (error) {
     useAlert(
-      error.response?.data?.message ||
+      error?.message ||
+        error.response?.data?.message ||
         t('INBOX_MGMT.ADD.VOICE.API.ERROR_MESSAGE')
     );
   }
@@ -152,11 +175,25 @@ async function createChannel() {
         @blur="v$.apiKeySecret?.$touch"
       />
 
-      <div>
+      <div class="flex flex-col gap-3 mt-2">
+        <div class="pt-4 border-t border-n-weak text-sm">
+          <p v-if="showUsageLoadingMessage" class="text-n-slate-11">
+            {{ t('INBOX_MGMT.ADD.USAGE_LOADING') }}
+          </p>
+          <p v-else-if="usageErrorMessage" class="text-n-ruby-11">
+            {{ usageErrorMessage }}
+          </p>
+        </div>
+        <p
+          v-if="!showUsageLoadingMessage && !usageErrorMessage && noteMessage"
+          class="text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
+        >
+          {{ noteMessage }}
+        </p>
         <NextButton
-          :is-loading="uiFlags.isCreating"
+          :is-loading="uiFlags.isCreating || isPurchasingExtraChannel"
           :disabled="isSubmitDisabled"
-          :label="t('INBOX_MGMT.ADD.VOICE.SUBMIT_BUTTON')"
+          :label="primaryButtonLabel"
           type="submit"
         />
       </div>

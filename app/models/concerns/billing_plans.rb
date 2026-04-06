@@ -5,7 +5,7 @@
 module BillingPlans
   extend ActiveSupport::Concern
 
-  class_methods do
+  module ClassMethods
     # Load billing plans configuration from YAML file
     def billing_plans_config
       @billing_plans_config ||= YAML.load_file(Rails.root.join('config/billing_plans.yml'))
@@ -80,13 +80,13 @@ module BillingPlans
       dynamic_limits = Billing::Providers::Stripe.get_plan_limits_from_stripe(plan_name)
 
       if dynamic_limits.present?
-        Rails.logger.info "Using dynamic limits: #{dynamic_limits} for plan: #{plan_name}"
+        Rails.logger.info "✅ [BILLING] Using Stripe metadata limits for plan '#{plan_name}': #{dynamic_limits}"
         return dynamic_limits
       end
 
       # Fallback to YAML configuration
       yaml_limits = available_plans.dig(plan_name, 'limits') || {}
-      Rails.logger.info "Using YAML fallback limits: #{yaml_limits} for plan: #{plan_name}"
+      Rails.logger.warn "⚠️  [BILLING] Stripe metadata unavailable for plan '#{plan_name}', using YAML fallback: #{yaml_limits}"
 
       yaml_limits
     end
@@ -97,13 +97,13 @@ module BillingPlans
       dynamic_price_id = Billing::Providers::Stripe.get_price_id_for_plan(plan_name)
 
       if dynamic_price_id.present?
-        Rails.logger.info "Using dynamic price_id: #{dynamic_price_id} for plan: #{plan_name}"
+        Rails.logger.info "✅ [BILLING] Using Stripe metadata price_id for plan '#{plan_name}': #{dynamic_price_id}"
         return dynamic_price_id
       end
 
       # Fallback to YAML configuration
       yaml_price_id = available_plans.dig(plan_name, 'price_id')
-      Rails.logger.info "Using YAML fallback price_id: #{yaml_price_id} for plan: #{plan_name}"
+      Rails.logger.warn "⚠️  [BILLING] Stripe metadata unavailable for plan '#{plan_name}', using YAML fallback price_id: #{yaml_price_id}"
 
       yaml_price_id
     end
@@ -160,6 +160,9 @@ module BillingPlans
     def limits_from_billing_provider_metadata(metadata)
       return {} if metadata.blank?
 
+      # Coerce Stripe objects or other duck-typed hashes into a Ruby Hash
+      metadata = metadata.to_hash if metadata.respond_to?(:to_hash)
+
       # Defensive check: ensure metadata is a hash
       unless metadata.is_a?(Hash)
         Rails.logger.error "Expected metadata to be a Hash, got #{metadata.class}: #{metadata.inspect}"
@@ -171,25 +174,35 @@ module BillingPlans
       metadata.each do |key, value|
         # Defensive checks for key and value types
         key_str = key.is_a?(Array) ? key.join('_') : key.to_s
-        next unless key_str.end_with?('_limit')
+        
+        # Extract keys ending with '_limit'
+        if key_str.end_with?('_limit')
+          # Handle monthly vs overall limits based on naming convention
+          limit_key = if key_str.end_with?('_monthly_limit')
+                        # Convert 'conversations_monthly_limit' -> 'conversations_monthly'
+                        key_str.gsub('_monthly_limit', '_monthly')
+                      else
+                        # Convert 'agents_limit' -> 'agents', 'inboxes_limit' -> 'inboxes', etc.
+                        key_str.gsub('_limit', '')
+                      end
 
-        # Handle monthly vs overall limits based on naming convention
-        limit_key = if key_str.end_with?('_monthly_limit')
-                      # Convert 'conversations_monthly_limit' -> 'conversations_monthly'
-                      key_str.gsub('_monthly_limit', '_monthly')
-                    else
-                      # Convert 'agents_limit' -> 'agents', 'inboxes_limit' -> 'inboxes', etc.
-                      key_str.gsub('_limit', '')
-                    end
+          # Defensive value conversion
+          value_int = if value.is_a?(Array)
+                        value.first.to_i
+                      else
+                        value.to_i
+                      end
 
-        # Defensive value conversion
-        value_int = if value.is_a?(Array)
-                      value.first.to_i
-                    else
-                      value.to_i
-                    end
-
-        limits[limit_key] = value_int
+          limits[limit_key] = value_int
+        # Also extract token_credits directly (doesn't end with _limit)
+        elsif key_str == 'token_credits'
+          value_int = if value.is_a?(Array)
+                        value.first.to_i
+                      else
+                        value.to_i
+                      end
+          limits['token_credits'] = value_int
+        end
       end
 
       limits
@@ -236,11 +249,12 @@ module BillingPlans
       limit_key.to_s.gsub('_monthly', '')
     end
 
-    def validate_plan_limits_for_free_trial(plan_limits, plan_name)
-      return unless plan_limits.blank? || plan_limits['conversations_monthly'].blank?
+    def validate_plan_limits_for_community_plan(plan_limits, plan_name)
+      # Community plan has 0 limits - no validation needed for this plan
+      # Just log and return if limits are blank
+      return unless plan_limits.blank?
 
-      Rails.logger.error "Missing required plan limits for free trial plan: #{plan_name}. Plan limits: #{plan_limits}"
-      raise StandardError, "Plan configuration error: Missing conversations_monthly limit for plan '#{plan_name}'"
+      Rails.logger.warn "No plan limits configured for plan: #{plan_name}. Using defaults."
     end
 
     def validate_plan_limits_for_paid_plan(plan_limits, plan_name)
@@ -266,5 +280,45 @@ module BillingPlans
       Rails.logger.error "Missing required plan limits for plan: #{plan_name}. Missing: #{missing_limits.join(', ')}. Plan limits: #{plan_limits}"
       raise StandardError, "Plan configuration error: Missing required limits (#{missing_limits.join(', ')}) for plan '#{plan_name}'"
     end
-  end
+
+    # ==========================================
+    # CONVERSATION PACKS CATALOG METHODS
+    # ==========================================
+
+    # Get the conversation packs catalog (universal, not plan-specific)
+    def conversation_packs_catalog
+      billing_plans_config.dig('conversation_packs', 'available_packs') || []
+    end
+
+    # Get the list of plans eligible for purchasing conversation packs
+    def conversation_pack_eligible_plans
+      billing_plans_config.dig('conversation_packs', 'eligible_plans') || []
+    end
+
+    # Check if a plan can purchase conversation packs
+    def conversation_packs_available_for_plan?(plan_name)
+      conversation_pack_eligible_plans.include?(plan_name.to_s)
+    end
+
+    # ==========================================
+    # AI TOKEN PACKS CATALOG METHODS
+    # ==========================================
+
+    def ai_token_packs_catalog
+      billing_plans_config.dig('ai_token_packs', 'available_packs') || []
+    end
+
+    def ai_token_pack_eligible_plans
+      billing_plans_config.dig('ai_token_packs', 'eligible_plans') || []
+    end
+
+    def ai_token_packs_available_for_plan?(plan_name)
+      ai_token_pack_eligible_plans.include?(plan_name.to_s)
+    end
+  end # module ClassMethods
+
+  # Make ClassMethods available directly on the module (enables BillingPlans.method_name)
+  # This allows calling methods like BillingPlans.plan_details('starter') directly
+  # while still supporting include-based usage (self.class.plan_details when included)
+  extend ClassMethods
 end

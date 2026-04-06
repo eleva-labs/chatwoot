@@ -59,6 +59,7 @@ en:
       invalid_email: You have entered an invalid email
       email_already_exists: 'You have already signed up for an account with %{email}'
       invalid_params: 'Invalid, please check the signup paramters and try again'
+      account_name_already_exists: 'The company name %{name} already exists'
       failed: Signup failed
     assignment_policy:
       not_found: Assignment policy not found
@@ -437,3 +438,18 @@ en:
       subject: 'Finish setting up %{custom_domain}'
     ssl_status:
       custom_domain_not_configured: 'Custom domain is not configured'
+  
+  billing:
+    training:
+      live_training:
+        name: 'Live Training'
+        bullets:
+          - '2 live training workshops each month'
+          - 'Exclusive early access to live new feature webinars'
+      live_1_1_training:
+        name: 'Live 1:1 Training with an Expert'
+        bullets:
+          - '2 hours of Live 1:1 time per month with a Workflow Expert'
+          - '1:1 Quarterly Business Reviews to align goals and outcomes'
+          - '2 live training workshops each month to get help with setting up AI, Autopilot Agents, and Chat'
+          - 'Exclusive early access to live new feature webinars'

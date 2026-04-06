@@ -16,7 +16,10 @@ module Whatsapp
       end
 
       def api_key
-        channel.provider_config&.[]('api_key')
+        # Fall back to whapi_channel_token if api_key is missing
+        # They should always be the same value, but this handles edge cases
+        # where api_key might be missing (e.g., older channels, data issues)
+        channel.provider_config&.[]('api_key') || channel.provider_config&.[]('whapi_channel_token')
       end
 
       def whapi_channel_id
@@ -29,6 +32,18 @@ module Whatsapp
 
       def whapi_connection_status
         channel.provider_config&.[]('connection_status') || 'pending'
+      end
+
+      # Actual Whapi channel status (INIT, LAUNCH, QR, AUTH, ERROR, etc.)
+      def whapi_status
+        channel.provider_config&.[]('whapi_status')
+      end
+
+      def update_whapi_status(status)
+        config = channel.provider_config || {}
+        config['whapi_status'] = status
+        config['whapi_status_updated_at'] = Time.current.iso8601
+        channel.update!(provider_config: config)
       end
 
       def whapi_partner_channel?
@@ -113,6 +128,7 @@ module Whatsapp
       def cleanup_on_destroy
         return unless whapi_partner_channel?
 
+        # Only delete the channel from Whapi - logout already happened in before_destroy callback
         Whatsapp::Whapi::WhapiChannelCleanupJob.perform_later(whapi_channel_id)
       rescue StandardError => e
         Rails.logger.warn("Failed to enqueue WhapiChannelCleanupJob for channel ##{channel.id}: #{e.message}")

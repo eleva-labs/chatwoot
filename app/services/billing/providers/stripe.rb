@@ -8,15 +8,38 @@ module Billing
       include BillingPlans
       # Creates a customer in Stripe
       def create_customer(account, plan_name)
+        # Generate idempotency key based on account ID to prevent duplicate customers
+        idempotency_key = "customer_create_#{account.id}_#{plan_name}"
+
         ::Stripe::Customer.create(
-          email: account.users.first&.email,
-          name: account.name,
-          metadata: {
-            account_id: account.id,
-            plan: plan_name
-          }
+          {
+            email: account.users.first&.email,
+            name: account.name,
+            metadata: {
+              account_id: account.id.to_s, # Store as string per Stripe best practice
+              plan: plan_name
+            }
+          },
+          idempotency_key: idempotency_key
         )
+      rescue ::Stripe::RateLimitError => e
+        # Handle rate limiting - should retry with backoff
+        Rails.logger.warn "Stripe rate limit hit: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Rate limited - retry recommended: #{e.message}"
+      rescue ::Stripe::InvalidRequestError => e
+        # Bad parameters - should not retry
+        Rails.logger.error "Stripe invalid request: #{e.message}"
+        raise StandardError, "Invalid request parameters: #{e.message}"
+      rescue ::Stripe::AuthenticationError => e
+        # Authentication failed - configuration issue
+        Rails.logger.error "Stripe authentication failed: #{e.message}"
+        raise StandardError, 'Stripe authentication failed - check API keys'
+      rescue ::Stripe::APIConnectionError => e
+        # Network error - can retry
+        Rails.logger.warn "Stripe connection error: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Network error - retry recommended: #{e.message}"
       rescue ::Stripe::StripeError => e
+        # Generic Stripe error
         Rails.logger.error "Stripe error creating customer: #{e.message}"
         raise StandardError, "Failed to create customer: #{e.message}"
       end
@@ -25,15 +48,29 @@ module Billing
       def create_subscription(customer_id, plan_id, quantity, trial_period_days: nil)
         return nil if plan_id.nil? # Free trial plans don't need a Stripe subscription
 
+        # Generate idempotency key to prevent duplicate subscriptions on network errors
+        idempotency_key = "subscription_create_#{customer_id}_#{plan_id}_#{Time.current.to_i}"
+
         # Build subscription parameters
         subscription_params = {
           customer: customer_id,
           items: [{ price: plan_id, quantity: 1 }], # Fixed quantity - cost is per plan, not per agent
-          auto_advance: true,
           collection_method: 'charge_automatically',
+          payment_behavior: 'default_incomplete', # Stripe recommended - handles 3DS and complex payment flows
+          expand: ['latest_invoice.payment_intent'], # Get payment details for status tracking
           metadata: {
             plan_id: plan_id,
-            quantity: quantity # This metadata quantity is for reference, not billing
+            quantity: quantity.to_s # Store as string per Stripe best practice
+          },
+          # Enable flexible billing mode (Stripe recommended)
+          # Provides more accurate proration calculations, improved trial handling,
+          # and access to new features like mixed-interval subscriptions
+          # See: docs/ignore/ClassicToFlexible.md for details
+          billing_mode: {
+            type: 'flexible',
+            flexible: {
+              proration_discounts: 'itemized' # Show accurate discount amounts on invoices
+            }
           }
         }
 
@@ -43,7 +80,22 @@ module Billing
           Rails.logger.info "Creating trialing subscription with #{trial_period_days} days trial"
         end
 
-        ::Stripe::Subscription.create(subscription_params)
+        ::Stripe::Subscription.create(
+          subscription_params,
+          idempotency_key: idempotency_key
+        )
+      rescue ::Stripe::RateLimitError => e
+        Rails.logger.warn "Stripe rate limit hit: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Rate limited - retry recommended: #{e.message}"
+      rescue ::Stripe::InvalidRequestError => e
+        Rails.logger.error "Stripe invalid request: #{e.message}"
+        raise StandardError, "Invalid request parameters: #{e.message}"
+      rescue ::Stripe::AuthenticationError => e
+        Rails.logger.error "Stripe authentication failed: #{e.message}"
+        raise StandardError, 'Stripe authentication failed - check API keys'
+      rescue ::Stripe::APIConnectionError => e
+        Rails.logger.warn "Stripe connection error: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Network error - retry recommended: #{e.message}"
       rescue ::Stripe::StripeError => e
         Rails.logger.error "Stripe error creating subscription: #{e.message}"
         raise StandardError, "Failed to create subscription: #{e.message}"
@@ -69,6 +121,18 @@ module Billing
       # Creates a checkout session in Stripe
       def create_checkout_session(session_params)
         ::Stripe::Checkout::Session.create(session_params)
+      rescue ::Stripe::RateLimitError => e
+        Rails.logger.warn "Stripe rate limit hit: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Rate limited - retry recommended: #{e.message}"
+      rescue ::Stripe::InvalidRequestError => e
+        Rails.logger.error "Stripe invalid request: #{e.message}"
+        raise StandardError, "Invalid request parameters: #{e.message}"
+      rescue ::Stripe::AuthenticationError => e
+        Rails.logger.error "Stripe authentication failed: #{e.message}"
+        raise StandardError, 'Stripe authentication failed - check API keys'
+      rescue ::Stripe::APIConnectionError => e
+        Rails.logger.warn "Stripe connection error: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Network error - retry recommended: #{e.message}"
       rescue ::Stripe::StripeError => e
         Rails.logger.error "Stripe error creating checkout session: #{e.message}"
         raise StandardError, "Failed to create checkout session: #{e.message}"
@@ -84,16 +148,22 @@ module Billing
         case event_type
         when 'checkout.session.completed'
           handle_checkout_session_completed(event_object)
+        when 'checkout.session.expired'
+          handle_checkout_session_expired(event_object)
         when 'customer.subscription.created'
           handle_subscription_created(event_object)
         when 'customer.subscription.updated'
           handle_subscription_updated(event_object)
         when 'customer.subscription.deleted'
           handle_subscription_deleted(event_object)
+        when 'customer.subscription.trial_will_end'
+          handle_trial_will_end(event_object)
         when 'invoice.payment_succeeded'
           handle_payment_succeeded(event_object)
         when 'invoice.payment_failed'
           handle_payment_failed(event_object)
+        when 'invoice.payment_action_required'
+          handle_payment_action_required(event_object)
         when 'product.updated'
           handle_product_updated(event_object)
         else
@@ -117,6 +187,18 @@ module Billing
       # Retrieves a customer from Stripe
       def get_customer(customer_id)
         ::Stripe::Customer.retrieve(customer_id)
+      rescue ::Stripe::RateLimitError => e
+        Rails.logger.warn "Stripe rate limit hit: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Rate limited - retry recommended: #{e.message}"
+      rescue ::Stripe::InvalidRequestError => e
+        Rails.logger.error "Stripe invalid request: #{e.message}"
+        raise StandardError, "Invalid request parameters: #{e.message}"
+      rescue ::Stripe::AuthenticationError => e
+        Rails.logger.error "Stripe authentication failed: #{e.message}"
+        raise StandardError, 'Stripe authentication failed - check API keys'
+      rescue ::Stripe::APIConnectionError => e
+        Rails.logger.warn "Stripe connection error: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Network error - retry recommended: #{e.message}"
       rescue ::Stripe::StripeError => e
         Rails.logger.error "Stripe error retrieving customer: #{e.message}"
         raise StandardError, "Failed to retrieve customer: #{e.message}"
@@ -125,6 +207,18 @@ module Billing
       # Retrieves a subscription from Stripe
       def get_subscription(subscription_id)
         ::Stripe::Subscription.retrieve(subscription_id)
+      rescue ::Stripe::RateLimitError => e
+        Rails.logger.warn "Stripe rate limit hit: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Rate limited - retry recommended: #{e.message}"
+      rescue ::Stripe::InvalidRequestError => e
+        Rails.logger.error "Stripe invalid request: #{e.message}"
+        raise StandardError, "Invalid request parameters: #{e.message}"
+      rescue ::Stripe::AuthenticationError => e
+        Rails.logger.error "Stripe authentication failed: #{e.message}"
+        raise StandardError, 'Stripe authentication failed - check API keys'
+      rescue ::Stripe::APIConnectionError => e
+        Rails.logger.warn "Stripe connection error: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Network error - retry recommended: #{e.message}"
       rescue ::Stripe::StripeError => e
         Rails.logger.error "Stripe error retrieving subscription: #{e.message}"
         raise StandardError, "Failed to retrieve subscription: #{e.message}"
@@ -136,11 +230,75 @@ module Billing
       end
 
       # Cancels a subscription in Stripe
-      def cancel_subscription(subscription_id)
-        ::Stripe::Subscription.cancel(subscription_id)
+      # Defaults to cancel_at_period_end for better customer experience (Stripe best practice)
+      def cancel_subscription(subscription_id, options = {})
+        # Default to cancel at period end to avoid mid-cycle cancellations
+        if options[:cancel_immediately]
+          # Immediate cancellation
+          cancel_params = {}
+          cancel_params[:prorate] = options.fetch(:prorate, true)
+          cancel_params[:invoice_now] = options.fetch(:invoice_now, false)
+
+          # Add cancellation details if provided
+          if options[:reason].present?
+            cancel_params[:cancellation_details] = {
+              comment: options[:reason],
+              feedback: options[:feedback] || 'customer_service'
+            }
+          end
+
+          ::Stripe::Subscription.cancel(subscription_id, cancel_params)
+        else
+          # Cancel at end of period (default - better UX)
+          update_subscription_cancel_at_period_end(subscription_id, true, options)
+        end
+      rescue ::Stripe::RateLimitError => e
+        Rails.logger.warn "Stripe rate limit hit: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Rate limited - retry recommended: #{e.message}"
+      rescue ::Stripe::InvalidRequestError => e
+        Rails.logger.error "Stripe invalid request: #{e.message}"
+        raise StandardError, "Invalid request parameters: #{e.message}"
+      rescue ::Stripe::AuthenticationError => e
+        Rails.logger.error "Stripe authentication failed: #{e.message}"
+        raise StandardError, 'Stripe authentication failed - check API keys'
+      rescue ::Stripe::APIConnectionError => e
+        Rails.logger.warn "Stripe connection error: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Network error - retry recommended: #{e.message}"
       rescue ::Stripe::StripeError => e
         Rails.logger.error "Stripe error cancelling subscription: #{e.message}"
         raise StandardError, "Failed to cancel subscription: #{e.message}"
+      end
+
+      # Updates subscription to cancel at period end
+      def update_subscription_cancel_at_period_end(subscription_id, cancel_at_period_end, options = {})
+        update_params = {
+          cancel_at_period_end: cancel_at_period_end
+        }
+
+        # Add cancellation details if provided
+        if options[:reason].present?
+          update_params[:cancellation_details] = {
+            comment: options[:reason],
+            feedback: options[:feedback] || 'customer_service'
+          }
+        end
+
+        ::Stripe::Subscription.update(subscription_id, update_params)
+      rescue ::Stripe::RateLimitError => e
+        Rails.logger.warn "Stripe rate limit hit: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Rate limited - retry recommended: #{e.message}"
+      rescue ::Stripe::InvalidRequestError => e
+        Rails.logger.error "Stripe invalid request: #{e.message}"
+        raise StandardError, "Invalid request parameters: #{e.message}"
+      rescue ::Stripe::AuthenticationError => e
+        Rails.logger.error "Stripe authentication failed: #{e.message}"
+        raise StandardError, 'Stripe authentication failed - check API keys'
+      rescue ::Stripe::APIConnectionError => e
+        Rails.logger.warn "Stripe connection error: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Network error - retry recommended: #{e.message}"
+      rescue ::Stripe::StripeError => e
+        Rails.logger.error "Stripe error updating subscription: #{e.message}"
+        raise StandardError, "Failed to update subscription: #{e.message}"
       end
 
       # Updates a subscription in Stripe
@@ -157,7 +315,26 @@ module Billing
         update_params[:quantity] = options[:quantity] if options[:quantity]
         update_params[:metadata] = options[:metadata] if options[:metadata]
 
+        # Support explicit proration behavior control (compatible with both classic and flexible modes)
+        # Options: 'create_prorations' (default), 'none', 'always_invoice'
+        # Used by add-on service to control proration on subscription changes
+        if options[:proration_behavior].present?
+          update_params[:proration_behavior] = options[:proration_behavior]
+        end
+
         ::Stripe::Subscription.update(subscription_id, update_params)
+      rescue ::Stripe::RateLimitError => e
+        Rails.logger.warn "Stripe rate limit hit: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Rate limited - retry recommended: #{e.message}"
+      rescue ::Stripe::InvalidRequestError => e
+        Rails.logger.error "Stripe invalid request: #{e.message}"
+        raise StandardError, "Invalid request parameters: #{e.message}"
+      rescue ::Stripe::AuthenticationError => e
+        Rails.logger.error "Stripe authentication failed: #{e.message}"
+        raise StandardError, 'Stripe authentication failed - check API keys'
+      rescue ::Stripe::APIConnectionError => e
+        Rails.logger.warn "Stripe connection error: #{e.message}"
+        raise CustomExceptions::RetryableStripeError, "Network error - retry recommended: #{e.message}"
       rescue ::Stripe::StripeError => e
         Rails.logger.error "Stripe error updating subscription: #{e.message}"
         raise StandardError, "Failed to update subscription: #{e.message}"
@@ -195,6 +372,10 @@ module Billing
         # Handle logging for both Hash and Stripe object types
         subscription_id_for_log = subscription.is_a?(Hash) ? subscription['id'] || subscription_id : subscription.id
         Rails.logger.info "Retrieved subscription: #{subscription_id_for_log}"
+
+        # Set the subscription's payment method as the customer's default for all invoices
+        # This enables one-time purchases (like conversation packs) to use the same payment method
+        set_default_payment_method_for_customer(subscription, stripe_customer_id)
 
         # Update the account with all necessary billing attributes
         update_account_subscription_data(account, subscription, plan_name, stripe_customer_id)
@@ -307,6 +488,15 @@ module Billing
 
         update_payment_status(account, 'succeeded')
 
+        # Only reset AI token credits on subscription renewal, not on initial subscription creation
+        # Skip reset for trial invoices (billing_reason: "subscription_create")
+        billing_reason = invoice['billing_reason'] || invoice.dig('parent', 'subscription_details', 'billing_reason')
+        unless billing_reason == 'subscription_create'
+          reset_ai_token_credits(account, invoice)
+        else
+          Rails.logger.info "Skipping token reset for initial subscription invoice (billing_reason: subscription_create)"
+        end
+
         success_response('Payment succeeded, account updated')
       end
 
@@ -357,7 +547,99 @@ module Billing
         failure_response("Error processing product update: #{e.message}")
       end
 
+      # Handles checkout.session.expired events
+      def handle_checkout_session_expired(session)
+        account_id = session.dig('metadata', 'account_id')
+        plan_name = session.dig('metadata', 'plan_name')
+
+        Rails.logger.info "Checkout session expired: account_id=#{account_id}, plan=#{plan_name}, session_id=#{session['id']}"
+
+        # Log expired checkout sessions for analytics/debugging
+        # Could trigger notification or analytics event here if needed
+        success_response('Checkout session expiration logged')
+      end
+
+      # Handles customer.subscription.trial_will_end events
+      def handle_trial_will_end(subscription)
+        # Find account by customer ID or metadata
+        account_id = subscription.dig('metadata', 'account_id')
+        account = account_id ? Account.find_by(id: account_id) : nil
+        account ||= find_account_by_customer_id(subscription['customer'])
+
+        return failure_response('Account not found') unless account
+
+        trial_end = Time.zone.at(subscription['trial_end'])
+        days_remaining = ((trial_end - Time.current) / 1.day).ceil
+
+        Rails.logger.info "Trial ending soon for account #{account.id}: #{days_remaining} days remaining"
+
+        # Send trial ending notification (if mailer exists)
+        # AccountMailer.trial_ending_soon(account, subscription).deliver_later
+
+        success_response("Trial ending notification logged for account #{account.id}")
+      end
+
+      # Handles invoice.payment_action_required events (3DS/SCA authentication)
+      def handle_payment_action_required(invoice)
+        # Find account by customer ID or invoice metadata
+        account_id = extract_account_id_from_invoice(invoice)
+        account = account_id ? Account.find_by(id: account_id) : nil
+        account ||= find_account_by_customer_id(invoice['customer'])
+
+        return failure_response('Account not found') unless account
+
+        payment_intent_id = invoice['payment_intent']
+
+        Rails.logger.warn "Payment requires action for account #{account.id}: invoice=#{invoice['id']}, payment_intent=#{payment_intent_id}"
+
+        # Send email notification to customer to complete 3DS authentication
+        # AccountMailer.payment_action_required(account, invoice).deliver_later
+
+        success_response("Payment action required notification logged for account #{account.id}")
+      end
+
+      # Resets AI token credits on subscription renewal
+      # Extracts subscription from invoice and passes it to the service
+      def reset_ai_token_credits(account, invoice)
+        subscription_id = extract_subscription_id_from_invoice(invoice)
+        return unless subscription_id
+
+        subscription = get_subscription(subscription_id)
+        Billing::ResetAiTokenCreditsService.new(account, invoice, subscription).perform
+      rescue StandardError => e
+        Rails.logger.error "Error retrieving subscription for token reset: #{e.message}"
+        # Don't raise - allow webhook processing to continue
+      end
+
+      # Extracts subscription ID from invoice
+      # Tries multiple locations to support different Stripe API versions and invoice types
+      def extract_subscription_id_from_invoice(invoice)
+        # Handle Stripe object (responds to .subscription)
+        return invoice.subscription if invoice.respond_to?(:subscription)
+
+        return nil unless invoice.is_a?(Hash)
+
+        # Check direct subscription field (simplest case)
+        subscription_id = invoice['subscription']
+        return subscription_id if subscription_id.present?
+
+        # Modern Stripe API versions (flexible billing) - subscription ID is in parent details
+        subscription_id = invoice.dig('parent', 'subscription_details', 'subscription')
+        return subscription_id if subscription_id.present?
+
+        # Final fallback - check line items for subscription details
+        # (as mentioned in Stripe knowledge base: lines.data.subscription)
+        line_items = invoice.dig('lines', 'data') || []
+        line_items.each do |item|
+          sub_id = item.dig('parent', 'subscription_item_details', 'subscription')
+          return sub_id if sub_id.present?
+        end
+
+        nil
+      end
+
       # Extracts account ID from invoice metadata (line items or subscription details)
+
       def extract_account_id_from_invoice(invoice)
         # First try to get from line items metadata
         line_items = invoice.dig('lines', 'data') || []
@@ -411,24 +693,23 @@ module Billing
         Rails.logger.info 'Step 2: Extracting customer ID'
 
         # Handle both Stripe objects and hashes
-        stripe_customer_id ||= subscription.is_a?(Hash) ? subscription['customer'] : subscription.customer
+        stripe_customer_id ||= subscription_value(subscription, 'customer')
 
         Rails.logger.info 'Step 3: Building new attributes hash'
 
-        # Extract current_period_end from subscription items (where it's actually stored)
-        current_period_end = if subscription.is_a?(Hash)
-                               # For hash data, get from items.data[0].current_period_end
-                               subscription.dig('items', 'data', 0, 'current_period_end')
-                             else
-                               # For Stripe objects, get from items.data.first.current_period_end
-                               subscription.items&.data&.first&.current_period_end
-                             end
+        # Extract current_period_start and current_period_end from subscription.
+        # On Stripe API versions before basil these were top-level fields; with flexible billing
+        # they moved onto subscription items, so subscription_value falls back to the item data.
+        current_period_start = subscription_value(subscription, 'current_period_start', plan_name: plan_name)
 
+        current_period_end = subscription_value(subscription, 'current_period_end', plan_name: plan_name)
+
+        Rails.logger.info "current_period_start value: #{current_period_start}"
         Rails.logger.info "current_period_end value: #{current_period_end}"
         Rails.logger.info "current_period_end class: #{current_period_end.class}"
 
         # Handle both Stripe objects and hashes for status
-        raw_status = subscription.is_a?(Hash) ? subscription['status'] : subscription.status
+        raw_status = subscription_value(subscription, 'status')
 
         # Determine the correct subscription status based on cancellation state
         subscription_status = if extract_cancel_at_period_end(subscription)
@@ -462,23 +743,27 @@ module Billing
         cancel_at_period_end = extract_cancel_at_period_end(subscription)
         canceled_at = extract_canceled_at(subscription)
         ended_at = extract_ended_at(subscription)
+        cancel_at = extract_cancel_at(subscription)
 
         # Log extracted values for debugging
         Rails.logger.info 'Extracted values:'
         Rails.logger.info "  - cancel_at_period_end: #{cancel_at_period_end} (class: #{cancel_at_period_end.class})"
         Rails.logger.info "  - canceled_at: #{canceled_at} (class: #{canceled_at.class})"
         Rails.logger.info "  - ended_at: #{ended_at} (class: #{ended_at.class})"
+        Rails.logger.info "  - cancel_at: #{cancel_at} (class: #{cancel_at.class})"
 
         custom_attrs.merge!(
           'plan_name' => plan_name,
           'stripe_customer_id' => stripe_customer_id,
           'subscription_status' => subscription_status,
+          'current_period_start' => current_period_start,
           'current_period_end' => current_period_end,
           'subscription_ends_on' => current_period_end ? Time.at(current_period_end).strftime('%Y-%m-%d') : nil,
           'cancel_at_period_end' => cancel_at_period_end,
           'canceled_at' => canceled_at,
           'ended_at' => ended_at
         )
+        custom_attrs['cancel_at'] = cancel_at
 
         # Update account limits directly from billing provider metadata (dynamic)
         if plan_limits.present?
@@ -487,17 +772,19 @@ module Billing
           Rails.logger.info "Updated account limits from billing provider metadata: #{plan_limits}"
         end
 
+        if Billing::SubscriptionStatuses.paid_status?(subscription_status)
+          custom_attrs['billing_status'] = 'completed'
+        end
+
         # If subscription is being cancelled (cancel_at_period_end = true),
         # update subscription_ends_on to the actual cancellation date
-        if cancel_at_period_end && extract_cancel_at(subscription)
-          cancel_at = extract_cancel_at(subscription)
+        if cancel_at.present? && cancel_at.respond_to?(:to_i)
+          cancel_date = Time.at(cancel_at.to_i)
           Rails.logger.info "Cancellation data - cancel_at: #{cancel_at} (class: #{cancel_at.class})"
-
-          if cancel_at.present? && cancel_at.respond_to?(:to_i)
-            cancel_date = Time.at(cancel_at.to_i)
-            custom_attrs['subscription_ends_on'] = cancel_date.strftime('%Y-%m-%d')
-            Rails.logger.info "Subscription cancellation detected - ends on: #{custom_attrs['subscription_ends_on']}"
-          end
+          custom_attrs['subscription_ends_on'] = cancel_date.strftime('%Y-%m-%d')
+          Rails.logger.info "Subscription cancellation detected - ends on: #{custom_attrs['subscription_ends_on']}"
+        elsif cancel_at_period_end && current_period_end
+          custom_attrs['subscription_ends_on'] = Time.at(current_period_end).strftime('%Y-%m-%d')
         end
 
         Rails.logger.info 'Step 4: Updating account with custom attributes'
@@ -535,6 +822,7 @@ module Billing
             'canceled_at' => extract_canceled_at(subscription),
             'ended_at' => extract_ended_at(subscription)
           )
+          custom_attrs['cancel_at'] = extract_cancel_at(subscription)
         end
 
         Rails.logger.info "Updated custom_attributes: #{custom_attrs}"
@@ -561,6 +849,46 @@ module Billing
         Rails.logger.info "Updated billing status for account #{account.id} to: #{status}"
       rescue StandardError => e
         Rails.logger.error "Failed to update billing status for account #{account.id}: #{e.message}"
+      end
+
+      # Sets the subscription's payment method as the customer's default payment method
+      # This enables one-time purchases (like conversation packs) to use the same payment method
+      # without requiring the user to re-enter payment details or set a default manually
+      def set_default_payment_method_for_customer(subscription, customer_id)
+        Rails.logger.info '---[SET DEFAULT PAYMENT METHOD]---'
+        
+        # Extract payment method from subscription
+        payment_method_id = if subscription.is_a?(Hash)
+                              subscription['default_payment_method']
+                            else
+                              subscription.default_payment_method
+                            end
+
+        unless payment_method_id.present?
+          Rails.logger.warn "No payment method found on subscription, skipping default payment method setup"
+          return
+        end
+
+        Rails.logger.info "Setting payment method #{payment_method_id} as default for customer #{customer_id}"
+
+        # Update customer's invoice_settings.default_payment_method
+        # This is used for all invoices, including one-time purchases
+        ::Stripe::Customer.update(
+          customer_id,
+          invoice_settings: {
+            default_payment_method: payment_method_id
+          }
+        )
+
+        Rails.logger.info "✅ Successfully set payment method #{payment_method_id} as customer default"
+        Rails.logger.info "   Customer #{customer_id} can now make one-time purchases (conversation packs, etc.)"
+      rescue ::Stripe::StripeError => e
+        # Log error but don't fail the webhook - this is a convenience feature
+        # The subscription itself is still valid even if we can't set the default
+        Rails.logger.error "Failed to set default payment method: #{e.message}"
+        Rails.logger.error "   Subscription is still valid, but user may need to add payment method for one-time purchases"
+      rescue StandardError => e
+        Rails.logger.error "Unexpected error setting default payment method: #{e.message}"
       end
 
       # Extract plan limits from subscription metadata
@@ -607,37 +935,82 @@ module Billing
 
       # Extracts cancel_at_period_end from subscription
       def extract_cancel_at_period_end(subscription)
-        if subscription.is_a?(Hash)
-          subscription['cancel_at_period_end'] || false
-        else
-          subscription.cancel_at_period_end || false
-        end
+        subscription_value(subscription, 'cancel_at_period_end') || false
       end
 
       # Extracts canceled_at timestamp from subscription
       def extract_canceled_at(subscription)
-        if subscription.is_a?(Hash)
-          subscription['canceled_at']
-        else
-          subscription.canceled_at
-        end
+        subscription_value(subscription, 'canceled_at')
       end
 
       # Extracts ended_at timestamp from subscription
       def extract_ended_at(subscription)
-        if subscription.is_a?(Hash)
-          subscription['ended_at']
-        else
-          subscription.ended_at
-        end
+        subscription_value(subscription, 'ended_at')
       end
 
       # Extracts cancel_at timestamp from subscription
       def extract_cancel_at(subscription)
-        if subscription.is_a?(Hash)
-          subscription['cancel_at']
+        subscription_value(subscription, 'cancel_at')
+      end
+
+      def subscription_value(subscription, key, plan_name: nil)
+        return nil unless subscription
+
+        value = case subscription
+                when Hash
+                  subscription[key.to_s]
+                else
+                  subscription.respond_to?(key) ? subscription.public_send(key) : subscription[key.to_s]
+                end
+
+        needs_item_lookup = %w[current_period_start current_period_end].include?(key.to_s)
+        return value if value.present? || !needs_item_lookup
+
+        item = find_base_subscription_item(subscription, plan_name)
+        return nil unless item
+
+        subscription_item_value(item, key)
+      end
+
+      def find_base_subscription_item(subscription, plan_name)
+        items = subscription_items(subscription)
+        return nil if items.blank?
+
+        if plan_name.present?
+          target_price_id = self.class.plan_price_id(plan_name)
+          if target_price_id.present?
+            matched_item = items.find { |item| subscription_item_price_id(item) == target_price_id }
+            return matched_item if matched_item
+          end
+        end
+
+        items.first
+      end
+
+      def subscription_items(subscription)
+        case subscription
+        when Hash
+          Array(subscription.dig('items', 'data'))
         else
-          subscription.cancel_at
+          subscription.items&.data || []
+        end
+      end
+
+      def subscription_item_price_id(item)
+        case item
+        when Hash
+          item.dig('price', 'id')
+        else
+          item.price&.id
+        end
+      end
+
+      def subscription_item_value(item, key)
+        case item
+        when Hash
+          item[key.to_s]
+        else
+          item.respond_to?(key) ? item.public_send(key) : item[key.to_s]
         end
       end
 
@@ -709,22 +1082,66 @@ module Billing
 
         Rails.logger.info "Found Stripe product: #{target_product.id} for plan: #{plan_name}"
 
-        # Get the active price for this product
-        prices = ::Stripe::Price.list(
-          product: target_product.id,
-          active: true,
-          limit: 10
-        )
+        # Try to get price using lookup_key first (most reliable method)
+        plan_config = BillingPlans.plan_details(plan_name)
+        lookup_key = plan_config&.dig('lookup_key')
+        
+        active_price = nil
+        if lookup_key.present?
+          Rails.logger.info "Attempting to fetch price using lookup_key: #{lookup_key}"
+          begin
+            prices_by_lookup = ::Stripe::Price.list(
+              lookup_keys: [lookup_key],
+              active: true,
+              limit: 1
+            )
+            
+            if prices_by_lookup.data.any?
+              active_price = prices_by_lookup.data.first
+              Rails.logger.info "✅ Found price using lookup_key #{lookup_key}: #{active_price.id}"
+            else
+              Rails.logger.warn "⚠️  No price found with lookup_key #{lookup_key}, falling back to interval-based selection"
+            end
+          rescue ::Stripe::StripeError => e
+            Rails.logger.error "Error fetching price using lookup_key #{lookup_key}: #{e.message}, falling back to interval-based selection"
+            active_price = nil
+          end
+        end
 
-        active_price = prices.data.first
+        # Fallback to interval-based selection if lookup_key didn't work
         unless active_price
-          Rails.logger.warn "No active price found for product: #{target_product.id}"
-          return nil
+          # Get the active prices for this product
+          prices = ::Stripe::Price.list(
+            product: target_product.id,
+            active: true,
+            limit: 10
+          )
+
+          unless prices.data.any?
+            Rails.logger.warn "No active price found for product: #{target_product.id}"
+            return nil
+          end
+
+          # Prefer monthly prices over yearly prices when multiple prices exist
+          # This ensures consistent behavior when interval is not explicitly specified
+          active_price = if prices.data.length > 1
+                          # Find monthly price first, fallback to first price if no monthly found
+                          monthly_price = prices.data.find { |p| p.recurring&.interval == 'month' }
+                          if monthly_price
+                            Rails.logger.info "✅ Found monthly price via interval matching: #{monthly_price.id}"
+                            monthly_price
+                          else
+                            Rails.logger.warn "⚠️  No monthly price found, using first available price: #{prices.data.first.id}"
+                            prices.data.first
+                          end
+                        else
+                          prices.data.first
+                        end
         end
 
         # Extract limits from metadata using existing BillingPlans infrastructure
         metadata = target_product.metadata || {}
-        limits = new.limits_from_billing_provider_metadata(metadata)
+        limits = limits_from_billing_provider_metadata(metadata)
 
         plan_data = {
           price_id: active_price.id,
@@ -738,6 +1155,40 @@ module Billing
       end
 
       private_class_method :find_plan_data_by_name
+
+      # Public method to sync subscription data from Stripe to account
+      # This ensures the database always has the latest subscription state from Stripe
+      # This is particularly important for cancel_at_period_end flag which may not be
+      # updated via webhooks if they are delayed or missed
+      def self.sync_subscription_from_stripe(account)
+        customer_id = account.custom_attributes&.dig('stripe_customer_id')
+        return false unless customer_id
+
+        begin
+          # Fetch active subscription from Stripe
+          # Use 'all' status to catch subscriptions that might be in various states
+          subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'all', limit: 10)
+          active_subscription = subscriptions.data.find do |sub|
+            %w[active trialing past_due].include?(sub.status)
+          end
+
+          return false unless active_subscription
+
+          # Use instance method to update account with subscription data
+          # This will sync all subscription attributes including cancel_at_period_end
+          provider_instance = new
+          provider_instance.send(:update_account_subscription_data, account, active_subscription)
+          
+          Rails.logger.info "Successfully synced subscription data from Stripe for account #{account.id}"
+          true
+        rescue ::Stripe::StripeError => e
+          Rails.logger.error "Error syncing subscription from Stripe for account #{account.id}: #{e.message}"
+          false
+        rescue StandardError => e
+          Rails.logger.error "Unexpected error syncing subscription from Stripe for account #{account.id}: #{e.message}"
+          false
+        end
+      end
 
       # Helper methods for webhook responses
       def success_response(message)

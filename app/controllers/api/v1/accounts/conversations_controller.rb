@@ -41,6 +41,13 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
       @conversation = ConversationBuilder.new(params: params, contact_inbox: @contact_inbox).perform
       Messages::MessageBuilder.new(Current.user, @conversation, params[:message]).perform if params[:message].present?
     end
+  rescue ActiveRecord::RecordInvalid => e
+    # Check if it's a conversation limit error
+    if e.record.errors[:base].any? { |error| error.include?('Conversation limit reached') }
+      render_conversation_limit_error
+    else
+      raise
+    end
   end
 
   def update
@@ -152,6 +159,25 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   private
+
+  def render_conversation_limit_error
+    limit_service = Billing::ConversationLimitService.new(Current.account)
+    status_info = limit_service.status
+    upgrade_options = limit_service.upgrade_options
+
+    render json: {
+      error: 'Conversation limit reached for this billing period',
+      limit_info: {
+        current: status_info[:current],
+        plan_limit: status_info[:plan_limit],
+        purchased: status_info[:purchased],
+        total_allowed: status_info[:total_allowed],
+        remaining: status_info[:remaining],
+        billing_period_end: status_info[:billing_period_end]
+      },
+      upgrade_options: upgrade_options
+    }, status: :payment_required # HTTP 402
+  end
 
   def permitted_update_params
     # TODO: Move the other conversation attributes to this method and remove specific endpoints for each attribute

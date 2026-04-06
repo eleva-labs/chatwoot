@@ -24,12 +24,15 @@ RSpec.describe Billing::Providers::Stripe do
       result = provider.create_customer(account, 'starter')
 
       expect(Stripe::Customer).to have_received(:create).with(
-        email: 'test@example.com',
-        name: account.name,
-        metadata: {
-          account_id: account.id,
-          plan: 'starter'
-        }
+        {
+          email: 'test@example.com',
+          name: account.name,
+          metadata: {
+            account_id: account.id.to_s,
+            plan: 'starter'
+          }
+        },
+        { idempotency_key: "customer_create_#{account.id}_starter" }
       )
       expect(result).to eq(stripe_customer)
     end
@@ -52,16 +55,20 @@ RSpec.describe Billing::Providers::Stripe do
     it 'creates a subscription in Stripe' do
       result = provider.create_subscription('cus_123', 'price_123', 1)
 
-      expect(Stripe::Subscription).to have_received(:create).with(
-        customer: 'cus_123',
-        items: [{ price: 'price_123', quantity: 1 }], # Always 1 for billing
-        auto_advance: true,
-        collection_method: 'charge_automatically',
-        metadata: {
-          plan_id: 'price_123',
-          quantity: 1 # Metadata reflects the passed quantity
-        }
-      )
+      # Get the actual idempotency_key that was generated
+      expect(Stripe::Subscription).to have_received(:create) do |params, options|
+        expect(params[:customer]).to eq('cus_123')
+        expect(params[:items]).to eq([{ price: 'price_123', quantity: 1 }])
+        expect(params[:collection_method]).to eq('charge_automatically')
+        expect(params[:payment_behavior]).to eq('default_incomplete')
+        expect(params[:expand]).to eq(['latest_invoice.payment_intent'])
+        expect(params[:metadata][:plan_id]).to eq('price_123')
+        expect(params[:metadata][:quantity]).to eq('1')
+        # Verify flexible billing mode is enabled
+        expect(params[:billing_mode][:type]).to eq('flexible')
+        expect(params[:billing_mode][:flexible][:proration_discounts]).to eq('itemized')
+        expect(options[:idempotency_key]).to match(/^subscription_create_cus_123_price_123_/)
+      end
       expect(result).to eq(stripe_subscription)
     end
 
@@ -168,24 +175,27 @@ RSpec.describe Billing::Providers::Stripe do
   end
 
   describe '#cancel_subscription' do
-    let(:cancelled_subscription) { double('Stripe::Subscription', id: 'sub_123', status: 'canceled') }
+    let(:updated_subscription) { double('Stripe::Subscription', id: 'sub_123', status: 'active', cancel_at_period_end: true) }
 
     before do
-      allow(Stripe::Subscription).to receive(:cancel).and_return(cancelled_subscription)
+      allow(Stripe::Subscription).to receive(:update).and_return(updated_subscription)
     end
 
-    it 'cancels a subscription in Stripe' do
+    it 'cancels a subscription at period end by default' do
       result = provider.cancel_subscription('sub_123')
 
-      expect(Stripe::Subscription).to have_received(:cancel).with('sub_123')
-      expect(result).to eq(cancelled_subscription)
+      expect(Stripe::Subscription).to have_received(:update).with(
+        'sub_123',
+        { cancel_at_period_end: true }
+      )
+      expect(result).to eq(updated_subscription)
     end
 
     it 'handles Stripe errors' do
-      allow(Stripe::Subscription).to receive(:cancel).and_raise(Stripe::StripeError.new('Cannot cancel'))
+      allow(Stripe::Subscription).to receive(:update).and_raise(Stripe::StripeError.new('Cannot cancel'))
 
       expect { provider.cancel_subscription('sub_123') }
-        .to raise_error(StandardError, /Failed to cancel subscription/)
+        .to raise_error(StandardError, /Failed to update subscription/)
     end
   end
 
@@ -239,6 +249,7 @@ RSpec.describe Billing::Providers::Stripe do
         {
           'status' => 'active',
           'customer' => 'cus_123',
+          'default_payment_method' => 'pm_123',
           'current_period_end' => 1_234_567_890,
           'items' => { 'data' => [{ 'quantity' => 1 }] },
           'metadata' => { 'plan_name' => 'starter' }
@@ -263,6 +274,7 @@ RSpec.describe Billing::Providers::Stripe do
 
       before do
         allow(provider).to receive(:get_subscription).with('sub_123').and_return(stripe_subscription)
+        allow(Stripe::Customer).to receive(:update).and_return(double('Customer', id: 'cus_123'))
 
         # Stub the Stripe API call that happens in sync_account_features
         stub_request(:get, 'https://api.stripe.com/v1/subscriptions')
@@ -308,6 +320,49 @@ RSpec.describe Billing::Providers::Stripe do
         expect(webhook_account.custom_attributes['plan_name']).to eq('starter')
         expect(webhook_account.custom_attributes['subscription_status']).to eq('active')
         expect(webhook_account.custom_attributes['stripe_customer_id']).to eq('cus_123')
+      end
+
+      it 'sets the subscription payment method as customer default' do
+        result = provider.handle_webhook(event_data)
+
+        expect(result[:success]).to be true
+        
+        # Verify that Stripe::Customer.update was called to set default payment method
+        expect(Stripe::Customer).to have_received(:update).with(
+          'cus_123',
+          invoice_settings: {
+            default_payment_method: 'pm_123'
+          }
+        )
+      end
+
+      it 'handles missing payment method gracefully' do
+        # Subscription without payment method
+        subscription_without_pm = stripe_subscription.except('default_payment_method')
+        allow(provider).to receive(:get_subscription).with('sub_123').and_return(subscription_without_pm)
+
+        result = provider.handle_webhook(event_data)
+
+        # Webhook should still succeed
+        expect(result[:success]).to be true
+        
+        # Customer.update should not be called when payment method is missing
+        expect(Stripe::Customer).not_to have_received(:update)
+      end
+
+      it 'continues webhook processing even if setting default payment method fails' do
+        # Simulate Stripe error when updating customer
+        allow(Stripe::Customer).to receive(:update).and_raise(Stripe::StripeError.new('Customer update failed'))
+
+        result = provider.handle_webhook(event_data)
+
+        # Webhook should still succeed (non-blocking operation)
+        expect(result[:success]).to be true
+        expect(result[:message]).to include('Checkout session completed and account updated successfully')
+        
+        # Account should still be updated with subscription data
+        webhook_account.reload
+        expect(webhook_account.custom_attributes['plan_name']).to eq('starter')
       end
 
       it 'handles missing account' do

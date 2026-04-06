@@ -19,6 +19,8 @@ class ActionCableConnector extends BaseActionCableConnector {
       'conversation.status_changed': this.onStatusChange,
       // Whapi partner channel connection lifecycle
       whapi_channel_status_updated: this.onWhapiChannelStatusUpdated,
+      whapi_qr_code_received: this.onWhapiQrCodeReceived,
+      whapi_webhook_configured: this.onWhapiWebhookConfigured,
       'user:logout': this.onLogout,
       'page:reload': this.onReload,
       'assignee.changed': this.onAssigneeChanged,
@@ -88,17 +90,37 @@ class ActionCableConnector extends BaseActionCableConnector {
     const {
       inbox_id: inboxId,
       connection_status: status,
+      whapi_status: whapiStatus,
       phone_number: phone,
     } = data;
+    const existingInbox = this.app.$store.getters['inboxes/getInbox'](inboxId);
     this.app.$store.commit('inboxes/UPDATE_INBOX_ATTRIBUTES', {
       id: inboxId,
       provider_config: {
-        ...(this.app.$store.getters['inboxes/getInbox'](inboxId)
-          .provider_config || {}),
+        ...(existingInbox?.provider_config || {}),
         connection_status: status,
+        whapi_status: whapiStatus,
       },
       phone_number: phone,
     });
+  };
+
+  onWhapiQrCodeReceived = data => {
+    const {
+      inbox_id: inboxId,
+      qr_base64: qrBase64,
+      expires_in: expiresIn,
+    } = data;
+    this.app.$store.commit('inboxes/SET_WHAPI_QR_CODE', {
+      inboxId,
+      qrBase64,
+      expiresIn,
+    });
+  };
+
+  onWhapiWebhookConfigured = data => {
+    const { inbox_id: inboxId } = data;
+    this.app.$store.commit('inboxes/SET_WHAPI_WEBHOOK_CONFIGURED', inboxId);
   };
 
   onConversationCreated = data => {

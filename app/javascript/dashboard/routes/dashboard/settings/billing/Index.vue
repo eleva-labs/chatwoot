@@ -1,32 +1,25 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { useMapGetter, useStore } from 'dashboard/composables/store.js';
 import { useAccount } from 'dashboard/composables/useAccount';
-import { useCaptain } from 'dashboard/composables/useCaptain';
-import { format } from 'date-fns';
+import { useI18n } from 'vue-i18n';
+import { format, parseISO } from 'date-fns';
 import sessionStorage from 'shared/helpers/sessionStorage';
-
-import BillingMeter from './components/BillingMeter.vue';
 import BillingCard from './components/BillingCard.vue';
-import BillingHeader from './components/BillingHeader.vue';
+import BillingLimitsCard from './components/BillingLimitsCard.vue';
+import BillingSubscriptionCard from './components/BillingSubscriptionCard.vue';
+// import BillingTrainingCard from './components/BillingTrainingCard.vue';
+import PricingTable from './components/PricingTable.vue';
 import DetailItem from './components/DetailItem.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import ButtonV4 from 'next/button/Button.vue';
 
-const router = useRouter();
-const { currentAccount, isOnChatwootCloud } = useAccount();
-const {
-  captainEnabled,
-  captainLimits,
-  documentLimits,
-  responseLimits,
-  fetchLimits,
-} = useCaptain();
+const { currentAccount } = useAccount();
 
 const uiFlags = useMapGetter('accounts/getUIFlags');
 const store = useStore();
+const { t } = useI18n();
 
 const BILLING_REFRESH_ATTEMPTED = 'billing_refresh_attempted';
 
@@ -37,12 +30,72 @@ const customAttributes = computed(() => {
   return currentAccount.value.custom_attributes || {};
 });
 
+const convertTimestampToDate = value => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) {
+    return null;
+  }
+
+  const milliseconds = numericValue < 1e12 ? numericValue * 1000 : numericValue;
+  const date = new Date(milliseconds);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const convertIsoDate = value => {
+  if (!value) {
+    return null;
+  }
+
+  const date = parseISO(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const billingDate = computed(() => {
+  const {
+    current_period_end: currentPeriodEnd,
+    subscription_ends_on: subscriptionEndsOn,
+  } = customAttributes.value;
+
+  const timestampDate = convertTimestampToDate(currentPeriodEnd);
+  if (timestampDate) {
+    return timestampDate;
+  }
+
+  return convertIsoDate(subscriptionEndsOn);
+});
+
+const subscriptionEndDate = computed(() => {
+  const {
+    current_period_end: currentPeriodEnd,
+    subscription_ends_on: subscriptionEndsOn,
+  } = customAttributes.value;
+
+  const subscriptionEnd = convertIsoDate(subscriptionEndsOn);
+  if (subscriptionEnd) {
+    return subscriptionEnd;
+  }
+
+  return convertTimestampToDate(currentPeriodEnd);
+});
+
 /**
  * Computed property for plan name
  * @returns {string|undefined}
  */
 const planName = computed(() => {
-  return customAttributes.value.plan_name;
+  const rawPlanName = customAttributes.value.plan_name;
+  if (!rawPlanName) return undefined;
+
+  const planTranslationKey = `BILLING_SETTINGS.PLANS.${rawPlanName}`;
+  // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+  const translatedName = t(planTranslationKey);
+
+  return translatedName !== planTranslationKey ? translatedName : rawPlanName;
 });
 
 /**
@@ -53,11 +106,96 @@ const subscribedQuantity = computed(() => {
   return customAttributes.value.subscribed_quantity;
 });
 
+const cancelAtPeriodEnd = computed(() => {
+  const flag = customAttributes.value.cancel_at_period_end;
+  const normalizedFlag = typeof flag === 'string' ? flag.toLowerCase() : flag;
+
+  // Check if cancel_at_period_end is explicitly true
+  if (normalizedFlag === true || normalizedFlag === 'true') {
+    return true;
+  }
+
+  // Also check if cancel_at exists and is in the future
+  // When using cancel_at parameter, cancel_at_period_end might be false
+  // but the subscription is still scheduled to cancel
+  const cancelAtValue = customAttributes.value.cancel_at;
+  if (cancelAtValue) {
+    const cancelAtDate = convertTimestampToDate(cancelAtValue);
+    if (cancelAtDate && cancelAtDate > new Date()) {
+      return true;
+    }
+  }
+
+  return false;
+});
+
+const scheduledCancellationDate = computed(() => {
+  // Check if cancel_at_period_end is explicitly true
+  // In this case, cancellation happens at period end, so use subscriptionEndDate
+  const flag = customAttributes.value.cancel_at_period_end;
+  const normalizedFlag = typeof flag === 'string' ? flag.toLowerCase() : flag;
+
+  if (normalizedFlag === true || normalizedFlag === 'true') {
+    return subscriptionEndDate.value;
+  }
+
+  // If cancel_at is set (specific cancellation timestamp), use that date
+  // This is different from cancel_at_period_end - it's a specific future date
+  const cancelAtValue = customAttributes.value.cancel_at;
+  if (cancelAtValue) {
+    const cancelAtDate = convertTimestampToDate(cancelAtValue);
+    if (cancelAtDate && cancelAtDate > new Date()) {
+      return cancelAtDate;
+    }
+  }
+
+  return null;
+});
+
+const scheduledCancellationLabel = computed(() => {
+  const date = scheduledCancellationDate.value;
+  return date ? format(date, 'dd MMM, yyyy') : null;
+});
+
 const subscriptionRenewsOn = computed(() => {
-  if (!customAttributes.value.subscription_ends_on) return '';
-  const endDate = new Date(customAttributes.value.subscription_ends_on);
-  // return date as 12 Jan, 2034
-  return format(endDate, 'dd MMM, yyyy');
+  // Return '-' if subscription is not active or no end date
+  if (customAttributes.value.subscription_status !== 'active') {
+    return '-';
+  }
+
+  // Don't show "Renews on" if subscription is scheduled to cancel
+  if (cancelAtPeriodEnd.value) {
+    return '-';
+  }
+
+  const date = billingDate.value;
+  return date ? format(date, 'dd MMM, yyyy') : '-';
+});
+
+/**
+ * Computed property for subscription status with translation
+ * @returns {string}
+ */
+const subscriptionStatus = computed(() => {
+  const rawStatus = customAttributes.value.subscription_status;
+  if (!rawStatus) return '-';
+
+  const statusTranslationKey = `BILLING_SETTINGS.SUBSCRIPTION_STATUS.${rawStatus}`;
+  // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+  const translatedStatus = t(statusTranslationKey);
+
+  return translatedStatus !== statusTranslationKey
+    ? translatedStatus
+    : rawStatus;
+});
+
+/**
+ * Computed property for subscription end date
+ * @returns {string}
+ */
+const subscriptionEndsOn = computed(() => {
+  const date = subscriptionEndDate.value;
+  return date ? format(date, 'dd MMM, yyyy') : '-';
 });
 
 /**
@@ -68,20 +206,40 @@ const hasABillingPlan = computed(() => {
   return !!planName.value;
 });
 
-const fetchAccountDetails = async () => {
-  if (!hasABillingPlan.value) {
-    await store.dispatch('accounts/subscription');
-    fetchLimits();
+const hasStripeCustomer = computed(() => {
+  return !!customAttributes.value.stripe_customer_id;
+});
+
+/**
+ * Computed property to determine the appropriate billing button action
+ * @returns {object}
+ */
+const billingButtonConfig = computed(() => {
+  const status = customAttributes.value.subscription_status;
+
+  // For inactive subscriptions, treat them as needing a new subscription setup
+  if (status === 'inactive') {
+    return {
+      text: t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.BUTTON_TXT'),
+      action: 'create_new',
+    };
   }
+
+  // For all other cases (active, cancelled, trialing, etc.), use portal
+  return {
+    text: t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.BUTTON_TXT'),
+    action: 'portal',
+  };
+});
+
+const fetchAccountDetails = async () => {
+  // Always fetch the latest subscription data
+  await store.dispatch('accounts/subscription');
+  // Fetch limits after subscription data is loaded
+  await store.dispatch('accounts/limits');
 };
 
 const handleBillingPageLogic = async () => {
-  // If self-hosted, redirect to dashboard
-  if (!isOnChatwootCloud.value) {
-    router.push({ name: 'home' });
-    return;
-  }
-
   // Check if we've already attempted a refresh for billing setup
   const billingRefreshAttempted = sessionStorage.get(BILLING_REFRESH_ATTEMPTED);
 
@@ -109,13 +267,23 @@ const handleBillingPageLogic = async () => {
   }
 };
 
-const onClickBillingPortal = () => {
-  store.dispatch('accounts/checkout');
+const onCreateSubscription = async (planNameParam = 'starter') => {
+  try {
+    await store.dispatch('accounts/createSubscription', {
+      planName: planNameParam,
+    });
+    // Refresh the account details after creating subscription
+    await fetchAccountDetails();
+  } catch (error) {
+    // Handle error silently or use proper error handling
+  }
 };
 
-const onToggleChatWindow = () => {
-  if (window.$chatwoot) {
-    window.$chatwoot.toggle();
+const onClickBillingPortal = async () => {
+  if (billingButtonConfig.value.action === 'create_new') {
+    await onCreateSubscription('starter');
+  } else {
+    await store.dispatch('accounts/checkout');
   }
 };
 
@@ -137,12 +305,21 @@ onMounted(handleBillingPageLogic);
       <BaseSettingsHeader
         :title="$t('BILLING_SETTINGS.TITLE')"
         :description="$t('BILLING_SETTINGS.DESCRIPTION')"
-        :link-text="$t('BILLING_SETTINGS.VIEW_PRICING')"
         feature-name="billing"
       />
     </template>
     <template #body>
       <section class="grid gap-4">
+        <!-- Custom Pricing Table -->
+        <div class="mb-8">
+          <PricingTable
+            :current-plan-name="customAttributes.plan_name"
+            :subscription-status="customAttributes.subscription_status"
+            :cancel-at-period-end="cancelAtPeriodEnd"
+            :subscription-ends-on="scheduledCancellationLabel"
+            :has-stripe-customer="hasStripeCustomer"
+          />
+        </div>
         <BillingCard
           :title="$t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.TITLE')"
           :description="$t('BILLING_SETTINGS.MANAGE_SUBSCRIPTION.DESCRIPTION')"
@@ -170,58 +347,26 @@ onMounted(handleBillingPageLogic);
               :label="$t('BILLING_SETTINGS.CURRENT_PLAN.RENEWS_ON')"
               :value="subscriptionRenewsOn"
             />
-          </div>
-        </BillingCard>
-        <BillingCard
-          v-if="captainEnabled"
-          :title="$t('BILLING_SETTINGS.CAPTAIN.TITLE')"
-          :description="$t('BILLING_SETTINGS.CAPTAIN.DESCRIPTION')"
-        >
-          <template #action>
-            <ButtonV4 sm faded slate disabled>
-              {{ $t('BILLING_SETTINGS.CAPTAIN.BUTTON_TXT') }}
-            </ButtonV4>
-          </template>
-          <div v-if="captainLimits && responseLimits" class="px-5">
-            <BillingMeter
-              :title="$t('BILLING_SETTINGS.CAPTAIN.RESPONSES')"
-              v-bind="responseLimits"
+            <DetailItem
+              v-if="subscriptionStatus"
+              :label="$t('BILLING_SETTINGS.CURRENT_PLAN.STATUS')"
+              :value="subscriptionStatus"
             />
-          </div>
-          <div v-if="captainLimits && documentLimits" class="px-5">
-            <BillingMeter
-              :title="$t('BILLING_SETTINGS.CAPTAIN.DOCUMENTS')"
-              v-bind="documentLimits"
+            <DetailItem
+              v-if="subscriptionEndsOn"
+              :label="$t('BILLING_SETTINGS.CURRENT_PLAN.ENDS_ON')"
+              :value="subscriptionEndsOn"
             />
           </div>
         </BillingCard>
-        <BillingCard
-          v-else
-          :title="$t('BILLING_SETTINGS.CAPTAIN.TITLE')"
-          :description="$t('BILLING_SETTINGS.CAPTAIN.UPGRADE')"
-        >
-          <template #action>
-            <ButtonV4 sm solid slate @click="onClickBillingPortal">
-              {{ $t('CAPTAIN.PAYWALL.UPGRADE_NOW') }}
-            </ButtonV4>
-          </template>
-        </BillingCard>
+        <!-- Usage Limits Card (for users with billing plans) -->
+        <BillingLimitsCard v-if="hasABillingPlan" />
 
-        <BillingHeader
-          class="px-1 mt-5"
-          :title="$t('BILLING_SETTINGS.CHAT_WITH_US.TITLE')"
-          :description="$t('BILLING_SETTINGS.CHAT_WITH_US.DESCRIPTION')"
-        >
-          <ButtonV4
-            sm
-            solid
-            slate
-            icon="i-lucide-life-buoy"
-            @open="onToggleChatWindow"
-          >
-            {{ $t('BILLING_SETTINGS.CHAT_WITH_US.BUTTON_TXT') }}
-          </ButtonV4>
-        </BillingHeader>
+        <!-- Subscription Breakdown Card (for users with billing plans) -->
+        <BillingSubscriptionCard v-if="hasABillingPlan" />
+
+        <!-- Training Services Card (for users with billing plans) -->
+        <!-- <BillingTrainingCard v-if="hasABillingPlan" /> -->
       </section>
     </template>
   </SettingsLayout>

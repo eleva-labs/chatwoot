@@ -24,6 +24,11 @@ export const state = {
     isUpdatingIMAP: false,
     isUpdatingSMTP: false,
   },
+  onboarding: {
+    onboardingConcluded: false,
+  },
+  // QR codes received via websocket for Whapi reconnection
+  whapiQrCodes: {},
 };
 
 export const getters = {
@@ -79,11 +84,6 @@ export const getters = {
         return false;
       }
 
-      // Filter out authentication templates
-      if (template.category === 'AUTHENTICATION') {
-        return false;
-      }
-
       // Filter out interactive templates (LIST, PRODUCT, CATALOG), location templates, and call permission templates
       const hasUnsupportedComponents = template.components.some(
         component =>
@@ -94,6 +94,11 @@ export const getters = {
       );
 
       if (hasUnsupportedComponents) {
+        return false;
+      }
+
+      // Filter out authentication templates (OTP/verification codes)
+      if (template.category?.toUpperCase() === 'AUTHENTICATION') {
         return false;
       }
 
@@ -166,6 +171,10 @@ export const getters = {
         item.channel_type === INBOX_TYPES.INSTAGRAM
     );
   },
+  // Get QR code for a Whapi inbox (received via websocket)
+  getWhapiQrCode: $state => inboxId => {
+    return $state.whapiQrCodes?.[inboxId];
+  },
 };
 
 const sendAnalyticsEvent = channelType => {
@@ -183,8 +192,7 @@ export const actions = {
         commit(types.default.SET_INBOXES, response.data.payload);
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[revalidate:inboxes]', error);
+      // Ignore error
     }
   },
   get: async ({ commit }) => {
@@ -194,8 +202,6 @@ export const actions = {
       commit(types.default.SET_INBOXES_UI_FLAG, { isFetching: false });
       commit(types.default.SET_INBOXES, response.data.payload);
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[inboxes:get]', error);
       commit(types.default.SET_INBOXES_UI_FLAG, { isFetching: false });
     }
   },
@@ -349,9 +355,9 @@ export const actions = {
       throw error; // Ensure function always returns or throws
     }
   },
-  // Fetch a fresh QR code image for Whapi login
-  getWhapiQrCode: async (_ctx, inboxId) => {
-    const { data } = await WhapiChannel.getQrCode(inboxId);
+  // Initiate Whapi reconnection - triggers channel wakeup, QR delivered via websocket
+  initiateWhapiReconnection: async (_ctx, inboxId) => {
+    const { data } = await WhapiChannel.initiateReconnection(inboxId);
     return data;
   },
   syncTemplates: async (_, inboxId) => {
@@ -372,6 +378,31 @@ export const mutations = {
   [types.default.ADD_INBOXES]: MutationHelpers.create,
   [types.default.EDIT_INBOXES]: MutationHelpers.update,
   [types.default.DELETE_INBOXES]: MutationHelpers.destroy,
+  // Update only attributes for an inbox (used by websocket status updates)
+  UPDATE_INBOX_ATTRIBUTES($state, data) {
+    MutationHelpers.updateAttributes($state, data);
+  },
+  // Store QR code received via websocket for Whapi reconnection
+  SET_WHAPI_QR_CODE($state, { inboxId, qrBase64, expiresIn }) {
+    $state.whapiQrCodes = {
+      ...$state.whapiQrCodes,
+      [inboxId]: { qrBase64, expiresIn, receivedAt: Date.now() },
+    };
+  },
+  // Clear QR code after successful connection or cancellation
+  CLEAR_WHAPI_QR_CODE($state, inboxId) {
+    const { [inboxId]: _, ...rest } = $state.whapiQrCodes;
+    $state.whapiQrCodes = rest;
+  },
+  SET_WHAPI_WEBHOOK_CONFIGURED($state, inboxId) {
+    const inbox = $state.records.find(record => record.id === Number(inboxId));
+    if (inbox) {
+      inbox.provider_config = {
+        ...(inbox.provider_config || {}),
+        webhook_configured: true,
+      };
+    }
+  },
 };
 
 export default {

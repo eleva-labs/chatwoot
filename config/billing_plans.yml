@@ -2,6 +2,32 @@
 # Billing Plans Configuration
 # This file defines the subscription plans available and the features associated with each plan.
 # Features are referenced from config/features.yml
+#
+# ==========================================
+# STRIPE METADATA INTEGRATION (Primary Source)
+# ==========================================
+# Plan limits and configurations are now primarily sourced from Stripe Product metadata.
+# YAML values in this file serve as FALLBACK only (used when Stripe API fails).
+#
+# Stripe Product Metadata Structure (Example for Starter plan - prod_SYj4t0aiVpnsVO):
+#   plan_name: "starter"
+#   agents_limit: "5"
+#   inboxes_limit: "2"
+#   conversations_monthly_limit: "4000"
+#   token_credits: "100"
+#   feature_tiers: "starter"
+#   environment: "production" (optional, defaults to all environments)
+#
+# How it works:
+# 1. System calls Billing::Providers::Stripe.get_plan_limits_from_stripe(plan_name)
+# 2. If Stripe metadata found: Use Stripe values (logged as "✅ Using Stripe metadata")
+# 3. If Stripe fails/missing: Use YAML values (logged as "⚠️  Using YAML fallback")
+#
+# Add-on Products:
+# - Add-on products (agent, inbox, channel) now expand product metadata
+# - Custom metadata fields on add-on products will be available in API responses
+# - Example: Add "display_name", "description", or custom fields to add-on products in Stripe
+# ==========================================
 
 plans:
   community:
@@ -14,30 +40,61 @@ plans:
       agents: 0
       inboxes: 0
       conversations_monthly: 0
-  free_trial:
-    name: "Free Trial"
-    description: "Basic features for small teams on a trial basis"
-    price_id: null  # No external price ID for free trial plan
-    trial_expires_in_days: 7
-    feature_tiers:
-      - "starter" # Starter tier features are available to free trial plans for trial_expires_in_days
-    limits: # This are the limits that are used directly since there's no payment provider for free trial plan
-      agents: 2 # We need to set this to 2 since we want to be able
-      #to have have the 1 agent (admin) and 1 agent (user)
-      inboxes: 2 # We need to set this to 2 since we want to be able
-      #to create inboxes for 1 channel in Instagram and 1 channel in WhatsApp
-      conversations_monthly: 1000
+
+  # NOTE: free_trial plan has been removed. Trial is now handled via Stripe's native
+  # trial mechanism. New accounts are created with plan_name: 'starter' and
+  # subscription_status: 'trialing'. The trial_expires_in_days config on 'starter'
+  # determines trial duration when creating subscriptions via CreateCustomerService.
 
   starter:
     name: "Starter"
     description: "Perfect for growing teams"
-    price_id: "price_1RqHHDLIubTPR6wgjFoVzrfR"
+    price_id: "price_1RdbcC4TqKLiHbZ87crta9vQ"
+    lookup_key: "starter_tier_monthly"  # Primary source for monthly price lookup
+    trial_expires_in_days: 7  # Trial duration when creating Stripe-managed trials
     feature_tiers:
       - "starter"
-    limits: # Fallback limits for community plan (in case the limits are not set in the payment provider)
+    # IMPORTANT: These limits are FALLBACK values only.
+    # Primary source: Stripe Product metadata (prod_SYj4t0aiVpnsVO for Starter plan)
+    # Expected Stripe metadata keys: agents_limit, inboxes_limit, conversations_monthly_limit, token_credits, feature_tiers, plan_name
+    # System will use YAML limits only if Stripe API fails or metadata is missing.
+    limits: # Base limits included in the plan (before add-ons)
       agents: 5
       inboxes: 2
       conversations_monthly: 4000
+    add_ons:
+      agent:
+        lookup_key: 'extra_agent_starter'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      inbox:
+        lookup_key: 'extra_inbox_starter'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      channel:
+        lookup_key: 'extra_channel_starter'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      
+      # Training Services (single-purchase add-ons)
+      live_training:
+        lookup_key: 'live_training_pricing'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+        max_quantity: 1  # Can only purchase once
+        category: 'training'  # Differentiates from capacity add-ons
+        # Product name, price, and bullet descriptions fetched from Stripe product metadata
+        # Expected Stripe product metadata keys: bullet_1, bullet_2, bullet_3, ...
+        # Fallback i18n keys: billing.training.live_training.name, billing.training.live_training.bullets
+      
+      live_1_1_training:
+        lookup_key: 'live_1_1_training_pricing'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+        max_quantity: 1  # Can only purchase once
+        category: 'training'  # Differentiates from capacity add-ons
+        # Expected Stripe product metadata keys: bullet_1, bullet_2, bullet_3, bullet_4
+        # Fallback i18n keys: billing.training.live_1_1_training.name, billing.training.live_1_1_training.bullets
 
   professional:
     name: "Professional"
@@ -46,10 +103,43 @@ plans:
     feature_tiers:
       - "starter"
       - "professional"
-    limits: # Fallback limits for community plan (in case the limits are not set in the payment provider)
+    # IMPORTANT: These limits are FALLBACK values only.
+    # Primary source: Stripe Product metadata
+    # Expected Stripe metadata keys: agents_limit, inboxes_limit, conversations_monthly_limit, token_credits, feature_tiers, plan_name
+    # System will use YAML limits only if Stripe API fails or metadata is missing.
+    limits: # Base limits included in the plan (before add-ons)
       agents: 15
-      inboxes: 2
+      inboxes: 5
       conversations_monthly: 10000
+    add_ons:
+      agent:
+        lookup_key: 'extra_agent_professional'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      inbox:
+        lookup_key: 'extra_inbox_professional'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      channel:
+        lookup_key: 'extra_channel_professional'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+      
+      # Training Services (single-purchase add-ons)
+      # Same lookup_keys as starter plan (unified pricing across plans)
+      live_training:
+        lookup_key: 'live_training_pricing'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+        max_quantity: 1  # Can only purchase once
+        category: 'training'  # Differentiates from capacity add-ons
+      
+      live_1_1_training:
+        lookup_key: 'live_1_1_training_pricing'
+        price_id: null  # Will be fetched from Stripe using lookup_key
+        unit_price: null  # Will be fetched from Stripe
+        max_quantity: 1  # Can only purchase once
+        category: 'training'  # Differentiates from capacity add-ons
 
   enterprise:
     name: "Enterprise"
@@ -59,10 +149,63 @@ plans:
       - "starter"
       - "professional"
       - "enterprise"
-    limits: # Fallback limits for community plan (in case the limits are not set in the payment provider)
+    limits: # Unlimited for enterprise
       agents: -1  # Unlimited
       inboxes: -1  # Unlimited
       conversations_monthly: -1  # Unlimited
+    # No add-ons needed - enterprise has unlimited everything
+
+# ==========================================
+# CONVERSATION PACKS (Universal Catalog)
+# ==========================================
+# Available to all eligible paid plans (not plan-specific)
+# Frontend displays these options in a selection modal
+conversation_packs:
+  available_packs:
+    - size: 100
+      lookup_key: 'extra_100_conversation_pack'
+      price_id: null  # Fetched from Stripe
+      display_name: 'Extra 100 Conversations'
+      product_id: 'prod_TN3bW94wWyWhU1'
+    
+    - size: 500
+      lookup_key: 'extra_500_conversation_pack'
+      price_id: null
+      display_name: 'Extra 500 Conversations'
+      product_id: 'prod_TN4CdBajG2M0p4'
+    
+    - size: 1000
+      lookup_key: 'extra_1000_conversation_pack'
+      price_id: null
+      display_name: 'Extra 1,000 Conversations'
+      product_id: 'prod_TMKWwjrNBpVOpT'
+  
+  # Plans that can purchase conversation packs
+  # Note: Free Trial cannot purchase ANY add-ons
+  # Note: Enterprise has unlimited, doesn't need packs
+  eligible_plans:
+    - 'starter'
+    - 'professional'
+
+# ==========================================
+# AI TOKEN CREDIT PACKS (One-time purchases)
+# ==========================================
+ai_token_packs:
+  available_packs:
+    - token_credits: 100
+      lookup_key: 'ai_100_token_credits'
+      display_name: 'Extra 100 AI Token Credits'
+      product_id: 'prod_TQ1DrWRPti2WCp'
+      price_id: 'price_1STBAi4TqKLiHbZ8kR1kCCAX'
+    - token_credits: 500
+      lookup_key: 'ai_500_token_credits'
+      display_name: 'Extra 500 AI Token Credits'
+      product_id: 'prod_TQ1QlM2OpPwDEp'
+      price_id: 'price_1STBNS4TqKLiHbZ8w68ymTci'
+  eligible_plans:
+    - 'starter'
+    - 'professional'
 
 # Default plan for new accounts
-default_plan: "free_trial" 
+# Note: New accounts start with 'starter' plan and 'trialing' status via Stripe
+default_plan: "starter"

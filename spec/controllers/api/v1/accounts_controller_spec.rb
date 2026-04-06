@@ -82,7 +82,14 @@ RSpec.describe 'Accounts API', type: :request do
     end
 
     context 'when ENABLE_ACCOUNT_SIGNUP env variable is set to api_only' do
+      let(:account) { create(:account) }
+      let(:user) { create(:user, email: email, account: account, name: user_full_name) }
+
       it 'does not respond 404 on requests' do
+        account_builder = double
+        allow(AccountBuilder).to receive(:new).and_return(account_builder)
+        allow(account_builder).to receive(:perform).and_return([user, account])
+
         params = { account_name: 'test', email: email, user_full_name: user_full_name, password: 'Password1!' }
         with_modified_env ENABLE_ACCOUNT_SIGNUP: 'api_only' do
           post api_v1_accounts_url,

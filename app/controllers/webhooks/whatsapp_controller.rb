@@ -39,12 +39,18 @@ class Webhooks::WhatsappController < ActionController::API
   end
 
   # Validate WHAPI webhook signature if request is for /webhooks/whapi
-  # Optional: enabled only when a secret is configured
+  # Optional: enabled only when WHAPI_PARTNER_WEBHOOK_SECRET is explicitly configured
+  # Note: WHAPI_PARTNER_TOKEN is used for Partner API auth, not webhook signature validation
   def validate_whapi_signature
     # Only validate for partner endpoint which does not include :phone_number in the path
     return if params[:phone_number].present?
 
-    secret = ENV['WHAPI_PARTNER_WEBHOOK_SECRET'].presence || ENV['WHAPI_PARTNER_TOKEN'].presence
+    # Use dedicated webhook secret variable - don't fall back to WHAPI_PARTNER_TOKEN
+    # This allows Partner API to work without requiring webhook signatures
+    secret = ENV['WHAPI_PARTNER_WEBHOOK_SECRET'].presence
+    
+    # If no webhook secret is configured, skip signature validation
+    # This is the expected state until webhooks are configured with a secret
     return if secret.blank?
 
     signature_header = request.headers['X-Whapi-Signature'].presence || request.headers['Whapi-Signature'].presence || request.headers['X-Signature'].presence

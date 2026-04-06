@@ -76,6 +76,7 @@ class Inbox < ApplicationRecord
 
   enum sender_name_type: { friendly: 0, professional: 1 }
 
+  before_create :check_inbox_limit
   after_destroy :delete_round_robin_agents
 
   after_create_commit :dispatch_create_event
@@ -212,6 +213,15 @@ class Inbox < ApplicationRecord
   end
 
   private
+
+  def check_inbox_limit
+    limit_service = Billing::UnifiedLimitService.new(account, :inbox)
+
+    return true if limit_service.can_create?
+
+    errors.add(:base, 'Inbox limit reached. Please purchase additional inbox seats or upgrade your plan.')
+    throw :abort
+  end
 
   def default_name_for_blank_name
     email? ? display_name_from_email : ''

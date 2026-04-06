@@ -13,6 +13,7 @@ import DuplicateInboxBanner from './channels/instagram/DuplicateInboxBanner.vue'
 import MicrosoftReauthorize from './channels/microsoft/Reauthorize.vue';
 import GoogleReauthorize from './channels/google/Reauthorize.vue';
 import WhatsappReauthorize from './channels/whatsapp/Reauthorize.vue';
+import WhapiReauthorize from './channels/whapi/Reauthorize.vue';
 import InboxHealthAPI from 'dashboard/api/inboxHealth';
 import PreChatFormSettings from './PreChatForm/Settings.vue';
 import WeeklyAvailability from './components/WeeklyAvailability.vue';
@@ -50,6 +51,7 @@ export default {
     NextButton,
     InstagramReauthorize,
     WhatsappReauthorize,
+    WhapiReauthorize,
     DuplicateInboxBanner,
     Editor,
     Avatar,
@@ -283,6 +285,13 @@ export default {
       return (
         this.isAWhatsAppCloudChannel &&
         this.isEmbeddedSignupWhatsApp &&
+        this.inbox.reauthorization_required
+      );
+    },
+    whapiUnauthorized() {
+      return (
+        this.isAWhatsAppChannel &&
+        this.inbox.provider === 'whapi' &&
         this.inbox.reauthorization_required
       );
     },
@@ -531,6 +540,7 @@ export default {
         :whatsapp-registration-incomplete="whatsappRegistrationIncomplete"
         :inbox="inbox"
       />
+      <WhapiReauthorize v-if="whapiUnauthorized" :inbox="inbox" />
       <DuplicateInboxBanner
         v-if="hasDuplicateInstagramInbox"
         :content="$t('INBOX_MGMT.ADD.INSTAGRAM.DUPLICATE_INBOX_BANNER')"

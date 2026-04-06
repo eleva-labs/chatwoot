@@ -1,10 +1,13 @@
 <script>
 /* eslint-env browser */
 /* global FB */
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { required } from '@vuelidate/validators';
+import { useStore } from 'dashboard/composables/store';
 import LoadingState from 'dashboard/components/widgets/LoadingState.vue';
 
 import ChannelApi from '../../../../../api/channels';
@@ -12,6 +15,7 @@ import PageHeader from '../../SettingsSubPageHeader.vue';
 import router from '../../../../index';
 import { useBranding } from 'shared/composables/useBranding';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import { useChannelPurchaseManager } from '../composables/useChannelPurchaseManager';
 
 import { loadScript } from 'dashboard/helper/DOMHelpers';
 import * as Sentry from '@sentry/vue';
@@ -25,10 +29,34 @@ export default {
   setup() {
     const { accountId } = useAccount();
     const { replaceInstallationName } = useBranding();
+    const v$ = useVuelidate();
+    const store = useStore();
+    const { t } = useI18n();
+    const baseLabel = computed(() => t('INBOX_MGMT.ADD.FB.CREATE_INBOX'));
+
+    const {
+      primaryButtonLabel,
+      noteMessage,
+      showUsageLoadingMessage,
+      usageErrorMessage,
+      isPurchasingExtraChannel,
+      isChannelInfoLoading,
+      isTrialLimitReached,
+      handleChannelCreation,
+    } = useChannelPurchaseManager({ store, baseLabel, t });
+
     return {
       accountId,
       replaceInstallationName,
-      v$: useVuelidate(),
+      v$,
+      primaryButtonLabel,
+      noteMessage,
+      showUsageLoadingMessage,
+      usageErrorMessage,
+      isPurchasingExtraChannel,
+      isChannelInfoLoading,
+      isTrialLimitReached,
+      handleChannelCreation,
     };
   },
   data() {
@@ -183,22 +211,28 @@ export default {
       };
     },
 
-    createChannel() {
+    async createChannel() {
       this.v$.$touch();
       if (!this.v$.$error) {
         this.emptyStateMessage = this.$t('INBOX_MGMT.DETAILS.CREATING_CHANNEL');
         this.isCreating = true;
-        this.$store
-          .dispatch('inboxes/createFBChannel', this.channelParams())
-          .then(data => {
-            router.replace({
-              name: 'settings_inboxes_invite_team',
-              params: { page: 'new', inbox_id: data.id },
-            });
-          })
-          .catch(() => {
-            this.isCreating = false;
+        try {
+          const data = await this.handleChannelCreation(() =>
+            this.$store.dispatch(
+              'inboxes/createFBChannel',
+              this.channelParams()
+            )
+          );
+          router.replace({
+            name: 'settings_inboxes_invite_team',
+            params: { page: 'new', inbox_id: data.id },
           });
+        } catch (error) {
+          this.isCreating = false;
+          if (error?.message) {
+            useAlert(error.message);
+          }
+        }
       }
     },
   },
@@ -280,8 +314,37 @@ export default {
               </span>
             </label>
           </div>
-          <div class="w-full text-right">
-            <NextButton :label="$t('INBOX_MGMT.ADD.FB.CREATE_INBOX')" />
+          <div class="w-full text-right space-y-3">
+            <div class="pt-4 border-t border-n-weak text-sm text-left">
+              <p v-if="showUsageLoadingMessage" class="text-n-slate-11">
+                {{ $t('INBOX_MGMT.ADD.USAGE_LOADING') }}
+              </p>
+              <p v-else-if="usageErrorMessage" class="text-n-ruby-11">
+                {{ usageErrorMessage }}
+              </p>
+            </div>
+            <p
+              v-if="
+                !showUsageLoadingMessage && !usageErrorMessage && noteMessage
+              "
+              class="text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2 text-left"
+            >
+              {{ noteMessage }}
+            </p>
+            <NextButton
+              type="submit"
+              solid
+              blue
+              :label="primaryButtonLabel"
+              :is-loading="isCreating || isPurchasingExtraChannel"
+              :disabled="
+                isCreating ||
+                isPurchasingExtraChannel ||
+                isChannelInfoLoading ||
+                v$.$error ||
+                isTrialLimitReached
+              "
+            />
           </div>
         </div>
       </form>

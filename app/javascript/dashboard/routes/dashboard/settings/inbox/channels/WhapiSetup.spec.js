@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ref } from 'vue';
 import { mount } from '@vue/test-utils';
 import Whapi from './Whapi.vue';
 
@@ -9,6 +10,25 @@ vi.mock('dashboard/composables', () => ({
 vi.mock('dashboard/composables/store', () => ({
   useStore: vi.fn(),
   useMapGetter: vi.fn(),
+}));
+
+vi.mock('../composables/useChannelPurchaseManager', () => ({
+  useChannelPurchaseManager: () => ({
+    limitsLoading: ref(false),
+    hasLoadedData: ref(true),
+    showUsageLoadingMessage: ref(false),
+    usageErrorMessage: ref(''),
+    isPurchasingExtraChannel: ref(false),
+    purchaseError: ref(null),
+    noteMessage: ref(null),
+    trialRestrictionMessage: ref(''),
+    isTrialLimitReached: ref(false),
+    primaryButtonLabel: ref('Continue'),
+    isChannelInfoLoading: ref(false),
+    channelPriceLabel: ref(''),
+    shouldBeDisabled: ref(false),
+    handleChannelCreation: vi.fn(fn => fn()),
+  }),
 }));
 
 describe('Whapi.vue', () => {
@@ -44,6 +64,7 @@ describe('Whapi.vue', () => {
           id: 12,
           provider_config: { connection_status: 'pending' },
         }),
+        'inboxes/getWhapiQrCode': () => null,
       },
     };
 
@@ -61,7 +82,7 @@ describe('Whapi.vue', () => {
     vi.useRealTimers();
   });
 
-  it('creates channel then moves to qr step and fetches QR', async () => {
+  it('creates channel and transitions to waiting step', async () => {
     const wrapper = mount(Whapi, {
       global: {
         mocks: {
@@ -79,7 +100,6 @@ describe('Whapi.vue', () => {
     await wrapper.find('form').trigger('submit.prevent');
 
     expect(actions['inboxes/createWhapiChannel']).toHaveBeenCalled();
-    expect(actions['inboxes/getWhapiQrCode']).toHaveBeenCalled();
   });
 
   it('transitions to success when connection status becomes connected', async () => {

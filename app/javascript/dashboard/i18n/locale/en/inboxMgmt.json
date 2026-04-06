@@ -33,6 +33,14 @@
       }
     },
     "ADD": {
+      "USAGE_LOADING": "Checking channel usage…",
+      "USAGE_ERROR": "We couldn't load your channel usage. Please try again in a few moments.",
+      "EXTRA_NOTE": "You'll be charged for an additional channel. The charge will be prorated for the remainder of your billing period: {amount}.",
+      "CALCULATING_PRORATION": "calculating proration...",
+      "PRIMARY_BUY_LABEL": "Buy Extra Channel / {price} per month",
+      "TRIAL_LIMIT_NOTE": "Extra add-ons can't be purchased during the free trial.",
+      "PAST_DUE_NOTE": "Your subscription is past due. Please update your payment method to add new channels.",
+      "PURCHASE_ERROR": "We couldn't purchase an extra channel. Please verify your payment method and try again.",
       "CHANNEL_NAME": {
         "LABEL": "Inbox Name",
         "PLACEHOLDER": "Enter your inbox name (eg: Acme Inc)",
@@ -317,16 +325,26 @@
         "CONTINUE_BUTTON": "Continue",
         "LOADING_QR": "Loading QR code...",
         "GENERATING_QR": "Generating QR code...",
-        "QR_HELP_TEXT": "Scan this QR code with your WhatsApp mobile app to connect your phone number",
-        "SUCCESS_MESSAGE": "WhatsApp channel created successfully!",
+        "QR_HELP_TEXT": "Scan this QR code with your WhatsApp mobile app to connect your channel",
+        "QR_EXPIRED": "QR code expired. Please try again.",
+        "SUCCESS_TEXT": "Your WhatsApp channel has been successfully connected!",
+        "SUCCESS_MESSAGE": "WhatsApp channel connected successfully!",
+        "CONTINUE_BUTTON": "Continue",
+        "CONNECTION_ERROR": "Failed to connect. Please try again.",
         "QR_BEING_GENERATED": "QR code is being generated, please wait...",
         "QR_TIMEOUT": "QR code generation timed out. Please try again.",
         "QR_FAILED": "QR code generation failed. Please try again.",
         "SERVICE_UNAVAILABLE": "Service temporarily unavailable. Retrying...",
         "QR_PREPARING": "QR code is being prepared. Retrying...",
         "QR_PLEASE_WAIT": "Generating QR code. Please wait...",
-        "QR_EXPIRED": "QR code expired or retry limit reached",
         "CHANNEL_CREATE_ERROR": "An error occurred while creating the channel",
+        "STATUS": {
+          "INIT": "Initializing channel...",
+          "LAUNCH": "Starting connection...",
+          "QR": "QR code ready, please scan",
+          "AUTH": "Connected!",
+          "WAITING": "Preparing connection..."
+        },
         "SETUP_MODE": {
           "TITLE": "Choose Setup Method",
           "QR_CODE": "QR Code Setup",
@@ -634,11 +652,14 @@
         "NO": "No, Keep "
       },
       "API": {
-        "SUCCESS_MESSAGE": "Inbox deleted successfully",
-        "ERROR_MESSAGE": "Could not delete inbox. Please try again later.",
-        "AVATAR_SUCCESS_MESSAGE": "Inbox avatar deleted successfully",
-        "AVATAR_ERROR_MESSAGE": "Could not delete the inbox avatar. Please try again later."
-      }
+        "SUCCESS_MESSAGE": "Channel deleted successfully",
+        "ERROR_MESSAGE": "Could not delete channel. Please try again later.",
+        "EXTRA_REMOVE_ERROR": "We couldn't remove an extra inbox seat automatically. You can adjust seats from Billing > Usage & Limits.",
+        "AVATAR_SUCCESS_MESSAGE": "Channel avatar deleted successfully",
+        "AVATAR_ERROR_MESSAGE": "Could not delete the channel avatar. Please try again later."
+      },
+      "EXTRA_CONFIRM": "You'll receive approximately {credit} credit for the unused time on your next invoice.",
+      "EXTRA_CONFIRM_FALLBACK": "You'll receive a prorated credit for the unused time on your next invoice."
     },
     "TABS": {
       "SETTINGS": "Settings",

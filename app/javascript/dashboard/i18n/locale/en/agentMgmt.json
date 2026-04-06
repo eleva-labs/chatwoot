@@ -26,6 +26,15 @@
       "DESC": "You can add people who will be able to handle support for your channels.",
       "INVITATION_DESC": "Team members will receive email invitations and must accept them to join your account. You can always invite more team members later from the Members section.",
       "CANCEL_BUTTON_TEXT": "Cancel",
+      "USAGE_TITLE": "Included members usage",
+      "USAGE_LOADING": "Loading included usage...",
+      "USAGE_ERROR": "Error fetching usage",
+      "EXTRA_TITLE": "Extra members added",
+      "EXTRA_NOTE": "You'll be charged for an additional member seat. The charge will be prorated for the remainder of your billing period: {amount}.",
+      "CALCULATING_PRORATION": "calculating proration...",
+      "PRIMARY_BUY_LABEL": "Buy Extra Member / {price} per month",
+      "TRIAL_LIMIT_NOTE": "Extra add-ons can't be purchased during the free trial.",
+      "PURCHASE_ERROR": "Failed to purchase extra member seat. Please try again.",
       "FORM": {
         "NAME": {
           "LABEL": "Member Name",
@@ -58,8 +67,11 @@
         "TITLE": "Confirm Deletion",
         "MESSAGE": "Are you sure to delete ",
         "YES": "Yes, Delete ",
-        "NO": "No, Keep "
-      }
+      "NO": "No, Keep ",
+      "EXTRA_REMOVE_ERROR": "We couldn't remove an extra member seat automatically. You can adjust seats from Billing > Usage & Limits."
+      },
+      "EXTRA_CONFIRM": "You'll receive approximately {credit} credit for the unused time on your next invoice.",
+      "EXTRA_CONFIRM_FALLBACK": "You'll receive a prorated credit for the unused time on your next invoice."
     },
     "EDIT": {
       "TITLE": "Edit member",
@@ -120,6 +132,9 @@
           "INPUT": "Search for members"
         }
       }
+    },
+    "USAGE_SUMMARY": {
+      "TITLE": "Members usage overview"
     }
   }
 }

@@ -29,6 +29,14 @@
       }
     },
     "ADD": {
+      "USAGE_LOADING": "Verificando el uso de canales…",
+      "USAGE_ERROR": "No pudimos cargar el uso de tus canales. Inténtalo nuevamente en unos momentos.",
+      "EXTRA_NOTE": "Se te cobrará un canal adicional. El cargo se prorrateará por el resto de tu período de facturación: {amount}.",
+      "CALCULATING_PRORATION": "calculando prorrateo...",
+      "PRIMARY_BUY_LABEL": "Comprar canal extra / {price} por mes",
+      "TRIAL_LIMIT_NOTE": "No se pueden comprar complementos adicionales durante la prueba gratuita.",
+      "PAST_DUE_NOTE": "Su suscripción está vencida. Por favor, actualice su método de pago para agregar nuevos canales.",
+      "PURCHASE_ERROR": "No pudimos comprar un canal extra. Verifica tu método de pago e inténtalo nuevamente.",
       "CHANNEL_NAME": {
         "LABEL": "Nombre de la bandeja de entrada",
         "PLACEHOLDER": "Introduzca el nombre de la bandeja de entrada (por ejemplo: Acme Inc)",
@@ -313,16 +321,26 @@
         "CONTINUE_BUTTON": "Continuar",
         "LOADING_QR": "Cargando código QR...",
         "GENERATING_QR": "Generando código QR...",
-        "QR_HELP_TEXT": "Escanea este código QR con tu aplicación móvil de WhatsApp para conectar tu número de teléfono",
-        "SUCCESS_MESSAGE": "¡Canal de WhatsApp creado exitosamente!",
+        "QR_HELP_TEXT": "Escanea este código QR con tu aplicación móvil de WhatsApp para conectar tu canal",
+        "QR_EXPIRED": "El código QR ha expirado. Por favor, inténtalo de nuevo.",
+        "SUCCESS_TEXT": "¡Tu canal de WhatsApp se ha conectado exitosamente!",
+        "SUCCESS_MESSAGE": "¡Canal de WhatsApp conectado exitosamente!",
+        "CONTINUE_BUTTON": "Continuar",
+        "CONNECTION_ERROR": "Error al conectar. Por favor, inténtalo de nuevo.",
         "QR_BEING_GENERATED": "El código QR se está generando, por favor espera...",
         "QR_TIMEOUT": "La generación del código QR expiró. Por favor, inténtalo de nuevo.",
         "QR_FAILED": "La generación del código QR falló. Por favor, inténtalo de nuevo.",
         "SERVICE_UNAVAILABLE": "Servicio temporalmente no disponible. Reintentando...",
         "QR_PREPARING": "El código QR se está preparando. Reintentando...",
         "QR_PLEASE_WAIT": "Generando código QR. Por favor espera...",
-        "QR_EXPIRED": "Código QR expirado o límite de reintentos alcanzado",
         "CHANNEL_CREATE_ERROR": "Ocurrió un error al crear el canal",
+        "STATUS": {
+          "INIT": "Inicializando canal...",
+          "LAUNCH": "Iniciando conexión...",
+          "QR": "Código QR listo, escanéalo",
+          "AUTH": "¡Conectado!",
+          "WAITING": "Preparando conexión..."
+        },
         "SETUP_MODE": {
           "TITLE": "Elige el método de configuración",
           "QR_CODE": "Configuración con código QR",
@@ -630,11 +648,14 @@
         "NO": "No, mantenerlo "
       },
       "API": {
-        "SUCCESS_MESSAGE": "Bandeja de entrada eliminada correctamente",
-        "ERROR_MESSAGE": "No se pudo eliminar la bandeja de entrada. Inténtalo de nuevo más tarde.",
-        "AVATAR_SUCCESS_MESSAGE": "Avatar de bandeja de entrada eliminado correctamente",
-        "AVATAR_ERROR_MESSAGE": "No se pudo eliminar el avatar de la bandeja de entrada. Inténtalo de nuevo más tarde."
-      }
+        "SUCCESS_MESSAGE": "Canal eliminado correctamente",
+        "ERROR_MESSAGE": "No se pudo eliminar el canal. Inténtalo de nuevo más tarde.",
+        "EXTRA_REMOVE_ERROR": "No pudimos eliminar automáticamente un asiento extra de canal. Puedes ajustar los asientos en Facturación > Uso y límites.",
+        "AVATAR_SUCCESS_MESSAGE": "Avatar de canal eliminado correctamente",
+        "AVATAR_ERROR_MESSAGE": "No se pudo eliminar el avatar del canal. Inténtalo de nuevo más tarde."
+      },
+      "EXTRA_CONFIRM": "Recibirá aproximadamente {credit} de crédito por el tiempo no utilizado en su próxima factura.",
+      "EXTRA_CONFIRM_FALLBACK": "Recibirá un crédito prorrateado por el tiempo no utilizado en su próxima factura."
     },
     "TABS": {
       "SETTINGS": "Ajustes",

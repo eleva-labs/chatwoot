@@ -127,9 +127,9 @@ const showAccessTokenInput = computed(
 );
 
 const resetForm = () => {
-  const storeId = currentAccount.value.store_id;
+  // Use account.id instead of store_id from custom_attributes
+  const storeId = currentAccount.value.id;
   const constructedUrl = `${window.chatwootConfig.aiBackendUrl}/api/webhooks/chatwoot/message?store_id=${storeId}&agent_system_id=pending&id_type=external`;
-
   Object.assign(formState, {
     botName: '',
     botDescription: '',

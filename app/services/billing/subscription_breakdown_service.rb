@@ -1,0 +1,512 @@
+# frozen_string_literal: true
+
+# Service to calculate subscription cost breakdown (base plan + add-ons)
+class Billing::SubscriptionBreakdownService
+  include BillingPlans
+
+  def initialize(account)
+    @account = account
+    @plan_name = account.custom_attributes&.dig('plan_name') || 'starter'
+    @plan_config = self.class.plan_details(@plan_name)
+  end
+
+  def breakdown
+    # Try to fetch subscription from Stripe first
+    subscription = fetch_subscription
+    base_item = base_subscription_item(subscription)
+    
+    if subscription
+      # Active paid subscription - use Stripe data
+      # Check if subscription is scheduled to cancel
+      is_scheduled_to_cancel = scheduled_to_cancel?(subscription)
+      
+      # Try to fetch upcoming invoice to get accurate totals with credits
+      # Note: Stripe doesn't generate upcoming invoices for cancelled subscriptions
+      upcoming_invoice = fetch_upcoming_invoice(subscription) unless is_scheduled_to_cancel
+      
+      breakdown_data = {
+        plan_name: @plan_name.titleize,
+        base_plan: base_plan_details(subscription, base_item),
+        add_ons: add_on_details(subscription),
+        total: calculate_total(subscription, upcoming_invoice, is_scheduled_to_cancel),
+        next_billing_date: next_billing_date(subscription, base_item, upcoming_invoice, is_scheduled_to_cancel),
+        currency: subscription_currency(subscription, base_item)
+      }
+      
+      # Add cancellation date if subscription is scheduled to cancel
+      if is_scheduled_to_cancel
+        cancellation_date = get_cancellation_date(subscription)
+        breakdown_data[:cancellation_date] = cancellation_date if cancellation_date
+        breakdown_data[:is_scheduled_to_cancel] = true
+      end
+      
+      # Add credit information if available from upcoming invoice
+      # Skip credit calculation for trial subscriptions (amount_due is $0 due to trial, not credits)
+      if upcoming_invoice && !trialing?(subscription)
+        breakdown_data[:total_before_credits] = calculate_total_before_credits(upcoming_invoice)
+        breakdown_data[:credits_applied] = calculate_credits_applied(upcoming_invoice)
+      end
+      
+      breakdown_data
+    else
+      # No Stripe subscription (free trial, community, etc.) - use plan config
+      build_breakdown_from_plan_config
+    end
+  rescue ::Stripe::StripeError => e
+    Rails.logger.error "Error fetching subscription breakdown: #{e.message}"
+    build_breakdown_from_plan_config
+  end
+
+  private
+
+  def base_plan_details(subscription, base_item)
+    base_item ||= base_subscription_item(subscription)
+
+    if base_item
+      price = base_item.price
+      unit_amount = price&.unit_amount || 0
+
+      {
+        name: "#{@plan_name.titleize} Plan",
+        price_cents: unit_amount,
+        price_formatted: format_price(unit_amount),
+        interval: price&.recurring&.interval,
+        inclusions: plan_inclusions
+      }
+    else
+      # Fallback for subscriptions without a clear base item (e.g., trial-only)
+      {
+        name: "#{@plan_name.titleize} Plan",
+        price_cents: 0,
+        price_formatted: '$0.00',
+        interval: 'month',
+        inclusions: plan_inclusions
+      }
+    end
+  end
+
+  def plan_inclusions
+    # Use plan_limits() to get limits from Stripe metadata first, then YAML fallback
+    limits = self.class.plan_limits(@plan_name)
+
+    inclusions = []
+    # Match pricing table format: "1 members" instead of "1 agents included"
+    inclusions << "#{limits['agents']} members" if limits['agents']&.positive?
+    # Match pricing table format: "1 channels" instead of "1 inboxes included"
+    inclusions << "#{limits['inboxes']} channels" if limits['inboxes']&.positive?
+    # Match pricing table format: "1000 AI token credits"
+    if limits['token_credits']&.positive?
+      inclusions << "#{number_with_delimiter(limits['token_credits'])} AI token credits"
+    end
+    # Match pricing table format: "1 conversations" instead of "1 conversations/month"
+    if limits['conversations_monthly']&.positive?
+      inclusions << "#{number_with_delimiter(limits['conversations_monthly'])} conversations"
+    end
+
+    inclusions
+  end
+
+  def add_on_details(subscription)
+    add_ons = []
+
+    # Get all subscription items that are add-ons (not the base plan)
+    subscription.items.data.each do |item|
+      next if item.price.id == self.class.plan_price_id(@plan_name)
+
+      # Determine add-on type from lookup_key
+      add_on_type = determine_add_on_type(item.price.lookup_key)
+      next unless add_on_type
+
+      quantity = item.quantity || 0
+      next if quantity.zero? # Only show active add-ons
+
+      unit_price = item.price.unit_amount || 0
+      total_price = unit_price * quantity
+
+      add_ons << {
+        type: add_on_type,
+        name: add_on_name(add_on_type),
+        quantity: quantity,
+        unit_price_cents: unit_price,
+        unit_price_formatted: format_price(unit_price),
+        total_price_cents: total_price,
+        total_price_formatted: format_price(total_price),
+        interval: item.price.recurring&.interval
+      }
+    end
+
+    add_ons
+  end
+
+  def determine_add_on_type(lookup_key)
+    return nil unless lookup_key
+
+    case lookup_key
+    when /agent/
+      'agent'
+    when /inbox/
+      'inbox'
+    when /channel/
+      'channel'
+    when /live_1_1_training/
+      'live_1_1_training'
+    when /live_training/
+      'live_training'
+    else
+      nil
+    end
+  end
+
+  def add_on_name(type)
+    case type
+    when 'agent'
+      'Extra Agents'
+    when 'inbox'
+      'Extra Inboxes'
+    when 'channel'
+      'Extra Channels'
+    when 'live_training'
+      'Live Training'
+    when 'live_1_1_training'
+      'Live 1:1 Training with an Expert'
+    else
+      type.titleize
+    end
+  end
+
+  def calculate_total(subscription, upcoming_invoice = nil, is_scheduled_to_cancel = false)
+    # If subscription is scheduled to cancel, there's no upcoming invoice
+    # Return $0.00 to match Stripe's behavior
+    if is_scheduled_to_cancel
+      return {
+        amount_cents: 0,
+        amount_formatted: format_price(0)
+      }
+    end
+
+    # If we have upcoming invoice data
+    if upcoming_invoice
+      # For trial subscriptions, amount_due is $0.00 (nothing is due during trial)
+      # Use subtotal or total to show what will be charged after trial ends
+      is_trial = trialing?(subscription)
+      
+      if is_trial
+        # During trial: use total (amount after discounts/taxes) to show future charge
+        # Fallback to subtotal if total is not available
+        total_amount = upcoming_invoice.total || upcoming_invoice.subtotal || 0
+        return {
+          amount_cents: total_amount,
+          amount_formatted: format_price(total_amount)
+        }
+      else
+        # Active subscription: use amount_due (net amount after credits/discounts)
+        # This shows the actual amount the customer will pay
+        amount_due = upcoming_invoice.amount_due || 0
+        return {
+          amount_cents: amount_due,
+          amount_formatted: format_price(amount_due)
+        }
+      end
+    end
+
+    # Fallback: calculate from subscription items (before credits)
+    total_cents = 0
+
+    subscription.items.data.each do |item|
+      unit_price = item.price&.unit_amount || 0
+      quantity = item.quantity || 0
+      total_cents += (unit_price * quantity)
+    end
+
+    {
+      amount_cents: total_cents,
+      amount_formatted: format_price(total_cents)
+    }
+  end
+
+  def fetch_subscription
+    customer_id = @account.custom_attributes&.dig('stripe_customer_id')
+    return nil unless customer_id
+
+    # Fetch subscriptions with status 'all' and filter for active/trialing subscriptions
+    # This ensures we capture both active and trialing subscriptions
+    subscriptions = ::Stripe::Subscription.list(customer: customer_id, status: 'all', limit: 10)
+    subscriptions.data.find { |sub| %w[active trialing].include?(sub.status) }
+  end
+
+  def fetch_upcoming_invoice(subscription)
+    return nil unless subscription
+
+    customer_id = @account.custom_attributes&.dig('stripe_customer_id')
+    return nil unless customer_id
+
+    invoice_klass = ::Stripe::Invoice
+
+    # Prefer retrieve_upcoming if available (Stripe Ruby 16+)
+    if invoice_klass.respond_to?(:retrieve_upcoming)
+      return invoice_klass.retrieve_upcoming(customer: customer_id, subscription: subscription.id)
+    end
+
+    # Fallback to legacy upcoming if still available
+    if invoice_klass.respond_to?(:upcoming)
+      return invoice_klass.upcoming(customer: customer_id, subscription: subscription.id)
+    end
+
+    # Finally, attempt to use create_preview if provided by the gem
+    if invoice_klass.respond_to?(:create_preview)
+      return invoice_klass.create_preview(customer: customer_id, subscription: subscription.id)
+    end
+
+    nil
+  rescue ::Stripe::InvalidRequestError => e
+    # Upcoming invoice may not exist (e.g., subscription just started, no next billing cycle)
+    # Log but don't fail - we'll fall back to subscription-based calculation
+    Rails.logger.debug "No upcoming invoice available: #{e.message}"
+    nil
+  rescue ::Stripe::StripeError => e
+    Rails.logger.warn "Error fetching upcoming invoice: #{e.message}"
+    nil
+  end
+
+  def calculate_total_before_credits(upcoming_invoice)
+    # Use subtotal to match Stripe's "Subtotal" display
+    # This represents the total of all line items before credits are applied
+    total_cents = upcoming_invoice.subtotal || 0
+
+    {
+      amount_cents: total_cents,
+      amount_formatted: format_price(total_cents)
+    }
+  end
+
+  def calculate_credits_applied(upcoming_invoice)
+    # Credits applied = subtotal - amount_due
+    # This matches what Stripe shows in the dashboard as "Applied balance"
+    # The difference between subtotal and amount_due represents credits/discounts applied
+    # Note: This method should NOT be called for trial subscriptions (handled in breakdown method)
+    subtotal = upcoming_invoice.subtotal || 0
+    amount_due = upcoming_invoice.amount_due || 0
+    credits_cents = [subtotal - amount_due, 0].max
+
+    {
+      amount_cents: credits_cents,
+      amount_formatted: format_price(credits_cents)
+    }
+  end
+
+  def base_subscription_item(subscription)
+    return nil unless subscription&.items&.respond_to?(:data)
+
+    items = subscription.items.data
+    return nil if items.empty?
+
+    plan_price_id = self.class.plan_price_id(@plan_name)
+
+    if plan_price_id.present?
+      item = items.find { |subscription_item| subscription_item.price&.id == plan_price_id }
+      return item if item
+    end
+
+    # Prefer a non add-on item if available
+    primary_item = items.find do |subscription_item|
+      lookup_key = subscription_item.price&.lookup_key
+      lookup_key.nil? || !lookup_key.match?(/extra_|conversation_pack/)
+    end
+
+    primary_item
+  end
+
+  def next_billing_date(subscription, base_item, upcoming_invoice = nil, is_scheduled_to_cancel = false)
+    # If subscription is scheduled to cancel, there's no next billing date
+    # Stripe doesn't generate upcoming invoices for cancelled subscriptions
+    return nil if is_scheduled_to_cancel
+
+    # If we have upcoming invoice, use its period_end or due_date (most accurate)
+    if upcoming_invoice
+      # Prefer period_end (when invoice will be generated)
+      # Fallback to due_date (when payment is due)
+      period_end = if upcoming_invoice.respond_to?(:period_end)
+                     upcoming_invoice.period_end
+                   elsif upcoming_invoice.is_a?(Hash)
+                     upcoming_invoice['period_end']
+                   end
+
+      return period_end if period_end
+
+      due_date = if upcoming_invoice.respond_to?(:due_date)
+                   upcoming_invoice.due_date
+                 elsif upcoming_invoice.is_a?(Hash)
+                   upcoming_invoice['due_date']
+                 end
+
+      return due_date if due_date
+    end
+
+    # Fallback to subscription item period end
+    item = base_item || base_subscription_item(subscription)
+    item_end = subscription_item_current_period_end(item)
+    return item_end if item_end
+
+    subscription_current_period_end(subscription)
+  end
+
+  def subscription_currency(subscription, base_item)
+    item = base_item || base_subscription_item(subscription)
+    currency = item&.price&.currency || subscription&.currency
+    currency&.upcase || 'USD'
+  end
+
+  def format_price(cents)
+    return '$0.00' unless cents
+
+    "$#{format('%.2f', cents / 100.0)}"
+  end
+
+  def number_with_delimiter(number)
+    number.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
+  end
+
+  def subscription_item_current_period_end(item)
+    return nil unless item
+
+    if item.respond_to?(:current_period_end)
+      item.current_period_end
+    elsif item.is_a?(Hash)
+      item['current_period_end']
+    end
+  end
+
+  def subscription_current_period_end(subscription)
+    return nil unless subscription
+
+    if subscription.respond_to?(:current_period_end)
+      subscription.current_period_end
+    elsif subscription.is_a?(Hash)
+      subscription['current_period_end']
+    end
+  end
+
+  # Check if subscription is scheduled to cancel
+  # Handles both cancel_at_period_end and cancel_at
+  def scheduled_to_cancel?(subscription)
+    return false unless subscription
+
+    # Check cancel_at_period_end
+    cancel_at_period_end = if subscription.respond_to?(:cancel_at_period_end)
+                             subscription.cancel_at_period_end
+                           elsif subscription.is_a?(Hash)
+                             subscription['cancel_at_period_end']
+                           else
+                             false
+                           end
+
+    return true if cancel_at_period_end
+
+    # Check cancel_at (custom cancellation date)
+    cancel_at = if subscription.respond_to?(:cancel_at)
+                  subscription.cancel_at
+                elsif subscription.is_a?(Hash)
+                  subscription['cancel_at']
+                end
+
+    # If cancel_at is set and in the future, subscription is scheduled to cancel
+    if cancel_at
+      cancel_at_timestamp = cancel_at.respond_to?(:to_i) ? cancel_at.to_i : cancel_at
+      return true if cancel_at_timestamp && cancel_at_timestamp > Time.now.to_i
+    end
+
+    false
+  end
+
+  # Get the cancellation date for a subscription scheduled to cancel
+  def get_cancellation_date(subscription)
+    return nil unless subscription
+
+    # Prefer cancel_at if set (custom cancellation date)
+    cancel_at = if subscription.respond_to?(:cancel_at)
+                  subscription.cancel_at
+                elsif subscription.is_a?(Hash)
+                  subscription['cancel_at']
+                end
+
+    if cancel_at
+      cancel_at_timestamp = cancel_at.respond_to?(:to_i) ? cancel_at.to_i : cancel_at
+      return cancel_at_timestamp if cancel_at_timestamp && cancel_at_timestamp > Time.now.to_i
+    end
+
+    # Fallback to current_period_end if cancel_at_period_end is true
+    cancel_at_period_end = if subscription.respond_to?(:cancel_at_period_end)
+                             subscription.cancel_at_period_end
+                           elsif subscription.is_a?(Hash)
+                             subscription['cancel_at_period_end']
+                           else
+                             false
+                           end
+
+    if cancel_at_period_end
+      period_end = subscription_current_period_end(subscription)
+      return period_end if period_end
+    end
+
+    nil
+  end
+
+  # Check if subscription is in trial status
+  def trialing?(subscription)
+    return false unless subscription
+
+    status = if subscription.respond_to?(:status)
+               subscription.status
+             elsif subscription.is_a?(Hash)
+               subscription['status']
+             end
+
+    status == Billing::SubscriptionStatuses::TRIALING
+  end
+
+  def build_breakdown_from_plan_config
+    # Build breakdown from plan configuration (for free trials, community plans, etc.)
+    inclusions = plan_inclusions
+    
+    # If there are no inclusions, return free_plan_breakdown (truly empty plan)
+    return free_plan_breakdown if inclusions.empty?
+    
+    {
+      plan_name: @plan_name.titleize,
+      base_plan: {
+        name: "#{@plan_name.titleize} Plan",
+        price_cents: 0,
+        price_formatted: '$0.00',
+        interval: 'month',
+        inclusions: inclusions
+      },
+      add_ons: [],
+      total: { amount_cents: 0, amount_formatted: '$0.00' },
+      next_billing_date: trial_end_date,
+      currency: 'USD'
+    }
+  end
+
+  def trial_end_date
+    # Get trial end date from account custom attributes
+    subscription_ends_on = @account.custom_attributes&.dig('subscription_ends_on')
+    return nil unless subscription_ends_on
+
+    # Parse the date string and convert to Unix timestamp
+    Time.parse(subscription_ends_on).to_i
+  rescue ArgumentError
+    nil
+  end
+
+  def free_plan_breakdown
+    {
+      plan_name: @plan_name.titleize,
+      base_plan: nil,
+      add_ons: [],
+      total: { amount_cents: 0, amount_formatted: '$0.00' },
+      next_billing_date: nil,
+      currency: 'USD'
+    }
+  end
+end
+

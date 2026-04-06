@@ -164,6 +164,7 @@ module.exports = {
           '^router-link',
           '^router-view',
           '^ninja-keys',
+          '^stripe-pricing-table',
           '^FormulateForm',
           '^FormulateInput',
           '^highlightjs',

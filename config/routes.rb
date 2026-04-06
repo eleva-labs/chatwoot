@@ -37,6 +37,10 @@ Rails.application.routes.draw do
   get '/api', to: 'api#index'
   namespace :api, defaults: { format: 'json' } do
     namespace :v1 do
+      namespace :webhooks do
+        post 'ai-backend/token-balance-status', to: 'ai_backend#token_balance_status'
+      end
+
       # ----------------------------------
       # start of account scoped api routes
       resources :accounts, only: [:create, :show, :update] do
@@ -215,6 +219,8 @@ Rails.application.routes.draw do
             member do
               get :qr_code
               post :retry_webhook
+              post :reauthorize
+              post :initiate_reconnection
             end
           end
           resources :inbox_members, only: [:create, :show], param: :inbox_id do
@@ -416,6 +422,34 @@ Rails.application.routes.draw do
             get :portal, on: :member
             get :limits, on: :member
           end
+          
+          # Billing add-ons and conversation packs
+          namespace :billing do
+            resource :add_ons, only: [] do
+              get '/', action: :index
+              post '/', action: :update
+              post :preview
+              post :preview_purchase
+              get :limits
+              get :breakdown
+            end
+
+            resource :conversation_packs, only: [] do
+              get '/', action: :index
+              get :check_payment_method
+              post :purchase
+            end
+
+            resource :ai_token_credits, only: [] do
+              get '/', action: :index
+              get :check_payment_method
+              post :purchase
+            end
+          end
+          
+          # Pricing table data
+          resources :pricing, only: [:index]
+          
           resources :summary_reports, only: [] do
             collection do
               get :agent
@@ -540,13 +574,13 @@ Rails.application.routes.draw do
   # ----------------------------------------------------------------------
   # Routes for billing webhooks
   namespace :webhooks do
-    # Generic billing webhook endpoints (provider-agnostic)
+    # Provider-specific webhook endpoints
+    post 'stripe/process_event', to: 'stripe#process_event'
+    get 'stripe/health', to: 'stripe#health'
+
+    # Generic billing webhook endpoints (provider-agnostic, for future providers)
     post 'billing/process_event', to: 'billing#process_event'
     get 'billing/health', to: 'billing#health'
-
-    # Legacy Stripe-specific endpoints (for backward compatibility)
-    post 'stripe/process_event', to: 'billing#process_event'
-    get 'stripe/health', to: 'billing#health'
 
     # Shopify compliance webhooks
     post 'shopify/compliance', to: 'shopify#compliance'

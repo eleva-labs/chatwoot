@@ -24,6 +24,10 @@ class Channel::Whatsapp < ApplicationRecord
   self.table_name = 'channel_whatsapp'
   EDITABLE_ATTRS = [:phone_number, :provider, { provider_config: {} }].freeze
 
+  # Override default threshold (2) from Reauthorizable concern
+  # Higher threshold for WhatsApp/Whapi due to transient 401 errors during reconnection cycles
+  AUTHORIZATION_ERROR_THRESHOLD = 3
+
   # default at the moment is 360dialog lets change later.
   PROVIDERS = %w[default whatsapp_cloud whapi].freeze
   before_validation :ensure_webhook_verify_token
@@ -36,6 +40,7 @@ class Channel::Whatsapp < ApplicationRecord
   after_destroy_commit :perform_provider_cleanup
   after_update :invalidate_provider_cache, if: -> { saved_change_to_provider_config? || saved_change_to_provider? }
   before_destroy :teardown_webhooks
+  before_destroy :logout_user_from_whapi
 
   def name
     'Whatsapp'
@@ -96,5 +101,26 @@ class Channel::Whatsapp < ApplicationRecord
 
   def teardown_webhooks
     Whatsapp::WebhookTeardownService.new(self).perform
+  end
+
+  def logout_user_from_whapi
+    return unless provider == 'whapi'
+    return unless provider_config_object.respond_to?(:whapi_partner_channel?) && provider_config_object.whapi_partner_channel?
+
+    # Extract channel token for logout
+    channel_token = provider_config_object.api_key || provider_config_object.whapi_channel_token
+
+    if channel_token.blank?
+      Rails.logger.warn("[Channel::Whatsapp] No channel_token available for channel ##{id}, skipping logout")
+      return
+    end
+
+    Rails.logger.info("[Channel::Whatsapp] Logging out user from Whapi before destroying channel ##{id}")
+    service = Whatsapp::Partner::WhapiPartnerService.new
+    service.logout_user(channel_token: channel_token)
+  rescue StandardError => e
+    # Don't block channel destruction if logout fails - log and continue
+    Rails.logger.error("[Channel::Whatsapp] Failed to logout user from Whapi for channel ##{id}: #{e.message}")
+    Rails.logger.error("[Channel::Whatsapp] Logout error backtrace: #{e.backtrace&.first(3)&.join("\n")}")
   end
 end

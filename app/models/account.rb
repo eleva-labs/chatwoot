@@ -108,8 +108,8 @@ class Account < ApplicationRecord
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
 
   before_validation :validate_limit_keys
+  before_create :enable_default_custom_features
   after_create_commit :notify_creation
-  after_create_commit :enqueue_stripe_provisioning_job
   before_destroy :cleanup_weaviate_tenant
   after_destroy :remove_account_sequences
   after_destroy_commit :dispatch_destroy_event
@@ -211,14 +211,80 @@ class Account < ApplicationRecord
     save
   end
 
+  def ai_token_balance_status
+    custom_attributes&.dig('ai_token_balance_status')
+  end
+
+  def ai_token_balance_status_updated_at
+    custom_attributes&.dig('ai_token_balance_status_updated_at')
+  end
+
+  def has_low_balance_warning?
+    ai_token_balance_status == 'low_balance'
+  end
+
+  def has_insufficient_tokens?
+    ai_token_balance_status == 'insufficient_tokens'
+  end
+
+  def set_ai_token_balance_status!(status, impacted_count: nil)
+    update_ai_token_balance_attributes(
+      status: status,
+      timestamp: Time.current.iso8601,
+      impacted_count: impacted_count
+    )
+  end
+
+  def clear_ai_token_balance_status!
+    update_ai_token_balance_attributes(status: nil, timestamp: nil, impacted_count: nil)
+  end
+
+  def update_ai_token_impacted_count!(count)
+    attrs = custom_attributes || {}
+    attrs['ai_token_impacted_conversations_count'] = count
+    update!(custom_attributes: attrs)
+  end
+
+  def ai_token_impacted_conversations_count
+    custom_attributes&.dig('ai_token_impacted_conversations_count')&.to_i || 0
+  end
+
+  def ai_backend_store_id
+    custom_attributes&.dig('ai_backend_store_id')
+  end
+
+  def set_ai_backend_store_id!(store_id, external_id: nil)
+    return if store_id.blank?
+
+    attrs = custom_attributes || {}
+    attrs['ai_backend_store_id'] = store_id.to_s
+    attrs['ai_backend_store_external_id'] = external_id.to_s if external_id.present?
+    attrs['ai_backend_store_synced_at'] = Time.current.iso8601
+    update!(custom_attributes: attrs)
+  end
+
   private
+
+  def update_ai_token_balance_attributes(status:, timestamp:, impacted_count: :not_provided)
+    attrs = custom_attributes || {}
+    attrs['ai_token_balance_status'] = status
+    attrs['ai_token_balance_status_updated_at'] = timestamp
+    # Only update impacted_count if explicitly provided (nil clears it, numeric value sets it)
+    attrs['ai_token_impacted_conversations_count'] = impacted_count unless impacted_count == :not_provided
+    update!(custom_attributes: attrs)
+  end
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(ACCOUNT_DELETED, Time.zone.now, account_id: id)
+    Rails.configuration.dispatcher.dispatch(
+      ACCOUNT_DELETED,
+      Time.zone.now,
+      account_id: id,
+      ai_backend_store_id: ai_backend_store_id
+    )
   end
 
   def enqueue_stripe_provisioning_job
@@ -235,6 +301,29 @@ class Account < ApplicationRecord
 
   def validate_limit_keys
     # method overridden in enterprise module
+  end
+
+  def enable_default_custom_features
+    return unless defined?(CustomFeaturesService)
+
+    # Enable Whapi Partner feature by default for new accounts
+    # This ensures WhatsApp channel creation via Whapi is available immediately
+    # Set directly on internal_attributes to avoid calling save during before_create
+    # Use dup and reassignment pattern to ensure Rails change tracking works properly
+    feature_name = 'channel_whatsapp_whapi_partner'
+    return unless CustomFeaturesService.feature_exists?(feature_name)
+
+    # Get current features (or empty array if none)
+    # Check for nil first before calling dup (internal_attributes may be nil during before_create)
+    current_attrs = (internal_attributes || {}).dup
+    current_features = current_attrs['custom_features'] || []
+    
+    # Add the feature if not already present
+    unless current_features.include?(feature_name)
+      # Reassign entire hash to ensure Rails change tracking works
+      current_attrs['custom_features'] = (current_features + [feature_name]).uniq
+      self.internal_attributes = current_attrs
+    end
   end
 
   def remove_account_sequences

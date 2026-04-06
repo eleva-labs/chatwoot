@@ -5,8 +5,16 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
     correlation_id = params['correlation_id'] || SecureRandom.uuid
     channel = find_channel_from_whatsapp_business_payload(params)
 
-    if channel_is_inactive?(channel)
-      Rails.logger.warn("Inactive WhatsApp channel: #{channel&.phone_number || "unknown - #{params[:phone_number]}"}")
+    if channel.blank?
+      Rails.logger.warn("[WhapiWebhook][#{correlation_id}] Channel not found for phone: #{params[:phone_number]}, channel_id: #{params[:channel_id] || params['channel_id']}")
+      return
+    end
+
+    is_connection_status = connection_status_webhook?(params)
+    Rails.logger.info "[WhapiWebhook][#{correlation_id}] Processing webhook for channel #{channel.id}, connection_status_webhook: #{is_connection_status}, reauthorization_required: #{channel.reauthorization_required?}"
+
+    if channel_is_inactive?(channel, params)
+      Rails.logger.warn("[WhapiWebhook][#{correlation_id}] Inactive WhatsApp channel: #{channel.phone_number}")
       return
     end
 
@@ -21,10 +29,34 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
 
   private
 
-  def channel_is_inactive?(channel)
+  def channel_is_inactive?(channel, params = {})
     return true if channel.blank?
-    return true if channel.reauthorization_required?
     return true unless channel.account.active?
+
+    # Allow connection status webhooks (health updates, users.post/delete) during reconnection
+    # These webhooks are needed to complete the reconnection process
+    is_connection_status_webhook = connection_status_webhook?(params)
+    return false if is_connection_status_webhook
+
+    # Block other webhooks if reauthorization is required
+    return true if channel.reauthorization_required?
+
+    false
+  end
+
+  def connection_status_webhook?(params)
+    # Health status updates from channel.post webhook
+    return true if params['health'].present?
+
+    # Users.post/delete events (connection/disconnection)
+    return true if params['event'].present? && params['event']['type'] == 'users'
+
+    # Events array with connection events
+    return true if params['events'].present? && params['events'].is_a?(Array) &&
+                   params['events'].any? { |e| e['type'] == 'users' || e['type'] == 'ready' || e['type'] == 'connected' || e['type'] == 'disconnected' }
+
+    # Channel.post event (health status updates)
+    return true if params['event'].present? && params['event']['type'] == 'channel'
 
     false
   end

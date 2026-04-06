@@ -4,6 +4,13 @@ RSpec.describe Inboxes::BulkAutoAssignmentJob do
   let(:account) { create(:account, custom_attributes: { 'plan_name' => 'Startups' }) }
   let(:agent) { create(:user, account: account, role: :agent, auto_offline: false) }
   let(:inbox) { create(:inbox, account: account) }
+
+  before do
+    allow_any_instance_of(Inbox).to receive(:check_inbox_limit).and_return(true)
+    allow_any_instance_of(Conversation).to receive(:check_conversation_limit).and_return(true)
+    allow_any_instance_of(AccountUser).to receive(:check_agent_limit).and_return(true)
+  end
+
   let!(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: nil, status: :open) }
   let(:assignment_service) { double }
 

@@ -13,11 +13,8 @@ class AccountBuilder
     ActiveRecord::Base.transaction do
       @account = create_account
       @user = create_and_link_user
+      create_stripe_trial_subscription
     end
-
-    # Enqueue Stripe provisioning after the transaction is committed
-    # This ensures the account exists in the database when the job runs
-    # enqueue_stripe_provisioning if @account
 
     [@user, @account]
   rescue StandardError => e
@@ -51,7 +48,7 @@ class AccountBuilder
 
   def create_account
     @account = Account.new(name: account_name, locale: I18n.locale)
-    set_initial_trial_plan
+    set_initial_plan_attributes
     @account.save!
 
     Current.account = @account
@@ -91,34 +88,32 @@ class AccountBuilder
     @user.save!
   end
 
-  def set_initial_trial_plan
-    trial_plan_name = 'free_trial'
-    plan_details = self.class.plan_details(trial_plan_name)
-    return unless plan_details
+  def set_initial_plan_attributes
+    # Set initial attributes with 'starter' plan
+    # Actual subscription status will be updated by CreateCustomerService
+    plan_name = 'starter'
+    plan_details = self.class.plan_details(plan_name)
 
-    expires_in_days = plan_details['trial_expires_in_days'] || 7
-    ends_on = Time.current + expires_in_days.days
-    limit_agents = plan_details.dig('limits', 'agents') || 2 # So that in the on boarding we could invite 1 user besides the admin
-
-    # Extract plan limits for validation
-    plan_limits = {
-      'agents' => limit_agents,
-      'inboxes' => plan_details.dig('limits', 'inboxes'),
-      'conversations_monthly' => plan_details.dig('limits', 'conversations_monthly')
-    }
-
-    # Validate required plan limits before proceeding
-    self.class.validate_plan_limits_for_free_trial(plan_limits, trial_plan_name)
+    # Use starter plan limits as defaults for trial
+    plan_limits = if plan_details
+                    {
+                      'agents' => plan_details.dig('limits', 'agents') || 5,
+                      'inboxes' => plan_details.dig('limits', 'inboxes') || 2,
+                      'conversations_monthly' => plan_details.dig('limits', 'conversations_monthly') || 4000
+                    }
+                  else
+                    # Fallback defaults if plan config not found
+                    { 'agents' => 5, 'inboxes' => 2, 'conversations_monthly' => 4000 }
+                  end
 
     @account.custom_attributes ||= {}
     @account.custom_attributes.merge!({
-                                        'plan_name' => trial_plan_name,
-                                        'subscription_status' => 'active',
-                                        'subscription_ends_on' => ends_on.iso8601,
+                                        'plan_name' => plan_name,
+                                        'subscription_status' => Billing::SubscriptionStatuses::TRIALING,
                                         'billing_status' => 'provisioning_pending'
                                       })
 
-    # Set trial limits in the limits column directly
+    # Set plan limits
     @account.limits = plan_limits
   end
 
@@ -134,5 +129,30 @@ class AccountBuilder
   rescue StandardError => e
     Rails.logger.error "Failed to dispatch owner_token_updated event: #{e.message}"
     # Don't raise - account creation should succeed even if token sync fails
+  end
+
+  def create_stripe_trial_subscription
+    Rails.logger.info "Creating Stripe trial subscription for account #{@account.id}"
+
+    # Get trial period from starter plan config
+    plan_details = self.class.plan_details('starter')
+    trial_days = plan_details&.dig('trial_expires_in_days') || 7
+
+    # Create customer and subscription in Stripe
+    result = Billing::CreateCustomerService.new(@account, 'starter', trial_period_days: trial_days).perform
+
+    if result[:success]
+      Rails.logger.info "Stripe trial subscription created successfully for account #{@account.id}"
+    else
+      # If Stripe API fails, raise error to fail signup
+      # User can retry signup later
+      error_message = result[:error] || 'Failed to create billing subscription'
+      Rails.logger.error "Failed to create Stripe subscription for account #{@account.id}: #{error_message}"
+      raise StandardError, "Billing setup failed: #{error_message}"
+    end
+  rescue StandardError => e
+    Rails.logger.error "Error creating Stripe trial subscription: #{e.message}"
+    # Re-raise to fail signup - user needs to retry
+    raise e
   end
 end

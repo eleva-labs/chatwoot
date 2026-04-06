@@ -443,3 +443,18 @@ es:
       subject: 'Terminar configuración de %{custom_domain}'
     ssl_status:
       custom_domain_not_configured: 'El dominio personalizado no está configurado'
+  
+  billing:
+    training:
+      live_training:
+        name: 'Entrenamiento en Vivo'
+        bullets:
+          - '2 talleres de entrenamiento en vivo cada mes'
+          - 'Acceso anticipado exclusivo a seminarios web de nuevas funciones'
+      live_1_1_training:
+        name: 'Entrenamiento 1:1 en Vivo con un Experto'
+        bullets:
+          - '2 horas de tiempo 1:1 en vivo por mes con un Experto en Flujos de Trabajo'
+          - 'Revisiones Trimestrales de Negocios 1:1 para alinear objetivos y resultados'
+          - '2 talleres de entrenamiento en vivo cada mes para obtener ayuda con la configuración de IA, Agentes Autopilot y Chat'
+          - 'Acceso anticipado exclusivo a seminarios web de nuevas funciones'

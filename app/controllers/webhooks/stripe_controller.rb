@@ -57,7 +57,18 @@ class Webhooks::StripeController < ActionController::Base
     end
 
     # Verify the webhook signature and construct the event
-    Stripe::Webhook.construct_event(payload, sig_header, endpoint_secret)
+    # tolerance: 300 seconds (5 minutes) prevents replay attacks while allowing clock skew
+    event = Stripe::Webhook.construct_event(
+      payload,
+      sig_header,
+      endpoint_secret,
+      tolerance: 300
+    )
+
+    # Log event ID for tracking and debugging
+    Rails.logger.info "Processing Stripe event: #{event.id}"
+
+    event
   rescue Stripe::SignatureVerificationError => e
     Rails.logger.error "Stripe signature verification failed: #{e.message}"
     raise e

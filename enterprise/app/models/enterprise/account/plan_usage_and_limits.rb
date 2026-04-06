@@ -122,7 +122,8 @@ module Enterprise::Account::PlanUsageAndLimits
         'conversations' => { 'type': 'number' },
         'conversations_monthly' => { 'type': 'number' },
         'captain_responses' => { 'type': 'number' },
-        'captain_documents' => { 'type': 'number' }
+        'captain_documents' => { 'type': 'number' },
+        'token_credits' => { 'type': 'number' }
       },
       'required' => [],
       'additionalProperties' => false

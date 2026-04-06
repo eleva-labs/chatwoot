@@ -40,6 +40,13 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
       )
       @inbox.save!
     end
+  rescue ActiveRecord::RecordInvalid => e
+    # Check if it's a limit error
+    if e.record.errors[:base].any? { |error| error.include?('limit reached') }
+      render_limit_error(:inbox)
+    else
+      raise
+    end
   end
 
   def update
@@ -108,6 +115,29 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   private
+
+  def validate_limit
+    limit_service = Billing::UnifiedLimitService.new(Current.account, :inbox)
+    render_limit_error(:inbox) unless limit_service.can_create?
+  end
+
+  def render_limit_error(resource_type)
+    limit_service = Billing::UnifiedLimitService.new(Current.account, resource_type)
+    status_info = limit_service.status
+    upgrade_options = limit_service.upgrade_options
+
+    render json: {
+      error: "#{resource_type.to_s.capitalize} limit reached",
+      limit_info: {
+        current: status_info[:current],
+        base_limit: status_info[:base_limit],
+        purchased: status_info[:purchased],
+        total_allowed: status_info[:total_allowed],
+        remaining: status_info[:remaining]
+      },
+      upgrade_options: upgrade_options
+    }, status: :payment_required # HTTP 402
+  end
 
   def fetch_inbox
     @inbox = Current.account.inboxes.find(params[:id])

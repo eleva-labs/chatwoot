@@ -36,6 +36,7 @@ class AccountUser < ApplicationRecord
 
   accepts_nested_attributes_for :account
 
+  before_create :check_agent_limit
   after_create_commit :notify_creation, :create_notification_setting
   after_destroy :notify_deletion, :remove_user_from_account
   after_save :update_presence_in_redis, if: :saved_change_to_availability?
@@ -67,6 +68,15 @@ class AccountUser < ApplicationRecord
   end
 
   private
+
+  def check_agent_limit
+    limit_service = Billing::UnifiedLimitService.new(account, :agent)
+
+    return true if limit_service.can_create?
+
+    errors.add(:base, 'Agent limit reached. Please purchase additional agent seats or upgrade your plan.')
+    throw :abort
+  end
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(AGENT_ADDED, Time.zone.now, account: account, account_user: self)

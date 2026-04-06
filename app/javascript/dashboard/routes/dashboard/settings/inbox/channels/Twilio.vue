@@ -1,13 +1,17 @@
 <!-- Deprecated in favour of separate files for SMS and Whatsapp and also to implement new providers for each platform in the future-->
 <script>
+import { computed } from 'vue';
 import { mapGetters } from 'vuex';
 import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
 import { required } from '@vuelidate/validators';
+import { useStore } from 'dashboard/composables/store';
+import { useI18n } from 'vue-i18n';
 import router from '../../../../index';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import { isPhoneE164OrEmpty } from 'shared/helpers/Validators';
 import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
+import { useChannelPurchaseManager } from '../composables/useChannelPurchaseManager';
 
 export default {
   components: {
@@ -20,7 +24,32 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate() };
+    const store = useStore();
+    const { t } = useI18n();
+    const baseLabel = computed(() => t('INBOX_MGMT.ADD.TWILIO.SUBMIT_BUTTON'));
+
+    const {
+      primaryButtonLabel,
+      noteMessage,
+      showUsageLoadingMessage,
+      usageErrorMessage,
+      isPurchasingExtraChannel,
+      isChannelInfoLoading,
+      isTrialLimitReached,
+      handleChannelCreation,
+    } = useChannelPurchaseManager({ store, baseLabel, t });
+
+    return {
+      v$: useVuelidate(),
+      primaryButtonLabel,
+      noteMessage,
+      showUsageLoadingMessage,
+      usageErrorMessage,
+      isPurchasingExtraChannel,
+      isChannelInfoLoading,
+      isTrialLimitReached,
+      handleChannelCreation,
+    };
   },
   data() {
     return {
@@ -81,9 +110,8 @@ export default {
       }
 
       try {
-        const twilioChannel = await this.$store.dispatch(
-          'inboxes/createTwilioChannel',
-          {
+        const twilioChannel = await this.handleChannelCreation(() =>
+          this.$store.dispatch('inboxes/createTwilioChannel', {
             twilio_channel: {
               name: this.channelName?.trim(),
               medium: this.medium,
@@ -95,7 +123,7 @@ export default {
                 ? null
                 : `+${this.phoneNumber.replace(/\D/g, '')}`,
             },
-          }
+          })
         );
 
         router.replace({
@@ -244,12 +272,32 @@ export default {
     </div>
 
     <div class="w-full mt-4">
+      <div class="pt-4 border-t border-n-weak text-sm">
+        <p v-if="showUsageLoadingMessage" class="text-n-slate-11">
+          {{ $t('INBOX_MGMT.ADD.USAGE_LOADING') }}
+        </p>
+        <p v-else-if="usageErrorMessage" class="text-n-ruby-11">
+          {{ usageErrorMessage }}
+        </p>
+      </div>
+      <p
+        v-if="!showUsageLoadingMessage && !usageErrorMessage && noteMessage"
+        class="mt-3 text-xs text-n-amber-11 bg-n-amber-2 border border-n-amber-7 rounded-md px-3 py-2"
+      >
+        {{ noteMessage }}
+      </p>
       <NextButton
-        :is-loading="uiFlags.isCreating"
+        :is-loading="uiFlags.isCreating || isPurchasingExtraChannel"
+        :disabled="
+          uiFlags.isCreating ||
+          isPurchasingExtraChannel ||
+          isChannelInfoLoading ||
+          isTrialLimitReached
+        "
         type="submit"
         solid
         blue
-        :label="$t('INBOX_MGMT.ADD.TWILIO.SUBMIT_BUTTON')"
+        :label="primaryButtonLabel"
       />
     </div>
   </form>

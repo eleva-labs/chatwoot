@@ -10,7 +10,11 @@ import { getLanguageDirection } from 'dashboard/components/widgets/conversation/
 const findRecordById = ($state, id) =>
   $state.records.find(record => record.id === Number(id)) || {};
 
-const TRIAL_PERIOD_DAYS = 15;
+const DEFAULT_TRIAL_PERIOD_DAYS = 7;
+
+const trialPeriodDaysForAccount = account =>
+  account?.custom_attributes?.trial_expires_in_days ??
+  DEFAULT_TRIAL_PERIOD_DAYS;
 
 const state = {
   records: [],
@@ -44,8 +48,9 @@ export const getters = {
     const account = findRecordById($state, id);
     const createdAt = new Date(account.created_at);
     const diffDays = differenceInDays(new Date(), createdAt);
+    const trialDays = trialPeriodDaysForAccount(account);
 
-    return diffDays <= TRIAL_PERIOD_DAYS;
+    return diffDays <= trialDays;
   },
   isFeatureEnabledonAccount: $state => (id, featureName) => {
     const { features = {} } = findRecordById($state, id);
@@ -155,6 +160,7 @@ export const actions = {
             plan_name: response.data.data.plan_name,
             subscription_status: response.data.data.subscription_status,
             subscription_ends_on: response.data.data.subscription_ends_on,
+            cancel_at: response.data.data.cancel_at,
             stripe_customer_id: response.data.data.customer_id,
             plan_limits: response.data.data.plan_limits,
             cancel_at_period_end: response.data.data.cancel_at_period_end,
@@ -173,17 +179,26 @@ export const actions = {
 
   createSubscription: async (
     { commit, getters: storeGetters },
-    { planName = 'free_trial' } = {}
+    { planName = 'starter', billingInterval = 'monthly' } = {}
   ) => {
     commit(types.default.SET_ACCOUNT_UI_FLAG, { isCheckoutInProcess: true });
     try {
-      const response = await BillingAPI.createSubscription(planName);
+      const response = await BillingAPI.createSubscription(
+        planName,
+        billingInterval
+      );
 
       if (response.data.success) {
         // If the backend sends a checkout URL, redirect the user immediately
         if (response.data.data.checkout_url) {
           window.location = response.data.data.checkout_url;
           return; // Stop execution to allow for redirect
+        }
+
+        // If the backend sends a portal URL (for trialing conversion), redirect
+        if (response.data.data.portal_url) {
+          window.location = response.data.data.portal_url;
+          return;
         }
 
         // Otherwise, update the account data with the new subscription information while preserving existing data
@@ -218,6 +233,165 @@ export const actions = {
       }
     } catch (error) {
       // silent error
+    }
+  },
+
+  fetchAddOns: async () => {
+    try {
+      const response = await BillingAPI.getAddOns();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  fetchAddOnLimits: async () => {
+    try {
+      const response = await BillingAPI.getAddOnLimits();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  fetchSubscriptionBreakdown: async () => {
+    try {
+      const response = await BillingAPI.getSubscriptionBreakdown();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  purchaseAddOn: async (_, { add_on_type, action, quantity = null }) => {
+    try {
+      const response = await BillingAPI.updateAddOn(
+        add_on_type,
+        action,
+        quantity
+      );
+      if (response.data.success) {
+        return response;
+      }
+      throw new Error(response.data.error || 'Failed to purchase add-on');
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  previewAddOnRemoval: async (_, { add_on_type, action, quantity = null }) => {
+    try {
+      const response = await BillingAPI.previewAddOnRemoval(
+        add_on_type,
+        action,
+        quantity
+      );
+
+      if (response.data.success) {
+        return response;
+      }
+
+      throw new Error(response.data.error || 'Failed to preview removal');
+    } catch (error) {
+      // Do not show toast for preview failures; log for debugging instead
+      // eslint-disable-next-line no-console
+      console.error('Preview add-on removal failed:', error);
+      throw error;
+    }
+  },
+
+  previewAddOnPurchase: async (_, { add_on_type, action, quantity = null }) => {
+    try {
+      const response = await BillingAPI.previewAddOnPurchase(
+        add_on_type,
+        action,
+        quantity
+      );
+
+      if (response.data.success) {
+        return response;
+      }
+
+      throw new Error(response.data.error || 'Failed to preview purchase');
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Preview add-on purchase failed:', error);
+      throw error;
+    }
+  },
+
+  checkPaymentMethod: async () => {
+    try {
+      const response = await BillingAPI.checkPaymentMethod();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  fetchConversationPacks: async () => {
+    try {
+      const response = await BillingAPI.getConversationPacks();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  purchaseConversationPack: async (_context, { lookup_key }) => {
+    try {
+      const response = await BillingAPI.purchaseConversationPack(lookup_key);
+      if (response.data.success) {
+        return response;
+      }
+      throw new Error(
+        response.data.error || 'Failed to purchase conversation pack'
+      );
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  fetchAiTokenCredits: async () => {
+    try {
+      const response = await BillingAPI.getAiTokenPacks();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  checkAiTokenPaymentMethod: async () => {
+    try {
+      const response = await BillingAPI.checkAiTokenPaymentMethod();
+      return response;
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
+    }
+  },
+
+  purchaseAiTokenCredits: async (_context, { lookup_key }) => {
+    try {
+      const response = await BillingAPI.purchaseAiTokenCredits(lookup_key);
+      if (response.data.success) {
+        return response;
+      }
+
+      throw new Error(
+        response.data.error || 'Failed to purchase AI token credits'
+      );
+    } catch (error) {
+      throwErrorMessage(error);
+      throw error;
     }
   },
 
