@@ -98,6 +98,12 @@
     },
     "COLLAPSIBLE": {
       "COLLAPSE": "Colapsar"
+    },
+    "MODE": {
+      "ADMIN": "Cambiar a modo Admin",
+      "ONBOARDING": "Cambiar a modo Onboarding",
+      "ADMIN_LABEL": "Admin",
+      "ONBOARDING_LABEL": "Onboarding"
     }
   }
 }

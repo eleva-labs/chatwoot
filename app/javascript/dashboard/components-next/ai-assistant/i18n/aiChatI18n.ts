@@ -65,6 +65,10 @@ const defaultStrings: Record<string, string> = {
   'AI_CHAT.SESSIONS.TODAY': 'Today',
   'AI_CHAT.SESSIONS.YESTERDAY': 'Yesterday',
   'AI_CHAT.COLLAPSIBLE.COLLAPSE': 'Collapse',
+  'AI_CHAT.MODE.ADMIN': 'Switch to Admin mode',
+  'AI_CHAT.MODE.ONBOARDING': 'Switch to Onboarding mode',
+  'AI_CHAT.MODE.ADMIN_LABEL': 'Admin',
+  'AI_CHAT.MODE.ONBOARDING_LABEL': 'Onboarding',
 };
 
 const defaultI18n: I18nProvider = {

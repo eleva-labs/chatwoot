@@ -215,7 +215,7 @@ module AiBackendService
     # @param chat_session_id [String, nil] Optional session ID
     # @yield [chunk, session_id] Yields each SSE chunk and session_id (from headers)
     # @return [void]
-    def stream_message(account_id:, user_id:, agent_bot_id:, message:, chat_session_id: nil)
+    def stream_message(account_id:, user_id:, agent_bot_id:, message:, chat_session_id: nil, chat_mode: 'admin')
       raise ArgumentError, 'Block required for streaming' unless block_given?
 
       body = build_request_body(message, user_id, chat_session_id)
@@ -223,7 +223,7 @@ module AiBackendService
 
       log_request('stream_message', account_id, user_id, agent_bot_id, chat_session_id)
 
-      uri = build_stream_uri(query_params)
+      uri = build_stream_uri(query_params, chat_mode: chat_mode)
       session_id = nil
       chunk_count = 0
 
@@ -294,8 +294,11 @@ module AiBackendService
     end
 
     # Build URI for streaming endpoint
-    def build_stream_uri(query_params)
-      uri = URI("#{ai_backend_api_url}/api/messaging/agent-systems/message/stream")
+    # Routes to onboarding endpoint when chat_mode is 'onboarding'
+    def build_stream_uri(query_params, chat_mode: 'admin')
+      base = '/api/messaging/agent-systems'
+      path = chat_mode == 'onboarding' ? "#{base}/onboarding/message/stream" : "#{base}/message/stream"
+      uri = URI("#{ai_backend_api_url}#{path}")
       uri.query = URI.encode_www_form(query_params)
       uri
     end

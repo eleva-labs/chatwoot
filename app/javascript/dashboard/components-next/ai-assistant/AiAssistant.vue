@@ -46,6 +46,8 @@ const panels = {
 
 const {
   chat,
+  chatMode,
+  toggleChatMode,
   selectedBotId,
   availableBots,
   botsLoading,
@@ -97,6 +99,7 @@ const layoutProps = computed(() => {
     v-if="layout === 'inline'"
     v-model:selected-bot-id="selectedBotId"
     :chat="chat"
+    :chat-mode="chatMode"
     :title="chatTitle"
     :disabled="isDisabled"
     :bots="availableBots"
@@ -112,6 +115,7 @@ const layoutProps = computed(() => {
     @new-session="startNewSession"
     @delete-session="deleteSession"
     @fetch-sessions="fetchSessions"
+    @toggle-chat-mode="toggleChatMode"
   />
 
   <!-- Panel layouts (floating, sidebar) -->
@@ -130,6 +134,7 @@ const layoutProps = computed(() => {
       <AiChatPanel
         v-model:selected-bot-id="selectedBotId"
         :chat="chat"
+        :chat-mode="chatMode"
         :title="chatTitle"
         :disabled="isDisabled"
         :bots="availableBots"
@@ -145,6 +150,7 @@ const layoutProps = computed(() => {
         @new-session="startNewSession"
         @delete-session="deleteSession"
         @fetch-sessions="fetchSessions"
+        @toggle-chat-mode="toggleChatMode"
         @close="close"
       />
     </template>
