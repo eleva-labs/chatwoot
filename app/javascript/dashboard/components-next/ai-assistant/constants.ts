@@ -77,6 +77,16 @@ export const MESSAGE_ROLE = MESSAGE_ROLES;
 
 export type MessageRole = (typeof MESSAGE_ROLES)[keyof typeof MESSAGE_ROLES];
 
+/**
+ * Chat modes - determines which AI Backend workflow to use
+ */
+export const CHAT_MODE = {
+  ADMIN: 'admin',
+  ONBOARDING: 'onboarding',
+} as const;
+
+export type ChatMode = (typeof CHAT_MODE)[keyof typeof CHAT_MODE];
+
 export const VOICE_INPUT_STATUS = {
   IDLE: 'idle',
   RECORDING: 'recording',

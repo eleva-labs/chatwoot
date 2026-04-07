@@ -22,6 +22,7 @@ import { isTextPart, type MessagePart, type TextPart } from './types';
 import { parseSessionsResponse, parseMessagesResponse } from './schemas';
 import { LocalStorage } from 'shared/helpers/localStorage';
 import type { UIMessage } from 'ai';
+import type { ChatMode } from './constants';
 
 // ============================================================================
 // Helper Functions
@@ -64,6 +65,7 @@ export function createChatwootTransportConfig(
   getMetadata: () => {
     agentBotId: number | null;
     sessionId: string | null;
+    chatMode?: ChatMode;
   },
 ): TransportConfig {
   return {
@@ -78,6 +80,7 @@ export function createChatwootTransportConfig(
           },
         ],
         agent_bot_id: metadata.agentBotId ?? getMetadata().agentBotId,
+        chat_mode: metadata.chatMode ?? getMetadata().chatMode ?? 'admin',
         ...(metadata.sessionId ?? getMetadata().sessionId
           ? {
               chat_session_id:

@@ -37,6 +37,7 @@ import AiChatError from '../feedback/AiChatError.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
+  chatMode: { type: String, default: 'admin' },
   showHeader: { type: Boolean, default: true },
   title: { type: String, default: null },
   disabled: { type: Boolean, default: false },
@@ -57,6 +58,7 @@ const emit = defineEmits([
   'newSession',
   'deleteSession',
   'fetchSessions',
+  'toggleChatMode',
 ]);
 
 const renderMarkdown = text => new MessageFormatter(text).formattedMessage;
@@ -238,6 +240,7 @@ const handleFreshStart = () => {
       v-if="showHeader"
       :title="title"
       :status="chatStatus"
+      :chat-mode="chatMode"
       :is-loading="isLoading"
       :bots="bots"
       :bots-loading="botsLoading"
@@ -245,6 +248,7 @@ const handleFreshStart = () => {
       :show-session-history="showSessionHistory"
       @update:selected-bot-id="handleBotSelect"
       @toggle-session-history="toggleSessionHistory"
+      @toggle-chat-mode="emit('toggleChatMode')"
       @new-session="handleNewSession"
       @close="emit('close')"
     />

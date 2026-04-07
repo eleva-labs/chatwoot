@@ -8,7 +8,7 @@
  * All Chatwoot-specific transport/session logic is injected via
  * chatwootChatConfig factories — composables are framework-agnostic.
  */
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import { useAiChat } from './useAiChat';
@@ -20,6 +20,8 @@ import {
   createChatwootPersistenceAdapter,
   chatwootBehaviorConfig,
 } from '../chatwootChatConfig';
+import { CHAT_MODE } from '../constants';
+import type { ChatMode } from '../constants';
 
 export function useAiAssistant() {
   const route = useRoute();
@@ -55,6 +57,16 @@ export function useAiAssistant() {
       : null;
   });
 
+  // Chat mode: admin (regular) or onboarding
+  const chatMode = ref<ChatMode>(CHAT_MODE.ADMIN);
+
+  const toggleChatMode = () => {
+    chatMode.value =
+      chatMode.value === CHAT_MODE.ADMIN
+        ? CHAT_MODE.ONBOARDING
+        : CHAT_MODE.ADMIN;
+  };
+
   // Bot selection — delegated to useAIChatBot
   const {
     selectedBotId,
@@ -84,6 +96,7 @@ export function useAiAssistant() {
     () => ({
       agentBotId: selectedBotId.value,
       sessionId: sessionManager.activeSessionId.value,
+      chatMode: chatMode.value,
     }),
   );
 
@@ -144,6 +157,10 @@ export function useAiAssistant() {
   return {
     // Chat instance
     chat,
+
+    // Chat mode
+    chatMode,
+    toggleChatMode,
 
     // Bot state
     selectedBotId,

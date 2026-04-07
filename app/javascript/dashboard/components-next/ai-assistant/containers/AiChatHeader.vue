@@ -12,11 +12,12 @@ import { computed } from 'vue';
 import { useAiI18n } from '../i18n/aiChatI18n';
 import { useToggle } from '@vueuse/core';
 import { OnClickOutside } from '@vueuse/components';
-import { CHAT_STATUS } from '../constants';
+import { CHAT_STATUS, CHAT_MODE } from '../constants';
 
 const props = defineProps({
   title: { type: String, default: null },
   status: { type: String, required: true },
+  chatMode: { type: String, default: 'admin' },
   isLoading: { type: Boolean, default: false },
   bots: { type: Array, default: () => [] },
   botsLoading: { type: Boolean, default: false },
@@ -27,11 +28,32 @@ const props = defineProps({
 const emit = defineEmits([
   'update:selectedBotId',
   'toggleSessionHistory',
+  'toggleChatMode',
   'newSession',
   'close',
 ]);
 
 const { t } = useAiI18n();
+
+const isOnboardingMode = computed(
+  () => props.chatMode === CHAT_MODE.ONBOARDING
+);
+
+const chatModeLabel = computed(() =>
+  isOnboardingMode.value
+    ? t('AI_CHAT.MODE.ONBOARDING')
+    : t('AI_CHAT.MODE.ADMIN')
+);
+
+const chatModeIcon = computed(() =>
+  isOnboardingMode.value ? 'i-lucide-graduation-cap' : 'i-lucide-message-square'
+);
+
+const chatModeButtonText = computed(() =>
+  isOnboardingMode.value
+    ? t('AI_CHAT.MODE.ONBOARDING_LABEL')
+    : t('AI_CHAT.MODE.ADMIN_LABEL')
+);
 
 const showBotSelector = computed(() => props.bots.length > 0);
 
@@ -160,6 +182,22 @@ const headerTitle = computed(() => props.title || t('AI_CHAT.HEADER.TITLE'));
         </h2>
       </div>
       <div class="flex items-center gap-1 flex-shrink-0">
+        <!-- Chat Mode toggle -->
+        <button
+          v-tooltip="chatModeLabel"
+          :aria-label="chatModeLabel"
+          :disabled="isLoading"
+          class="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          :class="
+            isOnboardingMode
+              ? 'bg-n-teal-3 text-n-teal-11 hover:bg-n-teal-4'
+              : 'bg-n-amber-3 text-n-amber-11 hover:bg-n-amber-4'
+          "
+          @click="emit('toggleChatMode')"
+        >
+          <span :class="chatModeIcon" class="size-4" />
+          <span>{{ chatModeButtonText }}</span>
+        </button>
         <!-- New Chat button -->
         <button
           v-tooltip="t('AI_CHAT.SESSIONS.NEW_CHAT')"

@@ -83,12 +83,7 @@ export default {
       return showSecondarySidebar;
     },
     canUseAI() {
-      // AI assistant disabled — not yet ready for production
-      return false;
-      // Uncomment this if you want to restrict AI assistant to only certain users
-      // return window.chatwootConfig?.features?.includes('ai_assistant') &&
-      //        window.chatwootConfig?.aiAssistantEnabled &&
-      //        process.env.NODE_ENV !== 'test'; // Don't show in tests
+      return true;
     },
   },
   watch: {

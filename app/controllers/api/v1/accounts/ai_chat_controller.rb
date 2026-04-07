@@ -15,7 +15,8 @@ class Api::V1::Accounts::AiChatController < Api::V1::Accounts::BaseController
       user_id: Current.user.id,
       agent_bot_id: @agent_bot.id,
       message: @message_content,
-      chat_session_id: params[:chat_session_id]
+      chat_session_id: params[:chat_session_id],
+      chat_mode: params[:chat_mode] || 'admin'
     ) do |chunk, session_id|
       # Set session ID header (before first write commits headers)
       if session_id.present? && !session_id_set
